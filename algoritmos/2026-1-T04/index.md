@@ -61,4 +61,22 @@ title: "COMP0497 — Algoritmos e Estruturas de Dados 1 — Turma 4 · 2026/1"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos/2026-1-T04/aula-06-tabelas-hash' | relative_url }}">
+    <div class="week-num">06</div>
+    <div class="week-body">
+      <div class="week-title">Tabelas Hash</div>
+      <div class="week-desc">Funções hash, tratamento de colisões e fator de carga.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
+  <a class="week-card" href="{{ 'algoritmos/2026-1-T04/aula-07-hashing-rehashing' | relative_url }}">
+    <div class="week-num">07</div>
+    <div class="week-body">
+      <div class="week-title">Hashing — Rehashing e Complexidade Amortizada</div>
+      <div class="week-desc">Rehashing dinâmico e aplicações: conjuntos, dicionários, contagem de frequências.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
 </div>

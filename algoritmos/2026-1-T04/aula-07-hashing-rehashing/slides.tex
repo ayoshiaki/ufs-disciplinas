@@ -1,0 +1,373 @@
+% -*- coding: utf-8 -*-
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[brazilian]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning, shapes.multipart, arrows.meta, shadows, fit, chains, decorations.pathreplacing, shapes.geometric, calc}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showstringspaces=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    basicstyle=\ttfamily\scriptsize,
+}
+\lstset{style=mystyle,language=C}
+
+\title{Hashing: rehashing e complexidade amortizada}
+\subtitle{Aplicações: conjuntos, dicionários, contagem de frequências}
+\author[André Y. Kashiwabara]{Prof. Dr. André Yoshiaki Kashiwabara}
+\institute{UFS -- COMP0497 Estruturas de Dados}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+    \titlepage
+\end{frame}
+
+\begin{frame}{Roteiro da aula (150 min)}
+\tableofcontents
+\end{frame}
+
+\section{Recapitulação}
+
+\begin{frame}{O que já vimos sobre tabelas hash}
+\begin{itemize}
+    \item Função hash $h: U \to \{0,\dots,m-1\}$.
+    \item Tratamento de colisões: \textbf{encadeamento} e \textbf{endereçamento aberto}
+    (sondagem linear, quadrática, hash duplo).
+    \item Fator de carga $\alpha = n/m$.
+    \item Custo \emph{esperado} de busca:
+    \begin{itemize}
+        \item Encadeamento: $\Theta(1 + \alpha)$.
+        \item Endereçamento aberto: $\Theta(1/(1-\alpha))$ (uniform hashing).
+    \end{itemize}
+    \item Quando $\alpha$ cresce, o desempenho \textbf{degrada}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Pergunta motivadora}
+\begin{block}{Cenário}
+Inserimos um milhão de chaves em uma tabela de tamanho 1024. Qual o problema?
+\end{block}
+\bigskip
+\begin{itemize}
+    \item $\alpha \approx 977$. Buscas lineares em listas enormes.
+    \item Encadeamento: cada bucket vira uma lista de $\sim 1000$ elementos.
+    \item Endereçamento aberto: tabela cheia $\Rightarrow$ inserção \emph{impossível}.
+\end{itemize}
+\bigskip
+\textbf{Solução:} crescer a tabela dinamicamente. Mas como, sem perder a localização
+das chaves já inseridas?
+\end{frame}
+
+\section{Rehashing}
+
+\begin{frame}{O que é \emph{rehashing}}
+\begin{itemize}
+    \item Quando $\alpha$ ultrapassa um \textbf{limiar} $\alpha_{\max}$, criamos
+    uma nova tabela $T'$ com tamanho $m' > m$.
+    \item Para cada chave $k$ em $T$:
+    \begin{itemize}
+        \item Recalcular $h'(k) \bmod m'$.
+        \item Inserir em $T'$.
+    \end{itemize}
+    \item Liberar a tabela antiga.
+\end{itemize}
+\bigskip
+\textbf{Pontos críticos:}
+\begin{itemize}
+    \item Não basta copiar: as posições mudam porque $m$ mudou.
+    \item Custo de uma operação que dispara rehash: $\Theta(n)$.
+    \item Operações ``normais'': $\Theta(1)$.
+    \item Como conciliar?
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Estratégias de crescimento}
+\begin{itemize}
+    \item \textbf{Crescimento aditivo} ($m' = m + c$): péssimo. Discutiremos por quê.
+    \item \textbf{Crescimento multiplicativo} ($m' = 2m$, ou fator $1{,}5\times$): padrão
+    de mercado.
+    \item \textbf{Tamanho primo:} útil para reduzir colisões patológicas; escolhe-se
+    o próximo primo após $2m$.
+    \item \textbf{Encolhimento:} ao remover muitas chaves, podemos reduzir $m$ se
+    $\alpha$ cair abaixo de outro limiar (com cuidado: ver \emph{thrashing}).
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Limiar e \emph{thrashing}}
+\begin{itemize}
+    \item Limiar de crescimento típico: $\alpha_{\text{up}} = 0{,}75$ (Java HashMap),
+    $0{,}66$ (Python dict), $0{,}5$ (endereçamento aberto agressivo).
+    \item Se reduzirmos quando $\alpha < \alpha_{\text{up}}/2$, evitamos \emph{thrashing}:
+    sequência alternada de \emph{insert/remove} disparando rehash a cada operação.
+    \item Use sempre uma \textbf{histerese} entre os limiares.
+\end{itemize}
+\end{frame}
+
+\section{Análise amortizada}
+
+\begin{frame}{Por que ``amortizada''?}
+\begin{itemize}
+    \item Operações isoladas variam:
+    \begin{itemize}
+        \item Maioria: $\Theta(1)$.
+        \item Algumas: $\Theta(n)$ (rehash).
+    \end{itemize}
+    \item No \emph{pior caso} por operação, $\Theta(n)$.
+    \item No \emph{caso médio sobre uma sequência} de operações, queremos algo melhor.
+    \item \textbf{Análise amortizada:} custo \emph{médio por operação} sobre uma
+    sequência de $n$ operações no pior caso.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Três técnicas (Cormen et al., cap. 17)}
+\begin{enumerate}
+    \item \textbf{Análise agregada:} somar custos totais, dividir por $n$.
+    \item \textbf{Método contábil (\emph{accounting}):} cobrar mais por algumas
+    operações para ``pagar adiantado'' o custo de outras.
+    \item \textbf{Método potencial:} associar a cada estado uma função $\Phi$,
+    e escrever o custo amortizado como $\hat c_i = c_i + \Phi_i - \Phi_{i-1}$.
+\end{enumerate}
+\bigskip
+Vamos aplicar a primeira ao crescimento de tabelas.
+\end{frame}
+
+\begin{frame}{Crescimento dobrando: análise agregada}
+\begin{itemize}
+    \item Começamos com $m_0 = 1$. Inserimos $n$ chaves seguidas.
+    \item A tabela dobra quando $\alpha$ atinge 1: tamanhos $1, 2, 4, 8, \dots$.
+    \item Quantos rehashes? $\lceil \log_2 n \rceil$.
+    \item Custo de cada rehash: copiar todas as chaves atuais.
+    \item Soma:
+    \[
+    \sum_{i=0}^{\lfloor \log_2 n \rfloor} 2^i = 2^{\lfloor \log_2 n \rfloor + 1} - 1 < 2n.
+    \]
+    \item Custo total das inserções: $n + 2n = 3n$.
+    \item \textbf{Custo amortizado:} $3n/n = O(1)$ por inserção.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Por que crescer aditivamente é desastroso}
+\begin{itemize}
+    \item Suponha $m' = m + c$, $c$ constante.
+    \item Inserir $n$ chaves $\Rightarrow$ $n/c$ rehashes.
+    \item Custos cumulativos: $c, 2c, 3c, \dots, n$.
+    \item Soma: $\Theta(n^2/c) = \Theta(n^2)$.
+    \item \textbf{Custo amortizado:} $\Theta(n)$ por inserção.
+\end{itemize}
+\bigskip
+\textbf{Moral:} dobrar (ou multiplicar por constante $> 1$) é o que torna
+\textbf{rehashing} viável.
+\end{frame}
+
+\begin{frame}{Método potencial aplicado a tabelas dinâmicas}
+\begin{itemize}
+    \item Seja $T_i$ o estado da tabela após operação $i$, com $n_i$ elementos e
+    tamanho $m_i$.
+    \item Função potencial: $\Phi(T) = 2 n - m$ (quando $n \geq m/2$).
+    \item Custo amortizado de inserção:
+    \begin{itemize}
+        \item Sem rehash: $\hat c = 1 + \Delta \Phi = 1 + 2 = 3$.
+        \item Com rehash ($n_{i-1} = m_{i-1}$, $m_i = 2 m_{i-1}$):
+        \[
+        \hat c = (n_{i-1} + 1) + \Delta \Phi = (n+1) + (2 - n) = 3.
+        \]
+    \end{itemize}
+    \item \textbf{Conclusão:} cada inserção custa, amortizadamente, $O(1)$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Visualizando o custo}
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+\draw[->] (0,0) -- (12,0) node[right] {$n$};
+\draw[->] (0,0) -- (0,4) node[above] {custo};
+\foreach \i/\h in {1/0.3,2/0.3,3/0.6,4/0.3,5/0.9,6/0.3,7/0.3,8/0.3,9/1.5,10/0.3,11/0.3} {
+    \draw[fill=blue!30] (\i-0.4,0) rectangle (\i+0.4,\h);
+}
+\draw[red, thick, dashed] (0.5, 0.5) -- (11.5, 0.5) node[right] {amortizado};
+\end{tikzpicture}
+\end{center}
+\begin{itemize}
+    \item Picos em $n = 2, 4, 8, \dots$ — momentos de rehash.
+    \item Linha tracejada: custo amortizado constante.
+    \item ``Pague três por inserção'': dois ficam de \emph{crédito} para futuro rehash.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Inserção + remoção: ainda $O(1)$ amortizado?}
+\begin{itemize}
+    \item Se reduzirmos quando $\alpha < 1/2$: pode ocorrer \emph{thrashing}.
+    \item Solução: reduzir só quando $\alpha < 1/4$ (e crescer quando $\alpha = 1$).
+    \item Função potencial híbrida:
+    \[
+    \Phi = \begin{cases}
+        2n - m & \text{se } \alpha \geq 1/2 \\
+        m/2 - n & \text{se } \alpha < 1/2
+    \end{cases}
+    \]
+    \item Análise (Cormen 17.4) mostra: \textbf{inserção e remoção custam $O(1)$
+    amortizado.}
+\end{itemize}
+\end{frame}
+
+\section{Pior caso vs.\ amortizado}
+
+\begin{frame}{Quando o amortizado não basta}
+\begin{itemize}
+    \item Sistemas \textbf{tempo real}: latência de uma única operação importa.
+    \item Servidores web sob latência cauda (\emph{tail latency}): um rehash de
+    $10^7$ chaves pausa o serviço por dezenas de ms.
+    \item \textbf{Rehashing incremental:} amortizar o trabalho ao longo de várias
+    operações.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Rehashing incremental}
+\begin{itemize}
+    \item Manter \emph{duas} tabelas em paralelo: $T_{\text{antiga}}$ e $T_{\text{nova}}$.
+    \item Cada operação:
+    \begin{itemize}
+        \item Move $k$ chaves de $T_{\text{antiga}}$ para $T_{\text{nova}}$.
+        \item Realiza a operação, consultando ambas se necessário.
+    \end{itemize}
+    \item Inserções vão direto em $T_{\text{nova}}$.
+    \item Quando $T_{\text{antiga}}$ fica vazia, é descartada.
+    \item \textbf{Custo por operação:} $O(k)$ no pior caso.
+    \item Usado em Redis, alguns kernels e bancos de dados em memória.
+\end{itemize}
+\end{frame}
+
+\section{Aplicações}
+
+\begin{frame}{Conjuntos (\emph{sets})}
+\begin{itemize}
+    \item Operação esperada $O(1)$: \texttt{add}, \texttt{contains}, \texttt{remove}.
+    \item Implementação: tabela hash com chaves apenas (sem valor associado).
+    \item Operações de conjunto: união, interseção, diferença.
+    \item Aplicações: deduplicação, controle de visitados em grafos, filtros de
+    spam (\emph{bloom filters}: hashing probabilístico).
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Dicionários (\emph{maps})}
+\begin{itemize}
+    \item Estrutura mais usada em programação moderna.
+    \item Java: \texttt{HashMap} (encadeamento $\to$ árvore quando bucket cresce muito,
+    desde Java 8).
+    \item Python: \texttt{dict} (endereçamento aberto, sondagem perturbada,
+    preserva ordem de inserção desde 3.7).
+    \item C++: \texttt{std::unordered\_map} (encadeamento).
+    \item Aplicações: índices, caches, \emph{memoization}, contagem.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Contagem de frequências}
+\begin{lstlisting}[language=Python]
+from collections import defaultdict
+
+def contar(palavras):
+    freq = defaultdict(int)
+    for p in palavras:
+        freq[p] += 1
+    return freq
+\end{lstlisting}
+\begin{itemize}
+    \item Tempo total: $\Theta(N)$ esperado, onde $N$ = número de palavras.
+    \item Tempo com BST: $\Theta(N \log U)$, onde $U$ = vocabulário.
+    \item Hash vence quando ordenação não é necessária.
+    \item Aplicação clássica: \emph{word count} em logs, MapReduce, NLP.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Outras aplicações}
+\begin{itemize}
+    \item \textbf{Caches} (LRU): hash + lista duplamente ligada $\Rightarrow$ $O(1)$
+    para \texttt{get} e \texttt{put}.
+    \item \textbf{Memoization:} cachear resultados de função pura.
+    \item \textbf{\emph{Symbol tables}} em compiladores.
+    \item \textbf{Detecção de duplicatas} em streams.
+    \item \textbf{Hashing criptográfico:} SHA-256, integridade de arquivos
+    (uso diferente: resistência a colisão deliberada).
+    \item \textbf{Hashing consistente:} balanceamento em sistemas distribuídos
+    (caches, sharding).
+\end{itemize}
+\end{frame}
+
+\section{Considerações práticas}
+
+\begin{frame}{Escolha da função hash}
+\begin{itemize}
+    \item Boa função: distribuição quase-uniforme sobre $\{0,\dots,m-1\}$.
+    \item Strings: \emph{polynomial rolling}, FNV, MurmurHash, SipHash.
+    \item Inteiros: multiplicativo de Knuth ($h(k) = \lfloor m\,(k\phi \bmod 1) \rfloor$).
+    \item Em ambientes adversariais (entrada controlada por atacante), use hash
+    com \textbf{semente aleatória} (ex.\ SipHash em Python, Rust).
+    \item \textbf{Evite:} divisão por $m$ não-primo com chaves correlacionadas.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Ataques de colisão}
+\begin{itemize}
+    \item 2003: ataque a Perl, PHP, Java; sequências escolhidas geram colisões em
+    cascata.
+    \item Sintoma: requisição HTTP com 1000 parâmetros causa \emph{denial of service}.
+    \item Mitigação: \textbf{hash com chave secreta} (SipHash, randomização de seed
+    por execução).
+    \item Java 8 mitiga via \emph{treeify}: bucket vira árvore vermelho-preta quando
+    excede 8 elementos.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Resumo}
+\begin{itemize}
+    \item \textbf{Rehashing} permite tabelas hash dinâmicas sem perder $O(1)$
+    esperado por operação.
+    \item \textbf{Crescimento multiplicativo} é essencial: aditivo dá $\Theta(n)$
+    amortizado.
+    \item \textbf{Análise amortizada} formaliza o custo médio sobre sequências:
+    agregada, contábil, potencial.
+    \item Para sistemas \emph{soft real-time}, prefira \textbf{rehashing incremental}.
+    \item Aplicações dominam programação moderna: conjuntos, dicionários, contagem,
+    caches.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Para a próxima aula}
+\begin{itemize}
+    \item Implementar uma tabela hash com rehashing automático em C.
+    \item Medir tempo por operação em uma sequência de $10^6$ inserções.
+    \item Comparar com \texttt{std::unordered\_map}.
+    \item Refletir: como você projetaria um \emph{dict} para um sistema de
+    trading com latência cauda $< 1$ ms?
+\end{itemize}
+\centering\Large Obrigado!
+\end{frame}
+
+\end{document}
