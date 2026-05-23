@@ -1,13 +1,24 @@
-title: "Minhas Aulas"
-description: "Material didático"
-baseurl: "/aulas"           # troque pelo nome do seu repositório
-url: "https://SEU-USUARIO.github.io"
+title:           "Material Didático"
+author:          "Prof. Dr. André Yoshiaki Kashiwabara"
+department:      "DCOMP · Universidade Federal de Sergipe"
+university:      "Universidade Federal de Sergipe · DCOMP"
+description:     "Slides, notebooks e código-fonte das disciplinas do DCOMP/UFS"
+github_username: ayoshiaki
+github_repo:     ufs-disciplinas
 
-theme: minima
+baseurl: "/ufs-disciplinas"
+url:     "https://ayoshiaki.github.io"
+
+markdown:    kramdown
+highlighter: rouge
 
 exclude:
-  - theme/              # pasta do submodule UFS_Beamer
+  - theme/
   - Makefile
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - TEMPLATE-aula/
   - "**/*.aux"
   - "**/*.log"
   - "**/*.out"
@@ -17,6 +28,3 @@ exclude:
   - "**/*.synctex.gz"
   - "**/*.fls"
   - "**/*.fdb_latexmk"
-  - Gemfile
-  - Gemfile.lock
-  - README.md

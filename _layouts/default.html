@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
+  <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="{{ '/' | relative_url }}" class="header-brand">
+        <div class="header-avatar">UFS</div>
+        <div>
+          <div class="header-name">{{ site.author }}</div>
+          <div class="header-dept">{{ site.department }}</div>
+        </div>
+      </a>
+      <nav class="header-nav">
+        <a href="{{ '/' | relative_url }}" {% if page.url == '/' %}class="active"{% endif %}>Disciplinas</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="yellow-bar"></div>
+
+  <main class="site-main">
+    <div class="content-wrapper">
+      {{ content }}
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span>{{ site.university }}</span>
+      <span>Publicado com Jekyll · <a href="https://github.com/{{ site.github_username }}/{{ site.github_repo }}">GitHub</a></span>
+    </div>
+  </footer>
+
+</body>
+</html>

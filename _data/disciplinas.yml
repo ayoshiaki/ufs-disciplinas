@@ -1,0 +1,15 @@
+- nome: Algoritmos
+  slug: algoritmos
+  icone: "⚙️"
+  turmas:
+    - id: 2025-1-A
+      semestre: "2025/1"
+      label: "Turma A"
+
+- nome: Estrutura de Dados
+  slug: estrutura-de-dados
+  icone: "🌲"
+  turmas:
+    - id: 2025-1-A
+      semestre: "2025/1"
+      label: "Turma A"
