@@ -14,7 +14,7 @@ title: "COMP0496 — Programação A — Turma 5 · 2026/1"
 <h1 class="page-title">COMP0496 — Programação A</h1>
 <p class="page-subtitle">Turma 5 · 2026/1 · Material organizado por semana</p>
 
-<div class="weeks-grid">
+<div class="weeks-timeline">
 
   <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-01' | relative_url }}">
     <div class="week-num">01</div>

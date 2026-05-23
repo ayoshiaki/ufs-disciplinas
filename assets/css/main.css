@@ -212,20 +212,32 @@ a:hover { text-decoration: underline; }
 
 .card-link:hover { text-decoration: underline; }
 
-/* ── Weeks grid (turma page) ──────────────────────────────── */
+/* ── Weeks timeline (turma page) ──────────────────────────── */
 
-.weeks-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  margin-bottom: 2rem;
+.weeks-timeline {
+  position: relative;
+  margin: 0 0 2rem;
+  padding-left: 28px;
+}
+
+.weeks-timeline::before {
+  content: "";
+  position: absolute;
+  left: 21px;
+  top: 22px;
+  bottom: 22px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--ufs-blue-lt), var(--border) 80%);
 }
 
 .week-card {
+  position: relative;
   background: var(--bg-white);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1rem 1.25rem;
+  padding: 0.9rem 1.1rem 0.9rem 1.25rem;
+  margin-bottom: 14px;
+  margin-left: 28px;
   display: flex;
   gap: 14px;
   align-items: flex-start;
@@ -234,25 +246,40 @@ a:hover { text-decoration: underline; }
   transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
 }
 
+.week-card::before {
+  content: "";
+  position: absolute;
+  left: -34px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--bg-white);
+  border: 3px solid var(--ufs-blue);
+  box-shadow: 0 0 0 3px var(--bg-page);
+  transition: background 0.15s, border-color 0.15s;
+}
+
 .week-card:hover {
   border-color: #b3cef0;
   box-shadow: 0 4px 16px rgba(3,78,162,0.10);
   text-decoration: none;
-  transform: translateY(-1px);
+}
+
+.week-card:hover::before {
+  background: var(--ufs-yellow);
+  border-color: var(--ufs-yellow);
 }
 
 .week-num {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: var(--ufs-blue-lt);
-  color: var(--ufs-blue);
-  font-size: 18px;
+  min-width: 36px;
+  font-size: 22px;
   font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--ufs-blue);
+  line-height: 1;
+  padding-top: 2px;
   letter-spacing: 0.5px;
 }
 
