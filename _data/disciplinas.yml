@@ -1,10 +1,10 @@
-- nome: COMP0497 — Algoritmos e Estrutura de Dados I
+- nome: COMP0497 — Algoritmos e Estruturas de Dados 1
   slug: algoritmos
   icone: "⚙️"
   turmas:
-    - id: 2026-1-A
+    - id: 2026-1-T04
       semestre: "2026/1"
-      label: "Turma A"
+      label: "Turma 4"
 
 - nome: COMP0496 — Programação A
   slug: programacao-a

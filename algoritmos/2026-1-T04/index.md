@@ -1,22 +1,22 @@
 ---
 layout: default
-title: "COMP0497 — Algoritmos e Estrutura de Dados I — Turma A · 2026/1"
+title: "COMP0497 — Algoritmos e Estruturas de Dados 1 — Turma 4 · 2026/1"
 ---
 
 <nav class="breadcrumb">
   <a href="{{ '/' | relative_url }}">Disciplinas</a>
   <span class="breadcrumb-sep">›</span>
-  <a href="{{ 'algoritmos' | relative_url }}">COMP0497 — Algoritmos e Estrutura de Dados I</a>
+  <a href="{{ 'algoritmos' | relative_url }}">COMP0497 — Algoritmos e Estruturas de Dados 1</a>
   <span class="breadcrumb-sep">›</span>
-  <span>Turma A · 2026/1</span>
+  <span>Turma 4 · 2026/1</span>
 </nav>
 
-<h1 class="page-title">COMP0497 — Algoritmos e Estrutura de Dados I</h1>
-<p class="page-subtitle">Turma A · 2026/1 · Material organizado por aula</p>
+<h1 class="page-title">COMP0497 — Algoritmos e Estruturas de Dados 1</h1>
+<p class="page-subtitle">Turma 4 · 2026/1 · Material organizado por aula</p>
 
 <div class="weeks-timeline">
 
-  <a class="week-card" href="{{ 'algoritmos/2026-1-A/aula-01-introducao' | relative_url }}">
+  <a class="week-card" href="{{ 'algoritmos/2026-1-T04/aula-01-introducao' | relative_url }}">
     <div class="week-num">01</div>
     <div class="week-body">
       <div class="week-title">Introdução à disciplina</div>
@@ -25,7 +25,7 @@ title: "COMP0497 — Algoritmos e Estrutura de Dados I — Turma A · 2026/1"
     </div>
   </a>
 
-  <a class="week-card" href="{{ 'algoritmos/2026-1-A/aula-02-complexidade' | relative_url }}">
+  <a class="week-card" href="{{ 'algoritmos/2026-1-T04/aula-02-complexidade' | relative_url }}">
     <div class="week-num">02</div>
     <div class="week-body">
       <div class="week-title">Complexidade — iterativo, recursivo e teorema mestre</div>
@@ -34,7 +34,7 @@ title: "COMP0497 — Algoritmos e Estrutura de Dados I — Turma A · 2026/1"
     </div>
   </a>
 
-  <a class="week-card" href="{{ 'algoritmos/2026-1-A/aula-03-estruturas-lineares' | relative_url }}">
+  <a class="week-card" href="{{ 'algoritmos/2026-1-T04/aula-03-estruturas-lineares' | relative_url }}">
     <div class="week-num">03</div>
     <div class="week-body">
       <div class="week-title">Estruturas Lineares</div>
@@ -43,7 +43,7 @@ title: "COMP0497 — Algoritmos e Estrutura de Dados I — Turma A · 2026/1"
     </div>
   </a>
 
-  <a class="week-card" href="{{ 'algoritmos/2026-1-A/aula-04-busca-ordenacao' | relative_url }}">
+  <a class="week-card" href="{{ 'algoritmos/2026-1-T04/aula-04-busca-ordenacao' | relative_url }}">
     <div class="week-num">04</div>
     <div class="week-body">
       <div class="week-title">Busca e Ordenação</div>
@@ -52,7 +52,7 @@ title: "COMP0497 — Algoritmos e Estrutura de Dados I — Turma A · 2026/1"
     </div>
   </a>
 
-  <a class="week-card" href="{{ 'algoritmos/2026-1-A/aula-05-ordenacao-completa' | relative_url }}">
+  <a class="week-card" href="{{ 'algoritmos/2026-1-T04/aula-05-ordenacao-completa' | relative_url }}">
     <div class="week-num">05</div>
     <div class="week-body">
       <div class="week-title">Ordenação — Merge, Quick, Limites e Counting Sort</div>
