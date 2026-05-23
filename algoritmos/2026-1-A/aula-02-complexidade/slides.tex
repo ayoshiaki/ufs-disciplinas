@@ -1,0 +1,1157 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Use the UFS theme
+\usetheme{UFS}
+
+% Additional packages
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{clrscode3e}
+\usepackage{xcolor}
+\usepackage{media9}
+\usepackage{qrcode}
+\usepackage{tikz}
+\usepackage{colortbl}
+
+\usetikzlibrary{shapes.geometric, arrows, positioning, matrix, fit, backgrounds, decorations.pathreplacing, shadows, patterns, automata, intersections, calc}
+
+% --- Paleta VS Code Light+ ---
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+\definecolor{fncolor}{HTML}{795E26}
+\definecolor{typecolor}{HTML}{267F99}
+
+% Cores auxiliares para destaques didáticos
+\definecolor{destaque}{HTML}{E8F5E9}
+\definecolor{alerta}{HTML}{FFF3E0}
+
+\lstdefinestyle{modernstyle}{
+    backgroundcolor=\color{bgcolor},
+    basicstyle=\ttfamily\footnotesize\color{black},
+    keywordstyle=\color{kwcolor}\bfseries,
+    stringstyle=\color{strcolor},
+    commentstyle=\color{cmtcolor}\itshape,
+    numberstyle=\tiny\color{numcolor},
+    numbers=left,
+    numbersep=12pt,
+    xleftmargin=20pt,
+    framexleftmargin=20pt,
+    breaklines=true,
+    breakatwhitespace=false,
+    tabsize=4,
+    keepspaces=true,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    frame=single,
+    rulecolor=\color{linecolor},
+    framesep=4pt,
+    captionpos=b,
+    upquote=true,
+    columns=fullflexible,
+}
+\lstset{style=modernstyle}
+
+% --- Metadados ---
+\title{COMP0497 -- Algoritmos e Estrutura de Dados 1}
+\subtitle{Análise de Complexidade: Algoritmos Iterativos e Recursivos}
+\author{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+% =====================================================================
+\begin{document}
+
+% --- Slide de título ---
+\begin{frame}
+    \titlepage
+\end{frame}
+
+% =====================================================================
+% ROTEIRO
+% =====================================================================
+\begin{frame}{Roteiro da Aula}
+    \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \textbf{Parte I -- Fundamentos}
+        \begin{itemize}
+            \item Por que analisar o pior caso?
+            \item Regras para contar operações
+        \end{itemize}
+        
+        \vspace{0.4cm}
+        \textbf{Parte II -- Algoritmos Iterativos}
+        \begin{itemize}
+            \item De $O(1)$ até $O(n^3)$: exemplos progressivos
+            \item Padrões para reconhecer complexidades
+        \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \textbf{Parte III -- Algoritmos Recursivos}
+        \begin{itemize}
+            \item Relações de recorrência
+            \item 10 padrões recursivos clássicos
+        \end{itemize}
+        
+        \vspace{0.4cm}
+        \textbf{Parte IV -- Resolvendo Recorrências}
+        \begin{itemize}
+            \item Árvore de recorrência
+            \item Método da substituição
+            \item Teorema Mestre + exemplos
+        \end{itemize}
+    \end{column}
+    \end{columns}
+\end{frame}
+
+% =====================================================================
+% PARTE I -- FUNDAMENTOS
+% =====================================================================
+\section{Parte I -- Fundamentos}
+
+\begin{frame}{Objetivos da Aula}
+    Ao final desta aula, você deverá ser capaz de:
+    \begin{enumerate}
+        \item Justificar por que a \textbf{análise de pior caso} é o padrão da área.
+        \item Aplicar as regras de contagem para determinar a complexidade de \textbf{algoritmos iterativos}.
+        \item Formular \textbf{relações de recorrência} para algoritmos recursivos.
+        \item Resolver recorrências usando \textbf{árvore}, \textbf{substituição} e \textbf{Teorema Mestre}.
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}[shrink]{Por que Analisar o Pior Caso?}
+    \begin{columns}[T]
+    \begin{column}{0.60\textwidth}
+        \begin{block}{Analogia: Projeto Estrutural}
+            Um engenheiro civil não projeta uma ponte para suportar o dia típico de tráfego --- ele projeta para o cenário mais extremo.        \end{block}
+        
+        \textbf{Na prática, isso nos dá:}
+        \begin{itemize}
+            \item \textbf{Garantia:} O algoritmo \emph{nunca} será mais lento que o limite.
+            \item \textbf{Segurança:} Essencial em sistemas de tempo real.
+            \item \textbf{Comparabilidade:} Um critério justo para comparar algoritmos distintos.
+        \end{itemize}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+        \begin{center}
+        \begin{tikzpicture}[scale=0.85]
+            \draw[->, thick] (0,0) -- (4.5,0) node[right] {\footnotesize entrada};
+            \draw[->, thick] (0,0) -- (0,4) node[above] {\footnotesize tempo};
+            
+            % Pior caso
+            \draw[thick, UFSBlue] plot[smooth, domain=0.3:4] (\x, {0.2*\x*\x});
+            \node[UFSBlue, right] at (3.2, 3.5) {\footnotesize \textbf{Pior caso}};
+            
+            % Caso médio
+            \draw[thick, gray, dashed] plot[smooth, domain=0.3:4] (\x, {0.12*\x*\x});
+            \node[gray, right] at (3.5, 2.2) {\footnotesize Caso médio};
+            
+            % Melhor caso
+            \draw[thick, gray!50, dotted] plot[smooth, domain=0.3:4] (\x, {0.3*\x});
+            \node[gray!50, right] at (3.5, 1.0) {\footnotesize Melhor caso};
+        \end{tikzpicture}
+        \end{center}
+    \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Premissa Central da Análise de Pior Caso}
+    \begin{alertblock}{Regra de Ouro}
+        Durante a análise, assumimos que \textbf{laços de repetição percorrem o máximo de iterações} e que \textbf{decisões seguem o caminho de maior custo}.
+    \end{alertblock}
+    
+    \vspace{0.4cm}
+    A notação Big-O ($O$) captura esse \textbf{limite superior assintótico}: ignoramos constantes e termos de menor ordem, focando apenas no comportamento dominante quando $n \to \infty$.
+\end{frame}
+
+% =====================================================================
+\begin{frame}[shrink]{Dicas para Análise Iterativa}
+    \begin{center}
+    \renewcommand{\arraystretch}{1.4}
+    \begin{tabular}{>{\bfseries}l p{8.5cm}}
+        \toprule
+        Construção & Regra de análise \\
+        \midrule
+        Operação básica & Atribuições, aritméticas e acessos a array custam $O(1)$. \\
+        Sequência & O custo total é o do comando mais caro (Regra da Soma). \\
+        Decisão (\texttt{if/else}) & No pior caso, assumimos o ramo de maior custo. \\
+        Laço (\texttt{for/while}) & Custo do corpo $\times$ número máximo de iterações (Regra do Produto). \\
+        Laços consecutivos & Somam-se as complexidades (Regra da Soma). \\
+        Laços aninhados & Multiplicam-se as complexidades (Regra do Produto). \\
+        \bottomrule
+    \end{tabular}
+    \end{center}
+\end{frame}
+
+% =====================================================================
+% PARTE II -- ALGORITMOS ITERATIVOS
+% =====================================================================
+\section{Parte II -- Algoritmos Iterativos}
+
+% --- Bloco 1: O(1) ---
+\begin{frame}[shrink,fragile]{$O(1)$ -- Tempo Constante}
+    \begin{block}{Padrão: Acesso Direto}
+        Operações que não dependem do tamanho da entrada.
+    \end{block}
+\begin{verbatim}
+READ-SENSOR(A, i)
+1  if i <= A.length
+2      return A[i]
+3  return NIL
+\end{verbatim}
+    \textbf{Análise:} Nenhum laço, nenhuma chamada recursiva. O tempo é fixo quer o arranjo tenha 10 ou 10.000 elementos.
+    
+    \vspace{0.2cm}
+    \hfill\fbox{Complexidade: $O(1)$}
+\end{frame}
+
+% --- Bloco 2: O(n), 3 variações ---
+\begin{frame}[shrink,fragile]{$O(n)$ -- Tempo Linear: Variedade 1 (Iteração Completa)}
+    \begin{block}{Padrão: Um laço que percorre todos os $n$ elementos.}
+    \end{block}
+\begin{verbatim}
+CALCULATE-RESULTANT-FORCE(F)
+1  total = 0
+2  for i = 1 to F.length
+3      total = total + F[i]
+4  return total
+\end{verbatim}
+    \textbf{Análise:} O corpo do laço custa $O(1)$ e executa $n$ vezes.
+    
+    \vspace{0.2cm}
+    \hfill\fbox{Complexidade: $O(n)$}
+\end{frame}
+
+\begin{frame}[shrink,fragile]{$O(n)$ -- Tempo Linear: Variedade 2 (Busca Exaustiva)}
+    \begin{block}{Padrão: Retorno antecipado, mas pior caso percorre tudo.}
+    \end{block}
+\begin{verbatim}
+CHECK-MATERIAL-FAILURE(T, yield_limit)
+1  for i = 1 to T.length
+2      if T[i] > yield_limit
+3          return TRUE
+4  return FALSE
+\end{verbatim}
+    \textbf{Análise:} No melhor caso, encontra na primeira posição ($O(1)$). No \textbf{pior caso}, o elemento não está na lista --- percorre todos os $n$ elementos.
+    
+    \vspace{0.2cm}
+    \hfill\fbox{Complexidade (pior caso): $O(n)$}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{$O(n)$ -- Tempo Linear: Variedade 3 (Laços Consecutivos)}
+    \begin{block}{Padrão: Dois laços independentes em sequência (Regra da Soma).}
+    \end{block}
+\begin{verbatim}
+NORMALIZE-TOPOGRAPHIC-DATA(C)
+1  c_max = C[1]
+2  for i = 2 to C.length           // primeiro laço: O(n)
+3      if C[i] > c_max
+4          c_max = C[i]
+5  let N be a new array of size C.length
+6  for i = 1 to C.length           // segundo laço: O(n)
+7      N[i] = C[i] / c_max
+8  return N
+\end{verbatim}
+    \textbf{Análise:} $O(n) + O(n) = O(2n)$. Pela Regra da Soma, a constante é ignorada.
+    
+    \vspace{0.2cm}
+    \hfill\fbox{Complexidade: $O(n)$}
+\end{frame}
+
+\begin{frame}[shrink,fragile]{Exemplo Integrador: Busca do Máximo }
+    \begin{block}{Juntando tudo: operação básica + laço + decisão}
+    \end{block}
+\begin{verbatim}
+def encontrar_tensao_maxima(leituras):
+    maximo = leituras[0]          # O(1)
+    for tensao in leituras:       # Executa n vezes
+        if tensao > maximo:       #   O(1)
+            maximo = tensao       #   O(1)
+    return maximo                 # O(1)
+\end{verbatim}
+    
+    \begin{itemize}
+        \item Operações dentro do laço: $O(1)$.
+        \item Laço executa $n$ vezes: Regra do Produto $\Rightarrow O(n) \cdot O(1) = O(n)$.
+        \item Operações fora do laço: $O(1)$. Regra da Soma $\Rightarrow O(n) + O(1) = O(n)$.
+    \end{itemize}
+    \hfill\fbox{Complexidade: $O(n)$}
+\end{frame}
+
+% --- Bloco 3: O(n^2) ---
+\begin{frame}[fragile,shrink]{$O(n^2)$ -- Laços Aninhados Independentes}
+    \begin{block}{Padrão: Dois laços aninhados, cada um percorrendo $n$ elementos.}
+    \end{block}
+\begin{verbatim}
+CALCULATE-POINT-DISTANCES(P)
+1  n = P.length
+2  for i = 1 to n
+3      for j = 1 to n
+4          dx = P[i].x - P[j].x
+5          dy = P[i].y - P[j].y
+6          dist = sqrt(dx^2 + dy^2)
+7          APPEND(D, dist)
+8  return D
+\end{verbatim}
+    \textbf{Análise:} Laço externo: $n$ vezes. Laço interno: $n$ vezes. Regra do Produto: $O(n) \cdot O(n)$.
+    
+    \vspace{0.2cm}
+    \hfill\fbox{Complexidade: $O(n^2)$}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{$O(n^2)$ -- Laços Aninhados Dependentes}
+    \begin{block}{Padrão: O laço interno depende do índice do externo (comum em ordenações).}
+    \end{block}
+\begin{verbatim}
+SELECTION-SORT-LOADS(L)
+1  n = L.length
+2  for i = 1 to n - 1
+3      menor = i
+4      for j = i + 1 to n
+5          if L[j] < L[menor]
+6              menor = j
+7      exchange L[i] with L[menor]
+\end{verbatim}
+    \textbf{Análise:} Iterações do laço interno: $(n{-}1) + (n{-}2) + \cdots + 1 = \frac{n(n{-}1)}{2}$ (progressão aritmética).
+    
+    \vspace{0.2cm}
+    \hfill\fbox{Complexidade: $O(n^2)$}
+\end{frame}
+
+% --- O(n*m) ---
+\begin{frame}[fragile,shrink]{$O(n \cdot m)$ -- Múltiplas Variáveis de Entrada}
+    \begin{block}{Padrão: Dois tamanhos distintos de entrada geram duas variáveis na complexidade.}
+    \end{block}
+\begin{verbatim}
+PROCESS-THERMAL-MESH(M)
+1  linhas = M.rows
+2  colunas = M.columns
+3  calor_total = 0
+4  for i = 1 to linhas
+5      for j = 1 to colunas
+6          calor_total = calor_total + M[i, j]
+7  return calor_total
+\end{verbatim}
+    \textbf{Análise:} Laço externo: $n$ vezes. Laço interno: $m$ vezes. Não podemos simplificar para $n^2$ porque $n \ne m$ em geral.
+    
+    \vspace{0.2cm}
+    \hfill\fbox{Complexidade: $O(n \cdot m)$}
+\end{frame}
+
+% --- O(log n) ---
+\begin{frame}[fragile,shrink]{$O(\log n)$ -- Tempo Logarítmico}
+    \begin{block}{Padrão: A cada iteração, o espaço de busca é \textbf{dividido por um fator constante}.}
+    \end{block}
+\begin{verbatim}
+BINARY-SEARCH-STRESS(T, alvo)
+1  inicio = 1
+2  fim = T.length
+3  while inicio <= fim
+4      meio = floor((inicio + fim) / 2)
+5      if T[meio] == alvo
+6          return meio
+7      elseif T[meio] < alvo
+8          inicio = meio + 1
+9      else fim = meio - 1
+10 return NIL
+\end{verbatim}
+    \textbf{Análise:} O espaço é dividido por 2 a cada iteração: $n, n/2, n/4, \ldots, 1$. Isso leva $\log_2 n$ passos.
+    
+    \vspace{0.2cm}
+    \hfill\fbox{Complexidade: $O(\log n)$}
+\end{frame}
+
+% --- O(n log n) ---
+\begin{frame}[fragile,shrink]{$O(n \log n)$ -- Linear $\times$ Logarítmico}
+    \begin{block}{Padrão: Para cada um dos $n$ elementos, executamos uma operação $O(\log n)$.}
+    \end{block}
+\begin{verbatim}
+PROCESS-BATCH-SEARCHES(T_ordenado, consultas)
+1  n = consultas.length
+2  let R be a new array of size n
+3  for i = 1 to n
+4      idx = BINARY-SEARCH-STRESS(T_ordenado, consultas[i])
+5      R[i] = idx
+6  return R
+\end{verbatim}
+    \textbf{Análise:} Laço externo: $n$ vezes. Corpo (busca binária): $O(\log m)$. Regra do Produto: $O(n \log m)$.
+
+    Se $m$ e $n$ crescem proporcionalmente, escrevemos $O(n \log n)$.
+    
+    \vspace{0.1cm}
+    \hfill\fbox{Complexidade: $O(n \log n)$}
+\end{frame}
+
+% --- O(n^3) ---
+\begin{frame}[fragile,shrink]{$O(n^3)$ -- Tempo Cúbico}
+    \begin{block}{Padrão: Três laços aninhados (comum em operações matriciais).}
+    \end{block}
+\begin{verbatim}
+MULTIPLY-STIFFNESS-MATRICES(A, B)
+1  n = A.rows
+2  let C be a new n x n matrix initialized with 0s
+3  for i = 1 to n
+4      for j = 1 to n
+5          for k = 1 to n
+6              C[i,j] = C[i,j] + A[i,k] * B[k,j]
+7  return C
+\end{verbatim}
+    \textbf{Análise:} Três laços de $n$ iterações cada: $O(n) \cdot O(n) \cdot O(n)$.
+    
+    \vspace{0.2cm}
+    \hfill\fbox{Complexidade: $O(n^3)$}
+\end{frame}
+
+% --- CONSOLIDAÇÃO PARTE II ---
+\begin{frame}[shrink]{Resumo: Padrões Iterativos}
+    \begin{center}
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Complexidade} & \textbf{Padrão típico} & \textbf{Exemplo} \\
+        \midrule
+        $O(1)$           & Acesso direto, sem laço           & Leitura de sensor \\
+        $O(\log n)$      & Divide espaço por constante       & Busca binária \\
+        $O(n)$           & Um laço sobre $n$ elementos       & Soma de vetores \\
+        $O(n \log n)$    & Laço $\times$ operação log        & $n$ buscas binárias \\
+        $O(n^2)$         & Dois laços aninhados              & Distâncias entre pontos \\
+        $O(n^3)$         & Três laços aninhados              & Multiplicação de matrizes \\
+        \bottomrule
+    \end{tabular}
+    \end{center}
+    
+    \vspace{0.3cm}
+    \begin{alertblock}{Dica Prática}
+        Conte o número de laços aninhados \emph{independentes} que dependem de $n$: 1 laço $\approx O(n)$, 2 laços $\approx O(n^2)$, 3 laços $\approx O(n^3)$. Se o espaço é dividido a cada passo, pense em $\log n$.
+    \end{alertblock}
+\end{frame}
+
+% =====================================================================
+% PARTE III -- ALGORITMOS RECURSIVOS
+% =====================================================================
+\section{Parte III -- Algoritmos Recursivos}
+
+\begin{frame}{A Mudança de Paradigma}
+    \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \textbf{Iterativo} --- já sabemos analisar:
+        \begin{itemize}
+            \item Contamos laços explícitos.
+            \item Aplicamos Regra da Soma e do Produto.
+        \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \textbf{Recursivo} --- nova abordagem:
+        \begin{itemize}
+            \item Não há laços explícitos para contar.
+            \item O algoritmo chama \emph{a si mesmo}.
+            \item Precisamos de \textbf{Relações de Recorrência}.
+        \end{itemize}
+    \end{column}
+    \end{columns}
+    
+    \vspace{0.5cm}
+    \begin{block}{Ideia Central}
+        Expressamos o tempo $T(n)$ em função do tempo para resolver instâncias menores do mesmo problema: $T(\text{algo menor que } n)$.
+    \end{block}
+\end{frame}
+
+\begin{frame}{Anatomia de uma Recorrência}
+    Uma relação de recorrência tem duas partes:
+    
+    \vspace{0.3cm}
+    \begin{enumerate}
+        \item \textbf{Caso base:} Quando a entrada é suficientemente pequena, o custo é constante. Ex: $T(1) = \Theta(1)$.
+        \item \textbf{Passo recursivo:} O custo para a entrada $n$ depende de chamadas menores. Ex: $T(n) = 2T(n/2) + \Theta(n)$.
+    \end{enumerate}
+    
+    \vspace{0.4cm}
+    Duas formas mais comuns:
+    
+    \begin{center}
+    \renewcommand{\arraystretch}{1.4}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Forma} & \textbf{Significado} \\
+        \midrule
+        $T(n) = a\,T(n/b) + f(n)$ & Divide a entrada por fator $b$, gera $a$ subproblemas \\
+        $T(n) = T(n-1) + f(n)$ & Reduz a entrada em 1 unidade \\
+        \bottomrule
+    \end{tabular}
+    \end{center}
+\end{frame}
+
+% --- 10 padrões recursivos, agrupados por tipo ---
+
+\begin{frame}{}
+    \begin{center}
+        {\Large \textbf{10 Padrões Recursivos Clássicos}}
+        
+        \vspace{0.4cm}
+        Agrupados por tipo de redução da entrada:
+        
+        \vspace{0.3cm}
+        \renewcommand{\arraystretch}{1.3}
+        \begin{tabular}{cl}
+            \toprule
+            \textbf{Grupo} & \textbf{Padrões} \\
+            \midrule
+            Decréscimo ($n-1$) & 1.\ Fatorial, \ 2.\ Fibonacci, \ 6.\ Quick Sort (pior), \ 7.\ Hanói, \ 8.\ Potência \\
+            Divisão ($n/b$) & 3.\ Busca binária, \ 4.\ Máximo por divisão, \ 5.\ Merge Sort \\
+            & 9.\ Exponenciação rápida, \ 10.\ Mult.\ de matrizes \\
+            \bottomrule
+        \end{tabular}
+    \end{center}
+\end{frame}
+
+% --- Grupo 1: Decréscimo linear ---
+
+\begin{frame}[fragile,shrink]{Padrão 1: Fatorial --- Decréscimo Linear Simples}
+    \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+\begin{verbatim}
+FACTORIAL(n)
+1  if n == 0
+2      return 1
+3  return n * FACTORIAL(n - 1)
+\end{verbatim}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \textbf{Recorrência:}
+        \[
+            T(n) = T(n-1) + \Theta(1)
+        \]
+        
+        \textbf{Intuição:} Cada chamada faz $O(1)$ de trabalho e gera \emph{uma} chamada com entrada $n{-}1$. A profundidade é $n$.
+    \end{column}
+    \end{columns}
+    
+    \vspace{0.3cm}
+    \hfill\fbox{Complexidade: $O(n)$}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{Padrão 2: Fibonacci Ingênuo --- Ramificação Exponencial}
+    \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+\begin{verbatim}
+FIBONACCI(n)
+1  if n == 0 or n == 1
+2      return n
+3  return FIBONACCI(n - 1) 
+4       + FIBONACCI(n - 2)
+\end{verbatim}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \textbf{Recorrência:}
+        \[
+            T(n) = T(n{-}1) + T(n{-}2) + \Theta(1)
+        \]
+        
+        \textbf{Intuição:} Cada chamada gera \emph{duas} novas chamadas. A árvore de recursão praticamente \textbf{dobra} a cada nível.
+    \end{column}
+    \end{columns}
+    
+    \vspace{0.2cm}
+    \begin{alertblock}{Contraste com Fatorial}
+        Fatorial: 1 chamada por nível $\Rightarrow O(n)$. Fibonacci: $\sim$2 chamadas por nível $\Rightarrow O(2^n)$.
+        A diferença entre linear e exponencial está no \textbf{número de ramificações}.
+    \end{alertblock}
+    \hfill\fbox{Complexidade: $O(2^n)$}
+\end{frame}
+
+% --- Grupo 2: Divisão ---
+
+\begin{frame}[fragile,shrink]{Padrão 3: Busca Binária Recursiva --- Subproblema Único}
+    \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+\begin{verbatim}
+RECURSIVE-BINARY-SEARCH(A, p, r, x)
+1  if p > r
+2      return NIL
+3  q = floor((p + r) / 2)
+4  if A[q] == x
+5      return q
+6  elseif A[q] > x
+7      return REC-BIN-SEARCH(A,p,q-1,x)
+8  else
+9      return REC-BIN-SEARCH(A,q+1,r,x)
+\end{verbatim}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+        \textbf{Recorrência:}
+        \[
+            T(n) = T(n/2) + \Theta(1)
+        \]
+        
+        \textbf{Intuição:} Divide pela metade, mas explora apenas \textbf{um} lado. Profundidade: $\log n$.
+    \end{column}
+    \end{columns}
+    
+    \vspace{0.2cm}
+    \hfill\fbox{Complexidade: $O(\log n)$}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{Padrão 4: Máximo por Divisão --- Travessia Linear}
+\begin{verbatim}
+FIND-MAXIMUM(A, p, r)
+1  if p == r
+2      return A[p]
+3  q = floor((p + r) / 2)
+4  max_esq = FIND-MAXIMUM(A, p, q)
+5  max_dir = FIND-MAXIMUM(A, q + 1, r)
+6  if max_esq > max_dir return max_esq
+7  else return max_dir
+\end{verbatim}
+    \textbf{Recorrência:} $T(n) = 2T(n/2) + \Theta(1)$
+
+    \vspace{0.2cm}
+    \textbf{Diferença-chave em relação à Busca Binária:} Aqui exploramos \textbf{ambos} os lados ($a=2$ ao invés de $a=1$). O custo é dominado pelas folhas da árvore.
+    
+    \vspace{0.2cm}
+    \hfill\fbox{Complexidade: $O(n)$}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{Padrão 5: Merge Sort --- Divisão Balanceada + Combinação Linear}
+\begin{verbatim}
+MERGE-SORT(A, p, r)
+1  if p < r
+2      q = floor((p + r) / 2)
+3      MERGE-SORT(A, p, q)
+4      MERGE-SORT(A, q + 1, r)
+5      MERGE(A, p, q, r)          // Custo Theta(n)
+\end{verbatim}
+    \textbf{Recorrência:} $T(n) = 2T(n/2) + \Theta(n)$
+    
+    \vspace{0.2cm}
+    \begin{block}{Comparação: Padrão 4 vs.\ 5}
+        \begin{center}
+        \renewcommand{\arraystretch}{1.2}
+        \begin{tabular}{lcc}
+            & FIND-MAX & MERGE-SORT \\
+            \midrule
+            $a$ (subproblemas) & 2 & 2 \\
+            $n/b$ (divisão) & $n/2$ & $n/2$ \\
+            $f(n)$ (\textbf{combinar}) & $\Theta(1)$ & $\Theta(n)$ \\
+            \textbf{Resultado} & $O(n)$ & $O(n \log n)$ \\
+        \end{tabular}
+        \end{center}
+        O custo de \textbf{combinar} faz toda a diferença!
+    \end{block}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{Padrão 6: Quick Sort (Pior Caso) --- Divisão Desbalanceada}
+\begin{verbatim}
+QUICKSORT(A, p, r)
+1  if p < r
+2      q = PARTITION(A, p, r)      // Custo Theta(n)
+3      QUICKSORT(A, p, q - 1)
+4      QUICKSORT(A, q + 1, r)
+\end{verbatim}
+    \textbf{Recorrência (pior caso):} $T(n) = T(n-1) + \Theta(n)$
+    
+    \vspace{0.2cm}
+    \textbf{Intuição:} No pior caso (arranjo já ordenado), a partição gera um subproblema de tamanho $n{-}1$ e outro vazio. A árvore degenera em uma lista:
+    $$n + (n{-}1) + (n{-}2) + \cdots + 1 = \frac{n(n+1)}{2}$$
+    
+    \hfill\fbox{Complexidade (pior caso): $O(n^2)$}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{Padrão 7: Torre de Hanói --- Subproblemas Sobrepostos}
+\begin{verbatim}
+HANOI-TOWER(n, origem, destino, auxiliar)
+1  if n == 1
+2      print "Move disco da origem para o destino"
+3  else
+4      HANOI-TOWER(n - 1, origem, auxiliar, destino)
+5      print "Move disco da origem para o destino"
+6      HANOI-TOWER(n - 1, auxiliar, destino, origem)
+\end{verbatim}
+    \textbf{Recorrência:} $T(n) = 2T(n-1) + \Theta(1)$
+    
+    \vspace{0.2cm}
+    \textbf{Contraste com Fibonacci:} Mesma ramificação ($a = 2$), mas aqui a redução é por 1 (ao invés de $n/2$). Expandindo: $T(n) = 2^n - 1$, uma progressão geométrica.
+    
+    \vspace{0.1cm}
+    \hfill\fbox{Complexidade: $O(2^n)$}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{Padrão 8: Potência Ingênua --- Redução Linear}
+    \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+\begin{verbatim}
+POWER(a, n)
+1  if n == 0
+2      return 1
+3  return a * POWER(a, n - 1)
+\end{verbatim}
+
+        \textbf{Recorrência:}
+        \[
+            T(n) = T(n-1) + \Theta(1)
+        \]
+        Idêntica ao Fatorial.
+        
+        \hfill\fbox{$O(n)$}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \textbf{Padrão 9: Exponenciação Rápida}
+\begin{verbatim}
+FAST-POWER(a, n)
+1  if n == 0 return 1
+2  if n % 2 == 0
+3      temp = FAST-POWER(a, n/2)
+4      return temp * temp
+5  else
+6      return a * FAST-POWER(a,n-1)
+\end{verbatim}
+
+        \textbf{Recorrência:}
+        \[
+            T(n) = T(n/2) + \Theta(1)
+        \]
+        \hfill\fbox{$O(\log n)$}
+    \end{column}
+    \end{columns}
+    
+    \vspace{0.3cm}
+    \begin{alertblock}{Lição}
+        A diferença entre $O(n)$ e $O(\log n)$ está em \textbf{como} a entrada é reduzida: subtraindo 1 vs.\ dividindo por 2.
+    \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{Padrão 10: Multiplicação de Matrizes (Divisão Ingênua)}
+\begin{verbatim}
+RECURSIVE-MATRIX-MULTIPLY(A, B)
+1  n = A.rows
+2  if n == 1 return A[1,1] * B[1,1]
+3  let C be a new n x n matrix
+4  Partition A, B, C into n/2 x n/2 submatrices
+5  C11 = ADD(MULT(A11, B11), MULT(A12, B21))
+6  // ... repete para C12, C21, C22 (8 multiplicações)
+7  return C
+\end{verbatim}
+    \textbf{Recorrência:} $T(n) = 8\,T(n/2) + \Theta(n^2)$
+    
+    \vspace{0.2cm}
+    \textbf{Análise:} Pelo Teorema Mestre, $n^{\log_2 8} = n^3$ domina $n^2$ (Caso 1).
+    
+    \vspace{0.1cm}
+    \hfill\fbox{Complexidade: $O(n^3)$}
+    
+    \vspace{0.2cm}
+    {\footnotesize (O algoritmo de Strassen reduz de 8 para 7 multiplicações: $O(n^{\log_2 7}) \approx O(n^{2.81})$.)}
+\end{frame}
+
+% --- CONSOLIDAÇÃO PARTE III ---
+\begin{frame}{Resumo: Padrões Recursivos}
+    \begin{center}
+    \renewcommand{\arraystretch}{1.2}
+    \footnotesize
+    \begin{tabular}{clcc}
+        \toprule
+        \textbf{\#} & \textbf{Algoritmo} & \textbf{Recorrência} & \textbf{Complexidade} \\
+        \midrule
+        1  & Fatorial                  & $T(n{-}1) + \Theta(1)$       & $O(n)$ \\
+        2  & Fibonacci ingênuo         & $T(n{-}1) + T(n{-}2) + \Theta(1)$ & $O(2^n)$ \\
+        3  & Busca binária             & $T(n/2) + \Theta(1)$         & $O(\log n)$ \\
+        4  & Máximo por divisão        & $2T(n/2) + \Theta(1)$        & $O(n)$ \\
+        5  & Merge Sort                & $2T(n/2) + \Theta(n)$        & $O(n \log n)$ \\
+        6  & Quick Sort (pior)         & $T(n{-}1) + \Theta(n)$       & $O(n^2)$ \\
+        7  & Hanói                     & $2T(n{-}1) + \Theta(1)$      & $O(2^n)$ \\
+        8  & Potência ingênua          & $T(n{-}1) + \Theta(1)$       & $O(n)$ \\
+        9  & Exponenciação rápida      & $T(n/2) + \Theta(1)$         & $O(\log n)$ \\
+        10 & Mult.\ matrizes (ingênua) & $8T(n/2) + \Theta(n^2)$      & $O(n^3)$ \\
+        \bottomrule
+    \end{tabular}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Pausa para Reflexão}
+    Antes de prosseguir, observe os padrões na tabela anterior:
+    
+    \vspace{0.4cm}
+    \begin{enumerate}
+        \item $T(n{-}1) + \Theta(1)$ sempre dá $O(n)$. \textbf{Por quê?}
+        {\small Porque são $n$ chamadas, cada uma custando $\Theta(1)$.}
+        
+        \vspace{0.2cm}
+        \item $T(n/2) + \Theta(1)$ sempre dá $O(\log n)$. \textbf{Por quê?}
+        {\small Porque dividir $n$ por 2 repetidamente leva $\log n$ passos.}
+        
+        \vspace{0.2cm}
+        \item O que diferencia $O(n)$ de $O(n \log n)$ em padrões com $2T(n/2)$?
+        {\small O custo de \textbf{combinar}: $\Theta(1)$ vs.\ $\Theta(n)$.}
+        
+        \vspace{0.2cm}
+        \item O que torna $2T(n{-}1)$ exponencial e $T(n{-}1)$ linear?
+        {\small O \textbf{número de ramificações}: 2 chamadas vs.\ 1 chamada.}
+    \end{enumerate}
+\end{frame}
+
+% =====================================================================
+% PARTE IV -- RESOLVENDO RECORRÊNCIAS
+% =====================================================================
+\section{Parte IV -- Resolvendo Recorrências}
+
+\begin{frame}{Métodos para Resolver Recorrências}
+    Uma recorrência como $T(n) = 2T(n/2) + \Theta(n)$ \textbf{não nos dá} a complexidade assintótica diretamente. Precisamos \emph{resolvê-la}.
+    
+    \vspace{0.4cm}
+    \begin{center}
+    \renewcommand{\arraystretch}{1.4}
+    \begin{tabular}{>{\bfseries}l p{7cm} l}
+        \toprule
+        Método & Para que serve & Força \\
+        \midrule
+        Árvore & Expandir a recorrência visualmente para gerar um palpite & Intuição \\
+        Substituição & Provar formalmente (por indução) que o palpite está correto & Rigor \\
+        Teorema Mestre & ``Receita de bolo'' para $T(n) = aT(n/b) + f(n)$ & Rapidez \\
+        \bottomrule
+    \end{tabular}
+    \end{center}
+    
+    \vspace{0.3cm}
+    \textbf{Fluxo típico:} Árvore (gerar palpite) $\to$ Substituição (provar) ou Teorema Mestre (quando aplicável).
+\end{frame}
+
+% --- Método 1: Árvore ---
+\begin{frame}{Método 1: Árvore de Recorrência}
+    \textbf{Procedimento:}
+    \begin{enumerate}
+        \item Desenhe a árvore: cada nó mostra o custo não-recursivo daquela chamada.
+        \item Some os custos de todos os nós \textbf{em cada nível}.
+        \item Some os custos de \textbf{todos os níveis} para obter o total.
+    \end{enumerate}
+    
+    \vspace{0.4cm}
+    \begin{block}{Aplicaremos ao exemplo clássico}
+        $T(n) = 2T(n/2) + cn$
+    \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Árvore: $T(n) = 2T(n/2) + cn$}
+    \begin{center}
+    \begin{tikzpicture}[level distance=1.5cm,
+      level 1/.style={sibling distance=4cm},
+      level 2/.style={sibling distance=2cm},
+      every node/.style={align=center}]
+      
+      \node {$cn$}
+        child {node {$c(n/2)$}
+          child {node {$c(n/4)$} edge from parent[dashed]}
+          child {node {$c(n/4)$} edge from parent[dashed]}
+        }
+        child {node {$c(n/2)$}
+          child {node {$c(n/4)$} edge from parent[dashed]}
+          child {node {$c(n/4)$} edge from parent[dashed]}
+        };
+        
+      % Anotações de custo por nível
+      \node[right] at (3.5, 0) {\small Custo do nível: $cn$};
+      \node[right] at (3.5, -1.5) {\small Custo do nível: $2 \cdot c(n/2) = cn$};
+      \node[right] at (3.5, -3) {\small Custo do nível: $4 \cdot c(n/4) = cn$};
+      
+      \draw[<->, thick, UFSBlue] (-3.5, -3.3) -- (-3.5, 0.3) node[midway, left] {$\log_2 n$ níveis};
+    \end{tikzpicture}
+    \end{center}
+    
+    \vspace{0.2cm}
+    Cada nível custa exatamente $cn$. São $\log_2 n$ níveis.
+    
+    \textbf{Total:} $cn \cdot \log_2 n = \Theta(n \log n)$.
+\end{frame}
+
+% --- Método 2: Substituição ---
+\begin{frame}{Método 2: Substituição (Indução)}
+    \textbf{Dois passos:}
+    \begin{enumerate}
+        \item \textbf{Adivinhar} a forma da solução (geralmente via árvore).
+        \item \textbf{Provar por indução} que a solução funciona.
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{Exemplo: $T(n) = 2T(\lfloor n/2 \rfloor) + n$}
+    \textbf{Palpite} (obtido da árvore): $T(n) = O(n \log n)$.
+    
+    Devemos provar que $T(n) \le c\, n \log n$ para algum $c > 0$.
+    
+    \vspace{0.3cm}
+    \textbf{Hipótese Indutiva:} $T(k) \le c\, k \log k$ para todo $k < n$.
+    
+    \vspace{0.3cm}
+    \textbf{Passo Indutivo:}
+    \begin{align*}
+        T(n) &= 2\,T(\lfloor n/2 \rfloor) + n \\
+             &\le 2\,c\,(n/2)\,\log(n/2) + n \\
+             &= c\,n\,(\log n - \log 2) + n \\
+             &= c\,n\,\log n - c\,n + n \\
+             &\le c\,n\,\log n \quad \text{desde que } c \ge 1. \qed
+    \end{align*}
+\end{frame}
+
+% --- Método 3: Teorema Mestre ---
+\begin{frame}[shrink]{Método 3: Teorema Mestre}
+    \begin{block}{Aplica-se a recorrências da forma padrão}
+        $$T(n) = a\,T(n/b) + f(n) \qquad (a \ge 1, \; b > 1)$$
+    \end{block}
+    
+    \vspace{0.3cm}
+    \textbf{A essência:} comparamos o custo de dividir/combinar $f(n)$ com o ``peso das folhas'' $n^{\log_b a}$.
+    
+    \vspace{0.3cm}
+    Quem domina?
+    \begin{center}
+    \renewcommand{\arraystretch}{1.4}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Caso} & \textbf{Condição} & \textbf{Resultado} \\
+        \midrule
+        1 -- Folhas dominam & $f(n) = O(n^{\log_b a - \epsilon})$ & $T(n) = \Theta(n^{\log_b a})$ \\
+        2 -- Empate & $f(n) = \Theta(n^{\log_b a})$ & $T(n) = \Theta(n^{\log_b a} \log n)$ \\
+        3 -- Raiz domina & $f(n) = \Omega(n^{\log_b a + \epsilon})$ \small{+ regularidade} & $T(n) = \Theta(f(n))$ \\
+        \bottomrule
+    \end{tabular}
+    \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Caso 1: As Folhas Dominam}
+    $f(n) = O(n^{\log_b a - \epsilon})$ para algum $\epsilon > 0 \quad \Rightarrow \quad T(n) = \Theta(n^{\log_b a})$
+    
+    \vspace{0.2cm}
+    \begin{center}
+    \begin{tikzpicture}
+      \node[circle, fill=UFSLightGray, minimum size=0.8cm, inner sep=0pt] (root) at (0,0) {\scriptsize $f(n)$};
+      \draw[thick, dashed] (root) -- (-2, -1.5);
+      \draw[thick, dashed] (root) -- (2, -1.5);
+      \node[rectangle, fill=UFSBlue, text=white, minimum width=6cm, minimum height=1cm, rounded corners=3pt] at (0, -2.2) {Custo nas Folhas: $\Theta(n^{\log_b a})$};
+      \node at (0, -0.9) {\small Custo \textbf{aumenta} por nível $\downarrow$};
+    \end{tikzpicture}
+    \end{center}
+    
+    \textbf{Interpretação:} A maior parte do trabalho está na base da árvore. O custo de dividir/combinar é insignificante.
+\end{frame}
+
+\begin{frame}[fragile]{Caso 2: Empate}
+    $f(n) = \Theta(n^{\log_b a}) \quad \Rightarrow \quad T(n) = \Theta(n^{\log_b a} \log n)$
+    
+    \vspace{0.2cm}
+    \begin{center}
+    \begin{tikzpicture}
+      \foreach \y in {0,-0.8,-2.0} {
+        \node[rectangle, fill=UFSLightGray, minimum width=4cm, minimum height=0.5cm] at (0,\y) {};
+      }
+      \node at (0, 0) {\small Custo $\approx f(n)$};
+      \node at (0, -0.8) {\small Custo $\approx f(n)$};
+      \node at (0, -1.4) {$\vdots$};
+      \node at (0, -2.0) {\small Custo $\approx \Theta(n^{\log_b a})$};
+      \draw[->, thick, UFSBlue] (2.3, 0) -- (2.3, -2.0) node[midway, right] {\small $\log n$ níveis};
+    \end{tikzpicture}
+    \end{center}
+    
+    \textbf{Interpretação:} Trabalho uniforme em todos os níveis. Total = custo de um nível $\times$ número de níveis.
+\end{frame}
+
+\begin{frame}[fragile]{Caso 3: A Raiz Domina}
+    $f(n) = \Omega(n^{\log_b a + \epsilon})$ (+ condição de regularidade) $\quad \Rightarrow \quad T(n) = \Theta(f(n))$
+    
+    \vspace{0.2cm}
+    \begin{center}
+    \begin{tikzpicture}
+      \node[rectangle, fill=UFSBlue, text=white, minimum width=5cm, minimum height=1cm, rounded corners=3pt] (root) at (0,0) {Custo da Raiz: $f(n)$};
+      \draw[thick, dashed] (-1.5, -0.5) -- (-0.5, -1.8);
+      \draw[thick, dashed] (1.5, -0.5) -- (0.5, -1.8);
+      \node[circle, fill=UFSLightGray, minimum size=0.5cm, inner sep=0pt] at (0, -2.2) {\scriptsize $\Theta(n^{\log_b a})$};
+      \node at (0, -1.0) {\small Custo \textbf{diminui} por nível $\downarrow$};
+    \end{tikzpicture}
+    \end{center}
+    
+    \textbf{Interpretação:} O custo de dividir/combinar domina completamente os subproblemas.
+\end{frame}
+
+% --- Exemplos do Teorema Mestre ---
+\begin{frame}{}
+    \begin{center}
+        {\Large \textbf{Teorema Mestre: 10 Exemplos Resolvidos}}
+        
+        \vspace{0.3cm}
+        Em cada exemplo, identificaremos $a$, $b$, $f(n)$ e $n^{\log_b a}$, compararemos, e aplicaremos o caso correto.
+    \end{center}
+\end{frame}
+
+\begin{frame}{Exemplo 1: $T(n) = 4T(n/2) + n$ {\normalfont\small--- Caso 1}}
+    \begin{enumerate}
+        \item \textbf{Parâmetros:} $a = 4$, $b = 2$, $f(n) = n$.
+        \item \textbf{Folhas:} $n^{\log_2 4} = n^2$.
+        \item \textbf{Comparação:} $f(n) = n = O(n^{2 - 1})$. As folhas dominam.
+    \end{enumerate}
+    \hfill\fbox{$T(n) = \Theta(n^2)$}
+\end{frame}
+
+\begin{frame}{Exemplo 2: $T(n) = 2T(n/2) + n$ {\normalfont\small--- Caso 2 (Merge Sort)}}
+    \begin{enumerate}
+        \item \textbf{Parâmetros:} $a = 2$, $b = 2$, $f(n) = n$.
+        \item \textbf{Folhas:} $n^{\log_2 2} = n$.
+        \item \textbf{Comparação:} $f(n) = n = \Theta(n)$. Empate.
+    \end{enumerate}
+    \hfill\fbox{$T(n) = \Theta(n \log n)$}
+\end{frame}
+
+\begin{frame}{Exemplo 3: $T(n) = T(n/2) + n$ {\normalfont\small--- Caso 3}}
+    \begin{enumerate}
+        \item \textbf{Parâmetros:} $a = 1$, $b = 2$, $f(n) = n$.
+        \item \textbf{Folhas:} $n^{\log_2 1} = n^0 = 1$.
+        \item \textbf{Comparação:} $f(n) = n = \Omega(n^{0+1})$. A raiz domina.
+        \item \textbf{Regularidade:} $1 \cdot (n/2) = n/2 \le cn$ para $c = 1/2 < 1$. \checkmark
+    \end{enumerate}
+    \hfill\fbox{$T(n) = \Theta(n)$}
+\end{frame}
+
+\begin{frame}{Exemplo 4: $T(n) = 8T(n/2) + n^2$ {\normalfont\small--- Caso 1}}
+    \begin{enumerate}
+        \item \textbf{Parâmetros:} $a = 8$, $b = 2$, $f(n) = n^2$.
+        \item \textbf{Folhas:} $n^{\log_2 8} = n^3$.
+        \item \textbf{Comparação:} $f(n) = n^2 = O(n^{3-1})$. As folhas dominam.
+    \end{enumerate}
+    \hfill\fbox{$T(n) = \Theta(n^3)$}
+\end{frame}
+
+\begin{frame}{Exemplo 5: $T(n) = 4T(n/2) + n^2$ {\normalfont\small--- Caso 2}}
+    \begin{enumerate}
+        \item \textbf{Parâmetros:} $a = 4$, $b = 2$, $f(n) = n^2$.
+        \item \textbf{Folhas:} $n^{\log_2 4} = n^2$.
+        \item \textbf{Comparação:} $f(n) = n^2 = \Theta(n^2)$. Empate.
+    \end{enumerate}
+    \hfill\fbox{$T(n) = \Theta(n^2 \log n)$}
+\end{frame}
+
+\begin{frame}{Exemplo 6: $T(n) = 2T(n/2) + n^2$ {\normalfont\small--- Caso 3}}
+    \begin{enumerate}
+        \item \textbf{Parâmetros:} $a = 2$, $b = 2$, $f(n) = n^2$.
+        \item \textbf{Folhas:} $n^{\log_2 2} = n$.
+        \item \textbf{Comparação:} $f(n) = n^2 = \Omega(n^{1+1})$. A raiz domina.
+        \item \textbf{Regularidade:} $2(n/2)^2 = n^2/2 \le cn^2$ para $c = 1/2$. \checkmark
+    \end{enumerate}
+    \hfill\fbox{$T(n) = \Theta(n^2)$}
+\end{frame}
+
+\begin{frame}{Exemplo 7: $T(n) = 9T(n/3) + n$ {\normalfont\small--- Caso 1}}
+    \begin{enumerate}
+        \item \textbf{Parâmetros:} $a = 9$, $b = 3$, $f(n) = n$.
+        \item \textbf{Folhas:} $n^{\log_3 9} = n^2$.
+        \item \textbf{Comparação:} $f(n) = n = O(n^{2-1})$. As folhas dominam.
+    \end{enumerate}
+    \hfill\fbox{$T(n) = \Theta(n^2)$}
+\end{frame}
+
+\begin{frame}{Exemplo 8: $T(n) = T(n/2) + 1$ {\normalfont\small--- Caso 2 (Busca Binária)}}
+    \begin{enumerate}
+        \item \textbf{Parâmetros:} $a = 1$, $b = 2$, $f(n) = 1$.
+        \item \textbf{Folhas:} $n^{\log_2 1} = n^0 = 1$.
+        \item \textbf{Comparação:} $f(n) = 1 = \Theta(1)$. Empate.
+    \end{enumerate}
+    \hfill\fbox{$T(n) = \Theta(\log n)$}
+\end{frame}
+
+\begin{frame}{Exemplo 9: $T(n) = 3T(n/4) + n \log n$ {\normalfont\small--- Caso 3}}
+    \begin{enumerate}
+        \item \textbf{Parâmetros:} $a = 3$, $b = 4$, $f(n) = n \log n$.
+        \item \textbf{Folhas:} $n^{\log_4 3} \approx n^{0.79}$.
+        \item \textbf{Comparação:} $f(n) = n\log n = \Omega(n^{0.79+\epsilon})$ para $\epsilon \approx 0.2$. A raiz domina.
+        \item \textbf{Regularidade:} $3 \cdot (n/4)\log(n/4) \le \frac{3}{4}\,n\log n$, com $c = 3/4 < 1$. \checkmark
+    \end{enumerate}
+    \hfill\fbox{$T(n) = \Theta(n \log n)$}
+\end{frame}
+
+\begin{frame}{Exemplo 10: $T(n) = 7T(n/2) + n^2$ {\normalfont\small--- Caso 1 (Strassen)}}
+    \begin{enumerate}
+        \item \textbf{Parâmetros:} $a = 7$, $b = 2$, $f(n) = n^2$.
+        \item \textbf{Folhas:} $n^{\log_2 7} \approx n^{2.81}$.
+        \item \textbf{Comparação:} $f(n) = n^2 = O(n^{2.81 - 0.81})$. As folhas dominam.
+    \end{enumerate}
+    
+    \hfill\fbox{$T(n) = \Theta(n^{\log_2 7}) \approx \Theta(n^{2.81})$}
+    
+    \vspace{0.3cm}
+    {\small O algoritmo de Strassen reduz $a$ de 8 para 7 (uma multiplicação a menos), melhorando a complexidade de $\Theta(n^3)$ para $\Theta(n^{2.81})$.}
+\end{frame}
+
+% --- Tabela resumo Teorema Mestre ---
+\begin{frame}{Resumo: Exemplos do Teorema Mestre}
+    \begin{center}
+    \renewcommand{\arraystretch}{1.15}
+    \footnotesize
+    \begin{tabular}{clcccc}
+        \toprule
+        \textbf{\#} & \textbf{Recorrência} & $n^{\log_b a}$ & $f(n)$ & \textbf{Caso} & \textbf{Resultado} \\
+        \midrule
+        1  & $4T(n/2)+n$            & $n^2$          & $n$         & 1 & $\Theta(n^2)$ \\
+        2  & $2T(n/2)+n$            & $n$            & $n$         & 2 & $\Theta(n \log n)$ \\
+        3  & $T(n/2)+n$             & $1$            & $n$         & 3 & $\Theta(n)$ \\
+        4  & $8T(n/2)+n^2$          & $n^3$          & $n^2$       & 1 & $\Theta(n^3)$ \\
+        5  & $4T(n/2)+n^2$          & $n^2$          & $n^2$       & 2 & $\Theta(n^2 \log n)$ \\
+        6  & $2T(n/2)+n^2$          & $n$            & $n^2$       & 3 & $\Theta(n^2)$ \\
+        7  & $9T(n/3)+n$            & $n^2$          & $n$         & 1 & $\Theta(n^2)$ \\
+        8  & $T(n/2)+1$             & $1$            & $1$         & 2 & $\Theta(\log n)$ \\
+        9  & $3T(n/4)+n\log n$      & $n^{0.79}$     & $n\log n$   & 3 & $\Theta(n \log n)$ \\
+        10 & $7T(n/2)+n^2$          & $n^{2.81}$     & $n^2$       & 1 & $\Theta(n^{2.81})$ \\
+        \bottomrule
+    \end{tabular}
+    \end{center}
+\end{frame}
+
+% =====================================================================
+% ENCERRAMENTO
+% =====================================================================
+\section{Síntese Final}
+
+\begin{frame}{Cheat Sheet: Guia Rápido de Complexidade}
+    \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+        \textbf{Iterativos --- conte os laços:}
+        \begin{itemize}
+            \item Sem laço $\Rightarrow O(1)$
+            \item 1 laço sobre $n$ $\Rightarrow O(n)$
+            \item 2 laços aninhados $\Rightarrow O(n^2)$
+            \item 3 laços aninhados $\Rightarrow O(n^3)$
+            \item Divide espaço pela metade $\Rightarrow O(\log n)$
+        \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+        \textbf{Recursivos --- monte a recorrência:}
+        \begin{itemize}
+            \item Identifique $a$ (subproblemas), $n/b$ ou $n{-}1$ (redução), $f(n)$ (combinar).
+            \item Resolva via Árvore, Substituição ou Teorema Mestre.
+        \end{itemize}
+        
+        \vspace{0.2cm}
+        \textbf{Sinais de alerta:}
+        \begin{itemize}
+            \item $2T(n{-}1) \Rightarrow O(2^n)$ --- exponencial!
+            \item $T(n{-}1) + \Theta(n) \Rightarrow O(n^2)$
+        \end{itemize}
+    \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{O que Vem a Seguir}
+    \begin{itemize}
+        \item \textbf{Próxima aula:} Exercícios práticos --- análise de complexidade aplicada a algoritmos de ordenação e busca.
+        \item \textbf{Leitura recomendada:} CLRS, capítulos 3 e 4 (Crescimento de Funções e Recorrências).
+    \end{itemize}
+    
+    \vspace{0.5cm}
+    \begin{block}{Pergunta para levar}
+        O Quick Sort tem pior caso $O(n^2)$, mas na prática é mais rápido que o Merge Sort ($O(n \log n)$ garantido). \textbf{Por quê?} (Pense em constantes e no caso médio.)
+    \end{block}
+\end{frame}
+
+\end{document}

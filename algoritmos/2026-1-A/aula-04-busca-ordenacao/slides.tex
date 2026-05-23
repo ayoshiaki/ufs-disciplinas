@@ -1,0 +1,381 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{UFS}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{clrscode3e}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, positioning, fit, backgrounds, calc, arrows.meta}
+
+\definecolor{destaque}{HTML}{E8F5E9}
+\definecolor{alerta}{HTML}{FFF3E0}
+\definecolor{invariante}{HTML}{E3F2FD}
+\definecolor{exercicio}{HTML}{FCE4EC}
+
+\title{Busca e Ordenação}
+\subtitle{COMP0497 -- Algoritmos e Estrutura de Dados 1}
+\author{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\date{}
+
+\newcommand{\exbox}[2]{%
+\setbeamercolor{block title}{bg=exercicio,fg=black}%
+\begin{block}{Exercício #1}#2\end{block}}
+
+\begin{document}
+
+\section{Busca Binária}
+
+\begin{frame}{Motivação: Procurar em uma lista telefônica}
+\begin{itemize}
+\item Imagine procurar ``Kashiwabara'' em uma lista impressa com 1 milhão de nomes.
+\item \textbf{Folha por folha?} Demoraria horas. Isso é \alert{busca linear}: $\Theta(n)$.
+\item \textbf{Abrir no meio e decidir lado?} Em $\sim 20$ comparações achamos. Isso é \alert{busca binária}: $\Theta(\lg n)$.
+\end{itemize}
+\begin{block}{Pré-requisito crucial}
+A busca binária só funciona em arrays \textbf{ordenados}.
+\end{block}
+\end{frame}
+
+\begin{frame}{Comparação numérica do ganho}
+\centering
+\begin{tabular}{rrr}
+\toprule
+$n$ & Linear ($n$) & Binária ($\lceil\lg n\rceil$) \\
+\midrule
+100 & 100 & 7 \\
+1.000 & 1.000 & 10 \\
+1.000.000 & 1.000.000 & 20 \\
+1.000.000.000 & 1 bilhão & 30 \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.4cm}
+\textbf{Reflexão:} dobrar $n$ adiciona apenas \emph{uma} comparação na busca binária.
+\end{frame}
+
+\begin{frame}[fragile]{Busca Binária: Pseudocódigo}
+\begin{codebox}
+\Procname{$\proc{Binary-Search}(A, v)$}
+\li $\id{low} \gets 1$
+\li $\id{high} \gets \attrib{A}{length}$
+\li \While $\id{low} \leq \id{high}$
+\li \Do $\id{mid} \gets \lfloor (\id{low}+\id{high})/2 \rfloor$
+\li      \If $A[\id{mid}] \isequal v$
+\li          \Then \Return $\id{mid}$
+             \End
+\li      \If $A[\id{mid}] < v$
+\li          \Then $\id{low} \gets \id{mid}+1$
+\li          \Else $\id{high} \gets \id{mid}-1$
+             \End
+     \End
+\li \Return $\const{nil}$
+\end{codebox}
+\end{frame}
+
+\begin{frame}{Traço passo a passo}
+$A=[2,5,8,12,16,23,38,56,72,91]$,\ $v=23$
+\vspace{0.3cm}
+
+\begin{tabular}{ccccc}
+\toprule
+Iter & low & high & mid & $A[mid]$ vs 23 \\
+\midrule
+1 & 1 & 10 & 5 & 16 $<$ 23 $\Rightarrow$ low=6 \\
+2 & 6 & 10 & 8 & 56 $>$ 23 $\Rightarrow$ high=7 \\
+3 & 6 & 7 & 6 & 23 = 23 $\Rightarrow$ \textbf{retorna 6} \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+\begin{frame}{Análise: por que $\Theta(\lg n)$?}
+A cada iteração o intervalo cai pela metade: $n \to n/2 \to n/4 \to \cdots \to 1$.
+Após $k$ iterações: $n/2^k \leq 1 \Rightarrow k \geq \lg n$.
+
+\begin{block}{Invariante}
+Se $v \in A$, então $v \in A[\id{low}..\id{high}]$.
+\end{block}
+\end{frame}
+
+\begin{frame}{Prova de Corretude: Busca Binária}
+\textbf{Invariante de loop (while):} Se $v$ está em $A$, então $v \in A[\id{low}..\id{high}]$.
+
+\vspace{0.3cm}
+\textbf{Inicialização:} Antes da primeira iteração, $\id{low}=1$ e $\id{high}=n$. Se $v \in A$, claramente $v \in A[1..n]$. $\checkmark$
+
+\vspace{0.3cm}
+\textbf{Manutenção:} Suponha o invariante verdadeiro no início de uma iteração.
+\begin{itemize}
+\item Se $A[\id{mid}]=v$, retornamos $\id{mid}$ (correto).
+\item Se $A[\id{mid}]<v$: como $A$ é ordenado, $v \notin A[\id{low}..\id{mid}]$. Logo, se $v \in A$, então $v \in A[\id{mid}+1..\id{high}]$. Atualizamos $\id{low} \gets \id{mid}+1$. $\checkmark$
+\item Se $A[\id{mid}]>v$: analogamente, $v \in A[\id{low}..\id{mid}-1]$ e $\id{high} \gets \id{mid}-1$. $\checkmark$
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Terminação:} Quando $\id{low}>\id{high}$, o intervalo é vazio. Pelo invariante, se $v$ estivesse em $A$, estaria nesse intervalo vazio --- contradição. Logo, $v \notin A$ e retornar $\const{nil}$ é correto. $\checkmark$
+\end{frame}
+
+\begin{frame}[fragile]{Busca Binária Recursiva}
+\begin{codebox}
+\Procname{$\proc{Binary-Search-Recursive}(A, v, low, high)$}
+\li \If $\id{low} > \id{high}$
+\li     \Then \Return $\const{nil}$
+    \End
+\li $\id{mid} \gets \lfloor (\id{low}+\id{high})/2 \rfloor$
+\li \If $A[\id{mid}] \isequal v$
+\li     \Then \Return $\id{mid}$
+    \End
+\li \If $A[\id{mid}] < v$
+\li     \Then \Return $\proc{Binary-Search-Recursive}(A, v, \id{mid}+1, \id{high})$
+\li     \Else \Return $\proc{Binary-Search-Recursive}(A, v, \id{low}, \id{mid}-1)$
+    \End
+\end{codebox}
+
+\vspace{0.3cm}
+\textbf{Chamada inicial:} $\proc{Binary-Search-Recursive}(A, v, 1, \attrib{A}{length})$
+\end{frame}
+
+\begin{frame}{Versão Iterativa vs Recursiva}
+\begin{itemize}
+\item \textbf{Complexidade:} ambas $\Theta(\lg n)$ no tempo.
+\item \textbf{Espaço adicional:} iterativa usa $O(1)$; recursiva usa $O(\lg n)$ na pilha de chamadas.
+\item \textbf{Clareza:} a recursiva é mais declarativa e próxima da definição matemática.
+\item \textbf{Prática:} em geral, prefere-se a iterativa para evitar overhead de chamadas recursivas.
+\end{itemize}
+
+\begin{block}{Relação de recorrência}
+$T(n) = T(n/2) + \Theta(1) \Rightarrow T(n) = \Theta(\lg n)$ (Teorema Mestre, caso 2).
+\end{block}
+\end{frame}
+
+\begin{frame}{Exercícios -- Bloco 1}
+\exbox{1.1}{Trace $\proc{Binary-Search}$ em $[1,4,7,9,11,15,20,25,30]$ procurando $v=11$ e $v=8$.}
+\exbox{1.2}{Quantas comparações no \emph{pior caso} para $n=2048$?}
+\exbox{1.3}{O que acontece se removermos o $\lfloor\cdot\rfloor$? Qual erro pode ocorrer?}
+\exbox{1.4}{Modifique o algoritmo para retornar a posição de inserção quando $v \notin A$.}
+\end{frame}
+
+\section{Insertion Sort}
+
+\begin{frame}{Analogia: cartas na mão}
+\begin{itemize}
+\item Mão esquerda: cartas já \textbf{ordenadas}.
+\item Mão direita: pega próxima carta e insere no lugar certo.
+\item Após pegar todas, a mão esquerda está ordenada.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Pseudocódigo}
+\begin{codebox}
+\Procname{$\proc{Insertion-Sort}(A)$}
+\li \For $j \gets 2$ \To $\attrib{A}{length}$
+\li \Do $\id{key} \gets A[j]$
+\li     $i \gets j-1$
+\li     \While $i>0$ e $A[i]>\id{key}$
+\li     \Do $A[i+1] \gets A[i]$
+\li         $i \gets i-1$
+        \End
+\li     $A[i+1] \gets \id{key}$
+    \End
+\end{codebox}
+\end{frame}
+
+\begin{frame}{Traço completo: $A=[5,2,4,6,1,3]$}
+\small
+\begin{tabular}{cl}
+\toprule
+$j$ & Estado após inserir $A[j]$ \\
+\midrule
+2 & $[\mathbf{2,5},4,6,1,3]$ -- key=2 desloca 5 \\
+3 & $[\mathbf{2,4,5},6,1,3]$ -- key=4 desloca 5 \\
+4 & $[\mathbf{2,4,5,6},1,3]$ -- key=6 fica \\
+5 & $[\mathbf{1,2,4,5,6},3]$ -- key=1 desloca tudo \\
+6 & $[\mathbf{1,2,3,4,5,6}]$ -- key=3 \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+\begin{frame}{Complexidade}
+\textbf{Melhor caso} (já ordenado): while nunca executa $\Rightarrow \Theta(n)$.
+
+\textbf{Pior caso} (decrescente): $\sum_{j=2}^n (j-1) = \frac{n(n-1)}{2} = \Theta(n^2)$.
+
+\textbf{Caso médio}: $\Theta(n^2)$.
+
+\textbf{Espaço adicional}: $O(1)$, in-place, \textbf{estável}.
+\end{frame}
+
+\begin{frame}{Prova de Corretude: Insertion Sort}
+\textbf{Invariante de loop (for externo):} No início da iteração $j$, o subarray $A[1..j-1]$ contém os elementos originais de $A[1..j-1]$, mas em ordem crescente.
+
+\vspace{0.3cm}
+\textbf{Inicialização:} Quando $j=2$, o subarray $A[1..1]$ tem um único elemento, logo está trivialmente ordenado. $\checkmark$
+
+\vspace{0.3cm}
+\textbf{Manutenção:} Suponha $A[1..j-1]$ ordenado. Pegamos $\id{key}=A[j]$ e o inserimos na posição correta em $A[1..j-1]$:
+\begin{itemize}
+\item O loop while desloca elementos maiores que $\id{key}$ para a direita.
+\item Ao final, inserimos $\id{key}$ na posição correta.
+\item Portanto, $A[1..j]$ fica ordenado. $\checkmark$
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Terminação:} Quando $j=n+1$, o invariante garante que $A[1..n]$ está ordenado. Como $n=\attrib{A}{length}$, o array completo está ordenado. $\checkmark$
+\end{frame}\begin{frame}{Exercícios -- Bloco 2}
+\exbox{2.1}{Trace Insertion Sort em $[8,3,1,7,4,2,6,5]$ mostrando o array após cada $j$.}
+\exbox{2.2}{Conte exatamente quantas comparações e quantos deslocamentos ocorrem em $[5,4,3,2,1]$.}
+\exbox{2.3}{Modifique para ordenar em ordem \emph{decrescente}.}
+\exbox{2.4}{Por que Insertion Sort é dito ``online''? Dê um cenário real onde isso é útil.}
+\end{frame}
+
+\section{Selection Sort}
+
+\begin{frame}{Ideia}
+A cada passo: encontre o \textbf{mínimo} do trecho não ordenado e troque com a primeira posição não ordenada.
+\end{frame}
+
+\begin{frame}[fragile]{Pseudocódigo}
+\begin{codebox}
+\Procname{$\proc{Selection-Sort}(A)$}
+\li \For $i \gets 1$ \To $n-1$
+\li \Do $\id{min} \gets i$
+\li     \For $j \gets i+1$ \To $n$
+\li     \Do \If $A[j]<A[\id{min}]$
+\li             \Then $\id{min} \gets j$
+            \End
+        \End
+\li     trocar $A[i] \leftrightarrow A[\id{min}]$
+    \End
+\end{codebox}
+\end{frame}
+
+\begin{frame}{Traço: $A=[5,2,4,6,1,3]$}
+\small
+$i=1$: min=1 $\Rightarrow [\mathbf{1},2,4,6,5,3]$ \\
+$i=2$: min=2 $\Rightarrow [1,\mathbf{2},4,6,5,3]$ \\
+$i=3$: min=6 $\Rightarrow [1,2,\mathbf{3},6,5,4]$ \\
+$i=4$: min=6 $\Rightarrow [1,2,3,\mathbf{4},5,6]$ \\
+$i=5$: min=5 $\Rightarrow [1,2,3,4,\mathbf{5},6]$
+\end{frame}
+
+\begin{frame}{Complexidade e características}
+Sempre $\Theta(n^2)$ comparações (independe da entrada).
+Apenas $O(n)$ trocas -- útil quando \emph{escrever} é caro (memória flash).
+\textbf{Não é estável}. In-place.
+\end{frame}
+
+\begin{frame}[shrink]{Prova de Corretude: Selection Sort}
+\textbf{Invariante de loop (for externo):} No início da iteração $i$, o subarray $A[1..i-1]$ contém os $(i-1)$ menores elementos de $A$ em ordem crescente, e $A[i..n]$ contém os elementos restantes.
+
+\vspace{0.3cm}
+\textbf{Inicialização:} Quando $i=1$, o subarray $A[1..0]$ é vazio, logo o invariante é trivialmente verdadeiro. $\checkmark$
+
+\vspace{0.3cm}
+\textbf{Manutenção:} Suponha o invariante válido para $i$. O loop interno encontra o índice $\id{min}$ do menor elemento em $A[i..n]$. Ao trocar $A[i] \leftrightarrow A[\id{min}]$:
+\begin{itemize}
+\item $A[1..i]$ contém os $i$ menores elementos em ordem crescente.
+\item $A[i+1..n]$ contém os elementos restantes. $\checkmark$
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Terminação:} Quando $i=n$, temos $A[1..n-1]$ com os $(n-1)$ menores elementos ordenados. O último elemento $A[n]$ é automaticamente o maior. Logo, $A[1..n]$ está ordenado. $\checkmark$
+\end{frame}
+
+\begin{frame}{Exercícios -- Bloco 3}
+\exbox{3.1}{Trace Selection Sort em $[4,1,3,9,7]$.}
+\exbox{3.2}{Mostre por que Selection Sort \emph{não} é estável usando $[2_a, 2_b, 1]$.}
+\exbox{3.3}{Quantas trocas faz Selection Sort no pior caso? E no melhor?}
+\end{frame}
+
+\section{Bubble Sort}
+
+\begin{frame}[fragile]{Ideia e pseudocódigo}
+Compare pares adjacentes; troque se fora de ordem. Repita.
+\begin{codebox}
+\Procname{$\proc{Bubble-Sort}(A)$}
+\li \For $i \gets 1$ \To $n-1$
+\li \Do \For $j \gets 1$ \To $n-i$
+\li     \Do \If $A[j]>A[j+1]$
+\li             \Then trocar $A[j] \leftrightarrow A[j+1]$
+            \End
+        \End
+    \End
+\end{codebox}
+\end{frame}
+
+\begin{frame}{Traço: $A=[5,1,4,2,8]$, passagem 1}
+$[5,1,4,2,8] \to [1,5,4,2,8] \to [1,4,5,2,8] \to [1,4,2,5,8] \to [1,4,2,5,8]$
+
+O 8 já estava no lugar; o 5 ``borbulhou'' até a posição correta entre os não-ordenados.
+\end{frame}
+
+\begin{frame}{Otimização: flag de troca}
+Se uma passagem inteira não fizer trocas $\Rightarrow$ array já ordenado, pare.
+Melhor caso passa de $\Theta(n^2)$ para $\Theta(n)$.
+\end{frame}
+
+\begin{frame}[shrink]{Prova de Corretude: Bubble Sort}
+\textbf{Invariante de loop (for externo):} No início da iteração $i$, os $i-1$ maiores elementos estão nas posições $A[n-i+2..n]$ em ordem crescente.
+
+\vspace{0.3cm}
+\textbf{Inicialização:} Quando $i=1$, o subarray $A[n+1..n]$ é vazio, logo o invariante é trivialmente verdadeiro. $\checkmark$
+
+\vspace{0.3cm}
+\textbf{Manutenção:} Suponha o invariante válido para $i$. O loop interno percorre $A[1..n-i]$ comparando pares adjacentes e trocando se necessário:
+\begin{itemize}
+\item O maior elemento de $A[1..n-i+1]$ ``borbulha'' até a posição $n-i+1$.
+\item Combinado com o invariante, temos os $i$ maiores elementos em $A[n-i+1..n]$ ordenados. $\checkmark$
+\end{itemize}
+
+\vspace{0.3cm}
+\textbf{Terminação:} Quando $i=n$, os $(n-1)$ maiores elementos estão em $A[2..n]$ ordenados. O primeiro elemento $A[1]$ é automaticamente o menor. Logo, $A[1..n]$ está ordenado. $\checkmark$
+\end{frame}
+
+\begin{frame}{Exercícios -- Bloco 4}
+\exbox{4.1}{Trace todas as passagens em $[3,1,4,1,5,9,2,6]$.}
+\exbox{4.2}{Implemente em pseudocódigo o Bubble Sort com flag de parada antecipada.}
+\exbox{4.3}{O Bubble Sort é estável? Justifique.}
+\end{frame}
+
+\section{Comparação e Síntese}
+
+\begin{frame}{Resumo}
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Algoritmo} & \textbf{Melhor} & \textbf{Pior} & \textbf{Espaço adicional} & \textbf{Estável} \\
+\midrule
+Busca Binária & $\Theta(\lg n)$ & $\Theta(\lg n)$ & $O(1)$ & N/A \\
+Insertion Sort & $\Theta(n)$ & $\Theta(n^2)$ & $O(1)$ & Sim \\
+Selection Sort & $\Theta(n^2)$ & $\Theta(n^2)$ & $O(1)$ & Não \\
+Bubble Sort* & $\Theta(n)$ & $\Theta(n^2)$ & $O(1)$ & Sim \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3cm}{\small *com otimização de flag}
+\end{frame}
+
+\begin{frame}{Quando usar cada um?}
+\textbf{Insertion Sort:} arrays pequenos ($n<50$) ou quase ordenados; processamento online. \\
+\textbf{Selection Sort:} quando trocas são caras. \\
+\textbf{Bubble Sort:} fim didático. \\
+\textbf{Arrays grandes:} Merge Sort, Quick Sort, Heap Sort ($\Theta(n\lg n)$).
+\end{frame}
+
+\begin{frame}{Lista de Exercícios -- Síntese}
+\exbox{5.1}{Para cada algoritmo, identifique a entrada de tamanho 6 que produz o \emph{pior} desempenho.}
+\exbox{5.2}{Estabilidade: ordene $[(3,a),(1,b),(3,c),(2,d)]$ por chave usando cada algoritmo. Quais preservam a ordem $a$ antes de $c$?}
+\exbox{5.3}{Mostre que se um array tem no máximo $k$ inversões, Insertion Sort roda em $O(n+k)$.}
+\exbox{5.4}{Desafio: prove (por invariante) a corretude da sua versão otimizada do Bubble Sort.}
+\end{frame}
+
+\begin{frame}{Conclusão}
+\begin{itemize}
+\item Invariantes de loop $=$ ferramenta para provar corretude.
+\item Mesmo $\Theta(n^2)$, os algoritmos têm \emph{nuances} (estabilidade, trocas, melhor caso).
+\item Próxima aula: \textbf{Merge Sort} -- como descer para $\Theta(n\lg n)$.
+\end{itemize}
+\end{frame}
+
+\end{document}

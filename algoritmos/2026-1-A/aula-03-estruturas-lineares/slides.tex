@@ -1,0 +1,1685 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Use the UFS theme
+\usetheme{UFS}
+
+% Additional packages
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{clrscode3e}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{colortbl}
+\usepackage{pgfplots}
+
+\usetikzlibrary{shapes.geometric, arrows, positioning, matrix, fit, backgrounds, decorations.pathreplacing, shadows, patterns, automata, intersections, calc,decorations.pathmorphing, arrows.meta}
+
+% --- Paleta de cores ---
+\definecolor{nodeprev}{HTML}{8E44AD}
+\definecolor{highlight}{RGB}{200,40,40}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+\definecolor{fncolor}{HTML}{795E26}
+\definecolor{typecolor}{HTML}{267F99}
+\definecolor{nodedummy}{HTML}{9B59B6}
+\definecolor{nodedead}{HTML}{888888}
+\definecolor{nodecurr}{HTML}{F39C12}
+\definecolor{nodecolor}{HTML}{4A90D9}
+\definecolor{nodehigh}{HTML}{E74C3C}
+\definecolor{nodeinsert}{HTML}{27AE60}
+\definecolor{arrowold}{HTML}{AAAAAA}
+\definecolor{arrownew}{HTML}{E74C3C}
+\definecolor{destaque}{HTML}{E8F5E9}
+\definecolor{alerta}{HTML}{FFF3E0}
+
+\lstdefinestyle{modernstyle}{
+    backgroundcolor=\color{bgcolor},
+    basicstyle=\ttfamily\footnotesize\color{black},
+    keywordstyle=\color{kwcolor}\bfseries,
+    stringstyle=\color{strcolor},
+    commentstyle=\color{cmtcolor}\itshape,
+    numberstyle=\tiny\color{numcolor},
+    numbers=left,
+    numbersep=12pt,
+    xleftmargin=20pt,
+    framexleftmargin=20pt,
+    breaklines=true,
+    breakatwhitespace=false,
+    tabsize=4,
+    keepspaces=true,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    frame=single,
+    rulecolor=\color{linecolor},
+    framesep=4pt,
+    captionpos=b,
+    upquote=true,
+    columns=fullflexible,
+}
+\lstset{style=modernstyle}
+
+% --- Metadados ---
+\title{Estruturas Lineares: Arrays Dinâmicos e Listas Encadeadas}
+\subtitle{COMP0497 -- Algoritmos e Estrutura de Dados 1}
+\author{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\date{}
+
+% =====================================================================
+%  ESTILOS TIKZ: Listas Simplesmente Ligadas
+% =====================================================================
+\tikzset{
+    llnode/.style={
+        draw, rectangle, minimum width=1.4cm, minimum height=0.7cm,
+        rounded corners=2pt, font=\ttfamily\small,
+        fill=nodecolor!15, draw=nodecolor!70, thick
+    },
+    llnode high/.style={
+        llnode, fill=nodehigh!15, draw=nodehigh!70
+    },
+    llnode insert/.style={
+        llnode, fill=nodeinsert!15, draw=nodeinsert!70
+    },
+    llnode ghost/.style={
+        llnode, fill=black!5, draw=black!25, text=black!35
+    },
+    ptr/.style={
+        -Stealth, thick, color=nodecolor!80
+    },
+    ptr old/.style={
+        -Stealth, thick, color=arrowold, dashed
+    },
+    ptr new/.style={
+        -Stealth, very thick, color=arrownew
+    },
+    lbl/.style={
+        font=\ttfamily\scriptsize\bfseries, text=nodehigh!80!black
+    },
+    lbl green/.style={
+        font=\ttfamily\scriptsize\bfseries, text=nodeinsert!80!black
+    },
+    step label/.style={
+        font=\sffamily\scriptsize\itshape, text=black!60
+    },
+    null node/.style={
+        font=\ttfamily\small\bfseries, text=black!40
+    },
+}
+
+% =====================================================================
+%  ESTILOS TIKZ: Convenções de Lista
+% =====================================================================
+\tikzset{
+    lnode/.style={
+        draw, rectangle split, rectangle split parts=2,
+        rectangle split horizontal, minimum height=0.55cm,
+        thick, rounded corners=1pt,
+        fill=nodecolor!12, draw=nodecolor!55,
+        font=\ttfamily\scriptsize
+    },
+    lnode hi/.style={
+        lnode, fill=nodehigh!12, draw=nodehigh!55
+    },
+    lnode new/.style={
+        lnode, fill=nodeinsert!12, draw=nodeinsert!55
+    },
+    lnode sent/.style={
+        lnode, fill=nodedummy!10, draw=nodedummy!50
+    },
+    larrow/.style={-stealth', thick, color=nodecolor!60},
+    harrow/.style={-stealth', very thick, color=nodehigh!60},
+    head ptr/.style={font=\ttfamily\tiny\bfseries, text=nodehigh!80!black},
+    null text/.style={font=\ttfamily\scriptsize\bfseries, text=black!35},
+    conv title/.style={font=\sffamily\scriptsize\bfseries, text=black!70},
+    conv subtitle/.style={font=\sffamily\tiny\itshape, text=black!50},
+}
+
+% =====================================================================
+%  ESTILOS TIKZ: Josephus
+% =====================================================================
+\tikzset{
+    jnode/.style={
+        draw, circle, minimum size=0.85cm, thick,
+        fill=nodecolor!15, draw=nodecolor!70,
+        font=\sffamily\bfseries\small
+    },
+    jnode curr/.style={
+        jnode, fill=nodecurr!25, draw=nodecurr!80
+    },
+    jnode target/.style={
+        jnode, fill=nodehigh!25, draw=nodehigh!80
+    },
+    jnode dead/.style={
+        jnode, fill=black!8, draw=black!25, text=black!30
+    },
+    jnode survivor/.style={
+        jnode, fill=nodeinsert!25, draw=nodeinsert!80,
+        minimum size=1cm, font=\sffamily\bfseries
+    },
+    jarrow/.style={
+        -stealth', thick, color=nodecolor!60
+    },
+    jarrow curr/.style={
+        -stealth', very thick, color=nodecurr!80
+    },
+    jarrow skip/.style={
+        -stealth', very thick, color=nodehigh!70, dashed
+    },
+    jlbl/.style={
+        font=\sffamily\tiny, text=black!50
+    },
+}
+
+% =====================================================================
+%  ESTILOS TIKZ: Listas Duplamente Ligadas
+% =====================================================================
+\tikzset{
+    dnode/.style={
+        draw, rectangle split, rectangle split parts=3,
+        rectangle split horizontal, minimum height=0.65cm,
+        thick, rounded corners=1pt,
+        fill=nodecolor!10, draw=nodecolor!60,
+        font=\ttfamily\scriptsize,
+        rectangle split part fill={nodeprev!8, nodecolor!8, nodecolor!8}
+    },
+    dnode hi/.style={
+        dnode, fill=nodehigh!10, draw=nodehigh!60,
+        rectangle split part fill={nodeprev!12, nodehigh!12, nodehigh!12}
+    },
+    dnode new/.style={
+        dnode, fill=nodeinsert!10, draw=nodeinsert!60,
+        rectangle split part fill={nodeinsert!10, nodeinsert!10, nodeinsert!10}
+    },
+    dnode ghost/.style={
+        dnode, fill=black!4, draw=black!20, text=black!30,
+        rectangle split part fill={black!4, black!4, black!4}
+    },
+    dnode sent/.style={
+        dnode, fill=nodedummy!10, draw=nodedummy!50,
+        rectangle split part fill={nodedummy!8, nodedummy!8, nodedummy!8}
+    },
+    darrow/.style={-stealth', thick, color=nodecolor!65},
+    darrow prev/.style={-stealth', thick, color=nodeprev!65},
+    darrow new/.style={-stealth', very thick, color=arrownew},
+    darrow old/.style={-stealth', thick, color=arrowold, dashed},
+    darrow new prev/.style={-stealth', very thick, color=nodeprev!80},
+    dlbl/.style={font=\ttfamily\tiny\bfseries},
+}
+
+
+% =====================================================================
+\begin{document}
+
+\begin{frame}
+	\titlepage
+\end{frame}
+
+
+% =============================================================
+%  ROTEIRO DA AULA
+% =============================================================
+\begin{frame}{Roteiro da Aula}
+    \begin{block}{Objetivos de Aprendizagem}
+        Ao final desta aula, você será capaz de:
+        \begin{enumerate}
+            \item Distinguir \textbf{Tipo Abstrato de Dados} (ADT) de implementação concreta.
+            \item Explicar o funcionamento e a análise amortizada de \textbf{arrays dinâmicos}.
+            \item Implementar e analisar operações em \textbf{listas simplesmente ligadas}.
+            \item Comparar as quatro \textbf{convenções} de organização de listas.
+            \item Estender o raciocínio para \textbf{listas duplamente ligadas}.
+        \end{enumerate}
+    \end{block}
+
+    \vspace{0.3cm}
+    \centering
+    \begin{tikzpicture}[node distance=1.8cm, >=stealth, every node/.style={font=\sffamily\scriptsize}]
+        \node[draw, rounded corners, fill=nodecolor!10, minimum width=1.8cm, align=center] (a) {1. Conceitos\\Fundamentais};
+        \node[draw, rounded corners, fill=nodecolor!10, minimum width=1.8cm, align=center, right of=a, xshift=1cm] (b) {2. Arrays e\\Arrays Dinâmicos};
+        \node[draw, rounded corners, fill=nodecolor!10, minimum width=1.8cm, align=center, right of=b, xshift=1cm] (c) {3. Listas\\Simples};
+        \node[draw, rounded corners, fill=nodecolor!10, minimum width=1.8cm, align=center, right of=c, xshift=1cm] (d) {4. Convenções\\e Variantes};
+        \node[draw, rounded corners, fill=nodecolor!10, minimum width=1.8cm, align=center, right of=d, xshift=1cm] (e) {5. Listas\\Duplas};
+        \draw[->] (a) -- (b);
+        \draw[->] (b) -- (c);
+        \draw[->] (c) -- (d);
+        \draw[->] (d) -- (e);
+    \end{tikzpicture}
+\end{frame}
+
+
+% =============================================================
+%  SEÇÃO 1: CONCEITOS FUNDAMENTAIS
+% =============================================================
+\section{Conceitos Fundamentais}
+
+\begin{frame}{O que é uma Estrutura de Dados?}
+    \begin{block}{Definição}
+        Uma estrutura de dados é a combinação de:
+        \begin{enumerate}
+            \item Uma \textbf{coleção de dados} organizados de forma particular.
+            \item As \textbf{operações} que podem ser aplicadas a esses dados.
+        \end{enumerate}
+    \end{block}
+    \vspace{0.3cm}
+    \begin{itemize}
+        \item \textbf{Analogia:} Pense em uma biblioteca. Os livros são os dados, mas as estantes e o sistema de catalogação são a \textbf{estrutura}.
+        \item A escolha da estrutura determina a \textbf{complexidade} do algoritmo.
+    \end{itemize}
+    \vspace{0.3cm}
+    \begin{block}{A Equação de Wirth}
+        \centering
+        Algoritmos + Estruturas de Dados = Programas
+    \end{block}
+\end{frame}
+
+
+\begin{frame}{Tipos Abstratos de Dados (ADT)}
+    \begin{columns}[T]
+        \begin{column}{0.55\textwidth}
+            \begin{itemize}
+                \item Um \textbf{ADT} define o \textit{quê} (operações), não o \textit{como} (implementação).
+                \item \textbf{Independência:} Você pode usar uma Fila sem saber se ela é feita com Array ou Lista Ligada.
+                \item \textbf{Exemplos Clássicos:}
+                    \begin{itemize}
+                        \item Pilhas (LIFO)
+                        \item Filas (FIFO)
+                        \item Listas Ordenadas
+                    \end{itemize}
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.43\textwidth}
+            \centering
+            \begin{tikzpicture}[node distance=2cm, box/.style={draw, rectangle, minimum width=2.5cm, fill=blue!5, font=\small}]
+                \node[box, fill=green!10] (client) {Cliente};
+                \node[box, right of=client, xshift=0.8cm] (inter) {Interface (ADT)};
+                \node[box, below of=inter, yshift=0.5cm, fill=orange!10] (impl) {Implementação};
+
+                \draw[->, thick] (client) -- node[above, font=\tiny]{\textit{usa}} (inter);
+                \draw[dashed, ->, thick] (impl) -- node[right, font=\tiny]{\textit{cumpre}} (inter);
+            \end{tikzpicture}
+            \vspace{0.3cm}
+            {\scriptsize O cliente depende apenas da interface, nunca da implementação.}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+\begin{frame}{Estruturas Lineares vs.\ Não-Lineares}
+    \centering
+    \begin{columns}
+        \begin{column}{0.5\textwidth}
+            \begin{block}{Lineares (foco desta aula)}
+                \begin{itemize}
+                    \item \textbf{Arrays:} Acesso rápido via índice.
+                    \item \textbf{Listas Ligadas:} Flexibilidade de inserção/remoção.
+                \end{itemize}
+            \end{block}
+        \end{column}
+        \begin{column}{0.5\textwidth}
+            \begin{block}{Não-Lineares (aulas futuras)}
+                \begin{itemize}
+                    \item \textbf{Árvores:} Organização hierárquica.
+                    \item \textbf{Grafos:} Relações arbitrárias.
+                \end{itemize}
+            \end{block}
+        \end{column}
+    \end{columns}
+
+    \vspace{0.5cm}
+
+    \textbf{Lista Ligada (Dinâmica)} \\
+    \vspace{0.2cm}
+    \begin{tikzpicture}[list/.style={rectangle split, rectangle split parts=2, draw, rectangle split horizontal}, >=stealth, node distance=1.5cm]
+        \node[list] (A) {12};
+        \node[list, right of=A] (B) {99};
+        \node[list, right of=B] (C) {37};
+        \draw[->] (A.two east) -- (B.west);
+        \draw[->] (B.two east) -- (C.west);
+        \draw[->] (C.two east) -- +(0.5,0) node[right] {NULL};
+    \end{tikzpicture}
+
+    \vspace{0.4cm}
+
+    \textbf{Array (Contíguo)} \\
+    \vspace{0.2cm}
+    \begin{tikzpicture}
+        \draw (0,0) grid (4,0.5);
+        \node at (0.5, 0.25) {12};
+        \node at (1.5, 0.25) {99};
+        \node at (2.5, 0.25) {37};
+        \node at (3.5, 0.25) {...};
+        \node[scale=0.7] at (0.5, -0.3) {índice 0};
+        \node[scale=0.7] at (1.5, -0.3) {índice 1};
+        \node[scale=0.7] at (2.5, -0.3) {índice 2};
+    \end{tikzpicture}
+\end{frame}
+
+
+\begin{frame}{Revisão Rápida: Referências em Java}
+    \centering
+    \begin{tikzpicture}[
+        mem/.style={rectangle, draw, minimum width=2cm, minimum height=0.6cm},
+        ref/.style={->, thick, >=stealth}
+    ]
+        % Primitivo
+        \node[mem, fill=green!10] (int) at (0,2) {10};
+        \node[left=0.2cm of int] {int n:};
+
+        % Referência
+        \node[mem, fill=blue!10] (ptr) at (0,0) {addr: 0xAF};
+        \node[left=0.2cm of ptr] {Point a:};
+
+        \node[draw, rectangle split, rectangle split parts=2, fill=yellow!10, minimum width=1.5cm] (obj) at (4,0) {
+            x: 1.0 \nodepart{second} y: 1.0
+        };
+        \node[above=0.1cm of obj] {\tiny Endereço 0xAF};
+
+        \draw[ref] (ptr.east) -- (obj.west);
+
+        \draw[dashed] (-2,1) -- (6,1);
+        \node at (5, 2) {\footnotesize \textbf{Direto (primitivo)}};
+        \node at (5, 0.5) {\footnotesize \textbf{Indireto (referência)}};
+    \end{tikzpicture}
+
+    \vspace{0.4cm}
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \begin{itemize}
+                \item \textbf{Primitivo:} a variável \textit{é} o valor.
+                \item \textbf{Referência:} a variável \textit{aponta} para o objeto.
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \begin{itemize}
+                \item Mais barato mover referências que copiar objetos.
+                \item Base para Listas, Árvores e Grafos.
+            \end{itemize}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+% =============================================================
+%  SEÇÃO 2: ARRAYS E ARRAYS DINÂMICOS
+% =============================================================
+\section{Arrays e Arrays Dinâmicos}
+
+\begin{frame}{Arrays: A Base de Dados Contíguos}
+    \begin{columns}[T]
+        \begin{column}{0.55\textwidth}
+            \begin{itemize}
+                \item \textbf{Definição:} Coleção fixa de elementos do mesmo tipo.
+                \item \textbf{Propriedades:}
+                    \begin{itemize}
+                        \item Armazenamento \textbf{contíguo} na memória.
+                        \item Acesso direto via \textbf{índice}: $O(1)$.
+                    \end{itemize}
+                \item \textbf{Limitação:} Tamanho fixo após a criação.
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.43\textwidth}
+            \centering
+            \begin{tikzpicture}[node distance=0cm]
+                \foreach \x in {0,1,2,3,4}
+                    \node[draw, minimum width=1.2cm, minimum height=0.6cm] (m\x) at (\x*1.2,0) {\tiny Dado \x};
+                \node[below=0.1cm of m0] {\tiny Índice 0};
+                \node[below=0.1cm of m4] {\tiny Índice N-1};
+                \draw[<-] (m0.north) -- +(0,0.3) node[above] {\tiny Endereço Base};
+            \end{tikzpicture}
+        \end{column}
+    \end{columns}
+
+    \vspace{0.4cm}
+    \begin{block}{Analogia com a Memória}
+        A memória RAM pode ser vista como um gigantesco array onde o ``índice'' é o endereço físico. O acesso \texttt{a[i]} traduz-se em apenas 3--4 instruções de CPU.
+    \end{block}
+\end{frame}
+
+
+\begin{frame}[fragile,shrink]{Exemplo: Crivo de Eratóstenes}
+    \begin{columns}[t]
+        \begin{column}{0.4\textwidth}
+            \small
+            \textbf{Objetivo:} Encontrar primos até $N$.
+
+            \begin{enumerate}
+                \item Array \texttt{a[N]} iniciado como \texttt{true}.
+                \item Para cada $i \ge 2$, se \texttt{a[i]} é primo, marca múltiplos como \texttt{false}.
+            \end{enumerate}
+
+            \begin{exampleblock}{Por que Array?}
+                O acesso direto $a[k]$ em $O(1)$ permite saltar entre múltiplos eficientemente.
+                Complexidade: $O(N \log \log N)$.
+            \end{exampleblock}
+        \end{column}
+
+        \begin{column}{0.6\textwidth}
+            \begin{lstlisting}[language=Java, basicstyle=\ttfamily\tiny, keywordstyle=\color{blue}, commentstyle=\color{gray}, frame=single]
+class Primes {
+    public static void main(String[] args) {
+        int N = Integer.parseInt(args[0]);
+        boolean[] a = new boolean[N];
+
+        for (int i = 2; i < N; i++) a[i] = true;
+
+        for (int i = 2; i*i  < N; i++) {
+            if (a[i]) {
+                for (int j = i*i; j < N; j += i)
+                    a[j] = false;
+            }
+        }
+
+        for (int i = 2; i < N; i++)
+            if (a[i])
+                System.out.print(i + " ");
+        System.out.println();
+    }
+}
+            \end{lstlisting}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+\begin{frame}{O Problema dos Arrays Estáticos}
+    \begin{alertblock}{Limitação}
+        O tamanho de um array é fixo na criação. Se ele encher, não há como adicionar mais elementos.
+    \end{alertblock}
+    \vspace{0.3cm}
+    \begin{itemize}
+        \item \textbf{Solução:} O \textbf{Array Dinâmico} (como o \texttt{ArrayList} do Java) cresce automaticamente conforme necessário.
+        \item \textbf{Funcionamento:}
+        \begin{enumerate}
+            \item Aloca um array interno com uma capacidade inicial.
+            \item Quando a capacidade é atingida, cria um novo array \textbf{maior}.
+            \item Copia os elementos do antigo para o novo.
+        \end{enumerate}
+    \end{itemize}
+
+    \vspace{0.3cm}
+    \centering
+    \begin{tikzpicture}[>=stealth, scale=0.85]
+        % Array antigo
+        \node[font=\scriptsize\bfseries] at (-1.5, 0.25) {Antigo:};
+        \foreach \x in {0,1,2,3} {
+            \node[draw, minimum width=0.9cm, minimum height=0.5cm, fill=nodecolor!15] (a\x) at (\x*0.9, 0) {};
+        }
+        \node[font=\tiny, text=nodehigh] at (4.2, 0.25) {CHEIO!};
+
+        % Seta
+        \draw[->, very thick, color=nodeinsert] (4.5, 0) -- (5.5, 0) node[midway, above, font=\tiny] {resize};
+
+        % Array novo
+        \node[font=\scriptsize\bfseries] at (5.2, 0.25) {Novo:};
+        \foreach \x in {0,...,7} {
+            \pgfmathtruncatemacro{\filled}{\x < 4 ? 1 : 0}
+            \ifnum\filled=1
+                \node[draw, minimum width=0.9cm, minimum height=0.5cm, fill=nodecolor!15] (b\x) at (6.5+\x*0.9, 0) {};
+            \else
+                \node[draw, minimum width=0.9cm, minimum height=0.5cm, fill=white] (b\x) at (6.5+\x*0.9, 0) {};
+            \fi
+        }
+        \node[font=\tiny, text=nodeinsert] at (14.0, 0.25) {espaço livre};
+    \end{tikzpicture}
+\end{frame}
+
+
+\begin{frame}[fragile, shrink]{Implementação: Array Dinâmico}
+    \begin{columns}[T]
+        \begin{column}{0.5\textwidth}
+            \begin{lstlisting}[language=Java, basicstyle=\ttfamily\tiny, keywordstyle=\color{blue}]
+public class MeuArrayDinamico {
+    private int[] data = new int[2];
+    private int size = 0;
+
+    public void add(int value) {
+        if (size == data.length) {
+            resize();
+        }
+        data[size++] = value;
+    }
+
+    private void resize() {
+        int[] newData =
+            new int[data.length * 2];
+        for (int i = 0; i < data.length; i++)
+            newData[i] = data[i];
+        data = newData;
+    }
+}
+            \end{lstlisting}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Custo de Inserção no Fim}
+                \begin{itemize}
+                    \item \textbf{Caso comum:} $O(1)$ --- apenas insere.
+                    \item \textbf{Caso de expansão:} $O(n)$ --- copia tudo.
+                    \item \textbf{Amortizado:} $O(1)$.
+                \end{itemize}
+            \end{block}
+            \begin{exampleblock}{Dica de Performance}
+                Se você sabe o tamanho esperado, inicialize com essa capacidade:\\
+		    \texttt{\scriptsize ArrayList<String> l = new ArrayList<>(10000);}
+            \end{exampleblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+% =============================================================
+%  SEÇÃO 3: LISTAS SIMPLESMENTE LIGADAS
+% =============================================================
+\section{Listas Simplesmente Ligadas}
+
+\begin{frame}[shrink]{Por que Listas Ligadas? (1/2)}
+    \begin{alertblock}{Motivação}
+        Arrays são ótimos para \textbf{acesso por índice}, mas péssimos para \textbf{inserção e remoção no meio} --- exigem deslocamento de todos os elementos subsequentes ($O(n)$).
+    \end{alertblock}
+
+    \vspace{0.3cm}
+    \begin{itemize}
+        \item \textbf{Lista ligada:} conjunto de \textbf{nós}, cada um contendo um dado e um \textbf{link} para o próximo nó.
+        \item Inserção e remoção em posição conhecida: $O(1)$.
+        \item \textbf{Trade-off:} perde-se o acesso aleatório.
+    \end{itemize}
+\end{frame}
+\begin{frame}{Por que Listas Ligadas ? (2/2)}
+
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{lcc}
+        \hline
+        \textbf{Operação} & \textbf{Array} & \textbf{Lista Ligada} \\
+        \hline
+        Acesso por índice & $O(1)$ & $O(n)$ \\
+        Inserção/Remoção (posição conhecida) & $O(n)$ & $O(1)$ \\
+        Uso de memória & Contíguo & +1 ponteiro/nó \\
+        \hline
+    \end{tabular}
+\end{frame}
+
+
+\begin{frame}[fragile]{A Classe Node}
+    \begin{columns}[T]
+        \begin{column}{0.45\textwidth}
+            \begin{block}{Definição}
+                \begin{lstlisting}[language=Java, basicstyle=\ttfamily\small, keywordstyle=\color{blue}]
+class Node {
+    Object item;
+    Node next;
+
+    Node(Object v) {
+        item = v;
+        next = null;
+    }
+}
+                \end{lstlisting}
+            \end{block}
+        \end{column}
+        \begin{column}{0.53\textwidth}
+            \textbf{Componentes do Nó:}
+            \begin{itemize}
+                \item \texttt{item}: armazena o dado.
+                \item \texttt{next}: referência para o próximo \texttt{Node}.
+            \end{itemize}
+            \vspace{0.3cm}
+            \textbf{Acesso:}
+            \begin{itemize}
+                \item \texttt{x.item} --- o dado do nó \texttt{x}.
+                \item \texttt{x.next} --- o próximo nó.
+                \item \texttt{x.next.item} --- dado do seguinte.
+            \end{itemize}
+            \vspace{0.2cm}
+            \begin{alertblock}{\small Cuidado}
+                \scriptsize Sempre verifique se \texttt{x} e \texttt{x.next} não são \texttt{null} antes do acesso, para evitar \texttt{NullPointerException}.
+            \end{alertblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+\begin{frame}[fragile,shrink]{Operações Fundamentais: Inserção e Remoção}
+    \begin{columns}[T]
+        \begin{column}{0.5\textwidth}
+            \begin{block}{Remoção após \texttt{x}}
+                \begin{lstlisting}[language=Java, basicstyle=\ttfamily\scriptsize]
+t = x.next;
+x.next = t.next;
+                \end{lstlisting}
+            \end{block}
+        \end{column}
+        \begin{column}{0.5\textwidth}
+            \begin{block}{Inserção de \texttt{t} após \texttt{x}}
+                \begin{lstlisting}[language=Java, basicstyle=\ttfamily\scriptsize]
+t.next = x.next;
+x.next = t;
+                \end{lstlisting}
+            \end{block}
+        \end{column}
+    \end{columns}
+    \vspace{0.3cm}
+    \centering
+    \begin{tikzpicture}[scale=0.85, every node/.style={transform shape}]
+        % === REMOÇÃO (esquerda) ===
+        \node[step label] at (-0.3, 0.6) {Remoção:};
+        \node[llnode] (ra) at (0,0) {A};
+        \node[llnode high] (rx) at (1.8,0) {x};
+        \node[llnode ghost] (rt) at (3.6,0) {t};
+        \node[llnode] (rb) at (5.4,0) {B};
+        \draw[ptr] (ra) -- (rx);
+        \draw[ptr old] (rx) -- (rt);
+        \draw[ptr old] (rt) -- (rb);
+        \draw[ptr new] (rx) to[bend left=40] (rb);
+        \node[font=\Huge, text=nodehigh] at (3.6, -0.55) {$\times$};
+
+        % === INSERÇÃO (direita) ===
+        \node[step label] at (7.5, 0.6) {Inserção:};
+        \node[llnode] (ia) at (7.8,0) {A};
+        \node[llnode high] (ix) at (9.6,0) {x};
+        \node[llnode] (ib) at (12.6,0) {B};
+        \node[llnode insert] (it) at (11.1,1.1) {t};
+        \draw[ptr] (ia) -- (ix);
+        \draw[ptr old] (ix) -- (ib);
+        \draw[ptr new] (ix) -- (it);
+        \draw[ptr new] (it) -- (ib);
+    \end{tikzpicture}
+
+    \vspace{0.2cm}
+    \begin{alertblock}{\small Atenção à Ordem!}
+        \scriptsize Na inserção, faça \texttt{t.next = x.next} \textbf{antes} de \texttt{x.next = t}. Inverter a ordem perde a referência ao restante da lista!
+    \end{alertblock}
+\end{frame}
+
+
+\begin{frame}[fragile,shrink]{Inserção: Passo a Passo}
+    \begin{columns}[T]
+        \begin{column}{0.45\textwidth}
+            \begin{block}{Código}
+                \begin{lstlisting}[language=Java, basicstyle=\ttfamily\scriptsize]
+t.next = x.next;
+x.next = t;
+                \end{lstlisting}
+            \end{block}
+        \end{column}
+        \begin{column}{0.55\textwidth}
+            \small Inserir o nó \texttt{t} \textbf{após} \texttt{x}.
+        \end{column}
+    \end{columns}
+
+    \vspace{0.2cm}
+
+    % --- Estado Inicial ---
+    \begin{center}
+    \textbf{Estado Inicial:}\\[0.2cm]
+    \begin{tikzpicture}
+        \node[llnode] (a) at (0,0) {A};
+        \node[llnode high] (x) at (2,0) {x};
+        \node[llnode] (b) at (4,0) {B};
+        \node[llnode] (c) at (6,0) {C};
+        \node[null node] (null) at (7.5,0) {null};
+        \draw[ptr] (a) -- (x);
+        \draw[ptr] (x) -- (b);
+        \draw[ptr] (b) -- (c);
+        \draw[ptr] (c) -- (null);
+        \node[lbl] at (2, -0.6) {x};
+        \node[lbl] at (4, -0.6) {x.next};
+        \node[llnode insert] (t) at (3, 1.5) {t};
+        \node[lbl green] at (3, 2.1) {novo nó};
+        \draw[ptr, color=nodeinsert!60, dashed] (t) -- ++(0.8, 0) node[null node, right=-2pt] {null};
+    \end{tikzpicture}
+    \end{center}
+
+    \vspace{0.1cm}\pause
+
+    % --- Passo 1 ---
+    \begin{center}
+    \textbf{Passo 1:} \texttt{t.next = x.next} \hfill \textcolor{black!50}{\scriptsize (t aponta para o sucessor de x)}\\[0.2cm]
+    \begin{tikzpicture}
+        \node[llnode] (a) at (0,0) {A};
+        \node[llnode high] (x) at (2,0) {x};
+        \node[llnode] (b) at (4,0) {B};
+        \node[llnode] (c) at (6,0) {C};
+        \node[null node] (null) at (7.5,0) {null};
+        \draw[ptr] (a) -- (x);
+        \draw[ptr] (x) -- (b);
+        \draw[ptr] (b) -- (c);
+        \draw[ptr] (c) -- (null);
+        \node[llnode insert] (t) at (3, 1.5) {t};
+        \draw[ptr new] (t) -- (b);
+        \node[lbl] at (2, -0.6) {x};
+        \node[lbl] at (4, -0.6) {x.next = t.next};
+    \end{tikzpicture}
+    \end{center}
+
+    \vspace{0.1cm}\pause
+
+    % --- Passo 2 ---
+    \begin{center}
+    \textbf{Passo 2:} \texttt{x.next = t} \hfill \textcolor{black!50}{\scriptsize (x agora aponta para t)}\\[0.2cm]
+    \begin{tikzpicture}
+        \node[llnode] (a) at (0,0) {A};
+        \node[llnode high] (x) at (2,0) {x};
+        \node[llnode] (b) at (5.5,0) {B};
+        \node[llnode] (c) at (7.5,0) {C};
+        \node[null node] (null) at (9,0) {null};
+        \draw[ptr] (a) -- (x);
+        \draw[ptr] (b) -- (c);
+        \draw[ptr] (c) -- (null);
+        \node[llnode insert] (t) at (3.5, 0) {t};
+        \draw[ptr new] (x) -- (t);
+        \draw[ptr new] (t) -- (b);
+        \node[lbl] at (2, -0.6) {x};
+        \node[lbl green] at (3.5, -0.6) {x.next};
+        \node[lbl] at (5.5, -0.6) {t.next};
+    \end{tikzpicture}
+    \end{center}
+\end{frame}
+
+
+\begin{frame}[shrink]{Comparação Visual: Lista Ligada vs.\ Array}
+    \begin{columns}[T]
+        % --- Coluna: Lista Ligada ---
+        \begin{column}{0.48\textwidth}
+            \begin{block}{\centering Lista Ligada --- $O(1)$}
+            \centering
+            \begin{tikzpicture}[scale=0.75, every node/.style={transform shape}]
+                \node[step label] at (-0.6, 0.4) {Antes:};
+                \node[llnode, minimum width=1cm] (l1) at (0,0) {1};
+                \node[llnode high, minimum width=1cm] (l2) at (1.5,0) {2};
+                \node[llnode, minimum width=1cm] (l3) at (3,0) {4};
+                \node[llnode, minimum width=1cm] (l4) at (4.5,0) {5};
+                \draw[ptr] (l1) -- (l2);
+                \draw[ptr] (l2) -- (l3);
+                \draw[ptr] (l3) -- (l4);
+                \node[llnode insert, minimum width=1cm] (ln) at (2.25,1.3) {3};
+
+                \node[step label] at (-0.6, -1.3) {Depois:};
+                \node[llnode, minimum width=1cm] (l1b) at (0,-1.7) {1};
+                \node[llnode high, minimum width=1cm] (l2b) at (1.4,-1.7) {2};
+                \node[llnode insert, minimum width=1cm] (lnb) at (2.8,-1.7) {3};
+                \node[llnode, minimum width=1cm] (l3b) at (4.2,-1.7) {4};
+                \node[llnode, minimum width=1cm] (l4b) at (5.6,-1.7) {5};
+                \draw[ptr] (l1b) -- (l2b);
+                \draw[ptr new] (l2b) -- (lnb);
+                \draw[ptr new] (lnb) -- (l3b);
+                \draw[ptr] (l3b) -- (l4b);
+
+                \draw[ptr new, dashed] (ln) -- (l3);
+                \draw[ptr new, dashed] (l2) to[bend left=20] (ln);
+            \end{tikzpicture}
+            \end{block}
+            \centering\small\color{nodeinsert!70!black} Apenas 2 ponteiros alterados!
+        \end{column}
+
+        % --- Coluna: Array ---
+        \begin{column}{0.48\textwidth}
+            \begin{block}{\centering Array --- $O(n)$}
+            \centering
+            \begin{tikzpicture}[scale=0.75, every node/.style={transform shape}]
+                \node[step label] at (-0.6, 0.4) {Antes:};
+                \foreach \val [count=\i from 0] in {1,2,4,5} {
+                    \node[draw, rectangle, minimum width=1cm, minimum height=0.65cm,
+                          fill=nodecolor!10, thick, font=\ttfamily\small]
+                          (a\i) at (1.1*\i, 0) {\val};
+                }
+                \node[llnode insert, minimum width=1cm, minimum height=0.65cm]
+                      (an) at (2.2, 1.3) {3};
+                \draw[-Stealth, thick, color=nodeinsert!70, dashed] (an) -- (2.2, 0.45);
+
+                \node[step label] at (-0.6, -1.3) {Depois:};
+                \foreach \val [count=\i from 0] in {1,2,3,4,5} {
+                    \pgfmathtruncatemacro{\filltest}{\i >= 3 ? 1 : 0}
+                    \ifnum\filltest=1
+                        \node[draw, rectangle, minimum width=1cm, minimum height=0.65cm,
+                              fill=nodehigh!12, thick, font=\ttfamily\small]
+                              (b\i) at (1.1*\i, -1.7) {\val};
+                    \else
+                        \ifnum\i=2
+                            \node[draw, rectangle, minimum width=1cm, minimum height=0.65cm,
+                                  fill=nodeinsert!15, thick, font=\ttfamily\small]
+                                  (b\i) at (1.1*\i, -1.7) {\val};
+                        \else
+                            \node[draw, rectangle, minimum width=1cm, minimum height=0.65cm,
+                                  fill=nodecolor!10, thick, font=\ttfamily\small]
+                                  (b\i) at (1.1*\i, -1.7) {\val};
+                        \fi
+                    \fi
+                }
+                \draw[-Stealth, thick, color=nodehigh!70] (3.3, -0.4) -- (4.4, -1.25);
+                \draw[-Stealth, thick, color=nodehigh!70] (2.2, -0.4) -- (3.3, -1.25);
+                \node[step label, text=nodehigh!80] at (4.7, -0.85) {shift!};
+            \end{tikzpicture}
+            \end{block}
+            \centering\small\color{nodehigh!70!black} Todos os elementos após devem se mover!
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+\begin{frame}{Limitações das Listas Simples}
+    \begin{itemize}
+        \item \textbf{Acesso por índice ($k$-ésimo item):}
+        \begin{itemize}
+            \item \textbf{Arrays:} Acesso direto via \texttt{a[k]} --- tempo constante.
+            \item \textbf{Listas:} Requer travessia de $k$ links --- tempo linear.
+        \end{itemize}
+
+        \item \textbf{Operação ``não natural'':} Encontrar o item \textit{anterior} a um dado nó exige percorrer do início ($O(n)$).
+
+        \item \textbf{Garbage Collection:} Em Java, ao remover um nó, o sistema automaticamente recupera a memória. Em C/C++, seria necessário liberar manualmente.
+    \end{itemize}
+
+    \vspace{0.3cm}
+    \begin{exampleblock}{Lição}
+        A simplicidade da inserção/remoção é a razão de ser das listas; a dificuldade de acesso aleatório é seu principal compromisso.
+    \end{exampleblock}
+\end{frame}
+
+
+% =============================================================
+%  SEÇÃO 3B: APLICAÇÃO — PROBLEMA DE JOSEPHUS
+% =============================================================
+\begin{frame}[shrink]{Aplicação: O Problema de Josephus}
+    \begin{columns}[T]
+        \begin{column}{0.52\textwidth}
+            \begin{itemize}
+                \item \textbf{Cenário:} $N$ pessoas formam um círculo.
+                \item \textbf{Regra:} Elimina-se cada $M$-ésima pessoa, fechando o círculo após cada saída.
+                \item \textbf{Objetivo:} Determinar quem será o último sobrevivente.
+            \end{itemize}
+
+            \begin{exampleblock}{Exemplo ($N=9, M=5$)}
+                Eliminações: 5, 1, 7, 4, 3, 6, 9, 2.\\
+                \textbf{Líder eleito: 8.}
+            \end{exampleblock}
+
+            \vspace{0.2cm}
+            {\small \textbf{Por que Lista Ligada Circular?}}\\
+            {\scriptsize Remoções eficientes $O(1)$ e navegação contínua pelo círculo.}
+        \end{column}
+        \begin{column}{0.46\textwidth}
+            \centering
+            \begin{tikzpicture}[scale=0.8, every node/.style={transform shape}]
+                \def\N{9}
+                \def\R{1.6}
+                \foreach \i in {1,...,\N} {
+                    \pgfmathsetmacro{\angle}{90 - (\i-1)*360/\N}
+                    \node[jnode] (j\i) at (\angle:\R) {\i};
+                }
+                \foreach \i [evaluate=\i as \nexti using {int(mod(\i,\N)+1)}] in {1,...,\N} {
+                    \draw[jarrow] (j\i) -- (j\nexti);
+                }
+                \node[font=\ttfamily\scriptsize\bfseries, text=nodecurr!80!black]
+                    at (90-8*360/9:\R+0.45) {t};
+                \draw[-stealth', thick, color=nodecurr!80]
+                    (90-8*360/9:\R+0.32) -- (j9);
+            \end{tikzpicture}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+\begin{frame}[fragile,shrink]{Josephus: Implementação}
+    \begin{columns}[T]
+        \begin{column}{0.52\textwidth}
+            \begin{lstlisting}[language=Java, basicstyle=\ttfamily\tiny,
+                keywordstyle=\color{blue}]
+class Josephus {
+ public static void main(String[] args){
+  int N = Integer.parseInt(args[0]);
+  int M = Integer.parseInt(args[1]);
+  Node t = new Node(1);
+  t.next = t; // lista circular
+  for (int i = 2; i <= N; i++) {
+   t.next = new Node(i, t.next);
+   t = t.next;
+  }
+  while (t != t.next) {
+   for (int i = 1; i < M; i++)
+    t = t.next; // pula M-1
+   Out.print(t.next.item + " ");
+   t.next = t.next.next; // remove
+  }
+  Out.println("\nLider: " + t.item);
+ }
+}
+            \end{lstlisting}
+        \end{column}
+        \begin{column}{0.46\textwidth}
+            \small
+            \textbf{Construção da lista circular:}
+            \begin{enumerate}
+                \item Cria nó 1 apontando para si mesmo.
+                \item Insere 2, 3, \ldots, $N$ logo após \texttt{t}, avançando \texttt{t}.
+            \end{enumerate}
+
+            \textbf{Eliminação:}
+            \begin{enumerate}
+                \item Avança \texttt{t} por $M{-}1$ posições.
+                \item Remove \texttt{t.next} (o $M$-ésimo).
+                \item Repete até restar um nó.
+            \end{enumerate}
+            \begin{block}{Complexidade}
+                $O(N \cdot M)$ no total.\\
+                Cada rodada percorre $M$ nós.
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+\begin{frame}[shrink]{Josephus: Processo de Eliminação ($N=9$, $M=5$)}
+
+    \centering
+    \begin{tikzpicture}[scale=0.72, every node/.style={transform shape}]
+
+        \def\R{1.35}
+
+        % ======= RODADA 1: elimina 5 =======
+        \begin{scope}[shift={(0,0)}]
+            \node[font=\sffamily\scriptsize\bfseries, text=black!70] at (0, \R+0.65) {Rodada 1};
+            \foreach \i in {1,...,9} {
+                \pgfmathsetmacro{\angle}{90 - (\i-1)*40}
+                \pgfmathsetmacro{\istarget}{\i == 5 ? 1 : 0}
+                \pgfmathsetmacro{\iscurr}{\i == 4 ? 1 : 0}
+                \ifnum\istarget=1
+                    \node[jnode target] (r1n\i) at (\angle:\R) {\i};
+                \else\ifnum\iscurr=1
+                    \node[jnode curr] (r1n\i) at (\angle:\R) {\i};
+                \else
+                    \node[jnode] (r1n\i) at (\angle:\R) {\i};
+                \fi\fi
+            }
+            \foreach \i [evaluate=\i as \nexti using {int(mod(\i,9)+1)}] in {1,...,9} {
+                \draw[jarrow] (r1n\i) -- (r1n\nexti);
+            }
+            \node[font=\scriptsize\bfseries, text=nodehigh] at (0, -\R-0.5) {elimina \textbf{5}};
+            \node[font=\Huge, text=nodehigh, opacity=0.6] at (r1n5) {$\times$};
+        \end{scope}
+
+        % ======= RODADA 2: elimina 1 =======
+        \begin{scope}[shift={(3.8,0)}]
+            \node[font=\sffamily\scriptsize\bfseries, text=black!70] at (0, \R+0.65) {Rodada 2};
+            \foreach \i in {1,...,9} {
+                \pgfmathsetmacro{\angle}{90 - (\i-1)*40}
+                \pgfmathsetmacro{\istarget}{\i == 1 ? 1 : 0}
+                \pgfmathsetmacro{\iscurr}{\i == 9 ? 1 : 0}
+                \pgfmathsetmacro{\isdead}{\i == 5 ? 1 : 0}
+                \ifnum\isdead=1
+                    \node[jnode dead] (r2n\i) at (\angle:\R) {\i};
+                \else\ifnum\istarget=1
+                    \node[jnode target] (r2n\i) at (\angle:\R) {\i};
+                \else\ifnum\iscurr=1
+                    \node[jnode curr] (r2n\i) at (\angle:\R) {\i};
+                \else
+                    \node[jnode] (r2n\i) at (\angle:\R) {\i};
+                \fi\fi\fi
+            }
+            \foreach \i/\nexti in {1/2, 2/3, 3/4, 4/6, 6/7, 7/8, 8/9, 9/1} {
+                \draw[jarrow] (r2n\i) -- (r2n\nexti);
+            }
+            \node[font=\scriptsize\bfseries, text=nodehigh] at (0, -\R-0.5) {elimina \textbf{1}};
+            \node[font=\Huge, text=nodehigh, opacity=0.6] at (r2n1) {$\times$};
+        \end{scope}
+
+        % ======= RODADA 3: elimina 7 =======
+        \begin{scope}[shift={(7.6,0)}]
+            \node[font=\sffamily\scriptsize\bfseries, text=black!70] at (0, \R+0.65) {Rodada 3};
+            \foreach \i in {1,...,9} {
+                \pgfmathsetmacro{\angle}{90 - (\i-1)*40}
+                \pgfmathsetmacro{\istarget}{\i == 7 ? 1 : 0}
+                \pgfmathsetmacro{\iscurr}{\i == 6 ? 1 : 0}
+                \pgfmathsetmacro{\isdead}{(\i == 5 || \i == 1) ? 1 : 0}
+                \ifnum\isdead=1
+                    \node[jnode dead] (r3n\i) at (\angle:\R) {\i};
+                \else\ifnum\istarget=1
+                    \node[jnode target] (r3n\i) at (\angle:\R) {\i};
+                \else\ifnum\iscurr=1
+                    \node[jnode curr] (r3n\i) at (\angle:\R) {\i};
+                \else
+                    \node[jnode] (r3n\i) at (\angle:\R) {\i};
+                \fi\fi\fi
+            }
+            \foreach \i/\nexti in {2/3, 3/4, 4/6, 6/7, 7/8, 8/9, 9/2} {
+                \draw[jarrow] (r3n\i) -- (r3n\nexti);
+            }
+            \node[font=\scriptsize\bfseries, text=nodehigh] at (0, -\R-0.5) {elimina \textbf{7}};
+            \node[font=\Huge, text=nodehigh, opacity=0.6] at (r3n7) {$\times$};
+        \end{scope}
+
+        % ======= RODADA 4: elimina 4 =======
+        \begin{scope}[shift={(11.4,0)}]
+            \node[font=\sffamily\scriptsize\bfseries, text=black!70] at (0, \R+0.65) {Rodada 4};
+            \foreach \i in {1,...,9} {
+                \pgfmathsetmacro{\angle}{90 - (\i-1)*40}
+                \pgfmathsetmacro{\istarget}{\i == 4 ? 1 : 0}
+                \pgfmathsetmacro{\iscurr}{\i == 3 ? 1 : 0}
+                \pgfmathsetmacro{\isdead}{(\i==5 || \i==1 || \i==7) ? 1 : 0}
+                \ifnum\isdead=1
+                    \node[jnode dead] (r4n\i) at (\angle:\R) {\i};
+                \else\ifnum\istarget=1
+                    \node[jnode target] (r4n\i) at (\angle:\R) {\i};
+                \else\ifnum\iscurr=1
+                    \node[jnode curr] (r4n\i) at (\angle:\R) {\i};
+                \else
+                    \node[jnode] (r4n\i) at (\angle:\R) {\i};
+                \fi\fi\fi
+            }
+            \foreach \i/\nexti in {2/3, 3/4, 4/6, 6/8, 8/9, 9/2} {
+                \draw[jarrow] (r4n\i) -- (r4n\nexti);
+            }
+            \node[font=\scriptsize\bfseries, text=nodehigh] at (0, -\R-0.5) {elimina \textbf{4}};
+            \node[font=\Huge, text=nodehigh, opacity=0.6] at (r4n4) {$\times$};
+        \end{scope}
+
+    \end{tikzpicture}
+
+    \vspace{0.3cm}
+
+    \begin{tikzpicture}[scale=0.72, every node/.style={transform shape}]
+
+        \def\R{1.35}
+
+        % ======= RODADA 5: elimina 3 =======
+        \begin{scope}[shift={(0,0)}]
+            \node[font=\sffamily\scriptsize\bfseries, text=black!70] at (0, \R+0.65) {Rodada 5};
+            \foreach \i in {1,...,9} {
+                \pgfmathsetmacro{\angle}{90 - (\i-1)*40}
+                \pgfmathsetmacro{\istarget}{\i == 3 ? 1 : 0}
+                \pgfmathsetmacro{\iscurr}{\i == 2 ? 1 : 0}
+                \pgfmathsetmacro{\isdead}{(\i==5||\i==1||\i==7||\i==4) ? 1 : 0}
+                \ifnum\isdead=1
+                    \node[jnode dead] (r5n\i) at (\angle:\R) {\i};
+                \else\ifnum\istarget=1
+                    \node[jnode target] (r5n\i) at (\angle:\R) {\i};
+                \else\ifnum\iscurr=1
+                    \node[jnode curr] (r5n\i) at (\angle:\R) {\i};
+                \else
+                    \node[jnode] (r5n\i) at (\angle:\R) {\i};
+                \fi\fi\fi
+            }
+            \foreach \i/\nexti in {2/3, 3/6, 6/8, 8/9, 9/2} {
+                \draw[jarrow] (r5n\i) -- (r5n\nexti);
+            }
+            \node[font=\scriptsize\bfseries, text=nodehigh] at (0, -\R-0.5) {elimina \textbf{3}};
+            \node[font=\Huge, text=nodehigh, opacity=0.6] at (r5n3) {$\times$};
+        \end{scope}
+
+        % ======= RODADA 6: elimina 6 =======
+        \begin{scope}[shift={(3.8,0)}]
+            \node[font=\sffamily\scriptsize\bfseries, text=black!70] at (0, \R+0.65) {Rodada 6};
+            \foreach \i in {1,...,9} {
+                \pgfmathsetmacro{\angle}{90 - (\i-1)*40}
+                \pgfmathsetmacro{\istarget}{\i == 6 ? 1 : 0}
+                \pgfmathsetmacro{\iscurr}{\i == 9 ? 1 : 0}
+                \pgfmathsetmacro{\isdead}{(\i==5||\i==1||\i==7||\i==4||\i==3) ? 1 : 0}
+                \ifnum\isdead=1
+                    \node[jnode dead] (r6n\i) at (\angle:\R) {\i};
+                \else\ifnum\istarget=1
+                    \node[jnode target] (r6n\i) at (\angle:\R) {\i};
+                \else\ifnum\iscurr=1
+                    \node[jnode curr] (r6n\i) at (\angle:\R) {\i};
+                \else
+                    \node[jnode] (r6n\i) at (\angle:\R) {\i};
+                \fi\fi\fi
+            }
+            \foreach \i/\nexti in {2/6, 6/8, 8/9, 9/2} {
+                \draw[jarrow] (r6n\i) -- (r6n\nexti);
+            }
+            \node[font=\scriptsize\bfseries, text=nodehigh] at (0, -\R-0.5) {elimina \textbf{6}};
+            \node[font=\Huge, text=nodehigh, opacity=0.6] at (r6n6) {$\times$};
+        \end{scope}
+
+        % ======= RODADA 7: elimina 9 =======
+        \begin{scope}[shift={(7.6,0)}]
+            \node[font=\sffamily\scriptsize\bfseries, text=black!70] at (0, \R+0.65) {Rodada 7};
+            \foreach \i in {1,...,9} {
+                \pgfmathsetmacro{\angle}{90 - (\i-1)*40}
+                \pgfmathsetmacro{\istarget}{\i == 9 ? 1 : 0}
+                \pgfmathsetmacro{\iscurr}{\i == 8 ? 1 : 0}
+                \pgfmathsetmacro{\isdead}{(\i==5||\i==1||\i==7||\i==4||\i==3||\i==6) ? 1 : 0}
+                \ifnum\isdead=1
+                    \node[jnode dead] (r7n\i) at (\angle:\R) {\i};
+                \else\ifnum\istarget=1
+                    \node[jnode target] (r7n\i) at (\angle:\R) {\i};
+                \else\ifnum\iscurr=1
+                    \node[jnode curr] (r7n\i) at (\angle:\R) {\i};
+                \else
+                    \node[jnode] (r7n\i) at (\angle:\R) {\i};
+                \fi\fi\fi
+            }
+            \foreach \i/\nexti in {2/8, 8/9, 9/2} {
+                \draw[jarrow] (r7n\i) -- (r7n\nexti);
+            }
+            \node[font=\scriptsize\bfseries, text=nodehigh] at (0, -\R-0.5) {elimina \textbf{9}};
+            \node[font=\Huge, text=nodehigh, opacity=0.6] at (r7n9) {$\times$};
+        \end{scope}
+
+        % ======= RODADA 8: elimina 2, sobra 8 =======
+        \begin{scope}[shift={(11.4,0)}]
+            \node[font=\sffamily\scriptsize\bfseries, text=black!70] at (0, \R+0.65) {Rodada 8};
+            \foreach \i in {1,...,9} {
+                \pgfmathsetmacro{\angle}{90 - (\i-1)*40}
+                \pgfmathsetmacro{\istarget}{\i == 2 ? 1 : 0}
+                \pgfmathsetmacro{\iscurr}{\i == 8 ? 1 : 0}
+                \pgfmathsetmacro{\isdead}{(\i==5||\i==1||\i==7||\i==4||\i==3||\i==6||\i==9) ? 1 : 0}
+                \ifnum\isdead=1
+                    \node[jnode dead] (r8n\i) at (\angle:\R) {\i};
+                \else\ifnum\istarget=1
+                    \node[jnode target] (r8n\i) at (\angle:\R) {\i};
+                \else\ifnum\iscurr=1
+                    \node[jnode curr] (r8n\i) at (\angle:\R) {\i};
+                \else
+                    \node[jnode] (r8n\i) at (\angle:\R) {\i};
+                \fi\fi\fi
+            }
+            \foreach \i/\nexti in {2/8, 8/2} {
+                \draw[jarrow] (r8n\i) -- (r8n\nexti);
+            }
+            \node[font=\scriptsize\bfseries, text=nodehigh] at (0, -\R-0.5) {elimina \textbf{2}};
+            \node[font=\Huge, text=nodehigh, opacity=0.6] at (r8n2) {$\times$};
+            \draw[very thick, color=nodeinsert!80] (r8n8) circle (0.6cm);
+        \end{scope}
+
+    \end{tikzpicture}
+
+    \vspace{0.2cm}
+    \centering
+    {\small Ordem: \textcolor{nodehigh}{5, 1, 7, 4, 3, 6, 9, 2} \qquad
+    Líder: \textcolor{nodeinsert}{\textbf{8}}}
+\end{frame}
+
+
+\begin{frame}{Josephus: Lição de Design}
+    \begin{table}[]
+        \small
+        \begin{tabular}{|l|l|l|}
+        \hline
+        \textbf{Algoritmo} & \textbf{Estrutura Ideal} & \textbf{Motivo} \\ \hline
+        Crivo de Eratóstenes & \textbf{Array} & Acesso aleatório rápido via índice. \\ \hline
+        Problema de Josephus & \textbf{Lista Circular} & Remoção eficiente de itens. \\ \hline
+        \end{tabular}
+    \end{table}
+
+    \vspace{0.3cm}
+    \begin{alertblock}{Lição Fundamental}
+        O uso de uma lista para o Crivo seria caro (falta de acesso direto). O uso de um array para Josephus seria caro (deslocamento na remoção). O design eficiente nasce da \textbf{interação} entre estrutura e algoritmo.
+    \end{alertblock}
+\end{frame}
+
+
+% =============================================================
+%  SEÇÃO 4: CONVENÇÕES DE ORGANIZAÇÃO
+% =============================================================
+\section{Convenções de Organização de Listas}
+
+\begin{frame}[shrink]{As 4 Convenções de Organização}
+    \centering
+    \begin{tikzpicture}[scale=0.82, every node/.style={transform shape}]
+
+        % ====== 1. Circular ======
+        \begin{scope}[shift={(0, 0)}]
+            \node[conv title, anchor=west] at (-2.2, 0.9) {1. Circular, nunca vazia};
+            \node[lnode] (c1) at (0, 0) {A \nodepart{two} \phantom{.}};
+            \node[lnode] (c2) at (2, 0) {B \nodepart{two} \phantom{.}};
+            \node[lnode] (c3) at (4, 0) {C \nodepart{two} \phantom{.}};
+            \draw[larrow] (c1.two east) -- (c2);
+            \draw[larrow] (c2.two east) -- (c3);
+            \draw[larrow] (c3.two east) to[out=0, in=0, looseness=1.6] ($(c3.east)+(0.3,0.7)$) -- ($(c1.west)+(-0.3,0.7)$) to[out=180,in=180,looseness=0.8] (c1.west);
+            \node[head ptr] at (-0.05, -0.6) {head};
+            \draw[harrow] (-0.05, -0.45) -- (c1.south);
+        \end{scope}
+
+        % ====== 2. Head/null ======
+        \begin{scope}[shift={(7.5, 0)}]
+            \node[conv title, anchor=west] at (-2.2, 0.9) {2. Ref.\ head, cauda null};
+            \node[lnode] (h1) at (0, 0) {A \nodepart{two} \phantom{.}};
+            \node[lnode] (h2) at (2, 0) {B \nodepart{two} \phantom{.}};
+            \node[lnode] (h3) at (4, 0) {C \nodepart{two} \phantom{.}};
+            \node[null text] (hn) at (5.7, 0) {null};
+            \draw[larrow] (h1.two east) -- (h2);
+            \draw[larrow] (h2.two east) -- (h3);
+            \draw[larrow] (h3.two east) -- (hn);
+            \node[head ptr] at (-0.05, -0.6) {head};
+            \draw[harrow] (-0.05, -0.45) -- (h1.south);
+        \end{scope}
+
+        % ====== 3. Dummy head ======
+        \begin{scope}[shift={(0, -2.5)}]
+            \node[conv title, anchor=west] at (-2.2, 0.9) {3. Nó sentinela head, cauda null};
+            \node[lnode sent] (d1) at (0, 0) {\textcolor{nodedummy!70}{$\star$} \nodepart{two} \phantom{.}};
+            \node[lnode] (d2) at (2, 0) {A \nodepart{two} \phantom{.}};
+            \node[lnode] (d3) at (4, 0) {B \nodepart{two} \phantom{.}};
+            \node[null text] (dn) at (5.7, 0) {null};
+            \draw[larrow] (d1.two east) -- (d2);
+            \draw[larrow] (d2.two east) -- (d3);
+            \draw[larrow] (d3.two east) -- (dn);
+            \node[head ptr] at (-0.05, -0.6) {head};
+            \draw[harrow] (-0.05, -0.45) -- (d1.south);
+            \node[conv subtitle] at (0, -0.9) {(dummy)};
+        \end{scope}
+
+        % ====== 4. Dummy head + tail ======
+        \begin{scope}[shift={(7.5, -2.5)}]
+            \node[conv title, anchor=west] at (-2.2, 0.9) {4. Sentinelas head e tail};
+            \node[lnode sent] (s1) at (0, 0) {\textcolor{nodedummy!70}{$\star$} \nodepart{two} \phantom{.}};
+            \node[lnode] (s2) at (2, 0) {A \nodepart{two} \phantom{.}};
+            \node[lnode] (s3) at (4, 0) {B \nodepart{two} \phantom{.}};
+            \node[lnode sent] (sz) at (6, 0) {\textcolor{nodedummy!70}{$\star$} \nodepart{two} \phantom{.}};
+            \draw[larrow] (s1.two east) -- (s2);
+            \draw[larrow] (s2.two east) -- (s3);
+            \draw[larrow] (s3.two east) -- (sz);
+            \draw[larrow] (sz.two east) to[out=0, in=0, looseness=4] (sz.east);
+            \node[head ptr] at (-0.05, -0.6) {head};
+            \draw[harrow] (-0.05, -0.45) -- (s1.south);
+            \node[head ptr, text=nodedummy!80!black] at (6, -0.6) {z};
+            \draw[-stealth', very thick, color=nodedummy!70] (6, -0.45) -- (sz.south);
+            \node[conv subtitle] at (0, -0.9) {(dummy)};
+            \node[conv subtitle] at (6, -0.9) {(dummy)};
+        \end{scope}
+
+    \end{tikzpicture}
+\end{frame}
+
+
+\begin{frame}{Comparação das 4 Convenções}
+
+    \centering
+    \scriptsize
+    \renewcommand{\arraystretch}{1.4}
+    \begin{tabular}{@{} l c c c c @{}}
+        \hline
+        \textbf{Propriedade}
+            & \textbf{1. Circular}
+            & \textbf{2. Head/Null}
+            & \textbf{3. Dummy Head}
+            & \textbf{4. Dummy H+T} \\
+        \hline
+        Lista vazia?
+            & Não
+            & Sim
+            & Sim
+            & Sim \\
+        Caso especial na inserção
+            & Não
+            & \textcolor{nodehigh}{Sim}
+            & Não
+            & Não \\
+        Testa \texttt{null} na travessia
+            & Não
+            & Sim
+            & Sim
+            & Não \\
+        Memória extra
+            & Nenhuma
+            & Nenhuma
+            & +1 nó
+            & +2 nós \\
+        Risco de \texttt{NullPtrExc}
+            & Não
+            & \textcolor{nodehigh}{Sim}
+            & \textcolor{nodehigh}{Sim}
+            & Não \\
+        Uso típico
+            & \parbox{2cm}{\centering Josephus,\\round-robin}
+            & \parbox{2cm}{\centering Uso geral,\\pilhas/filas}
+            & \parbox{2cm}{\centering Código\\uniforme}
+            & \parbox{2cm}{\centering Busca\\sequencial} \\
+        \hline
+    \end{tabular}
+
+    \vspace{0.4cm}
+
+    \begin{tikzpicture}[scale=0.6, every node/.style={transform shape}]
+
+        \begin{scope}[shift={(0,0)}]
+            \node[font=\sffamily\tiny\bfseries, text=black!60] at (1, 1) {1. Circular};
+            \node[lnode, minimum width=0.8cm] (c1) at (0,0) {\tiny A};
+            \node[lnode, minimum width=0.8cm] (c2) at (1.3,0) {\tiny B};
+            \node[lnode, minimum width=0.8cm] (c3) at (2.6,0) {\tiny C};
+            \draw[larrow, thin] (c1) -- (c2);
+            \draw[larrow, thin] (c2) -- (c3);
+            \draw[larrow, thin, color=nodehigh!50] (c3.east) to[out=0,in=0,looseness=1.5]
+                ($(c3.east)+(0.15,0.5)$) -- ($(c1.west)+(-0.15,0.5)$)
+                to[out=180,in=180,looseness=0.8] (c1.west);
+        \end{scope}
+
+        \begin{scope}[shift={(4.5,0)}]
+            \node[font=\sffamily\tiny\bfseries, text=black!60] at (1, 1) {2. Head/null};
+            \node[lnode, minimum width=0.8cm] (h1) at (0,0) {\tiny A};
+            \node[lnode, minimum width=0.8cm] (h2) at (1.3,0) {\tiny B};
+            \node[null text] (hn) at (2.5,0) {\tiny null};
+            \draw[larrow, thin] (h1) -- (h2);
+            \draw[larrow, thin] (h2) -- (hn);
+        \end{scope}
+
+        \begin{scope}[shift={(8.5,0)}]
+            \node[font=\sffamily\tiny\bfseries, text=black!60] at (1.2, 1) {3. Dummy head};
+            \node[lnode sent, minimum width=0.8cm] (d0) at (0,0) {\tiny $\star$};
+            \node[lnode, minimum width=0.8cm] (d1) at (1.3,0) {\tiny A};
+            \node[lnode, minimum width=0.8cm] (d2) at (2.6,0) {\tiny B};
+            \node[null text] (dn) at (3.8,0) {\tiny null};
+            \draw[larrow, thin] (d0) -- (d1);
+            \draw[larrow, thin] (d1) -- (d2);
+            \draw[larrow, thin] (d2) -- (dn);
+        \end{scope}
+
+        \begin{scope}[shift={(13.5,0)}]
+            \node[font=\sffamily\tiny\bfseries, text=black!60] at (1.2, 1) {4. Dummy H+T};
+            \node[lnode sent, minimum width=0.8cm] (s0) at (0,0) {\tiny $\star$};
+            \node[lnode, minimum width=0.8cm] (s1) at (1.3,0) {\tiny A};
+            \node[lnode sent, minimum width=0.8cm] (s2) at (2.6,0) {\tiny $\star$};
+            \draw[larrow, thin] (s0) -- (s1);
+            \draw[larrow, thin] (s1) -- (s2);
+            \draw[larrow, thin, color=nodedummy!40] (s2.east) to[out=0,in=0,looseness=5] (s2.east);
+        \end{scope}
+
+    \end{tikzpicture}
+\end{frame}
+
+
+% =============================================================
+%  SEÇÃO 5: LISTAS DUPLAMENTE LIGADAS
+% =============================================================
+\section{Listas Duplamente Ligadas}
+
+\begin{frame}{Listas Duplamente Ligadas: Estrutura}
+
+    \begin{columns}[T]
+        \begin{column}{0.55\textwidth}
+            \small
+            Cada nó mantém \textbf{dois} ponteiros:
+            \begin{itemize}
+                \item \texttt{prev} --- nó anterior
+                \item \texttt{next} --- nó seguinte
+            \end{itemize}
+
+            \vspace{0.2cm}
+            Permite percorrer a lista em \textbf{ambas as direções} e remover um nó conhecendo \textbf{apenas} o seu ponteiro.
+
+            \vspace{0.3cm}
+            \textbf{Invariante fundamental:}\\[0.1cm]
+            {\centering
+            \colorbox{nodecolor!8}{\texttt{x == x.next.prev == x.prev.next}}\par}
+        \end{column}
+        \begin{column}{0.43\textwidth}
+            \centering
+            \begin{tikzpicture}[scale=0.9, every node/.style={transform shape}]
+                \node[draw, rectangle split, rectangle split parts=3,
+                      rectangle split horizontal, minimum height=1cm,
+                      minimum width=3.5cm, thick, rounded corners=2pt,
+                      rectangle split part fill={nodeprev!15, nodecolor!12, nodecolor!15},
+                      font=\ttfamily\small]
+                      (box) at (0,0)
+                      {\textcolor{nodeprev!70}{prev}
+                       \nodepart{two} \textbf{item}
+                       \nodepart{three} \textcolor{nodecolor!70}{next}};
+
+                \draw[-stealth', very thick, color=nodeprev!60]
+                      (box.one west)+(-0.1,0) -- ++(-1.0,0)
+                      node[left, font=\scriptsize\itshape, text=nodeprev!70] {anterior};
+                \draw[-stealth', very thick, color=nodecolor!60]
+                      (box.three east)+(0.1,0) -- ++(1.0,0)
+                      node[right, font=\scriptsize\itshape, text=nodecolor!70] {seguinte};
+            \end{tikzpicture}
+        \end{column}
+    \end{columns}
+
+    \vspace{0.3cm}
+    \centering
+    \begin{tikzpicture}[scale=0.82, every node/.style={transform shape}]
+        \node[dnode] (a) at (0,0)   {\phantom{.} \nodepart{two} A \nodepart{three} \phantom{.}};
+        \node[dnode] (b) at (2.8,0) {\phantom{.} \nodepart{two} B \nodepart{three} \phantom{.}};
+        \node[dnode] (c) at (5.6,0) {\phantom{.} \nodepart{two} C \nodepart{three} \phantom{.}};
+        \node[dnode] (d) at (8.4,0) {\phantom{.} \nodepart{two} D \nodepart{three} \phantom{.}};
+
+        \draw[darrow] (a.three east) to[out=15, in=165] (b.one west);
+        \draw[darrow] (b.three east) to[out=15, in=165] (c.one west);
+        \draw[darrow] (c.three east) to[out=15, in=165] (d.one west);
+
+        \draw[darrow prev] (b.one west) to[out=195, in=345] (a.three east);
+        \draw[darrow prev] (c.one west) to[out=195, in=345] (b.three east);
+        \draw[darrow prev] (d.one west) to[out=195, in=345] (c.three east);
+
+        \node[font=\sffamily\tiny\itshape, text=nodecolor!70] at (1.4, 0.55) {next};
+        \node[font=\sffamily\tiny\itshape, text=nodeprev!70] at (1.4, -0.55) {prev};
+
+        \node[font=\ttfamily\tiny\bfseries, text=black!30] (nl) at (-1.5, 0) {null};
+        \node[font=\ttfamily\tiny\bfseries, text=black!30] (nr) at (9.9, 0) {null};
+        \draw[darrow prev, color=black!25] (a.one west) -- (nl);
+        \draw[darrow, color=black!25] (d.three east) -- (nr);
+    \end{tikzpicture}
+
+    \vspace{0.3cm}
+    \begin{alertblock}{\small Custo}
+        \scriptsize Dobro de espaço para ponteiros e dobro de manipulações por operação.
+        Usar apenas quando travessia bidirecional ou remoção direta for necessária.
+    \end{alertblock}
+\end{frame}
+
+
+\begin{frame}[fragile]{Lista Duplamente Ligada: Remoção}
+
+    \begin{columns}[T]
+        \begin{column}{0.42\textwidth}
+            \begin{block}{Código}
+                \begin{lstlisting}[language=Java, basicstyle=\ttfamily\scriptsize,
+                    keywordstyle=\color{blue}]
+// Remover o no x
+x.prev.next = x.next;
+x.next.prev = x.prev;
+                \end{lstlisting}
+            \end{block}
+            \vspace{0.1cm}
+            \small
+            \textbf{Diferença crucial:}\\
+            {\scriptsize Na lista simples, precisamos do nó \emph{anterior} a \texttt{x}. Na dupla, \texttt{x} já contém \texttt{x.prev}.}
+        \end{column}
+        \begin{column}{0.56\textwidth}
+            \centering\small
+            Basta conhecer \texttt{x} para removê-lo!\\
+            Nenhuma busca pelo predecessor.
+        \end{column}
+    \end{columns}
+
+    \vspace{0.25cm}
+
+    \centering
+    \textbf{Antes:}\\[0.15cm]
+    \begin{tikzpicture}[scale=0.82, every node/.style={transform shape}]
+        \node[dnode] (a) at (0,0)   {\phantom{.} \nodepart{two} A \nodepart{three} \phantom{.}};
+        \node[dnode hi] (x) at (3,0) {\phantom{.} \nodepart{two} x \nodepart{three} \phantom{.}};
+        \node[dnode] (c) at (6,0)   {\phantom{.} \nodepart{two} C \nodepart{three} \phantom{.}};
+
+        \draw[darrow] (a.three east) to[out=15, in=165] (x.one west);
+        \draw[darrow] (x.three east) to[out=15, in=165] (c.one west);
+        \draw[darrow prev] (x.one west) to[out=195, in=345] (a.three east);
+        \draw[darrow prev] (c.one west) to[out=195, in=345] (x.three east);
+
+        \node[dlbl, text=nodehigh!80!black] at (3, -0.7) {x};
+        \node[dlbl, text=black!50] at (0, -0.7) {x.prev};
+        \node[dlbl, text=black!50] at (6, -0.7) {x.next};
+    \end{tikzpicture}
+
+    \vspace{0.15cm}\pause
+
+    \textbf{Depois:} \texttt{x.prev.next = x.next; x.next.prev = x.prev}\\[0.15cm]
+    \begin{tikzpicture}[scale=0.82, every node/.style={transform shape}]
+        \node[dnode] (a) at (0,0)   {\phantom{.} \nodepart{two} A \nodepart{three} \phantom{.}};
+        \node[dnode ghost] (x) at (3,0) {\phantom{.} \nodepart{two} x \nodepart{three} \phantom{.}};
+        \node[dnode] (c) at (6,0)   {\phantom{.} \nodepart{two} C \nodepart{three} \phantom{.}};
+
+        \draw[darrow new] (a.three east) to[out=25, in=155] (c.one west);
+        \draw[darrow new prev] (c.one west) to[out=205, in=335] (a.three east);
+
+        \node[font=\Large, text=nodehigh, opacity=0.6] at (3, 0) {$\times$};
+        \node[font=\sffamily\tiny\itshape, text=black!40] at (3, -0.7) {desconectado};
+    \end{tikzpicture}
+\end{frame}
+
+
+\begin{frame}[fragile]{Lista Duplamente Ligada: Inserção}
+
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \begin{block}{\small Inserir \texttt{t} \textbf{após} \texttt{x}}
+                \begin{lstlisting}[language=Java, basicstyle=\ttfamily\tiny,
+                    keywordstyle=\color{blue}]
+t.next = x.next;
+t.prev = x;
+x.next.prev = t;
+x.next = t;
+                \end{lstlisting}
+            \end{block}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \begin{block}{\small Inserir \texttt{t} \textbf{antes} de \texttt{x}}
+                \begin{lstlisting}[language=Java, basicstyle=\ttfamily\tiny,
+                    keywordstyle=\color{blue}]
+t.prev = x.prev;
+t.next = x;
+x.prev.next = t;
+x.prev = t;
+                \end{lstlisting}
+            \end{block}
+        \end{column}
+    \end{columns}
+
+    \vspace{0.2cm}
+
+    \centering
+    {\small\bfseries Inserir \texttt{t} após \texttt{x}:}
+
+    \vspace{0.1cm}
+    \begin{tikzpicture}[scale=0.75, every node/.style={transform shape}]
+        \node[font=\sffamily\scriptsize\itshape, text=black!50] at (-1.8, 0.6) {Antes:};
+        \node[dnode] (a1) at (0,0.6)   {\phantom{.} \nodepart{two} A \nodepart{three} \phantom{.}};
+        \node[dnode hi] (x1) at (3,0.6) {\phantom{.} \nodepart{two} x \nodepart{three} \phantom{.}};
+        \node[dnode] (b1) at (6,0.6)   {\phantom{.} \nodepart{two} B \nodepart{three} \phantom{.}};
+        \draw[darrow] (a1.three east) to[out=12,in=168] (x1.one west);
+        \draw[darrow] (x1.three east) to[out=12,in=168] (b1.one west);
+        \draw[darrow prev] (x1.one west) to[out=198,in=342] (a1.three east);
+        \draw[darrow prev] (b1.one west) to[out=198,in=342] (x1.three east);
+
+        \node[dnode new] (t1) at (4.5, 2.0) {\phantom{.} \nodepart{two} t \nodepart{three} \phantom{.}};
+        \node[dlbl, text=nodeinsert!80!black] at (4.5, 2.65) {novo};
+
+        \node[font=\sffamily\scriptsize\itshape, text=black!50] at (-1.8, -1.4) {Depois:};
+        \node[dnode] (a2) at (0,-1.4)   {\phantom{.} \nodepart{two} A \nodepart{three} \phantom{.}};
+        \node[dnode hi] (x2) at (2.7,-1.4) {\phantom{.} \nodepart{two} x \nodepart{three} \phantom{.}};
+        \node[dnode new] (t2) at (5.4,-1.4) {\phantom{.} \nodepart{two} t \nodepart{three} \phantom{.}};
+        \node[dnode] (b2) at (8.1,-1.4) {\phantom{.} \nodepart{two} B \nodepart{three} \phantom{.}};
+
+        \draw[darrow] (a2.three east) to[out=12,in=168] (x2.one west);
+        \draw[darrow prev] (x2.one west) to[out=198,in=342] (a2.three east);
+        \draw[darrow new] (x2.three east) to[out=12,in=168] (t2.one west);
+        \draw[darrow new prev] (t2.one west) to[out=198,in=342] (x2.three east);
+        \draw[darrow new] (t2.three east) to[out=12,in=168] (b2.one west);
+        \draw[darrow new prev] (b2.one west) to[out=198,in=342] (t2.three east);
+    \end{tikzpicture}
+\end{frame}
+
+
+\begin{frame}{Comparação: Lista Simples vs.\ Duplamente Ligada}
+   \renewcommand{\arraystretch}{1.3}
+    \centering
+    \begin{tabular}{@{} l c c @{}}
+        \hline
+        \textbf{Operação} & \textbf{Lista Simples} & \textbf{Lista Dupla} \\
+        \hline
+        Inserir após \texttt{x} & $O(1)$ --- 2 ponteiros & $O(1)$ --- 4 ponteiros \\
+        Inserir antes de \texttt{x} & $O(n)$ --- buscar predecessor & $O(1)$ --- 4 ponteiros \\
+        Remover \texttt{x} (dado \texttt{x}) & $O(n)$ --- buscar predecessor & $O(1)$ --- 2 ponteiros \\
+        Remover após \texttt{x} & $O(1)$ --- 1 ponteiro & $O(1)$ --- 2 ponteiros \\
+        Espaço por nó & 1 ponteiro & 2 ponteiros \\
+        \hline
+    \end{tabular}
+
+    \vspace{0.4cm}
+
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \centering
+            \begin{tikzpicture}
+                \node[draw, rounded corners=4pt, fill=nodehigh!6, draw=nodehigh!40,
+                      thick, font=\sffamily\tiny, text width=4.5cm, align=left,
+                      inner sep=4pt]
+                {
+                    \textbf{Quando usar lista simples:}\\
+                    Inserção/remoção sempre no início ou após um nó conhecido.
+                    Economia de memória.
+                };
+            \end{tikzpicture}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \centering
+            \begin{tikzpicture}
+                \node[draw, rounded corners=4pt, fill=nodeinsert!6, draw=nodeinsert!40,
+                      thick, font=\sffamily\tiny, text width=4.5cm, align=left,
+                      inner sep=4pt]
+                {
+                    \textbf{Quando usar lista dupla:}\\
+                    Remoção direta de nó, travessia bidirecional,
+                    nós compartilhados entre estruturas (ex: LRU cache).
+                };
+            \end{tikzpicture}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+% =============================================================
+%  RECAPITULAÇÃO
+% =============================================================
+\section{Recapitulação}
+
+\begin{frame}{Recapitulação: O que Aprendemos Hoje}
+    \centering
+    \renewcommand{\arraystretch}{1.4}
+    \begin{tabular}{@{} l c c c @{}}
+        \hline
+        \textbf{Operação} & \textbf{Array Estático} & \textbf{Array Dinâmico} & \textbf{Lista Ligada} \\
+        \hline
+        Acesso por índice & $O(1)$ & $O(1)$ & $O(n)$ \\
+        Inserção no fim & --- & $O(1)$ amortizado & $O(1)$ \\
+        Inserção no meio & $O(n)$ & $O(n)$ & $O(1)$\textsuperscript{*} \\
+        Remoção (posição conhecida) & $O(n)$ & $O(n)$ & $O(1)$\textsuperscript{*} \\
+        Memória & Contígua, fixa & Contígua, cresce & Fragmentada \\
+        \hline
+    \end{tabular}
+
+    {\scriptsize \textsuperscript{*}Se já temos a referência ao nó.}
+
+    \vspace{0.4cm}
+    \begin{block}{Mensagem Central}
+        Não existe estrutura ``melhor'' em absoluto. A escolha depende do \textbf{padrão de acesso} do algoritmo que a utiliza:
+        \begin{itemize}
+            \item Acesso aleatório frequente $\Rightarrow$ \textbf{Array}.
+            \item Inserções/remoções frequentes em posições variadas $\Rightarrow$ \textbf{Lista Ligada}.
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+
+\begin{frame}{Próximos Passos}
+    \begin{itemize}
+        \item \textbf{Próxima aula:} Pilhas e Filas --- ADTs construídos sobre arrays e listas.
+        \item \textbf{Exercícios sugeridos:}
+            \begin{enumerate}
+                \item Implemente um \texttt{ArrayList} simplificado com operação \texttt{remove(int index)}.
+                \item Resolva o problema de Josephus para diferentes valores de $N$ e $M$.
+                \item Implemente uma lista duplamente ligada com sentinelas e operações de inserção/remoção.
+            \end{enumerate}
+        \item \textbf{Leitura:} Sedgewick, capítulos sobre estruturas elementares.
+    \end{itemize}
+\end{frame}
+
+
+\end{document}

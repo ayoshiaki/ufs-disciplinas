@@ -1,0 +1,1574 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Use the UFS theme
+\usetheme{UFS}
+
+% Additional packages
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{clrscode3e}
+\usepackage{xcolor}
+\usepackage{media9}
+\usepackage{qrcode}
+
+\usepackage{tikz}
+
+\usetikzlibrary{shapes.geometric, arrows, positioning, matrix, fit, backgrounds, decorations.pathreplacing,shadows, snakes,patterns, automata,positioning, intersections}
+	
+
+
+% --- Paleta VS Code Light+ ---
+\definecolor{bgcolor}{HTML}{FFFFFF}       % fundo branco
+\definecolor{linecolor}{HTML}{DDDDDD}     % borda cinza clara
+\definecolor{numcolor}{HTML}{999999}      % números de linha
+\definecolor{kwcolor}{HTML}{0000FF}       % keywords: azul
+\definecolor{strcolor}{HTML}{A31515}      % strings: vermelho escuro
+\definecolor{cmtcolor}{HTML}{008000}      % comentários: verde
+\definecolor{fncolor}{HTML}{795E26}       % funções: dourado/marrom
+\definecolor{typecolor}{HTML}{267F99}     % tipos/classes: azul-petróleo
+
+\lstdefinestyle{modernstyle}{
+    backgroundcolor=\color{bgcolor},
+    basicstyle=\ttfamily\footnotesize\color{black},
+    keywordstyle=\color{kwcolor}\bfseries,
+    stringstyle=\color{strcolor},
+    commentstyle=\color{cmtcolor}\itshape,
+    numberstyle=\tiny\color{numcolor},
+    % --- Layout ---
+    numbers=left,
+    numbersep=12pt,
+    xleftmargin=20pt,
+    framexleftmargin=20pt,
+    % --- Quebra de linha ---
+    breaklines=true,
+    breakatwhitespace=false,
+    % --- Espaçamento e tabs ---
+    tabsize=4,
+    keepspaces=true,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    % --- Moldura ---
+    frame=single,
+    rulecolor=\color{linecolor},
+    framesep=4pt,
+    % --- Legenda ---
+    captionpos=b,
+    upquote=true,
+    columns=fullflexible,
+}
+\lstset{style=modernstyle}
+
+% --- Metadados ---
+\title{COMP0497 -- Algoritmos e Estrutura de Dados 1}
+\author{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+
+\begin{document}
+
+% ============================================================
+% SLIDE 1 – Capa
+% ============================================================
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ============================================================
+% SLIDE 2 – Introdução (seção)
+% ============================================================
+
+% ============================================================
+% SLIDE 3 – Dados da Disciplina
+% ============================================================
+\begin{frame}{Dados da Disciplina}
+	\begin{itemize}
+		\item \textbf{COMP0497:} Algoritmos e Estruturas de Dados I
+		\item 4 créditos -- 60 horas
+		\item \textbf{Horário:}  3N1234
+		\item Utilizaremos o SIGAA para a comunicação e entregas
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Ementa}
+  \begin{itemize}
+    \item Eficiência de algoritmos, notação assintótica
+    \item Cálculo de complexidade de tempo e de espaço em algoritmos iterativos e recursivos
+    \item Representação e manipulação de estruturas lineares de dados: listas, pilhas, filas
+    \item Busca binária
+    \item Hashing: funções, métodos e aplicações
+    \item Árvores: binárias, binárias de busca, balanceadas
+    \item Heaps e filas de prioridade
+    \item Estrutura de dados para conjuntos disjuntos
+    \item Complexidade das estruturas estudadas
+    \item Algoritmos de ordenação por comparação
+    \item Aplicações
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[shrink]{Bibliografia (PPC)}
+
+  \textbf{Referências Básicas:}
+  \begin{itemize}
+    \item SZWARCFITER, J. L.; MARKENZON, L. \textit{Estruturas de Dados e Seus Algoritmos}. 3.~ed. Rio de Janeiro: LTC, 2015.
+    \item ZIVIANI, N. \textit{Projeto de Algoritmos: Com Implementações em Pascal e C}. 3.~ed. São Paulo: Cengage CTP, 2010.
+    \item CELES, W.; CERQUEIRA, R.; RANGEL, J. L. \textit{Introdução a Estruturas de Dados: Com Técnicas de Programação em C}. 2.~ed. Rio de Janeiro: Elsevier, 2016.
+  \end{itemize}
+
+  \textbf{Referências Complementares:}
+  \begin{itemize}
+    \item PIVA JÚNIOR, D. et al. \textit{Estruturas de Dados e Técnicas de Programação}. 1.~ed. Rio de Janeiro: Campus, 2014.
+    \item GOODRICH, M.; TAMASSIA, R. \textit{Estruturas de Dados e Algoritmos em Java}. 4.~ed. Porto Alegre: Bookman, 2007.
+  \end{itemize}
+
+
+
+\end{frame}
+
+\begin{frame}[shrink]{Outros livros sugeridos}
+	\begin{itemize}
+		\item SEDGEWICK, R.; WAYNE, K. \textit{Algorithms}. 4.~ed. Addison-Wesley, 2011.
+		\item CORMEN, T. H.; LEISERSON, C. E.; RIVEST, R. L.; STEIN, C. \textit{Introduction to Algorithms} (CLRS). 3.~ed. MIT Press, 2009.
+	\end{itemize}
+
+	\begin{block}{Recomendação: Livro online}
+		Paulo Feofiloff (IME-USP): \url{https://www.ime.usp.br/~pf/algoritmos/}
+	\end{block}
+\end{frame}
+
+
+\begin{frame}{Critério de Avaliação}
+
+  A nota final é composta por duas unidades.
+
+  \textbf{Composição da primeira unidade:}
+  \begin{itemize}
+	  \item Avaliação 1
+	  \item Exercícios valendo no máximo $5\%$ da nota da primeira unidade
+  \end{itemize}
+  \textbf{Composição da segunda unidade:}
+  \begin{itemize}
+	  \item Avaliação 2
+	  \item Exercícios valendo no máximo $5\%$ da nota da primeira unidade
+  \end{itemize}
+
+	\begin{alertblock}{Repositiva}
+		A prova de reposição é destinada \alert{aos alunos que faltaram} a uma das avaliações. Ela terá o valor total de dez pontos. 
+	\end{alertblock}
+  
+\end{frame}
+
+
+
+\section{Algoritmos e Análise de Algoritmos}
+
+\begin{frame}{Algoritmo}
+  Um \textbf{algoritmo} é qualquer procedimento computacional que recebe algum valor, ou um conjunto de valores, como \emph{entrada} e produz algum valor, ou um conjunto de valores, como \emph{saída}.\\[12pt]
+  
+  Um algoritmo é uma sequência de passos computacionais que transforma uma entrada em uma saída.
+\end{frame}
+
+
+\begin{frame}{Paulo Feofiloff (IME-USP)}
+  \begin{quote}
+	  ``A análise de algoritmos é uma disciplina de \alert{engenharia}. Um engenheiro civil, por exemplo, tem métodos e tecnologia para \alert{prever o comportamento} de uma estrutura antes de construí-la.''
+  \end{quote}
+  \vspace{6pt}
+  \begin{quote}
+    ``Da mesma forma, um projetista de algoritmos deve ser capaz de prever o comportamento de um algoritmo antes de implementá-lo.''
+  \end{quote}
+\end{frame}
+
+\begin{frame}{Objetivos da Análise de Algoritmos}
+    \begin{columns}[c]
+        \begin{column}{0.52\textwidth}
+            A análise de algoritmos avalia duas propriedades fundamentais de qualquer solução:
+
+            \vspace{0.8em}
+            \begin{itemize}
+                \item \textbf{Correção:} o algoritmo produz o resultado esperado \emph{para toda entrada válida}?
+
+                \vspace{0.4em}
+                \item \textbf{Desempenho:} qual o custo em \emph{tempo} (operações) e \emph{espaço} (memória) à medida que a entrada cresce?
+            \end{itemize}
+
+            \vspace{0.8em}
+            {\small\color{gray} Ambas devem ser satisfeitas — um algoritmo correto, porém lento demais, é inviável na prática.}
+        \end{column}
+
+        \begin{column}{0.44\textwidth}
+            \centering
+            \begin{tikzpicture}[
+                font=\small,
+                central/.style={
+                    rectangle, rounded corners=4pt,
+                    draw=gray!60, fill=gray!12, thick,
+                    minimum width=2.6cm, minimum height=0.9cm,
+                    text centered
+                },
+                goal/.style={
+                    rectangle, rounded corners=6pt,
+                    draw=orange!70, fill=orange!15, thick,
+                    minimum width=2.8cm, minimum height=1.3cm,
+                    text centered, align=center
+                },
+                edge/.style={
+                    ->, >=stealth, thick, gray!70,
+                    shorten >=3pt, shorten <=3pt
+                }
+            ]
+                \node[central] (alg) at (0,0) {Algoritmo};
+
+                \node[goal] (cor) at (2.8,1.4)
+                    {\shortstack{\textbf{Correção}\\[3pt]
+                    {\footnotesize resultado correto}\\
+                    {\footnotesize para toda entrada}}};
+
+                \node[goal] (des) at (2.8,-1.4)
+                    {\shortstack{\textbf{Desempenho}\\[3pt]
+                    {\footnotesize tempo e espaço}\\
+                    {\footnotesize em função de $n$}}};
+
+                \draw[edge] (alg) -- (cor);
+                \draw[edge] (alg) -- (des);
+            \end{tikzpicture}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Problemas Computacionais}
+
+  Um algoritmo resolve \textbf{problemas computacionais} bem especificados.
+
+\begin{block}{Exemplo: Problema de Ordenação}
+	  \begin{itemize}
+		  \item \textbf{Entrada:}  Uma sequência de $n$ números $a_1, a_2, \cdots, a_n$.
+		  \item \textbf{Saída:}  Uma permutação    $a_1^*,a_2^*,\cdots, a_n^*$  da entrada tal que $a_1^* \leq a_2^*, \cdots, \leq a_n^*$.
+	  \end{itemize}
+  \end{block}
+
+
+
+  \end{frame}
+
+\begin{frame}{Instância de um Problema}
+  A \textbf{instância} de um problema é um caso particular de uma entrada que satisfaz todas as restrições do problema.\\[6pt]
+  Exemplo de instância: $\langle 42, 1, 2, 33, 52 \rangle$\\[12pt]
+  Exemplo de instância para o problema de ordenação:
+  \begin{itemize}
+    \item Entrada: $\langle 42, 52, 1, 3, 5 \rangle$
+    \item Saída: $\langle 1, 3, 5, 42, 52 \rangle$
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Corretude}
+  \begin{itemize}
+    \item Um algoritmo é considerado \textbf{correto} se, para todas as instâncias, ele sempre termina com a solução para o problema.
+    \item Quando um algoritmo é correto, dizemos que ele \emph{resolve} o dado problema computacional.
+    \item Um algoritmo incorreto pode não parar para algumas instâncias, ou pode parar com a resposta errada.
+    \item \textbf{Observação:} um algoritmo incorreto ainda pode ser útil se conseguirmos controlar a taxa de erro do mesmo.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Formas de se Descrever um Algoritmo}
+  \begin{itemize}
+    \item Um algoritmo deve ser descrito da forma mais clara e precisa possível.
+    \item É possível descrever um algoritmo utilizando a nossa própria língua nativa; às vezes, é a melhor forma de se fazer.
+    \item Quando é necessário deixar tudo perfeitamente claro, utilizamos os \textbf{pseudocódigos}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[shrink]{Formas de se Descrever um Algoritmo (cont.)}
+  \begin{itemize}
+    \item Pseudocódigos são similares a C, C++, Java, Python, etc.
+    \item Eles são desenvolvidos para um \emph{humano} entender e não para a máquina entender.
+    \item Aspectos da engenharia de software, como modularidade e gerenciamento de erros, são ignorados.
+    \item O português é aceito ao escrever um pseudocódigo.
+  \end{itemize}
+
+  \begin{alertblock}{Linguagem Java}
+	  Vamos utilizar a \alert{linguagem Java} para realizar a \textbf{implementação} dos algoritmos e estruturas de dados. Vamos utilizar pseudocódigo quando conveniente. 
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{Exemplo de pseudocódigo}
+	\begin{block}{Pergunta}
+		Qual o valor de $S$ ao final da execução deste algoritmo? Há uma forma mais eficiente de se realizar a mesma conta?
+	\end{block}
+  \begin{columns}[T]
+
+    \begin{column}{0.45\textwidth}
+      \textbf{Pseudocódigo}
+      \begin{codebox}
+        \Procname{$\proc{Exemplo-Laco-Duplo}(n)$}
+        \li $S = 0$
+        \li \For $i \gets 2$ \To $n - 2$
+        \li   \Do \For $j \gets i$ \To $n$
+        \li     \Do $S \gets S + 1$
+                \End
+              \End
+        \li \Return $S$
+      \end{codebox}
+    \end{column}
+
+    \begin{column}{0.5\textwidth}
+      \textbf{Java}
+
+		    \begin{lstlisting}[language=Java, basicstyle=\ttfamily\tiny]
+public class ExemploLacoDuplo 
+  static int exemploLacoDuplo(int n) {
+    int S = 0;
+    for (int i = 2; i <= n - 2; i++) {
+      for (int j = i; j <= n; j++) {
+        S = S + 1;
+      }
+    }
+    return S;
+  }
+}
+ 
+\end{lstlisting}
+
+    \end{column}
+
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O Desafio de Gauss}
+    \begin{itemize}
+        \item \textbf{O Contexto:} Conta a lenda que, aos 7 anos, Carl Friedrich Gauss e sua turma receberam uma tarefa para mantê-los ocupados.
+        \item \textbf{A Tarefa:} Somar todos os números inteiros de 1 a 100.
+        \item \textbf{O Resultado:} Enquanto os colegas somavam um a um, Gauss entregou a resposta em poucos segundos: \textbf{5.050}.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{A Percepção da Simetria}
+    Gauss percebeu que somar a sequência na ordem direta e inversa revelava um padrão:
+    \vfill
+    \begin{center}
+        \begin{tabular}{rcccccl}
+            $S =$ & 1 & + & 2 & + \dots + & 100 & \\
+            $S =$ & 100 & + & 99 & + \dots + & 1 & \\ \hline
+            $2S =$ & 101 & + & 101 & + \dots + & 101 & ($\times 100$)
+        \end{tabular}
+    \end{center}
+    \vfill
+    Portanto:
+    \[ 2S = 100 \times 101 \implies S = \frac{100 \times 101}{2} = 5.050 \]
+\end{frame}
+
+\begin{frame}{Generalização: A Fórmula da PA}
+    Para uma sequência de $1$ até $n$, a soma $S_n$ é dada por:
+    \begin{block}{Fórmula de Gauss}
+        \[ S_n = \frac{(a_1 + a_n) \cdot n}{2} \]
+    \end{block}
+    \begin{itemize}
+        \item $a_1$: Primeiro termo da sequência.
+        \item $a_n$: Último termo da sequência.
+        \item $n$: Quantidade de termos.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Visão do Programador: Otimização}
+    Por que isso é importante em computação?
+    \begin{itemize}
+        \item \textbf{Abordagem Iterativa (Loop):} 
+        \begin{itemize}
+            \item Realiza $n$ adições.
+        \end{itemize}
+        \item \textbf{Abordagem Analítica (Gauss):}
+        \begin{itemize}
+            \item Apenas 3 operações matemáticas, independentemente do tamanho de $n$.
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+
+
+\begin{frame}[shrink]{Análise de Algoritmos e Soma de Gauss}
+    \begin{columns}
+        \begin{column}{0.5\textwidth}
+            \begin{codebox}
+                \Procname{$\proc{Exemplo-Laco-Duplo}(n)$}
+                \li $S = 0$
+                \li \For $i \gets 2$ \To $n - 2$
+                \li   \Do \For $j \gets i$ \To $n$
+                \li      \Do $S \gets S + 1$
+                \End
+                \End
+                \li \Return $S$
+            \end{codebox}
+        \end{column}
+        
+        \begin{column}{0.5\textwidth}
+            \textbf{Quantas vezes $S \gets S+1$ executa?}
+            \begin{itemize}
+                \item Para cada $i$, o laço $j$ executa $n - i + 1$ vezes.
+                \item \textbf{Sequência de execuções:}
+                \begin{itemize}
+                    \item $i=2 \implies n-1$
+                    \item $i=3 \implies n-2$
+                    \item \dots
+                    \item $i=n-2 \implies 3$
+                \end{itemize}
+            \end{itemize}
+        \end{column}
+    \end{columns}
+
+    \begin{block}{A Conexão com Gauss}
+        A soma total de execuções é a soma dos termos: $ (n-1) + (n-2) + \dots + 3 $. \\
+        É uma PA decrescente onde:
+        \[ a_1 = n-1, \quad a_k = 3, \quad \text{Total de termos } k = (n-2) - 2 + 1 = n-3 \]
+        \[ \text{Soma} = \frac{(a_1 + a_k) \cdot k}{2} = \frac{(n-1 + 3) \cdot (n-3)}{2} = \frac{(n+2)(n-3)}{2} \]
+    \end{block}
+\end{frame}
+
+\section{Notação assintótica} 
+
+\begin{frame}[shrink]{Origem  da notação assintótica }
+	\begin{columns}
+		\begin{column}{0.7\textwidth}
+			{\small
+			\begin{itemize}
+				\item \textbf{Introdução por Paul Bachmann}
+
+				Paul Bachmann criou a notação $O$ em 1894 para representar o crescimento de funções matemáticas na teoria dos números.
+
+				\item \textbf{Formalização por Edmund Landau}
+
+				Edmund Landau popularizou e formalizou os símbolos $O$ e $o$ em 1909, conhecidos como símbolos de Landau.
+
+				\item \textbf{Aplicação na análise de algoritmos}
+
+					Dr. Knuth formalizou e popularizou o uso das notações assintóticas (Notação $O$, $\Omega$ e $\Theta$), que pertencem à família da notação de Bachmann-Landau, no contexto da análise de algoritmos e na Ciência da Computação moderna. 
+			\end{itemize}
+			}
+		\end{column}
+		\begin{column}{0.3\textwidth}
+			\begin{block}{Donald E.\ Knuth}
+				Considerado o pai da análise de algoritmos. Desenvolveu inúmeras técnicas e ajudou a estabelecer a área como disciplina formal.
+			\end{block}
+		\end{column}
+	\end{columns}  % <-- corrigido aqui
+\end{frame}
+
+
+\begin{frame}{Notação Assintótica: Big-O}
+    \begin{block}{Definição}
+        Sejam $f(n)$ e $g(n)$ duas funções assintoticamente não-negativas.
+
+    Dizemos que $f \in O(g)$ se existem constantes $c > 0$ e $N > 0$ tais que:
+    
+    \end{block}
+    \[ f(n) \leq c \cdot g(n), \quad \forall n > N \]
+
+    \vspace{0.5cm}
+    \begin{itemize}
+        \item \textbf{Intuição:} Para todo $n$ suficientemente grande, $f(n)$ é dominado por um múltiplo de $g(n)$.
+        \item $g(n)$ atua como um \textbf{limite superior} (upper bound) para o crescimento de $f(n)$.
+    \end{itemize}
+\end{frame}
+
+
+
+\begin{frame}{Visualização da Dominação Assintótica}
+    \centering
+    \begin{tikzpicture}[scale=0.9]
+        % Eixos principais
+        \draw[->, thick] (0,0) -- (5.5,0) node[right] {$n$};
+        \draw[->, thick] (0,0) -- (0,3.5) node[above] {$f(n)$};
+
+        % Região sombreada onde f(n) <= c*g(n) para n >= n_0
+        \fill[teal!15]
+            (2.1, 0) --
+            plot[domain=2.1:5, samples=80]
+                (\x, {0.12*\x*\x + 0.4}) --
+            (5, 0) -- cycle;
+
+        % Curva c*g(n) — limite superior (azul)
+        \draw[thick, blue, smooth, samples=80, domain=0.2:5]
+            plot (\x, {0.12*\x*\x + 0.4});
+        \node[blue, right] at (4.6, 3.25) {\footnotesize $c \cdot g(n)$};
+
+        % Curva f(n) — contínua com oscilação amortecida (vermelho)
+        % f(n) = 0.09n^2 + 0.4*exp(-0.8n)*sin(4n) + 0.2
+        % O envelope exp(-0.8n) garante que f(n) < c*g(n) para n >= n_0
+        \draw[thick, red, smooth, samples=120, domain=0.2:5]
+            plot (\x, {0.09*\x*\x + 0.4*exp(-0.8*\x)*sin(4*\x r) + 0.2});
+        \node[red, right] at (4.6, 2.15) {\footnotesize $f(n)$};
+
+        % Ponto n_0 — último cruzamento entre f(n) e c*g(n)
+        % Em x≈2.1 as curvas se tocam pela última vez
+        \draw[dashed, gray] (2.1, 0) -- (2.1, {0.12*2.1*2.1 + 0.4});
+        \fill[gray] (2.1, {0.12*2.1*2.1 + 0.4}) circle (2pt);
+        \node[below, font=\small] at (2.1, 0) {$n_0$};
+
+        % Label dentro da região sombreada
+        \node[teal!70!black, font=\tiny, align=center] at (3.9, 0.55)
+            {$f(n) \leq c \cdot g(n)$\\[2pt]$\forall\; n \geq n_0$};
+
+    \end{tikzpicture}
+
+    \vspace{0.3cm}
+    \begin{itemize}
+        \item \textbf{O Ponto $n_0$:} Limiar a partir do qual
+              $f(n) \leq c \cdot g(n)$ vale \emph{permanentemente}.
+        \item \textbf{A Constante $c$:} Escala $g(n)$ de modo
+              que ela cubra $f(n)$ para todo $n \geq n_0$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{A Natureza de $O(g(n))$}
+    \begin{itemize}
+        \item Frequentemente escrevemos $f(n) = O(g(n))$, mas matematicamente isso é um \textbf{abuso de notação}.
+        \item Na verdade, $O(g(n))$ é um \textbf{conjunto (classe)} de funções.
+        \item A relação rigorosa é de pertinência: $f(n) \in O(g(n))$.
+    \end{itemize}
+    
+    \begin{block}{Definição Formal}
+        $O(g(n)) = \{ f(n) : \exists \, c > 0, n_0 > 0 \text{ tal que } 0 \le f(n) \le cg(n), \forall n \ge n_0 \}$
+    \end{block}
+    
+    \begin{itemize}
+        \item $g(n)$ é um \textbf{limite superior assintótico} para todas as funções do conjunto.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{A Hierarquia de Conjuntos}
+    \begin{itemize}
+        \item Como $O(g(n))$ é um conjunto, podemos observar relações de subconjuntos:
+    \end{itemize}
+
+    \centering
+    \begin{tikzpicture}
+        \draw[thick] (0,0) circle (2cm) node[yshift=1.5cm] {$O(n^2)$};
+        \draw[thick, fill=gray!20] (0,-0.5) circle (1.2cm) node[yshift=0.8cm] {$O(n)$};
+        \draw[thick, fill=gray!40] (0,-1) circle (0.5cm) node {$O(1)$};
+    \end{tikzpicture}
+
+    \begin{itemize}
+        \item Exemplo: $O(1) \subset O(n) \subset O(n^2)$.
+        \item Dizer que uma função é constante implica que ela também é linear (em termos de limite superior).
+    \end{itemize}
+\end{frame}
+
+
+
+\begin{frame}{Exercício 1: Verdadeiro ou Falso?}
+    \Large
+    \[ 10n + 50 \in O(n^2) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 1}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Pela definição: $f(n) \le c \cdot g(n)$ para $n \ge n_0$.
+        \item Queremos $10n + 50 \le c \cdot n^2$.
+        \item Se escolhermos $c = 1$:
+        $10n + 50 \le n^2 \implies n^2 - 10n - 50 \ge 0$.
+        \item Isso é verdade para qualquer $n \ge 14$.
+        \item \textbf{Conclusão:} Como existe $c=1$ e $n_0=14$, a afirmação é verdadeira. $O(n^2)$ é um limite superior válido (embora não seja o mais "justo").
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 2: Verdadeiro ou Falso?}
+    \Large
+    \[ n^2 \in O(n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 2}
+    \textbf{Resposta: Falso.}
+    \begin{itemize}
+        \item Suponha que existam $c, n_0$ tais que $n^2 \le c \cdot n$.
+        \item Dividindo por $n$ (para $n > 0$): $n \le c$.
+        \item \textbf{Contradição:} $c$ é uma constante fixa, mas $n$ cresce ao infinito. Não existe uma constante $c$ que seja sempre maior ou igual a $n$ para todo $n \ge n_0$.
+        \item Portanto, $n^2$ cresce estritamente mais rápido que $n$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 3: Verdadeiro ou Falso?}
+    \Large
+    \[ \log_{10}(n) \in O(\log_{2}(n)) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 3}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Lembre-se da mudança de base: $\log_{10}(n) = \frac{\log_{2}(n)}{\log_{2}(10)}$.
+        \item Seja $c = \frac{1}{\log_{2}(10)} \approx 0.301$.
+        \item Então $\log_{10}(n) = c \cdot \log_{2}(n)$.
+        \item Como a diferença é apenas uma constante multiplicativa, as funções pertencem à mesma classe de complexidade.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 4: Verdadeiro ou Falso?}
+    \Large
+    \[ 3n^2 + 10n \in O(n^2) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 4}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Para grandes valores de $n$, o termo de maior grau domina.
+        \item $3n^2 + 10n \le 3n^2 + 10n^2 = 13n^2$ (para $n \ge 1$).
+        \item Escolhendo $c = 13$ e $n_0 = 1$, a condição $f(n) \le c \cdot g(n)$ é satisfeita.
+    \end{itemize}
+\end{frame}
+
+
+
+
+\begin{frame}{Exercício 5: Verdadeiro ou Falso?}
+    \Large
+    \[ 2^n \in O(n^{100}) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 5}
+    \textbf{Resposta: Falso.}
+    \begin{itemize}
+        \item Funções exponenciais sempre superam funções polinomiais assintoticamente.
+        \item $\lim_{n \to \infty} \frac{2^n}{n^{100}} = \infty$.
+        \item Não importa quão grande seja o expoente do polinômio, o crescimento de $2^n$ eventualmente ultrapassa qualquer $c \cdot n^{100}$.
+    \end{itemize}
+\end{frame}
+
+
+\begin{frame}{Exercício 6: Verdadeiro ou Falso?}
+    \Large
+    \[ \sqrt{n} \in O(n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 6}
+    \textbf{Resposta: Verdadeiro.}
+    \centering
+    \begin{tikzpicture}[scale=0.6]
+        \draw[->] (0,0) -- (4,0) node[right] {$n$};
+        \draw[->] (0,0) -- (0,3) node[above] {$y$};
+        \draw[blue, thick] plot[domain=0:3.5] (\x, {sqrt(\x)}) node[right] {$\sqrt{n}$};
+        \draw[red, dashed] plot[domain=0:2.5] (\x, {\x}) node[right] {$n$};
+    \end{tikzpicture}
+    \begin{itemize}
+        \item Note que $\sqrt{n} \le 1 \cdot n$ para todo $n \ge 1$.
+        \item Como $n^{0.5}$ cresce mais devagar que $n^1$, a relação de pertinência é válida.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 7: Verdadeiro ou Falso?}
+    \Large
+    \[ n! \in O(2^n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+
+\begin{frame}{Demonstração 7}
+    \textbf{Resposta: Falso.}
+    \begin{itemize}
+        \item Suponha, por contradição, que $n! \in O(2^n)$, ou seja,
+              que existam $c > 0$ e $n_0$ tais que
+              $n! \leq c \cdot 2^n$ para todo $n \geq n_0$.
+        \item Observe que:
+        \[
+            \frac{n!}{2^n}
+            = \frac{1}{2}\cdot\frac{2}{2}\cdot\frac{3}{2}\cdots\frac{n}{2}
+            \;\geq\; \frac{n}{2}
+        \]
+        pois cada fator $\tfrac{k}{2} \geq \tfrac{1}{2} > 0$
+        e o último fator vale $\tfrac{n}{2}$.
+        \item Logo $\displaystyle\lim_{n \to \infty} \frac{n!}{2^n}
+              \;\geq\; \lim_{n\to\infty}\frac{n}{2} = \infty$,
+              contradizendo $n! \leq c \cdot 2^n$.
+        \item Portanto $n! \notin O(2^n)$. \qed
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 8: Verdadeiro ou Falso?}
+    \Large
+    \[ \log(n^2) \in O(\log n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 8}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Pela propriedade dos logaritmos: $\log(n^2) = 2 \log n$.
+        \item $2 \log n \le c \cdot \log n$.
+        \item Se escolhermos $c = 2$ e $n_0 = 1$, a igualdade/desigualdade se mantém.
+        \item \textbf{Atenção:} Isso não funciona para $\log(n!)$, que é $O(n \log n)$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 9: Verdadeiro ou Falso?}
+    \Large
+    \[ 2^n + n^{10} \in O(2^n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 9}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Em uma soma, o termo de maior crescimento domina a complexidade.
+        \item Como $n^{10} \in O(2^n)$ (polinomial vs exponencial), existe um $n_0$ tal que $n^{10} \le 2^n$.
+        \item Logo, $2^n + n^{10} \le 2^n + 2^n = 2 \cdot 2^n$.
+        \item Escolhendo $c=2$, a afirmação é verdadeira.
+    \end{itemize}
+\end{frame}
+
+
+
+\begin{frame}{Exercício 10: Verdadeiro ou Falso?}
+    \centering
+    \Large
+    \[ 3^n \in O(2^n) \]
+    
+    \vspace{1cm}
+    
+    \textbf{Verdadeiro ou Falso?}
+\end{frame}
+
+\begin{frame}[shrink]{Demonstração 10}
+    \textbf{Resposta: Falso.}
+    
+    \begin{columns}
+        \begin{column}{0.5\textwidth}
+            \begin{itemize}
+                \item Analisando a razão:
+                \[ \lim_{n \to \infty} \frac{3^n}{2^n} = \lim_{n \to \infty} (1.5)^n = \infty \]
+                \item Como a razão cresce ilimitadamente, não existe constante $c$ que satisfaça $3^n \le c \cdot 2^n$.
+            \end{itemize}
+        \end{column}
+        
+        \begin{column}{0.5\textwidth}
+            \centering
+            \begin{tikzpicture}[scale=0.6]
+                \draw[->] (0,0) -- (3,0) node[right] {$n$};
+                \draw[->] (0,0) -- (0,4) node[above] {$y$};
+                % 2^n
+                \draw[blue, thick] plot[domain=0:2] (\x, {pow(2,\x)}) node[right] {$2^n$};
+                % 3^n
+                \draw[red, thick] plot[domain=0:1.2] (\x, {pow(3,\x)}) node[above] {$3^n$};
+            \end{tikzpicture}
+        \end{column}
+    \end{columns}
+
+    \begin{block}{Regra de Ouro para Exponenciais}
+        Diferente dos polinômios (onde $O(2n^2) = O(n^2)$), nas exponenciais a base \textbf{altera} a classe de complexidade:
+        \[ a^n \in O(b^n) \iff a \le b \]
+    \end{block}
+\end{frame}
+
+
+\begin{frame}{Principais Classes de Complexidade}
+    \centering
+    \small
+    \begin{tabular}{|l|l|}
+        \hline
+        \textbf{Classe $O(g(n))$} & \textbf{Nome Comum} \\ \hline
+        $O(1)$ & constante \\ \hline
+        $O(\lg n)$ & logarítmica \\ \hline
+        $O(n)$ & linear \\ \hline
+        $O(n \lg n)$ & $n \log n$ \\ \hline
+        $O(n^2)$ & quadrática \\ \hline
+        $O(n^3)$ & cúbica \\ \hline
+        $O(n^k) \text{ com } k \ge 1$ & polinomial \\ \hline
+        $O(2^n)$ & exponencial \\ \hline
+        $O(a^n) \text{ com } a > 1$ & exponencial \\ \hline
+    \end{tabular}
+    
+    \vspace{0.4cm}
+    \begin{itemize}
+        \item Note que $O(1) \subset O(\lg n) \subset O(n) \dots \subset O(a^n)$.
+        \item Se uma função é linear, ela também é, por definição, quadrática.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Hierarquia de Conjuntos (Visão Geral)}
+    \centering
+    \begin{tikzpicture}[scale=0.7]
+        % Desenho de elipses concêntricas representando os conjuntos
+        \draw[thick] (0,0) ellipse (5.5cm and 3.5cm);
+        \node at (0, 3.1) {\textbf{$O(a^n)$ - Exponencial}};
+        
+        \draw[thick, fill=gray!10] (0,-0.5) ellipse (4.5cm and 2.5cm);
+        \node at (0, 1.6) {\textbf{$O(n^k)$ - Polinomial}};
+        
+        \draw[thick, fill=gray!20] (0,-1) ellipse (3.5cm and 1.8cm);
+        \node at (0, 0.4) {\textbf{$O(n \lg n)$}};
+        
+        \draw[thick, fill=gray!30] (0,-1.5) ellipse (2.5cm and 1.1cm);
+        \node at (0, -0.8) {\textbf{$O(n)$ - Linear}};
+        
+        \draw[thick, fill=gray!40] (0,-1.8) ellipse (1.5cm and 0.6cm);
+        \node at (0, -1.8) {\textbf{$O(1)$}};
+    \end{tikzpicture}
+    
+    \vspace{0.3cm}
+    \begin{itemize}
+        \item Quanto mais "interno" o conjunto, mais eficiente é o algoritmo.
+        \item Um algoritmo $O(n)$ "mora" dentro do conjunto das funções $O(n^2)$.
+    \end{itemize}
+\end{frame}
+
+
+
+\begin{frame}{Impacto Prático: Tempo de Execução}
+    \begin{itemize}
+        \item A Notação $O$ não é apenas teoria; ela define a \textbf{viabilidade} de um software.
+        \item Considere um computador que realiza $10^9$ operações por segundo:
+    \end{itemize}
+
+    \centering
+    \scriptsize
+    \begin{tabular}{|l|c|c|c|c|}
+        \hline
+        $n$ & $O(n \log n)$ & $O(n^2)$ & $O(2^n)$ & $O(n!)$ \\ \hline
+        10 & < 1s & < 1s & < 1s & 4s \\ \hline
+        50 & < 1s & < 1s & 36 anos & \textcolor{red}{Inviável} \\ \hline
+        100 & < 1s & < 1s & \textcolor{red}{$10^{17}$ anos} & \textcolor{red}{Inviável} \\ \hline
+        1.000 & < 1s & 1s & \textcolor{red}{Inviável} & \textcolor{red}{Inviável} \\ \hline
+        1.000.000 & 20s & \textcolor{orange}{12 dias} & \textcolor{red}{Inviável} & \textcolor{red}{Inviável} \\ \hline
+    \end{tabular}
+
+    \vspace{0.4cm}
+    \begin{itemize}
+        \item Algoritmos polinomiais ($n, n^2$) lidam com milhões de dados.
+        \item Algoritmos exponenciais morrem com apenas 50 ou 100 itens.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Onde o Problema "Explode"? }
+    \centering
+    \begin{tikzpicture}[scale=0.8]
+        \draw[->] (0,0) -- (6,0) node[right] {$n$};
+        \draw[->] (0,0) -- (0,4) node[above] {Tempo};
+        
+        % Polinomial (comportamento "bonzinho")
+        \draw[thick, blue] (0,0) .. controls (2,0.2) and (4,0.5) .. (5.5,1) node[right] {\tiny $O(n^2)$};
+        
+        % Exponencial (explosão)
+        \draw[thick, red] (0,0) .. controls (1,0.1) and (1.5,0.5) .. (2,4) node[above] {\tiny $O(2^n)$};
+        
+        % Linha de limite "tempo de vida humano"
+        \draw[dashed, gray] (0,2.5) -- (5.5,2.5) node[right] {\tiny Tempo de vida};
+        
+        \node[text=red, align=center] at (3.5, 3) {\small Explosão \\ Combinatória};
+    \end{tikzpicture}
+
+    \begin{block}{Conclusão Importante}
+        Um algoritmo $O(2^n)$ pode até rodar rápido para $n=10$, mas ele \textbf{não escala}. A escalabilidade é o coração da análise assintótica.
+    \end{block}
+\end{frame}
+
+
+\begin{frame}{Notação $\Omega$ (Limite Inferior Assintótico)}
+    \begin{itemize}
+        \item Se $O(g(n))$ nos dá o "pior caso" ou teto, $\Omega(g(n))$ nos dá o \textbf{"melhor caso"} ou o piso de crescimento.
+        \item Dizemos que $f(n) \in \Omega(g(n))$ se $f(n)$ cresce \textbf{pelo menos} tão rápido quanto $g(n)$.
+    \end{itemize}
+    
+    \begin{block}{Definição Formal}
+        $\Omega(g(n)) = \{ f(n) : \exists \, c > 0, n_0 > 0 \text{ tal que } 0 \le cg(n) \le f(n), \forall n \ge n_0 \}$
+    \end{block}
+    
+    \begin{itemize}
+        \item Intuição: $g(n)$ é uma estimativa otimista. O algoritmo nunca será mais rápido (em termos de ordem) do que isso.
+    \end{itemize}
+\end{frame}
+
+
+\begin{frame}{Visualização: Limite Inferior $\Omega$}
+    \begin{columns}[c]  % [c] para centralizar verticalmente
+        \begin{column}{0.50\textwidth}
+            \centering
+            \begin{tikzpicture}[scale=0.65, domain=0:2]
+                % Região de validade sombreada
+                \fill[red!8] (1.5,0) rectangle (4.3,4.2);
+
+                % Eixos
+                \draw[->, thick] (0,0) -- (4.6,0) node[right] {$n$};
+                \draw[->, thick] (0,0) -- (0,4.4) node[above] {$f(n)$};
+
+                % Curvas
+                \draw[thick, blue!70!black, line width=1.4pt]
+                    plot (\x, {0.5*\x*\x + 1})
+                    node[right, font=\small] {$f(n)$};
+
+                \draw[thick, red!80!black, dashed, line width=1.4pt]
+                    plot (\x, {0.2*\x*\x + 0.5})
+                    node[right, font=\small] {$c \cdot g(n)$};
+
+                % Linha vertical n0
+                \draw[gray!70, thin, dashed] (1.5, 0) -- (1.5, 1.95);
+                \fill[black] (1.5, 0) circle (1.5pt);
+                \node[below, font=\small] at (1.5, 0) {$n_0$};
+
+                % Ponto de cruzamento
+                \fill[green!50!black] (1.5, 1.95) circle (2pt);
+
+                % Anotação
+                \node[anchor=west, font=\footnotesize, gray]
+                    at (1.6, 0.4) {$f(n) \geq c\,g(n)$};
+            \end{tikzpicture}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \textbf{Definição formal:}\\[4pt]
+            $f(n) = \Omega(g(n))$ se $\exists\; c > 0,\; n_0 > 0$ tais que
+            \[
+                f(n) \geq c \cdot g(n), \quad \forall\, n \geq n_0
+            \]
+
+            \vspace{0.3cm}
+            \textbf{Intuição:}
+            \begin{itemize}
+                \setlength\itemsep{3pt}
+                \item $g(n)$ é \alert{cota inferior} de $f(n)$
+                \item $f$ cresce \textbf{pelo menos} tão rápido quanto $g$
+                \item Região \textcolor{red!60!black}{sombreada}: onde a propriedade vale
+            \end{itemize}
+
+            \vspace{0.3cm}
+            \textbf{Exemplo:}\\[3pt]
+            \small Se ordenação $\in \Omega(n \log n)$,
+            então \alert{não existe} algoritmo de ordenação
+            por comparação com complexidade $O(n)$.
+        \end{column}
+    \end{columns}
+\end{frame}
+\begin{frame}{Dualidade entre $O$ e $\Omega$}
+    \begin{itemize}
+        \item Existe uma relação direta e elegante entre as duas notações:
+    \end{itemize}
+
+    \begin{center}
+        \renewcommand{\arraystretch}{1.5}
+        \begin{tabular}{|c|c|}
+            \hline
+            \textbf{Afirmação} & \textbf{Equivalência} \\ \hline
+            $f(n) \in O(g(n))$ & $g(n) \in \Omega(f(n))$ \\ \hline
+            $n \in O(n^2)$ & $n^2 \in \Omega(n)$ \\ \hline
+        \end{tabular}
+    \end{center}
+
+    \begin{itemize}
+        \item \textbf{Analogia com Números Reais:}
+        \begin{itemize}
+            \item $f(n) \in O(g(n))$ funciona como $f \le g$.
+            \item $f(n) \in \Omega(g(n))$ funciona como $f \ge g$.
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+
+\begin{frame}{Exercício 1: Verdadeiro ou Falso?}
+    \Large
+    \[ n^2 \in \Omega(n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 1}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Queremos mostrar que $n^2 \ge c \cdot n$ para $n \ge n_0$.
+        \item Dividindo por $n$ (para $n > 0$): $n \ge c$.
+        \item Se escolhermos $c = 1$, a inequação $n \ge 1$ é verdadeira para todo $n \ge 1$.
+        \item Como $n^2$ cresce mais rápido que $n$, ele certamente tem $n$ como um limite inferior.
+    \end{itemize}
+\end{frame}
+
+
+\begin{frame}{Exercício 2: Verdadeiro ou Falso?}
+    \Large
+    \[ n \in \Omega(n^2) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 2}
+    \textbf{Resposta: Falso.}
+    \begin{itemize}
+        \item Suposição: existam $c, n_0$ tais que $n \ge c \cdot n^2$.
+        \item Dividindo por $n$: $1 \ge c \cdot n$, ou seja, $n \le \frac{1}{c}$.
+        \item \textbf{Contradição:} $n$ cresce ao infinito, enquanto $1/c$ é uma constante. $n$ não pode ser menor ou igual a uma constante para todo $n \ge n_0$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 3: Verdadeiro ou Falso?}
+    \Large
+    \[ 5n^2 - 10n \in \Omega(n^2) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 3}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Queremos $5n^2 - 10n \ge c \cdot n^2$.
+        \item Para $n \ge 10$, temos $10n \le n^2$. 
+        \item Logo, $5n^2 - 10n \ge 5n^2 - n^2 = 4n^2$.
+        \item Escolhendo $c = 4$ e $n_0 = 10$, a condição de limite inferior é satisfeita.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 4: Verdadeiro ou Falso?}
+    \Large
+    \[ 100 \in \Omega(1) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 4}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Queremos $100 \ge c \cdot 1$.
+        \item Basta escolher $c = 100$ (ou qualquer valor $\le 100$) e $n_0 = 1$.
+        \item Qualquer função constante é $\Omega(1)$ porque ela não decresce para zero.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 5: Verdadeiro ou Falso?}
+    \Large
+    \[ \log n \in \Omega(\sqrt{n}) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 5}
+
+    \begin{block}{\textbf{Afirmação:} $\log n = \Omega(\sqrt{n})$}
+        \centering\textbf{FALSO}
+    \end{block}
+
+    \vspace{0.3cm}
+
+    \begin{columns}[c]
+        \begin{column}{0.52\textwidth}
+            \textbf{Prova via limite:}
+            \[
+                \lim_{n \to \infty} \frac{\log n}{\sqrt{n}}
+                \;=\; 0
+            \]
+            Como o limite é $0$, temos:
+            \begin{itemize}
+                \setlength\itemsep{4pt}
+                \item $\log n \in O(\sqrt{n})$ \textcolor{green!60!black}{\checkmark}
+                \item $\log n \notin \Omega(\sqrt{n})$ \textcolor{red}{\texttimes}
+                \item $\log n \notin \Theta(\sqrt{n})$ \textcolor{red}{\texttimes}
+            \end{itemize}
+
+            \vspace{0.3cm}
+            \small\textit{Nenhuma constante $c > 0$ e $n_0$ satisfazem\\
+            $\log n \geq c\sqrt{n}$ para todo $n \geq n_0$.}
+        \end{column}
+        \begin{column}{0.45\textwidth}
+            \centering
+            \begin{tikzpicture}[scale=0.70, domain=0.1:4]
+                % Eixos
+                \draw[->, thick] (0,0) -- (4.4,0) node[right] {$n$};
+                \draw[->, thick] (0,0) -- (0,3.8) node[above] {$f(n)$};
+
+                % sqrt(n) — cresce mais rápido
+                \draw[red!80!black, thick, line width=1.3pt]
+                    plot (\x, {1.2*sqrt(\x)})
+                    node[right, font=\small] {$\sqrt{n}$};
+
+                % log(n) — cresce mais devagar
+                \draw[blue!70!black, thick, line width=1.3pt]
+                    plot (\x, {0.9*ln(\x+0.01)})
+                    node[right, font=\small] {$\log n$};
+
+                % Anotação gap
+                \draw[<->, gray, thin] (3.8, {0.9*ln(3.81)}) --
+                    (3.8, {1.2*sqrt(3.8)})
+                    node[midway, right, font=\tiny, gray] {gap};
+            \end{tikzpicture}
+
+            \vspace{0.1cm}
+            \tiny\textcolor{gray}{$\sqrt{n}$ domina $\log n$ para $n$ grande}
+        \end{column}
+    \end{columns}
+
+\end{frame}
+\begin{frame}{Exercício 6: Verdadeiro ou Falso?}
+    \Large
+    \[ 2^n \in \Omega(n^{10}) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 6}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Exponenciais sempre dominam polinômios.
+        \item $\lim_{n \to \infty} \frac{2^n}{n^{10}} = \infty$.
+        \item Como a razão tende ao infinito, $2^n$ cresce muito mais rápido que $n^{10}$, satisfazendo a condição de limite inferior.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 7: Verdadeiro ou Falso?}
+    \Large
+    \[ n \log n \in \Omega(n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 7}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Queremos $n \log n \ge c \cdot n$.
+        \item Dividindo por $n$: $\log n \ge c$.
+        \item Para qualquer $c$, existe um $n_0$ (ex: $2^c$) tal que para todo $n \ge n_0$, $\log n$ é maior que $c$.
+        \item Logo, $n \log n$ cresce ligeiramente mais rápido que $n$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 8: Verdadeiro ou Falso?}
+    \Large
+    \[ 2^n \in \Omega(3^n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 8}
+    \textbf{Resposta: Falso.}
+    \begin{itemize}
+        \item Analisando a razão: $\frac{2^n}{3^n} = (2/3)^n$.
+        \item $\lim_{n \to \infty} (0.66)^n = 0$.
+        \item Como a função $2^n$ se torna insignificante perto de $3^n$ conforme $n$ cresce, ela não pode ser um limite inferior para $3^n$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 9: Verdadeiro ou Falso?}
+    \Large
+    \[ n! \in \Omega(2^n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 9}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item $n!$ cresce mais rápido que qualquer função exponencial de base constante.
+        \item $\frac{n!}{2^n} = \frac{1 \cdot 2 \cdot 3 \dots \cdot n}{2 \cdot 2 \cdot 2 \dots \cdot 2}$.
+        \item Para $n > 4$, cada novo termo do fatorial é maior que 2, fazendo a razão crescer ao infinito.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 10: Verdadeiro ou Falso?}
+    \Large
+    \[ \sqrt{n} \in \Omega(\log n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 10}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Embora ambas cresçam devagar, a raiz quadrada (polinomial) cresce mais rápido que o logaritmo.
+        \item $\lim_{n \to \infty} \frac{\sqrt{n}}{\log n} = \infty$ (pode ser provado por L'Hôpital).
+        \item Portanto, $\sqrt{n}$ é um limite inferior para $\log n$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Notação $\Theta$ (Limite Justo)}
+    \begin{itemize}
+        \item A notação $\Theta(g(n))$ combina o limite superior ($O$) e o inferior ($\Omega$).
+    \end{itemize}
+    
+    \begin{block}{Definição Formal}
+        $f(n) \in \Theta(g(n)) \iff f(n) \in O(g(n)) \text{ e } f(n) \in \Omega(g(n))$
+    \end{block}
+    
+    \begin{itemize}
+        \item Ou seja, existem $c_1, c_2, n_0 > 0$ tais que:
+        \[ 0 \le c_1 g(n) \le f(n) \le c_2 g(n), \quad \forall n \ge n_0 \]
+        \item Isso significa que $f(n)$ cresce \textbf{exatamente} na mesma ordem que $g(n)$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{O "Sanduíche" de Funções}
+
+\centering
+\begin{tikzpicture}[scale=0.9, domain=0:4]
+        % Eixos
+        \draw[->] (0,0) -- (5,0) node[right] {$n$};
+        \draw[->] (0,0) -- (0,4) node[above] {$f(n)$};
+        
+        % Curvas de limite - Cor e Estilo separados por vírgula
+        \draw[thick, red, dashed] plot (\x, {0.7*\x + 0.5}) node[right] {$c_2 g(n)$};
+        \draw[thick, orange, dashed] plot (\x, {0.3*\x + 0.2}) node[right] {$c_1 g(n)$};
+        
+        % Função f(n) no meio
+        \draw[thick, blue] plot (\x, {0.5*\x + 0.4 + 0.1*sin(180*\x)}) node[above left] {$f(n)$};
+        
+        % n0
+        \draw[gray, thin, dashed] (1, 0) -- (1, 1.2);
+        \node[below] at (1,0) {$n_0$};
+    \end{tikzpicture}
+    \begin{itemize}
+        \item Exemplo: $3n^2 + 5n + 1 \in \Theta(n^2)$.
+        \item Ignoramos constantes e termos de menor ordem para encontrar o $\Theta$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Resumo Comparativo}
+    \centering
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{|c|c|c|}
+        \hline
+        \textbf{Notação} & \textbf{Tipo de Limite} & \textbf{Analogia} \\ \hline
+        $f(n) \in O(g(n))$ & Superior (Teto) & $f \le g$ \\ \hline
+        $f(n) \in \Omega(g(n))$ & Inferior (Piso) & $f \ge g$ \\ \hline
+        $f(n) \in \Theta(g(n))$ & Justo (Exato) & $f = g$ \\ \hline
+    \end{tabular}
+
+    \vspace{0.5cm}
+    \begin{exampleblock}{Propriedade Importante}
+        Para provar que $f(n) \in \Theta(g(n))$, a estratégia mais comum é provar as duas inclusões separadamente ($O$ e $\Omega$).
+    \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Exercício 1: Verdadeiro ou Falso?}
+    \Large
+    \[ \frac{1}{2}n^2 - 3n \in \Theta(n^2) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 1}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Para ser $\Theta(n^2)$, precisamos que seja $O(n^2)$ e $\Omega(n^2)$.
+        \item \textbf{Limite Superior ($O$):} $\frac{1}{2}n^2 - 3n \le \frac{1}{2}n^2$ para todo $n \ge 0$. Escolha $c_2 = 1/2$.
+        \item \textbf{Limite Inferior ($\Omega$):} Queremos $\frac{1}{2}n^2 - 3n \ge c_1 n^2$. 
+        Para $n \ge 12$, temos $3n \le \frac{1}{4}n^2$.
+        Logo, $\frac{1}{2}n^2 - 3n \ge \frac{1}{2}n^2 - \frac{1}{4}n^2 = \frac{1}{4}n^2$. Escolha $c_1 = 1/4$.
+        \item Como a função está entre $\frac{1}{4}n^2$ e $\frac{1}{2}n^2$, ela é $\Theta(n^2)$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 2: Verdadeiro ou Falso?}
+    \Large
+    \[ n \in \Theta(n^2) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 2}
+    \textbf{Resposta: Falso.}
+    \begin{itemize}
+        \item Para ser $\Theta(n^2)$, a função deve ser $O(n^2)$ \textbf{E} $\Omega(n^2)$.
+        \item $n \in O(n^2)$ é verdade (limite superior).
+        \item No entanto, $n \notin \Omega(n^2)$ porque $n$ cresce estritamente mais devagar que $n^2$. 
+        \item Não existe constante $c_1 > 0$ tal que $n \ge c_1 n^2$ para todo $n$ grande (pois $c_1 \le 1/n$, e $1/n$ tende a zero).
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 3: Verdadeiro ou Falso?}
+    \Large
+    \[ \log_{10} n \in \Theta(\log_{2} n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 3}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Pela mudança de base: $\log_{10} n = \frac{\log_{2} n}{\log_{2} 10}$.
+        \item Seja $K = \frac{1}{\log_{2} 10} \approx 0.301$.
+        \item Então $f(n) = K \cdot \log_{2} n$.
+        \item Podemos escolher $c_1 = 0.3$ e $c_2 = 0.4$.
+        \item $0.3 \log_2 n \le 0.301 \log_2 n \le 0.4 \log_2 n$.
+        \item Constantes multiplicativas não alteram a classe $\Theta$.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 4: Verdadeiro ou Falso?}
+    \Large
+    \[ 2^{n+1} \in \Theta(2^n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 4}
+    \textbf{Resposta: Verdadeiro.}
+    \begin{itemize}
+        \item Note que $2^{n+1} = 2^1 \cdot 2^n = 2 \cdot 2^n$.
+        \item Queremos $c_1 2^n \le 2 \cdot 2^n \le c_2 2^n$.
+        \item Basta escolher $c_1 = 2$ e $c_2 = 2$ (ou qualquer intervalo que contenha o 2).
+        \item Como a diferença é apenas uma constante multiplicativa fixa, a ordem de crescimento é a mesma.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercício 5: Verdadeiro ou Falso?}
+    \Large
+    \[ 4^n \in \Theta(2^n) \]
+    \begin{center}
+        \textbf{Verdadeiro ou Falso?}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Demonstração 5}
+    \textbf{Resposta: Falso.}
+    \begin{itemize}
+        \item Embora $2^n \in O(4^n)$ seja verdade, o contrário não é.
+        \item Analisando a razão: $\frac{4^n}{2^n} = \left(\frac{4}{2}\right)^n = 2^n$.
+        \item $\lim_{n \to \infty} 2^n = \infty$.
+        \item Isso significa que $4^n$ cresce infinitamente mais rápido que $2^n$.
+        \item Portanto, $4^n \notin O(2^n)$, o que invalida a relação $\Theta$.
+    \end{itemize}
+\end{frame}
+
+\section{Melhor, Pior e Caso Médio}
+% ============================================================
+% Slide 1: Cenários de Execução
+% ============================================================
+\begin{frame}[shrink]{ Melhor, Pior e Caso Médio}
+    O desempenho de um algoritmo depende não apenas do tamanho da entrada~($n$),
+    mas também da \textbf{configuração específica} dos dados.
+
+    \begin{itemize}
+        \item \textbf{Pior Caso (\emph{Worst Case}):}
+              A entrada que maximiza o número de operações.
+              Fornece uma \textbf{garantia superior}: nenhuma entrada fará o algoritmo ser mais lento.
+
+        \item \textbf{Melhor Caso (\emph{Best Case}):}
+              A entrada que minimiza o número de operações.
+              Útil para saber o mínimo de trabalho inevitável.
+
+        \item \textbf{Caso Médio (\emph{Average Case}):}
+              A média do custo sobre todas as entradas possíveis,
+              \textbf{ponderada por uma distribuição de probabilidade assumida}.
+              Mais informativo que o pior caso, porém mais difícil de calcular.
+    \end{itemize}
+
+    \medskip
+    \begin{alertblock}{Cuidado com um equívoco comum!}
+        As notações $O$, $\Omega$ e $\Theta$ são \textbf{limitantes de funções},
+        não sinônimos de cenários.
+        Podemos dizer, por exemplo, que o \emph{pior caso} de um algoritmo é $\Theta(n)$
+        --- usando qualquer notação em qualquer cenário.
+    \end{alertblock}
+\end{frame}
+
+% ============================================================
+% Slide 2: Notação vs.\ Cenário (esclarecimento)
+% ============================================================
+\begin{frame}[shrink]{Notação Assintótica $\neq$ Cenário de Execução}
+
+    \centering
+    \begin{tabular}{@{}lp{6.5cm}@{}}
+        \toprule
+        \textbf{Conceito} & \textbf{O que descreve} \\
+        \midrule
+        $O(g(n))$      & Limitante superior de uma função
+                          (``cresce \textbf{no máximo} tão rápido quanto $g$'') \\[4pt]
+        $\Omega(g(n))$  & Limitante inferior de uma função
+                          (``cresce \textbf{pelo menos} tão rápido quanto $g$'') \\[4pt]
+        $\Theta(g(n))$  & Limitante justo
+                          (``cresce \textbf{na mesma ordem} que $g$'') \\
+        \midrule
+        Pior caso       & Um \textbf{cenário} --- qual entrada é a mais custosa? \\
+        Melhor caso     & Um \textbf{cenário} --- qual entrada é a mais barata? \\
+        Caso médio      & Um \textbf{cenário} --- qual o custo esperado? \\
+        \bottomrule
+    \end{tabular}
+
+    \bigskip
+
+    \begin{exampleblock}{Combinação correta}
+        ``O \textbf{pior caso} da busca linear é $\Theta(n)$'' \;---\;
+        \textbf{cenário} + \textbf{limitante justo}.
+
+        \smallskip
+        ``O \textbf{melhor caso} da busca linear é $\Theta(1)$'' \;---\;
+        também válido.
+    \end{exampleblock}
+\end{frame}
+
+% ============================================================
+% Slide 3: Exemplo --- Busca Linear
+% ============================================================
+\begin{frame}[shrink]{Exemplo Prático: Busca Linear}
+    Considere buscar um valor~$x$ em um vetor~$A[1..n]$ não ordenado.
+
+    \begin{exampleblock}{Análise de Cenários}
+        \begin{itemize}
+            \item \textbf{Melhor Caso:} $x = A[1]$.
+                  \hfill $\Theta(1)$
+            \item \textbf{Pior Caso:} $x = A[n]$ ou $x \notin A$.
+                  \hfill $\Theta(n)$
+            \item \textbf{Caso Médio:}
+                  Supondo $x \in A$ e cada posição equiprovável,
+                  o valor esperado de comparações é $\frac{n+1}{2}$.
+                  \hfill $\Theta(n)$
+        \end{itemize}
+    \end{exampleblock}
+
+    \centering
+    \begin{tikzpicture}[
+        scale=0.75,
+        cell/.style={minimum width=1cm, minimum height=0.8cm, draw, thick},
+    ]
+        % Vetor
+        \foreach \i/\c in {0/$a_1$, 1/$a_2$, 2/$a_3$, 3/$\cdots$, 4/$a_{n\!-\!1}$, 5/$a_n$} {
+            \node[cell] (c\i) at (\i, 0) {\c};
+        }
+
+        % Setas dos cenários
+        \draw[->, blue, thick]   (c0.north) ++(0,0.2) -- ++(0,0.6)
+            node[above, font=\small] {Melhor};
+        \draw[->, orange, thick] (c2.south) ++(0,-0.2) -- ++(0,-0.6)
+            node[below, font=\small] {Médio ($\approx n/2$)};
+        \draw[->, red, thick]    (c5.north) ++(0,0.2) -- ++(0,0.6)
+            node[above, font=\small] {Pior};
+    \end{tikzpicture}
+
+    \medskip
+    {\small\textit{Nota:} Se $x$ pode não estar em $A$, o caso médio depende
+    da probabilidade de presença e altera o cálculo.}
+\end{frame}
+
+% ============================================================
+% Slide 4: Distribuição do Tempo de Execução
+% ============================================================
+\begin{frame}[shrink]{Distribuição do Tempo de Execução}
+
+    Para a busca linear (com posição equiprovável), a distribuição é
+    \textbf{uniforme}, não gaussiana:
+
+    \centering
+    \begin{tikzpicture}[scale=0.65]
+        % Eixos
+        \draw[->, thick] (0,0) -- (8,0) node[right] {Comparações};
+        \draw[->, thick] (0,0) -- (0,3.5) node[above] {Probabilidade};
+
+        % Distribuição uniforme (busca linear)
+        \fill[blue!20] (1,0) rectangle (6.5,2);
+        \draw[thick, blue!80!black] (1,2) -- (6.5,2);
+        \draw[thick, blue!80!black, dashed] (1,0) -- (1,2);
+        \draw[thick, blue!80!black, dashed] (6.5,0) -- (6.5,2);
+
+        % Rótulo da distribuição
+        \node[blue!80!black, font=\small] at (3.75,2.4) {$P = 1/n$ para cada posição};
+
+        % Marcações nos extremos
+        \node[below, font=\small] at (1,0)   {$1$};
+        \node[below, font=\small] at (6.5,0) {$n$};
+	    \node[below, font=\small] at (3.75,0) {$(n+1)/2$};
+
+        % Setas de cenário
+        \draw[->, blue, thick]   (1,-1.2) -- (1,-0.8);
+        \node[below, font=\footnotesize, blue] at (1,-0.8) {Melhor};
+        \draw[->, red, thick]    (6.5,-1.2) -- (6.5,-0.8);
+        \node[below, font=\footnotesize, red] at (6.5,-0.8) {Pior};
+        \draw[->, orange, thick] (3.75,-1.2) -- (3.75,-0.8);
+        \node[below, font=\footnotesize, orange] at (3.75,-0.8) {Média};
+    \end{tikzpicture}
+
+    \medskip
+
+    \begin{itemize}
+        \item Distribuições em sino (gaussianas) surgem quando o tempo depende da
+              soma de \textbf{muitas variáveis aleatórias independentes}
+              (Teorema Central do Limite) --- não é o caso aqui.
+
+        \item Na prática, priorizamos a análise de \textbf{pior caso} para
+              oferecer garantias em sistemas críticos.
+    \end{itemize}
+\end{frame}
+
+\section{Conclusão}
+
+\begin{frame}{Conclusão: Resumo das Notações}
+    Vimos que a análise assintótica nos permite comparar algoritmos ignorando detalhes de hardware e focando no \textbf{crescimento} da função.
+
+    \begin{columns}
+        \begin{column}{0.6\textwidth}
+            \begin{itemize}
+                \item \textbf{$O(g(n))$:} Limite Superior (Teto). 
+                \textit{"O algoritmo não é pior que isso."}
+                \item \textbf{$\Omega(g(n))$:} Limite Inferior (Piso). 
+                \textit{"O algoritmo não é melhor que isso."}
+                \item \textbf{$\Theta(g(n))$:} Limite Justo (Exato). 
+                \textit{"O algoritmo se comporta exatamente assim."}
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.4\textwidth}
+            \centering
+            \begin{tikzpicture}[scale=0.6]
+                \draw[->] (0,0) -- (3,0) node[right] {$n$};
+                \draw[->] (0,0) -- (0,3);
+                % O
+                \draw[red, thick] (0,0) to[out=80,in=200] (2,2.5) node[right] {$O$};
+                % Theta
+                \draw[blue, thick] (0,0) to[out=45,in=210] (2.5,1.5) node[right] {$\Theta$};
+                % Omega
+                \draw[green!60!black, thick] (0,0) to[out=10,in=190] (3,0.5) node[right] {$\Omega$};
+            \end{tikzpicture}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Lembretes Finais}
+    \begin{enumerate}
+        \item \textbf{Ignore as constantes:} $100n^2$ e $0.01n^2$ são ambos $\Theta(n^2)$ assintoticamente.
+        \item \textbf{Dominância:} O termo de maior grau sempre "vence" a longo prazo.
+        \item \textbf{Escalabilidade:} Algoritmos $O(2^n)$ ou $O(n!)$ são proibitivos para entradas grandes, não importa o quão rápido seja o seu processador.
+    \end{enumerate}
+
+    \begin{center}
+        \begin{minipage}{0.8\textwidth}
+            \begin{block}{Regrinha}
+                $f(n) \in \Theta(g(n)) \iff f(n) \in O(g(n)) \text{ e } f(n) \in \Omega(g(n))$
+            \end{block}
+        \end{minipage}
+    \end{center}
+\end{frame}
+
+
+\end{document}
+
