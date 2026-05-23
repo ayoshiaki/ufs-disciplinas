@@ -93,7 +93,7 @@ title: "COMP0496 — Programação A — Turma 5 · 2026/1"
     <div class="week-body">
       <div class="week-title">Orientação a Objetos</div>
       <div class="week-desc">Objetos, classes, encapsulamento e métodos especiais.</div>
-      <div class="week-badges"><span class="week-badge nb">3 notebooks</span></div>
+      <div class="week-badges"><span class="week-badge nb">3 notebooks</span><span class="week-badge pdf">3 PDFs</span></div>
     </div>
   </a>
 
@@ -102,7 +102,7 @@ title: "COMP0496 — Programação A — Turma 5 · 2026/1"
     <div class="week-body">
       <div class="week-title">Herança, Polimorfismo e Refatoração</div>
       <div class="week-desc">Aprofundando em OO: herança, polimorfismo e padrões de qualidade.</div>
-      <div class="week-badges"><span class="week-badge nb">2 notebooks</span></div>
+      <div class="week-badges"><span class="week-badge nb">2 notebooks</span><span class="week-badge pdf">2 PDFs</span></div>
     </div>
   </a>
 

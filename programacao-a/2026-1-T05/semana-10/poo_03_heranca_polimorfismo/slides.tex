@@ -15,6 +15,7 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric}
 
 % ---------------------------------------------------------------------------
 % lstlisting style — VS Code Light+ palette
@@ -48,9 +49,16 @@
   showstringspaces=false,
   breaklines=true,
   columns=fullflexible,
+  extendedchars=true,
   literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
-           {ã}{{\~a}}1 {õ}{{\~o}}1 {ç}{{\c{c}}}1 {Ç}{{\c{C}}}1
-           {ê}{{\^e}}1 {â}{{\^a}}1 {ô}{{\^o}}1,
+           {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+           {à}{{\`a}}1 {è}{{\`e}}1 {ì}{{\`i}}1 {ò}{{\`o}}1 {ù}{{\`u}}1
+           {ã}{{\~a}}1 {õ}{{\~o}}1 {Ã}{{\~A}}1 {Õ}{{\~O}}1
+           {ç}{{\c{c}}}1 {Ç}{{\c{C}}}1
+           {ê}{{\^e}}1 {â}{{\^a}}1 {ô}{{\^o}}1 {î}{{\^i}}1 {û}{{\^u}}1
+           {Ê}{{\^E}}1 {Â}{{\^A}}1 {Ô}{{\^O}}1
+           {—}{{---}}1 {–}{{--}}1 {…}{{\ldots}}1
+           {“}{{``}}1 {”}{{''}}1 {‘}{{`}}1 {’}{{'}}1,
 }
 \lstset{style=modernstyle}
 
@@ -164,11 +172,11 @@ class Acai:
       \toprule
       \textbf{Afirmação} & \textbf{Verdade?} & \textbf{Herança?} \\
       \midrule
-      XTudo é um Lanche           & ✓ & Sim \\
-      Dogão é um Lanche           & ✓ & Sim \\
-      Açaí é um Lanche            & ✓ & Sim \\
-      Pedido é uma CaixaRegistradora & ✗ & Não \\
-      Pedido \emph{tem} Lanches   & ✓ & Composição \\
+      XTudo é um Lanche           & \checkmark & Sim \\
+      Dogão é um Lanche           & \checkmark & Sim \\
+      Açaí é um Lanche            & \checkmark & Sim \\
+      Pedido é uma CaixaRegistradora & $\times$ & Não \\
+      Pedido \emph{tem} Lanches   & \checkmark & Composição \\
       \bottomrule
     \end{tabular}
   \end{center}
@@ -498,11 +506,11 @@ pedido.fechar()
       \toprule
       \textbf{Critério} & \textbf{Herança} & \textbf{Composição} \\
       \midrule
-      Relação ``é um'' genuína & ✓ & \\
-      Apenas reusar código     &   & ✓ \\
-      Trocar comportamento em runtime & & ✓ \\
-      Hierarquia natural e estável & ✓ & \\
-      Flexibilidade máxima & & ✓ \\
+      Relação ``é um'' genuína & \checkmark & \\
+      Apenas reusar código     &   & \checkmark \\
+      Trocar comportamento em runtime & & \checkmark \\
+      Hierarquia natural e estável & \checkmark & \\
+      Flexibilidade máxima & & \checkmark \\
       \bottomrule
     \end{tabular}
   \end{center}

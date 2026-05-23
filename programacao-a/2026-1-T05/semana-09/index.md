@@ -37,6 +37,26 @@ turma: 2026-1-T05
 </div>
 
 <div class="table-card">
+  <div class="table-card-header">📄 Slides</div>
+  <table>
+    <tbody>
+      <tr>
+        <td><strong>POO · Parte 1 — Classes e objetos</strong></td>
+        <td class="td-right"><a class="badge-pdf" href="poo_01_classes_objetos/slides.pdf">📄 PDF</a></td>
+      </tr>
+      <tr>
+        <td><strong>POO · Parte 2 — Encapsulamento</strong></td>
+        <td class="td-right"><a class="badge-pdf" href="poo_02_encapsulamento/slides.pdf">📄 PDF</a></td>
+      </tr>
+      <tr>
+        <td><strong>POO · Completo</strong><div class="td-sub">Versão consolidada</div></td>
+        <td class="td-right"><a class="badge-pdf" href="poo_completo/slides.pdf">📄 PDF</a></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="table-card">
   <div class="table-card-header">📝 Estudo individual</div>
   <table>
     <tbody>

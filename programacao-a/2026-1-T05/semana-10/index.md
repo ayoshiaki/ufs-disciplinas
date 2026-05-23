@@ -21,6 +21,22 @@ turma: 2026-1-T05
 {% assign base = 'https://colab.research.google.com/github/ayoshiaki/ufs-disciplinas/blob/main/programacao-a/2026-1-T05/semana-10' %}
 
 <div class="table-card">
+  <div class="table-card-header">📄 Slides</div>
+  <table>
+    <tbody>
+      <tr>
+        <td><strong>POO · Parte 3 — Herança e polimorfismo</strong></td>
+        <td class="td-right"><a class="badge-pdf" href="poo_03_heranca_polimorfismo/slides.pdf">📄 PDF</a></td>
+      </tr>
+      <tr>
+        <td><strong>POO · Parte 4 — Tópicos avançados</strong></td>
+        <td class="td-right"><a class="badge-pdf" href="poo_04_avancado/slides.pdf">📄 PDF</a></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="table-card">
   <div class="table-card-header">📘 Aula</div>
   <table>
     <tbody>
