@@ -1,15 +1,7 @@
-- nome: Algoritmos
-  slug: algoritmos
-  icone: "⚙️"
+- nome: COMP0496 — Programação A
+  slug: programacao-a
+  icone: "🐍"
   turmas:
-    - id: 2025-1-A
-      semestre: "2025/1"
-      label: "Turma A"
-
-- nome: Estrutura de Dados
-  slug: estrutura-de-dados
-  icone: "🌲"
-  turmas:
-    - id: 2025-1-A
-      semestre: "2025/1"
-      label: "Turma A"
+    - id: 2026-1-T05
+      semestre: "2026/1"
+      label: "Turma 5"
