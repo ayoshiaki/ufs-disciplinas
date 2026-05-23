@@ -266,6 +266,19 @@ a:hover { text-decoration: underline; }
   width: 40px;
 }
 
+.td-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+.td-right {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+
 .badge-pdf {
   display: inline-flex;
   align-items: center;
