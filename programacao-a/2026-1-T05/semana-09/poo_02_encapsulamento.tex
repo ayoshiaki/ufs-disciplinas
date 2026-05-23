@@ -1,0 +1,623 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{UFS}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+
+% ── VS Code Light+ palette ──
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+\definecolor{fncolor}{HTML}{795E26}
+\definecolor{typecolor}{HTML}{267F99}
+
+\lstdefinestyle{modernstyle}{
+  language=Python,
+  backgroundcolor=\color{bgcolor},
+  rulecolor=\color{linecolor},
+  numberstyle=\tiny\color{numcolor},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  emphstyle=\color{fncolor},
+  emphstyle={[2]\color{typecolor}},
+  basicstyle=\ttfamily\scriptsize,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numbersep=8pt,
+  tabsize=4,
+  showstringspaces=false,
+  columns=flexible,
+  literate={á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ê}{{\^e}}1 {í}{{\'i}}1
+           {ó}{{\'o}}1 {ô}{{\^o}}1 {ú}{{\'u}}1 {ç}{{\c{c}}}1
+           {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1,
+  emph={receber_pagamento,ver_saldo,preco,total,__init__,__str__,__repr__,
+        __eq__,__lt__,__hash__,__len__,__add__,__sub__,__mul__,simplificar,
+        setter,deleter},
+  emph={[2]int,float,str,bool,list,dict,set,tuple,property,classmethod,
+        staticmethod,ValueError,AttributeError,TypeError},
+}
+\lstset{style=modernstyle}
+
+\title{COMP0496 -- Programação A \\ Programação Orientada a Objetos --- Parte 2}
+\subtitle{Encapsulamento e Métodos Especiais}
+\author{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+\begin{frame}{Roteiro}
+\tableofcontents
+\end{frame}
+
+% ================================================================
+\section{Revisão --- O Problema do Estado Inválido}
+% ================================================================
+
+\begin{frame}[fragile]{Relembrando: a classe \texttt{Lanche}}
+Na Aula~1, criamos classes para o food truck \textbf{O Podrão}.
+
+\begin{lstlisting}
+class Lanche:
+    def __init__(self, nome, preco):
+        self.nome = nome
+        self.preco = preco
+
+xtudo = Lanche("X-Tudo", 18.50)
+\end{lstlisting}
+
+Tudo funciona bem --- até alguém fazer algo inesperado.
+\end{frame}
+
+\begin{frame}[fragile]{O problema: estado inválido}
+\begin{lstlisting}
+xtudo = Lanche("X-Tudo", 18.50)
+xtudo.preco = -999      # nenhum erro!
+xtudo.preco = "gratis"  # nenhum erro!
+print(xtudo.preco)      # "gratis"
+\end{lstlisting}
+
+\begin{alertblock}{Problema}
+Qualquer código externo pode colocar o objeto em um estado que não faz sentido.
+Um preço negativo ou textual viola as regras do nosso domínio.
+\end{alertblock}
+
+\medskip
+Como proteger os dados internos de um objeto?
+\end{frame}
+
+% ================================================================
+\section{Encapsulamento}
+% ================================================================
+
+\begin{frame}{Analogia: a caixa registradora}
+\begin{columns}[T]
+\column{0.55\textwidth}
+Pense na caixa registradora do Podrão:
+\begin{itemize}
+    \item O \textbf{visor} mostra o total (acesso público)
+    \item A \textbf{gaveta} só abre com a chave do operador (acesso restrito)
+    \item Ninguém coloca a mão diretamente no dinheiro
+\end{itemize}
+
+\column{0.42\textwidth}
+\begin{block}{Encapsulamento}
+Esconder os detalhes internos de um objeto e expor apenas uma
+interface controlada.
+\end{block}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Convenções Python: público, protegido, privado}
+Python \textbf{não tem} modificadores de acesso como Java.
+Usa-se \textbf{convenções de nomenclatura}:
+
+\medskip
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Nome} & \textbf{Convenção} & \textbf{Significado} \\
+\midrule
+\texttt{nome}    & público   & Acesso livre \\
+\texttt{\_nome}  & protegido & ``Use com cuidado'' \\
+\texttt{\_\_nome}& privado   & Name mangling (dificulta acesso) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\begin{exampleblock}{Filosofia Python}
+``We're all consenting adults here'' --- a linguagem confia no programador,
+mas oferece mecanismos para sinalizar intenção.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Name mangling: como funciona}
+Atributos com \texttt{\_\_} (duplo sublinhado) sofrem \textbf{name mangling}:
+
+\begin{lstlisting}
+class CaixaRegistradora:
+    def __init__(self):
+        self.__saldo = 0.0
+
+    def receber_pagamento(self, valor):
+        if valor > 0:
+            self.__saldo += valor
+
+    def ver_saldo(self):
+        return self.__saldo
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Name mangling: acesso externo}
+\begin{lstlisting}
+caixa = CaixaRegistradora()
+caixa.receber_pagamento(25.00)
+print(caixa.ver_saldo())   # 25.0
+
+print(caixa.__saldo)
+# AttributeError: 'CaixaRegistradora' object
+#   has no attribute '__saldo'
+\end{lstlisting}
+
+\begin{alertblock}{Name mangling por dentro}
+O Python renomeia \texttt{\_\_saldo} para \texttt{\_CaixaRegistradora\_\_saldo}.
+\end{alertblock}
+
+\begin{lstlisting}
+# Funciona, mas NUNCA faca isso!
+print(caixa._CaixaRegistradora__saldo)  # 25.0
+\end{lstlisting}
+\end{frame}
+
+% ================================================================
+\section{@property --- Acesso Controlado}
+% ================================================================
+
+\begin{frame}[fragile]{O problema dos getters e setters}
+Em Java, usamos \texttt{getPreco()} e \texttt{setPreco()}.
+Em Python, isso fica verboso e pouco natural:
+
+\begin{lstlisting}
+# Estilo Java em Python (evite!)
+lanche.get_preco()
+lanche.set_preco(20.0)
+
+# Estilo Pythonico (queremos isto)
+lanche.preco        # leitura
+lanche.preco = 20.0 # escrita com validacao
+\end{lstlisting}
+
+A solução: \texttt{@property}.
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{@property}: métodos disfarçados de atributos}
+\begin{lstlisting}
+class Lanche:
+    def __init__(self, nome, preco):
+        self._nome = nome
+        self.preco = preco  # usa o setter!
+
+    @property
+    def preco(self):
+        return self._preco
+
+    @preco.setter
+    def preco(self, valor):
+        if valor < 0:
+            raise ValueError("Preco negativo!")
+        if valor > 500:
+            raise ValueError("Preco acima do limite!")
+        self._preco = valor
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Usando a property}
+\begin{lstlisting}
+xtudo = Lanche("X-Tudo", 18.50)
+print(xtudo.preco)   # 18.5 (chama o getter)
+
+xtudo.preco = 22.0   # OK (chama o setter)
+xtudo.preco = -10     # ValueError: Preco negativo!
+xtudo.preco = 1000    # ValueError: Preco acima do limite!
+\end{lstlisting}
+
+\begin{block}{Vantagem}
+O código externo usa sintaxe de atributo, mas internamente
+há validação. Mudança transparente.
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Property somente-leitura}
+Use \texttt{@property} \textbf{sem} definir o setter:
+
+\begin{lstlisting}
+class Pedido:
+    def __init__(self):
+        self._itens = []
+
+    def adicionar(self, lanche, qtd=1):
+        self._itens.append((lanche, qtd))
+
+    @property
+    def total(self):
+        return sum(l.preco * q for l, q in self._itens)
+\end{lstlisting}
+
+\begin{lstlisting}
+pedido = Pedido()
+pedido.adicionar(xtudo, 2)
+print(pedido.total)     # 37.0
+pedido.total = 0        # AttributeError!
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Armadilha: recursão infinita}
+\begin{alertblock}{Cuidado!}
+Não use o mesmo nome para a property e o atributo interno.
+\end{alertblock}
+
+\begin{lstlisting}
+class Errado:
+    @property
+    def preco(self):
+        return self.preco  # chama a si mesmo!
+
+    @preco.setter
+    def preco(self, valor):
+        self.preco = valor  # chama a si mesmo!
+    # RecursionError!
+\end{lstlisting}
+
+\textbf{Solução:} armazene em \texttt{self.\_preco} (com prefixo).
+\end{frame}
+
+% ================================================================
+\section{Métodos Especiais (Dunders)}
+% ================================================================
+
+\begin{frame}{O que são dunders?}
+Métodos com duplo sublinhado: \texttt{\_\_nome\_\_}
+
+São chamados automaticamente pelo Python em situações específicas:
+
+\medskip
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Você escreve} & \textbf{Python chama} \\
+\midrule
+\texttt{print(obj)}      & \texttt{obj.\_\_str\_\_()} \\
+\texttt{repr(obj)}       & \texttt{obj.\_\_repr\_\_()} \\
+\texttt{obj1 == obj2}    & \texttt{obj1.\_\_eq\_\_(obj2)} \\
+\texttt{obj1 < obj2}     & \texttt{obj1.\_\_lt\_\_(obj2)} \\
+\texttt{len(obj)}        & \texttt{obj.\_\_len\_\_()} \\
+\texttt{hash(obj)}       & \texttt{obj.\_\_hash\_\_()} \\
+\texttt{obj1 + obj2}     & \texttt{obj1.\_\_add\_\_(obj2)} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{\_\_str\_\_} vs \texttt{\_\_repr\_\_}}
+\begin{lstlisting}
+class Lanche:
+    def __init__(self, nome, preco):
+        self._nome = nome
+        self._preco = preco
+
+xtudo = Lanche("X-Tudo", 18.5)
+print(xtudo)
+# <__main__.Lanche object at 0x7f3b2c>  (feio!)
+\end{lstlisting}
+
+Agora com dunders:
+\begin{lstlisting}
+    def __str__(self):
+        return f"{self._nome} - R${self._preco:.2f}"
+
+    def __repr__(self):
+        return f"Lanche('{self._nome}', {self._preco})"
+\end{lstlisting}
+
+\begin{lstlisting}
+print(xtudo)        # X-Tudo - R$18.50  (amigavel)
+repr(xtudo)         # Lanche('X-Tudo', 18.5) (tecnico)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{\_\_eq\_\_}: igualdade por valor}
+Por padrão, dois objetos com os mesmos dados são \textbf{diferentes}:
+
+\begin{lstlisting}
+a = Lanche("X-Tudo", 18.5)
+b = Lanche("X-Tudo", 18.5)
+print(a == b)  # False (compara identidade!)
+\end{lstlisting}
+
+Solução:
+\begin{lstlisting}
+    def __eq__(self, other):
+        if not isinstance(other, Lanche):
+            return NotImplemented
+        return (self._nome == other._nome
+                and self._preco == other._preco)
+\end{lstlisting}
+
+\begin{lstlisting}
+print(a == b)  # True
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{\_\_lt\_\_}: ordenação com \texttt{sorted()}}
+\begin{lstlisting}
+    def __lt__(self, other):
+        if not isinstance(other, Lanche):
+            return NotImplemented
+        return self._preco < other._preco
+\end{lstlisting}
+
+\begin{lstlisting}
+cardapio = [
+    Lanche("X-Tudo", 18.5),
+    Lanche("Misto",   8.0),
+    Lanche("Burgao", 22.0),
+]
+for l in sorted(cardapio):
+    print(l)
+# Misto - R$8.00
+# X-Tudo - R$18.50
+# Burgao - R$22.00
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{\_\_hash\_\_}: objetos em conjuntos e dicionários}
+Ao definir \texttt{\_\_eq\_\_}, o Python desabilita \texttt{\_\_hash\_\_}:
+
+\begin{lstlisting}
+lanches = {Lanche("X-Tudo", 18.5)}
+# TypeError: unhashable type: 'Lanche'
+\end{lstlisting}
+
+Solução:
+\begin{lstlisting}
+    def __hash__(self):
+        return hash((self._nome, self._preco))
+\end{lstlisting}
+
+\begin{alertblock}{Regra de ouro}
+Se \texttt{a == b}, então \texttt{hash(a) == hash(b)}.
+Use os mesmos atributos em ambos os métodos.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{\_\_len\_\_}: tamanho de coleções}
+\begin{lstlisting}
+class Pedido:
+    def __init__(self):
+        self._itens = []
+
+    def adicionar(self, lanche, qtd=1):
+        self._itens.append((lanche, qtd))
+
+    def __len__(self):
+        return sum(q for _, q in self._itens)
+\end{lstlisting}
+
+\begin{lstlisting}
+pedido = Pedido()
+pedido.adicionar(Lanche("X-Tudo", 18.5), 2)
+pedido.adicionar(Lanche("Misto", 8.0), 1)
+print(len(pedido))  # 3
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Tabela resumo: principais dunders}
+\begin{center}
+\scriptsize
+\begin{tabular}{lll}
+\toprule
+\textbf{Método} & \textbf{Operação} & \textbf{Quando usar} \\
+\midrule
+\texttt{\_\_init\_\_}  & Construtor          & Sempre \\
+\texttt{\_\_str\_\_}   & \texttt{print()}, \texttt{str()} & Saída amigável \\
+\texttt{\_\_repr\_\_}  & \texttt{repr()}, terminal & Debug, logs \\
+\texttt{\_\_eq\_\_}    & \texttt{==}         & Comparação por valor \\
+\texttt{\_\_lt\_\_}    & \texttt{<}, \texttt{sorted()} & Ordenação \\
+\texttt{\_\_hash\_\_}  & \texttt{set}, \texttt{dict} & Após definir \texttt{\_\_eq\_\_} \\
+\texttt{\_\_len\_\_}   & \texttt{len()}      & Coleções \\
+\texttt{\_\_add\_\_}   & \texttt{+}          & Soma/concatenação \\
+\texttt{\_\_sub\_\_}   & \texttt{-}          & Subtração \\
+\texttt{\_\_mul\_\_}   & \texttt{*}          & Multiplicação \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+% ================================================================
+\section{Prática --- Classe Fracao}
+% ================================================================
+
+\begin{frame}{Classe \texttt{Fracao}: especificação}
+Vamos construir uma classe completa que usa \textbf{tudo} que aprendemos:
+
+\begin{itemize}
+    \item Validação no construtor (denominador $\neq 0$)
+    \item Simplificação automática via MDC
+    \item Properties somente-leitura
+    \item \texttt{\_\_str\_\_}, \texttt{\_\_repr\_\_}
+    \item \texttt{\_\_eq\_\_}, \texttt{\_\_lt\_\_}, \texttt{\_\_hash\_\_}
+    \item \texttt{\_\_add\_\_}, \texttt{\_\_sub\_\_}, \texttt{\_\_mul\_\_}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Classe \texttt{Fracao}: construtor e simplificação}
+\begin{lstlisting}
+from math import gcd
+
+class Fracao:
+    def __init__(self, num, den=1):
+        if den == 0:
+            raise ValueError("Denominador nao pode ser zero!")
+        # sinal sempre no numerador
+        if den < 0:
+            num, den = -num, -den
+        divisor = gcd(abs(num), den)
+        self._num = num // divisor
+        self._den = den // divisor
+
+    @property
+    def num(self):
+        return self._num
+
+    @property
+    def den(self):
+        return self._den
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Classe \texttt{Fracao}: representação}
+\begin{lstlisting}
+    def __str__(self):
+        if self._den == 1:
+            return str(self._num)
+        return f"{self._num}/{self._den}"
+
+    def __repr__(self):
+        return f"Fracao({self._num}, {self._den})"
+\end{lstlisting}
+
+\begin{lstlisting}
+print(Fracao(4, 6))   # 2/3
+print(Fracao(6, 3))   # 2
+repr(Fracao(4, 6))    # Fracao(2, 3)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Classe \texttt{Fracao}: comparação e hash}
+\begin{lstlisting}
+    def __eq__(self, other):
+        if not isinstance(other, Fracao):
+            return NotImplemented
+        return (self._num == other._num
+                and self._den == other._den)
+
+    def __lt__(self, other):
+        if not isinstance(other, Fracao):
+            return NotImplemented
+        return self._num * other._den < other._num * self._den
+
+    def __hash__(self):
+        return hash((self._num, self._den))
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Classe \texttt{Fracao}: operações aritméticas}
+\begin{lstlisting}
+    def __add__(self, other):
+        if not isinstance(other, Fracao):
+            return NotImplemented
+        return Fracao(self._num * other._den
+                      + other._num * self._den,
+                      self._den * other._den)
+
+    def __sub__(self, other):
+        if not isinstance(other, Fracao):
+            return NotImplemented
+        return Fracao(self._num * other._den
+                      - other._num * self._den,
+                      self._den * other._den)
+
+    def __mul__(self, other):
+        if not isinstance(other, Fracao):
+            return NotImplemented
+        return Fracao(self._num * other._num,
+                      self._den * other._den)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Classe \texttt{Fracao}: demonstração}
+\begin{lstlisting}
+a = Fracao(1, 2)
+b = Fracao(1, 3)
+
+print(a + b)          # 5/6
+print(a - b)          # 1/6
+print(a * b)          # 1/6
+print(a == Fracao(2, 4))  # True (simplificado!)
+\end{lstlisting}
+
+\begin{lstlisting}
+fracs = [Fracao(3,4), Fracao(1,2), Fracao(2,3)]
+print(sorted(fracs))  # [1/2, 2/3, 3/4]
+\end{lstlisting}
+
+\begin{lstlisting}
+# set() funciona porque temos __eq__ e __hash__
+s = {Fracao(1,2), Fracao(2,4), Fracao(3,6)}
+print(s)              # {1/2}
+\end{lstlisting}
+\end{frame}
+
+% ================================================================
+\section{Resumo}
+% ================================================================
+
+\begin{frame}{Resumo da Aula}
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Conceito} & \textbf{Ferramenta Python} \\
+\midrule
+Esconder dados        & \texttt{\_\_atributo} (name mangling) \\
+Acesso controlado     & \texttt{@property} / \texttt{@x.setter} \\
+Representação textual & \texttt{\_\_str\_\_} / \texttt{\_\_repr\_\_} \\
+Igualdade por valor   & \texttt{\_\_eq\_\_} + \texttt{\_\_hash\_\_} \\
+Ordenação             & \texttt{\_\_lt\_\_} \\
+Operadores            & \texttt{\_\_add\_\_}, \texttt{\_\_sub\_\_}, \texttt{\_\_mul\_\_} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+\begin{frame}{Armadilhas comuns}
+\begin{alertblock}{Cuidado!}
+\begin{enumerate}
+    \item Property com mesmo nome do atributo interno $\Rightarrow$ recursão infinita
+    \item Definir \texttt{\_\_eq\_\_} sem \texttt{\_\_hash\_\_} $\Rightarrow$ objetos não entram em \texttt{set}/\texttt{dict}
+    \item Acessar \texttt{\_CaixaRegistradora\_\_saldo} diretamente $\Rightarrow$ quebra encapsulamento
+    \item Esquecer \texttt{isinstance} check nos dunders $\Rightarrow$ erros com tipos mistos
+\end{enumerate}
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{Próxima aula: Herança e Polimorfismo}
+\begin{block}{Aula 3 --- Preview}
+\begin{itemize}
+    \item Herança: \texttt{class XTudo(Lanche)}
+    \item Polimorfismo: mesmo método, comportamentos diferentes
+    \item Composição vs.\ herança: quando usar cada um
+    \item O food truck cresce: cardápio com subclasses
+\end{itemize}
+\end{block}
+
+\bigskip
+\centering
+\Large Dúvidas?
+\end{frame}
+
+\end{document}

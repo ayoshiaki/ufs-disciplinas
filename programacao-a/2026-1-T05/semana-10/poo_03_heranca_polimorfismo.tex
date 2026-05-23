@@ -1,0 +1,769 @@
+% =============================================================================
+% COMP0496 — Programação A
+% Aula 3: Herança, Polimorfismo e Composição
+% Tema: "O Podrão — Food Truck"
+% Prof. Dr. André Yoshiaki Kashiwabara — DCOMP/UFS
+% =============================================================================
+
+\documentclass[aspectratio=169]{beamer}
+\usetheme{UFS}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+
+% ---------------------------------------------------------------------------
+% lstlisting style — VS Code Light+ palette
+% ---------------------------------------------------------------------------
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+\definecolor{fncolor}{HTML}{795E26}
+\definecolor{typecolor}{HTML}{267F99}
+
+\lstdefinestyle{modernstyle}{
+  language=Python,
+  backgroundcolor=\color{bgcolor},
+  rulecolor=\color{linecolor},
+  numberstyle=\tiny\color{numcolor},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  emph={print,len,range,super,isinstance,type,abs},
+  emphstyle=\color{fncolor},
+  emph={[2]int,float,str,list,dict,bool,None,True,False},
+  emphstyle={[2]\color{typecolor}},
+  basicstyle=\ttfamily\scriptsize,
+  frame=single,
+  numbers=left,
+  numbersep=8pt,
+  tabsize=4,
+  showstringspaces=false,
+  breaklines=true,
+  columns=fullflexible,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+           {ã}{{\~a}}1 {õ}{{\~o}}1 {ç}{{\c{c}}}1 {Ç}{{\c{C}}}1
+           {ê}{{\^e}}1 {â}{{\^a}}1 {ô}{{\^o}}1,
+}
+\lstset{style=modernstyle}
+
+% ---------------------------------------------------------------------------
+% Metadata
+% ---------------------------------------------------------------------------
+\title{COMP0496 -- Programação A \\ Programação Orientada a Objetos — Parte 3}
+\subtitle{Herança, Polimorfismo e Composição}
+\author{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+% ===== TÍTULO =====
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% ===== ROTEIRO =====
+\begin{frame}{Roteiro}
+  \tableofcontents
+\end{frame}
+
+% =============================================================================
+% SECTION 1: O Problema — Código Duplicado
+% =============================================================================
+\section{O Problema — Código Duplicado}
+
+\begin{frame}[fragile]{Três Classes Independentes}
+  No food truck \textbf{O Podrão}, temos três lanches:
+
+  \begin{columns}[T]
+    \column{0.32\textwidth}
+    \begin{lstlisting}
+class XTudo:
+    def __init__(self, preco):
+        self.preco = preco
+        self.nome = "X-Tudo"
+
+    def descrever(self):
+        return f"{self.nome}: R${self.preco:.2f}"
+
+    def preparar(self):
+        print("Fritando hambúrguer...")
+    \end{lstlisting}
+
+    \column{0.32\textwidth}
+    \begin{lstlisting}
+class Dogao:
+    def __init__(self, preco):
+        self.preco = preco
+        self.nome = "Dogão"
+
+    def descrever(self):
+        return f"{self.nome}: R${self.preco:.2f}"
+
+    def preparar(self):
+        print("Montando hot-dog...")
+    \end{lstlisting}
+
+    \column{0.32\textwidth}
+    \begin{lstlisting}
+class Acai:
+    def __init__(self, preco):
+        self.preco = preco
+        self.nome = "Açaí"
+
+    def descrever(self):
+        return f"{self.nome}: R${self.preco:.2f}"
+
+    def preparar(self):
+        print("Batendo açaí...")
+    \end{lstlisting}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Por que Isso é Ruim?}
+  \begin{alertblock}{Violação do Princípio DRY}
+    \textbf{Don't Repeat Yourself} — código duplicado é fonte de bugs.
+  \end{alertblock}
+
+  \bigskip
+
+  \begin{itemize}
+    \item \texttt{\_\_init\_\_} e \texttt{descrever} são \textbf{idênticos} nas três classes
+    \item Se precisar adicionar \texttt{calorias}: alterar \textbf{três} classes
+    \item Se corrigir um bug em \texttt{descrever}: corrigir em \textbf{três} lugares
+    \item E se o cardápio crescer para 15 itens?
+  \end{itemize}
+
+  \bigskip
+
+  \begin{exampleblock}{Solução}
+    Extrair o que é \textbf{comum} para uma classe base $\Rightarrow$ \textbf{Herança}.
+  \end{exampleblock}
+\end{frame}
+
+% =============================================================================
+% SECTION 2: Herança Simples
+% =============================================================================
+\section{Herança Simples}
+
+\begin{frame}{O Relacionamento ``É Um''}
+  Herança modela o relacionamento \textbf{``é um''} (\emph{is-a}):
+
+  \bigskip
+
+  \begin{center}
+    \begin{tabular}{lcc}
+      \toprule
+      \textbf{Afirmação} & \textbf{Verdade?} & \textbf{Herança?} \\
+      \midrule
+      XTudo é um Lanche           & ✓ & Sim \\
+      Dogão é um Lanche           & ✓ & Sim \\
+      Açaí é um Lanche            & ✓ & Sim \\
+      Pedido é uma CaixaRegistradora & ✗ & Não \\
+      Pedido \emph{tem} Lanches   & ✓ & Composição \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+
+  \bigskip
+
+  \begin{alertblock}{Regra de Ouro}
+    Se ``B é um A'' faz sentido no domínio $\Rightarrow$ \texttt{class B(A)}.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Hierarquia de Classes}
+  % Coordinate map:
+  % (0,3)    = Lanche (parent node)
+  % (-3,0)   = XTudo (child left)
+  % (0,0)    = Dogao (child center)
+  % (3,0)    = Acai (child right)
+  \begin{center}
+    \begin{tikzpicture}[scale=1.1, every node/.style={scale=1.1}]
+      \node[draw, fill=blue!15, rounded corners, minimum width=3cm, minimum height=1cm, font=\bfseries]
+        (lanche) at (0,3) {Lanche};
+      \node[draw, fill=green!10, rounded corners, minimum width=2.5cm, minimum height=1cm]
+        (xtudo) at (-4,0) {XTudo};
+      \node[draw, fill=green!10, rounded corners, minimum width=2.5cm, minimum height=1cm]
+        (dogao) at (0,0) {Dogão};
+      \node[draw, fill=green!10, rounded corners, minimum width=2.5cm, minimum height=1cm]
+        (acai) at (4,0) {Açaí};
+
+      \draw[->, thick] (xtudo) -- node[left, font=\scriptsize]{herda} (lanche);
+      \draw[->, thick] (dogao) -- node[right, font=\scriptsize]{herda} (lanche);
+      \draw[->, thick] (acai) -- node[right, font=\scriptsize]{herda} (lanche);
+
+      \node[below=0.2cm of xtudo, font=\scriptsize\ttfamily, text=gray] {class XTudo(Lanche)};
+      \node[below=0.2cm of dogao, font=\scriptsize\ttfamily, text=gray] {class Dogao(Lanche)};
+      \node[below=0.2cm of acai, font=\scriptsize\ttfamily, text=gray] {class Acai(Lanche)};
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Classe Base: \texttt{Lanche}}
+  \begin{lstlisting}
+class Lanche:
+    def __init__(self, nome, preco):
+        self.nome = nome
+        self.preco = preco
+
+    def descrever(self):
+        return f"{self.nome}: R${self.preco:.2f}"
+
+    def preparar(self):
+        print(f"Preparando {self.nome}...")
+  \end{lstlisting}
+
+  \begin{exampleblock}{O que mudou?}
+    Todo código comum agora vive em \textbf{um único lugar}.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Subclasses com \texttt{super()}}
+  \begin{lstlisting}
+class XTudo(Lanche):
+    def __init__(self, preco, molho="especial"):
+        super().__init__("X-Tudo", preco)
+        self.molho = molho
+
+    def preparar(self):
+        print(f"Fritando hambúrguer com molho {self.molho}...")
+  \end{lstlisting}
+
+  \begin{lstlisting}
+class Dogao(Lanche):
+    def __init__(self, preco, tamanho="grande"):
+        super().__init__("Dogão", preco)
+        self.tamanho = tamanho
+
+    def preparar(self):
+        print(f"Montando hot-dog {self.tamanho}...")
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Herdando Métodos Automaticamente}
+  \begin{lstlisting}
+x = XTudo(25.0)
+d = Dogao(18.0)
+
+# descrever() é herdado de Lanche — funciona sem reescrever!
+print(x.descrever())   # X-Tudo: R$25.00
+print(d.descrever())   # Dogão: R$18.00
+
+# preparar() foi sobrescrito em cada subclasse
+x.preparar()   # Fritando hambúrguer com molho especial...
+d.preparar()   # Montando hot-dog grande...
+  \end{lstlisting}
+
+  \begin{exampleblock}{Regra}
+    Se a subclasse \textbf{não} redefine um método, usa o da superclasse.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Verificando Tipos com \texttt{isinstance()}}
+  \begin{lstlisting}
+x = XTudo(25.0)
+
+isinstance(x, XTudo)    # True
+isinstance(x, Lanche)   # True  (XTudo É UM Lanche)
+isinstance(x, Dogao)    # False
+
+type(x) == XTudo         # True
+type(x) == Lanche        # False (type() é exato)
+  \end{lstlisting}
+
+  \bigskip
+
+  \begin{center}
+    \begin{tabular}{lcc}
+      \toprule
+      \textbf{Verificação} & \textbf{\texttt{isinstance}} & \textbf{\texttt{type() ==}} \\
+      \midrule
+      Considera herança? & Sim & Não \\
+      Uso recomendado    & Geral & Raro \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+\end{frame}
+
+% =============================================================================
+% SECTION 3: Sobrescrita de Métodos
+% =============================================================================
+\section{Sobrescrita de Métodos}
+
+\begin{frame}[fragile]{Override: Redefinindo um Método}
+  \textbf{Sobrescrita} (\emph{override}): a subclasse fornece sua própria versão de um método herdado.
+
+  \begin{lstlisting}
+class Acai(Lanche):
+    def __init__(self, preco, complementos=None):
+        super().__init__("Açaí", preco)
+        self.complementos = complementos or ["granola", "banana"]
+
+    def preparar(self):
+        # Sobrescreve completamente o método de Lanche
+        print(f"Batendo açaí com {', '.join(self.complementos)}...")
+  \end{lstlisting}
+
+  \begin{alertblock}{Atenção}
+    O método da subclasse \textbf{substitui} o da superclasse — não são acumulados.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Padrão Extend: \texttt{super()} + Extensão}
+  Quando queremos \textbf{estender} (não substituir) o comportamento do pai:
+
+  \begin{lstlisting}
+class XTudoEspecial(XTudo):
+    def __init__(self, preco, extras=None):
+        super().__init__(preco, molho="da casa")
+        self.extras = extras or ["bacon", "ovo"]
+
+    def descrever(self):
+        base = super().descrever()  # chama Lanche.descrever()
+        return f"{base} + {', '.join(self.extras)}"
+  \end{lstlisting}
+
+  \begin{lstlisting}
+xe = XTudoEspecial(32.0)
+print(xe.descrever())
+# X-Tudo: R$32.00 + bacon, ovo
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Armadilha: Esquecer \texttt{super().\_\_init\_\_()}}
+  \begin{lstlisting}
+class Coxinha(Lanche):
+    def __init__(self, preco):
+        # ESQUECEU super().__init__() !!!
+        self.recheio = "frango"
+
+c = Coxinha(8.0)
+c.recheio       # "frango" — OK
+c.descrever()   # AttributeError: 'Coxinha' has no attribute 'nome'
+  \end{lstlisting}
+
+  \begin{alertblock}{Por quê?}
+    Sem \texttt{super().\_\_init\_\_()}, os atributos \texttt{nome} e \texttt{preco} nunca são criados.
+  \end{alertblock}
+
+  \begin{exampleblock}{Correção}
+    Sempre chame \texttt{super().\_\_init\_\_()} no início do \texttt{\_\_init\_\_} da subclasse.
+  \end{exampleblock}
+\end{frame}
+
+% =============================================================================
+% SECTION 4: Polimorfismo e Duck Typing
+% =============================================================================
+\section{Polimorfismo e Duck Typing}
+
+\begin{frame}[fragile]{Polimorfismo: Mesma Chamada, Comportamentos Diferentes}
+  \textbf{Polimorfismo}: objetos de tipos diferentes respondem à mesma mensagem, cada um à sua maneira.
+
+  \begin{lstlisting}
+pedido = [XTudo(25.0), Dogao(18.0), Acai(15.0)]
+
+for item in pedido:
+    item.preparar()  # cada classe executa seu próprio preparar()
+  \end{lstlisting}
+
+  Saída:
+  \begin{lstlisting}[numbers=none]
+Fritando hambúrguer com molho especial...
+Montando hot-dog grande...
+Batendo açaí com granola, banana...
+  \end{lstlisting}
+
+  \begin{exampleblock}{Essência}
+    O código \textbf{não precisa saber} o tipo exato — basta que o objeto tenha o método.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Duck Typing}
+  \begin{quote}
+    \emph{``If it walks like a duck and quacks like a duck, then it must be a duck.''}
+  \end{quote}
+
+  \bigskip
+
+  \begin{lstlisting}
+class Bebida:          # NÃO herda de Lanche!
+    def __init__(self, nome, preco):
+        self.nome = nome
+        self.preco = preco
+
+    def preparar(self):
+        print(f"Servindo {self.nome}...")
+
+    def descrever(self):
+        return f"{self.nome}: R${self.preco:.2f}"
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Duck Typing na Prática}
+  \begin{lstlisting}
+pedido = [XTudo(25.0), Dogao(18.0), Bebida("Guaraná", 6.0)]
+
+for item in pedido:
+    print(item.descrever())
+    item.preparar()
+  \end{lstlisting}
+
+  Saída:
+  \begin{lstlisting}[numbers=none]
+X-Tudo: R$25.00
+Fritando hambúrguer com molho especial...
+Dogão: R$18.00
+Montando hot-dog grande...
+Guaraná: R$6.00
+Servindo Guaraná...
+  \end{lstlisting}
+
+  \begin{alertblock}{Observação}
+    \texttt{Bebida} não herda de \texttt{Lanche}, mas funciona no mesmo loop porque tem os mesmos métodos. Isso é \textbf{duck typing}.
+  \end{alertblock}
+\end{frame}
+
+% =============================================================================
+% SECTION 5: Composição — A Alternativa
+% =============================================================================
+\section{Composição — A Alternativa}
+
+\begin{frame}{Herança vs.\ Composição}
+  \begin{center}
+    \begin{tabular}{lll}
+      \toprule
+      \textbf{Relacionamento} & \textbf{Mecanismo} & \textbf{Exemplo} \\
+      \midrule
+      ``É um'' (\emph{is-a})  & Herança    & XTudo \textbf{é um} Lanche \\
+      ``Tem um'' (\emph{has-a}) & Composição & Pedido \textbf{tem} Lanches \\
+      ``Tem um'' (\emph{has-a}) & Composição & Pedido \textbf{tem} FormaPagamento \\
+      ``É um'' (\emph{is-a})  & Herança    & Pix \textbf{é uma} FormaPagamento \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Composição no Código}
+  \begin{lstlisting}
+class FormaPagamento:
+    def processar(self, valor):
+        raise NotImplementedError
+
+class Pix(FormaPagamento):
+    def processar(self, valor):
+        print(f"Pix de R${valor:.2f} confirmado!")
+
+class Pedido:
+    def __init__(self, pagamento):
+        self.itens = []               # composição: tem lanches
+        self.pagamento = pagamento    # composição: tem forma de pgto
+
+    def adicionar(self, item):
+        self.itens.append(item)
+
+    def fechar(self):
+        total = sum(i.preco for i in self.itens)
+        self.pagamento.processar(total)
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Usando o Pedido}
+  \begin{lstlisting}
+pix = Pix()
+pedido = Pedido(pix)
+pedido.adicionar(XTudo(25.0))
+pedido.adicionar(Bebida("Guaraná", 6.0))
+pedido.fechar()
+# Pix de R$31.00 confirmado!
+  \end{lstlisting}
+
+  \begin{exampleblock}{Gang of Four}
+    \emph{``Favor composition over inheritance.''} \\
+    Se você só quer \textbf{reusar} comportamento, sem relação conceitual ``é um'', use composição.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Quando Usar Cada Um?}
+  \begin{center}
+    \begin{tabular}{lcc}
+      \toprule
+      \textbf{Critério} & \textbf{Herança} & \textbf{Composição} \\
+      \midrule
+      Relação ``é um'' genuína & ✓ & \\
+      Apenas reusar código     &   & ✓ \\
+      Trocar comportamento em runtime & & ✓ \\
+      Hierarquia natural e estável & ✓ & \\
+      Flexibilidade máxima & & ✓ \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+
+  \begin{alertblock}{Regra Prática}
+    Comece com composição. Use herança apenas quando o ``é um'' for claro e estável.
+  \end{alertblock}
+\end{frame}
+
+% =============================================================================
+% SECTION 6: Herança Múltipla e MRO
+% =============================================================================
+\section{Herança Múltipla e MRO}
+
+\begin{frame}[fragile]{Herança Múltipla em Python}
+  Python permite herdar de \textbf{mais de uma classe}:
+
+  \begin{lstlisting}
+class Promocional:
+    def aplicar_desconto(self, pct):
+        self.preco *= (1 - pct / 100)
+
+class XTudoPromo(XTudo, Promocional):
+    pass
+
+xp = XTudoPromo(25.0)
+xp.aplicar_desconto(10)
+print(xp.preco)   # 22.5
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{MRO — Method Resolution Order}
+  Quando há conflito, Python usa o \textbf{C3 Linearization} para decidir qual método chamar:
+
+  \begin{lstlisting}
+print(XTudoPromo.__mro__)
+# (XTudoPromo, XTudo, Lanche, Promocional, object)
+  \end{lstlisting}
+
+  Python busca o método na ordem da MRO: da esquerda para a direita.
+
+  \begin{alertblock}{Conselho}
+    Herança múltipla pode causar confusão. Na prática:
+    \begin{itemize}
+      \item Use \textbf{mixins} simples (como \texttt{Promocional})
+      \item Prefira \textbf{composição} para combinações complexas
+      \item Evite hierarquias diamante
+    \end{itemize}
+  \end{alertblock}
+\end{frame}
+
+% =============================================================================
+% SECTION 7: Classes Abstratas
+% =============================================================================
+\section{Classes Abstratas}
+
+\begin{frame}[fragile]{O Problema: Métodos ``Esquecidos''}
+  \begin{lstlisting}
+class Funcionario:
+    def __init__(self, nome, salario_base):
+        self.nome = nome
+        self.salario_base = salario_base
+
+    def calcular_salario(self):
+        raise NotImplementedError("Subclasse deve implementar")
+  \end{lstlisting}
+
+  \begin{lstlisting}
+class Atendente(Funcionario):
+    pass   # esqueceu de implementar calcular_salario!
+
+a = Atendente("Maria", 1500)
+a.calcular_salario()  # NotImplementedError — mas só descobre AQUI!
+  \end{lstlisting}
+
+  \begin{alertblock}{Problema}
+    O erro só aparece quando \texttt{calcular\_salario()} é chamado — pode ser tarde demais.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Solução: \texttt{ABC} e \texttt{@abstractmethod}}
+  \begin{lstlisting}
+from abc import ABC, abstractmethod
+
+class Funcionario(ABC):
+    def __init__(self, nome, salario_base):
+        self.nome = nome
+        self.salario_base = salario_base
+
+    @abstractmethod
+    def calcular_salario(self):
+        """Cada tipo de funcionário calcula diferente."""
+        pass
+  \end{lstlisting}
+
+  \begin{lstlisting}
+# Tentar instanciar a classe abstrata:
+f = Funcionario("João", 2000)
+# TypeError: Can't instantiate abstract class Funcionario
+#   with abstract method calcular_salario
+  \end{lstlisting}
+
+  \begin{exampleblock}{Vantagem}
+    O erro ocorre na \textbf{instanciação}, não na chamada do método — falha cedo!
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Subclasses Concretas}
+  \begin{lstlisting}
+class Atendente(Funcionario):
+    def calcular_salario(self):
+        return self.salario_base
+
+class Cozinheiro(Funcionario):
+    def __init__(self, nome, salario_base, adicional_insalubridade):
+        super().__init__(nome, salario_base)
+        self.adicional = adicional_insalubridade
+
+    def calcular_salario(self):
+        return self.salario_base + self.adicional
+
+class Entregador(Funcionario):
+    def __init__(self, nome, salario_base, entregas):
+        super().__init__(nome, salario_base)
+        self.entregas = entregas
+
+    def calcular_salario(self):
+        return self.salario_base + self.entregas * 5
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}{Por que Classes Abstratas Importam}
+  \begin{center}
+    \begin{tabular}{lcc}
+      \toprule
+      \textbf{Aspecto} & \texttt{raise NotImplementedError} & \texttt{ABC + @abstractmethod} \\
+      \midrule
+      Quando dá erro   & Na chamada do método & Na instanciação \\
+      Documentação      & Implícita             & Explícita \\
+      Forçar implementação & Não & Sim \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+
+  \begin{exampleblock}{Princípio}
+    Classes abstratas definem um \textbf{contrato}: ``toda subclasse deve ter estes métodos''.
+  \end{exampleblock}
+\end{frame}
+
+% =============================================================================
+% SECTION 8: Prática — Folha de Pagamento
+% =============================================================================
+\section{Prática — Folha de Pagamento}
+
+\begin{frame}{Cenário: Folha de Pagamento do Food Truck}
+  O Podrão precisa calcular a folha de pagamento mensal.
+
+  \bigskip
+
+  \begin{center}
+    \begin{tabular}{lll}
+      \toprule
+      \textbf{Cargo} & \textbf{Cálculo} & \textbf{Exemplo} \\
+      \midrule
+      Atendente   & Salário base              & R\$\,1.500 \\
+      Cozinheiro  & Base + insalubridade      & R\$\,1.800 + R\$\,300 \\
+      Entregador  & Base + R\$\,5/entrega     & R\$\,1.200 + 80 $\times$ R\$\,5 \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Loop Polimórfico para a Folha}
+  \begin{lstlisting}
+equipe = [
+    Atendente("Maria", 1500),
+    Cozinheiro("João", 1800, 300),
+    Entregador("Carlos", 1200, 80),
+    Atendente("Ana", 1500),
+]
+
+total_folha = 0
+for func in equipe:
+    salario = func.calcular_salario()
+    total_folha += salario
+    print(f"{func.nome:.<20} R${salario:>8.2f}")
+
+print(f"{'TOTAL':.<20} R${total_folha:>8.2f}")
+  \end{lstlisting}
+
+  Saída:
+  \begin{lstlisting}[numbers=none]
+Maria............... R$ 1500.00
+João................ R$ 2100.00
+Carlos.............. R$ 1600.00
+Ana................. R$ 1500.00
+TOTAL............... R$ 6700.00
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{O Poder do Polimorfismo}
+  Observe o loop:
+
+  \begin{lstlisting}
+for func in equipe:
+    salario = func.calcular_salario()
+  \end{lstlisting}
+
+  \bigskip
+
+  \begin{itemize}
+    \item O loop \textbf{não sabe} se \texttt{func} é Atendente, Cozinheiro ou Entregador
+    \item Cada objeto ``sabe'' calcular seu próprio salário
+    \item Adicionar novo cargo (ex: \texttt{Gerente}) não altera o loop
+    \item Isso é o \textbf{Open/Closed Principle}: aberto para extensão, fechado para modificação
+  \end{itemize}
+
+  \begin{exampleblock}{Reflexão}
+    Polimorfismo + classes abstratas = código extensível e seguro.
+  \end{exampleblock}
+\end{frame}
+
+% =============================================================================
+% SECTION 9: Resumo
+% =============================================================================
+\section{Resumo}
+
+\begin{frame}{Tabela Resumo}
+  \begin{center}
+    \small
+    \begin{tabular}{llp{6cm}}
+      \toprule
+      \textbf{Conceito} & \textbf{Palavra-chave} & \textbf{Quando usar} \\
+      \midrule
+      Herança simples   & \texttt{class B(A)} & Relação ``é um'' clara \\
+      \texttt{super()}  & \texttt{super().\_\_init\_\_()} & Delegar ao construtor pai \\
+      Sobrescrita       & Override             & Especializar comportamento \\
+      Polimorfismo      & Mesma interface      & Tratar objetos uniformemente \\
+      Duck typing       & (implícito)          & Flexibilidade sem herança \\
+      Composição        & Atributo de instância & Relação ``tem um'' \\
+      Herança múltipla  & \texttt{class C(A,B)} & Mixins simples \\
+      Classes abstratas & \texttt{ABC}, \texttt{@abstractmethod} & Forçar contrato \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Princípios-Chave}
+  \begin{enumerate}
+    \item \textbf{DRY}: não duplique código — extraia para a superclasse
+    \item \textbf{Liskov}: subclasse deve ser usável onde a superclasse é esperada
+    \item \textbf{Composição sobre herança}: use herança apenas para ``é um'' genuíno
+    \item \textbf{Falhe cedo}: prefira \texttt{ABC} a \texttt{NotImplementedError}
+    \item \textbf{Polimorfismo}: programe para a interface, não para a implementação
+  \end{enumerate}
+
+  \bigskip
+
+  \begin{exampleblock}{Próxima Aula (Aula 4)}
+    \texttt{@dataclass}, princípios SOLID e introdução a Design Patterns.
+  \end{exampleblock}
+\end{frame}
+
+\end{document}

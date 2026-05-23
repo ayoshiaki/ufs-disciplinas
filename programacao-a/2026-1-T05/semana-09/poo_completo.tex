@@ -1,0 +1,2135 @@
+% =============================================================================
+% COMP0496 --- Programação A
+% Programação Orientada a Objetos --- Apresentação Completa
+% Tema: "O Podrão --- Food Truck"
+% Prof. Dr. André Yoshiaki Kashiwabara --- DCOMP/UFS
+% =============================================================================
+
+\documentclass[aspectratio=169]{beamer}
+\usetheme{UFS}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes.geometric}
+
+% ---------------------------------------------------------------------------
+% lstlisting style --- VS Code Light+ palette
+% ---------------------------------------------------------------------------
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+\definecolor{fncolor}{HTML}{795E26}
+\definecolor{typecolor}{HTML}{267F99}
+
+\lstdefinestyle{modernstyle}{
+  language=Python,
+  backgroundcolor=\color{bgcolor},
+  rulecolor=\color{linecolor},
+  numberstyle=\tiny\color{numcolor},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  emph={print,len,range,super,isinstance,type,abs,
+        receber_pagamento,ver_saldo,preco,total,__init__,__str__,__repr__,
+        __eq__,__lt__,__hash__,__len__,__add__,__sub__,__mul__,simplificar,
+        setter,deleter,from_csv_line,from_dict,calcular_taxa_servico,
+        calcular_desconto,criar,registrar,adicionar,processar,finalizar,
+        aplicar,gerar_relatorio,salvar,enviar_email},
+  emphstyle=\color{fncolor},
+  emph={[2]int,float,str,bool,list,dict,set,tuple,property,classmethod,
+        staticmethod,ValueError,AttributeError,TypeError,None,True,False,
+        Lanche,Pedido,Hamburguer,XTudo,XSalada,Bebida,
+        DescontoPercentual,DescontoFixo,SemDesconto,LancheFactory,
+        Cozinha,Caixa,RelatorioHTML,Armazenamento,Enviador,
+        PedidoRuim,Retangulo,Quadrado,ABC,abstractmethod,
+        dataclass,field},
+  emphstyle={[2]\color{typecolor}},
+  basicstyle=\ttfamily\scriptsize,
+  frame=single,
+  numbers=left,
+  numbersep=8pt,
+  tabsize=4,
+  showstringspaces=false,
+  breaklines=true,
+  columns=fullflexible,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+           {ã}{{\~a}}1 {õ}{{\~o}}1 {ç}{{\c{c}}}1 {Ç}{{\c{C}}}1
+           {ê}{{\^e}}1 {â}{{\^a}}1 {ô}{{\^o}}1 {à}{{\`a}}1,
+}
+\lstset{style=modernstyle}
+
+% ---------------------------------------------------------------------------
+% Metadata
+% ---------------------------------------------------------------------------
+\subtitle{COMP0496 -- Programação A \\ Programação Orientada a Objetos}
+\title{Classes, Encapsulamento, Herança, Polimorfismo e Boas Práticas}
+\author{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+
+\begin{document}
+
+% ===== TÍTULO =====
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ===== ROTEIRO =====
+\begin{frame}[shrink=40]{Roteiro}
+  \tableofcontents
+\end{frame}
+
+% #############################################################################
+% PARTE 1: Classes, Objetos, Atributos e Métodos
+% #############################################################################
+
+% ############################################################
+\section{Aquecimento --- Tudo em Python é Objeto}
+% ############################################################
+
+\begin{frame}[fragile]{Tudo em Python é Objeto}
+  Você já usa objetos sem saber! Veja o que \texttt{type()} retorna:
+
+  \begin{lstlisting}
+>>> type("Oi")
+<class 'str'>
+>>> type([1, 2, 3])
+<class 'list'>
+>>> type(42)
+<class 'int'>
+  \end{lstlisting}
+
+  \vspace{0.3cm}
+  Cada valor em Python pertence a uma \textbf{classe} --- um tipo que define
+  quais operações são possíveis.
+\end{frame}
+
+\begin{frame}[fragile]{Objetos Possuem Métodos}
+  Métodos são funções que ``pertencem'' a um objeto:
+
+  \begin{lstlisting}
+>>> "programacao".upper()
+'PROGRAMACAO'
+
+>>> frutas = ["banana", "manga"]
+>>> frutas.append("uva")
+>>> frutas
+['banana', 'manga', 'uva']
+  \end{lstlisting}
+
+  \vspace{0.3cm}
+  \begin{block}{Ponto-chave}
+    POO = criar \textbf{seus próprios tipos} (classes)
+    com seus próprios métodos e atributos.
+  \end{block}
+\end{frame}
+
+% ############################################################
+\section{O Problema --- A Sopa de Variáveis}
+% ############################################################
+
+\begin{frame}[fragile]{O Cenário: Lanchonete ``O Podrão''}
+  Você abriu um food truck e precisa de um sistema para gerenciar
+  o cardápio.
+
+  \vspace{0.3cm}
+  Primeira tentativa: variáveis soltas.
+
+  \begin{lstlisting}
+lanche1_nome = "X-Tudo"
+lanche1_preco = 18.50
+lanche1_ingredientes = "pao, hamburguer, queijo, ovo, bacon"
+
+lanche2_nome = "X-Salada"
+lanche2_preco = 14.00
+lanche2_ingredientes = "pao, hamburguer, queijo, alface, tomate"
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}{Por que Isso é Ruim?}
+  \begin{itemize}
+    \item \textbf{Dados soltos}: nome, preço e ingredientes não estão
+          conectados --- qualquer variável pode ser alterada isoladamente
+    \item \textbf{Não escala}: com 50 lanches, seriam 150 variáveis!
+    \item \textbf{Erros de digitação}: \texttt{lanche1\_preco} vs.\
+          \texttt{lanche1\_prço} --- sem aviso
+    \item \textbf{Sem comportamento}: não há como pedir a um lanche
+          que ``se descreva''
+  \end{itemize}
+
+  \vspace{0.5cm}
+  \begin{alertblock}{Analogia}
+    É como anotar pedidos em guardanapos separados:
+    fácil perder, fácil trocar, impossível de organizar.
+  \end{alertblock}
+\end{frame}
+
+% ############################################################
+\section{A Solução --- Classes e Objetos}
+% ############################################################
+
+\begin{frame}{Receita vs.\ Lanche Pronto}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Classe = Receita}
+      \begin{itemize}
+        \item Define \emph{quais} informações um lanche tem
+        \item Define \emph{o que} um lanche pode fazer
+        \item É um molde, um modelo
+        \item Existe uma única vez no código
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Objeto = Lanche Pronto}
+      \begin{itemize}
+        \item Preenche a receita com dados reais
+        \item Cada objeto é independente
+        \item Pode haver muitos objetos da mesma classe
+        \item Vive na memória do programa
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Primeira Classe: \texttt{Lanche}}
+  \begin{lstlisting}
+class Lanche:
+    """Representa um lanche do cardapio."""
+
+    def __init__(self, nome, preco, ingredientes):
+        self.nome = nome
+        self.preco = preco
+        self.ingredientes = ingredientes
+
+    def descrever(self):
+        return f"{self.nome} - R${self.preco:.2f}"
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}{Anatomia do \texttt{\_\_init\_\_}}
+  \begin{itemize}
+    \item \texttt{\_\_init\_\_} é o \textbf{construtor} --- é chamado
+          automaticamente ao criar um objeto
+    \item \texttt{self} é uma referência ao \textbf{próprio objeto}
+          que está sendo criado
+    \item \texttt{self.nome = nome} cria um \textbf{atributo de instância}
+          --- cada objeto terá o seu
+  \end{itemize}
+
+  \vspace{0.3cm}
+  \begin{block}{Atenção}
+    \texttt{self} \textbf{sempre} é o primeiro parâmetro de qualquer método,
+    mas \textbf{não} é passado na chamada --- Python cuida disso.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Criando Objetos (Instâncias)}
+  \begin{lstlisting}
+xtudo = Lanche("X-Tudo", 18.50, "pao, hamburguer, queijo, ovo, bacon")
+xsalada = Lanche("X-Salada", 14.00, "pao, hamburguer, queijo, alface")
+
+print(xtudo.descrever())    # X-Tudo - R$18.50
+print(xsalada.nome)         # X-Salada
+print(xsalada.preco)        # 14.0
+  \end{lstlisting}
+
+  \vspace{0.3cm}
+  Cada objeto é independente: alterar \texttt{xtudo.preco} não afeta
+  \texttt{xsalada.preco}.
+\end{frame}
+
+\begin{frame}[fragile]{Comparação: Antes vs.\ Depois}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Sem OOP}
+      \begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+lanche1_nome = "X-Tudo"
+lanche1_preco = 18.50
+# ... e mais 148 variaveis
+      \end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Com OOP}
+      \begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+xtudo = Lanche("X-Tudo", 18.50,
+               "pao, hamburguer...")
+# 1 variavel = 1 lanche completo
+      \end{lstlisting}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.5cm}
+  Dados e comportamento ficam \textbf{juntos} --- é isso que
+  ``orientação a objetos'' significa.
+\end{frame}
+
+\begin{frame}{Vocabulário Essencial}
+  \begin{table}
+    \centering
+    \begin{tabular}{ll}
+      \toprule
+      \textbf{Conceito} & \textbf{Significado} \\
+      \midrule
+      Classe         & Modelo/receita que define atributos e métodos \\
+      Objeto         & Instância concreta de uma classe \\
+      \texttt{\_\_init\_\_}  & Método construtor --- inicializa o objeto \\
+      \texttt{self}  & Referência ao próprio objeto \\
+      Atributo       & Variável que pertence ao objeto \\
+      Método         & Função que pertence à classe \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+\begin{frame}[fragile]{Métodos: Adicionando Comportamento}
+  \begin{lstlisting}
+class Lanche:
+    def __init__(self, nome, preco, ingredientes):
+        self.nome = nome
+        self.preco = preco
+        self.ingredientes = ingredientes
+
+    def descrever(self):
+        return f"{self.nome} - R${self.preco:.2f}"
+
+    def aplicar_desconto(self, percentual):
+        self.preco *= (1 - percentual / 100)
+
+    def tem_ingrediente(self, ingrediente):
+        return ingrediente in self.ingredientes
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Usando os Métodos}
+  \begin{lstlisting}
+xtudo = Lanche("X-Tudo", 18.50, "pao, hamburguer, queijo, ovo")
+
+print(xtudo.descrever())             # X-Tudo - R$18.50
+
+xtudo.aplicar_desconto(10)
+print(xtudo.descrever())             # X-Tudo - R$16.65
+
+print(xtudo.tem_ingrediente("ovo"))  # True
+print(xtudo.tem_ingrediente("bacon"))# False
+  \end{lstlisting}
+
+  \vspace{0.3cm}
+  O objeto \textbf{sabe} como se descrever, como aplicar desconto
+  e como verificar ingredientes --- o comportamento está \emph{dentro} do objeto.
+\end{frame}
+
+% ############################################################
+\section{Atributos de Classe vs Instância}
+% ############################################################
+
+\begin{frame}{Dois Tipos de Atributos}
+  \begin{table}
+    \centering
+    \small
+    \begin{tabular}{lp{4.5cm}p{4.5cm}}
+      \toprule
+      & \textbf{Atributo de Classe} & \textbf{Atributo de Instância} \\
+      \midrule
+      Onde define  & Dentro da classe, fora de métodos & Dentro de \texttt{\_\_init\_\_} \\
+      Compartilhado & Sim, por todos os objetos & Não, cada objeto tem o seu \\
+      Acesso       & \texttt{Classe.atributo} & \texttt{self.atributo} \\
+      Exemplo      & Taxa de serviço (10\%) & Nome do lanche \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+\begin{frame}[fragile]{Exemplo: Atributo de Classe}
+  \begin{lstlisting}
+class Lanche:
+    taxa_servico = 0.10  # compartilhado por TODOS os lanches
+
+    def __init__(self, nome, preco, ingredientes):
+        self.nome = nome
+        self.preco = preco
+        self.ingredientes = ingredientes
+
+    def preco_com_taxa(self):
+        return self.preco * (1 + Lanche.taxa_servico)
+  \end{lstlisting}
+
+  \begin{lstlisting}
+xtudo = Lanche("X-Tudo", 18.50, "pao, hamburguer, queijo")
+print(xtudo.preco_com_taxa())  # 20.35
+
+Lanche.taxa_servico = 0.15    # altera para TODOS
+print(xtudo.preco_com_taxa())  # 21.275
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Armadilha: Atributo de Classe Mutável}
+  \begin{lstlisting}
+class Lanche:
+    extras = []  # PERIGO! Lista compartilhada
+
+    def __init__(self, nome):
+        self.nome = nome
+
+    def adicionar_extra(self, extra):
+        self.extras.append(extra)
+  \end{lstlisting}
+
+  \begin{lstlisting}
+a = Lanche("X-Tudo")
+b = Lanche("X-Salada")
+a.adicionar_extra("bacon")
+print(b.extras)  # ['bacon'] -- b tambem tem bacon?!
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=10]{Correção: Criar Mutáveis no \texttt{\_\_init\_\_}}
+  \begin{lstlisting}
+class Lanche:
+    def __init__(self, nome):
+        self.nome = nome
+        self.extras = []  # CORRETO: cada objeto tem sua lista
+
+    def adicionar_extra(self, extra):
+        self.extras.append(extra)
+  \end{lstlisting}
+
+  \begin{lstlisting}
+a = Lanche("X-Tudo")
+b = Lanche("X-Salada")
+a.adicionar_extra("bacon")
+print(a.extras)  # ['bacon']
+print(b.extras)  # []  -- independente!
+  \end{lstlisting}
+
+  \begin{alertblock}{Regra de Ouro}
+    Atributos mutáveis (listas, dicionários, conjuntos) devem ser
+    criados em \texttt{\_\_init\_\_}, \textbf{nunca} como atributos de classe.
+  \end{alertblock}
+\end{frame}
+
+% ############################################################
+\section{Composição: Objetos Dentro de Objetos}
+% ############################################################
+
+\begin{frame}{Composição: Objetos Dentro de Objetos}
+  Um \texttt{Cardapio} contém uma \textbf{lista de objetos}
+  \texttt{Lanche}.
+
+  \vspace{0.3cm}
+  Isso é chamado de \textbf{composição}: um objeto é composto
+  por outros objetos.
+
+  \vspace{0.3cm}
+  \begin{block}{Analogia}
+    O cardápio do food truck não é um lanche --- ele \emph{contém}
+    lanches. A relação é ``tem-um'' (has-a), não ``é-um'' (is-a).
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Classe \texttt{Cardapio}: Estrutura}
+  \begin{lstlisting}
+class Cardapio:
+    """Gerencia a colecao de lanches do food truck."""
+
+    def __init__(self, nome_food_truck):
+        self.nome_food_truck = nome_food_truck
+        self.lanches = []  # lista de objetos Lanche
+
+    def adicionar(self, lanche):
+        self.lanches.append(lanche)
+
+    def mostrar(self):
+        print(f"=== Cardapio: {self.nome_food_truck} ===")
+        for lanche in self.lanches:
+            print(f"  {lanche.descrever()}")
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Classe \texttt{Cardapio}: Métodos de Consulta}
+  \begin{lstlisting}
+class Cardapio:
+    # ... (continuacao)
+
+    def preco_medio(self):
+        if not self.lanches:
+            return 0
+        total = sum(l.preco for l in self.lanches)
+        return total / len(self.lanches)
+
+    def mais_caro(self):
+        if not self.lanches:
+            return None
+        return max(self.lanches, key=lambda l: l.preco)
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Usando o Cardápio}
+  \begin{lstlisting}
+cardapio = Cardapio("O Podrao")
+cardapio.adicionar(Lanche("X-Tudo", 18.50, "pao, hamburguer..."))
+cardapio.adicionar(Lanche("X-Salada", 14.00, "pao, alface..."))
+cardapio.adicionar(Lanche("Misto Quente", 8.00, "pao, presunto"))
+
+cardapio.mostrar()
+  \end{lstlisting}
+
+  Saída:
+  \begin{lstlisting}[numbers=none]
+=== Cardapio: O Podrao ===
+  X-Tudo - R$18.50
+  X-Salada - R$14.00
+  Misto Quente - R$8.00
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Consultando o Cardápio}
+  \begin{lstlisting}
+print(f"Preco medio: R${cardapio.preco_medio():.2f}")
+# Preco medio: R$13.50
+
+campeao = cardapio.mais_caro()
+print(f"Mais caro: {campeao.descrever()}")
+# Mais caro: X-Tudo - R$18.50
+  \end{lstlisting}
+
+  \vspace{0.5cm}
+  Note como \texttt{mais\_caro()} retorna um \textbf{objeto} \texttt{Lanche},
+  e podemos chamar \texttt{descrever()} nele --- objetos conversam entre si!
+\end{frame}
+
+\begin{frame}{Diagrama: Composição}
+  % Diagram: Composição Cardapio-Lanche
+  % Coordinates:
+  %   cardapio at (0, 0) -- objeto Cardapio
+  %   lanche1 at (6, 1.5) -- primeiro Lanche
+  %   lanche2 at (6, 0) -- segundo Lanche
+  %   lanche3 at (6, -1.5) -- terceiro Lanche
+  \begin{center}
+    \begin{tikzpicture}[
+      classbox/.style={draw, rounded corners, minimum width=3.5cm,
+                       minimum height=1.2cm, text width=3.3cm, align=center,
+                       fill=blue!10},
+      objbox/.style={draw, rounded corners, minimum width=3.0cm,
+                     minimum height=0.9cm, text width=2.8cm, align=center,
+                     fill=green!10},
+      >=stealth
+    ]
+      \node[classbox] (cardapio) at (0, 0)
+        {\textbf{Cardapio}\\``O Podrão''};
+      \node[objbox] (l1) at (7, 1.5)
+        {\footnotesize X-Tudo\\R\$18.50};
+      \node[objbox] (l2) at (7, 0)
+        {\footnotesize X-Salada\\R\$14.00};
+      \node[objbox] (l3) at (7, -1.5)
+        {\footnotesize Misto Quente\\R\$8.00};
+
+      \draw[->, thick] (cardapio) -- (l1)
+        node[midway, above, font=\footnotesize] {contém};
+      \draw[->, thick] (cardapio) -- (l2);
+      \draw[->, thick] (cardapio) -- (l3);
+
+      \node[font=\footnotesize, gray] at (0, -2.2)
+        {1 objeto Cardapio};
+      \node[font=\footnotesize, gray] at (7, -2.2)
+        {N objetos Lanche};
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% #############################################################################
+% PARTE 2: Encapsulamento e Métodos Especiais
+% #############################################################################
+
+% ================================================================
+\section{Encapsulamento}
+% ================================================================
+
+\begin{frame}[fragile]{O problema: estado inválido}
+\begin{lstlisting}
+xtudo = Lanche("X-Tudo", 18.50)
+xtudo.preco = -999      # nenhum erro!
+xtudo.preco = "gratis"  # nenhum erro!
+print(xtudo.preco)      # "gratis"
+\end{lstlisting}
+
+\begin{alertblock}{Problema}
+Qualquer código externo pode colocar o objeto em um estado que não faz sentido.
+Um preço negativo ou textual viola as regras do nosso domínio.
+\end{alertblock}
+
+\medskip
+Como proteger os dados internos de um objeto?
+\end{frame}
+
+\begin{frame}{Analogia: a caixa registradora}
+\begin{columns}[T]
+\column{0.55\textwidth}
+Pense na caixa registradora do Podrão:
+\begin{itemize}
+    \item O \textbf{visor} mostra o total (acesso público)
+    \item A \textbf{gaveta} só abre com a chave do operador (acesso restrito)
+    \item Ninguém coloca a mão diretamente no dinheiro
+\end{itemize}
+
+\column{0.42\textwidth}
+\begin{block}{Encapsulamento}
+Esconder os detalhes internos de um objeto e expor apenas uma
+interface controlada.
+\end{block}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Convenções Python: público, protegido, privado}
+Python \textbf{não tem} modificadores de acesso como Java.
+Usa-se \textbf{convenções de nomenclatura}:
+
+\medskip
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Nome} & \textbf{Convenção} & \textbf{Significado} \\
+\midrule
+\texttt{nome}    & público   & Acesso livre \\
+\texttt{\_nome}  & protegido & ``Use com cuidado'' \\
+\texttt{\_\_nome}& privado   & Name mangling (dificulta acesso) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\medskip
+\begin{exampleblock}{Filosofia Python}
+``We're all consenting adults here'' --- a linguagem confia no programador,
+mas oferece mecanismos para sinalizar intenção.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Name mangling: como funciona}
+Atributos com \texttt{\_\_} (duplo sublinhado) sofrem \textbf{name mangling}:
+
+\begin{lstlisting}
+class CaixaRegistradora:
+    def __init__(self):
+        self.__saldo = 0.0
+
+    def receber_pagamento(self, valor):
+        if valor > 0:
+            self.__saldo += valor
+
+    def ver_saldo(self):
+        return self.__saldo
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Name mangling: acesso externo}
+\begin{lstlisting}
+caixa = CaixaRegistradora()
+caixa.receber_pagamento(25.00)
+print(caixa.ver_saldo())   # 25.0
+
+print(caixa.__saldo)
+# AttributeError: 'CaixaRegistradora' object
+#   has no attribute '__saldo'
+\end{lstlisting}
+
+\begin{alertblock}{Name mangling por dentro}
+O Python renomeia \texttt{\_\_saldo} para \texttt{\_CaixaRegistradora\_\_saldo}.
+\end{alertblock}
+
+\begin{lstlisting}
+# Funciona, mas NUNCA faca isso!
+print(caixa._CaixaRegistradora__saldo)  # 25.0
+\end{lstlisting}
+\end{frame}
+
+% ================================================================
+\section{@property --- Acesso Controlado}
+% ================================================================
+
+\begin{frame}[fragile]{O problema dos getters e setters}
+Em Java, usamos \texttt{getPreco()} e \texttt{setPreco()}.
+Em Python, isso fica verboso e pouco natural:
+
+\begin{lstlisting}
+# Estilo Java em Python (evite!)
+lanche.get_preco()
+lanche.set_preco(20.0)
+
+# Estilo Pythonico (queremos isto)
+lanche.preco        # leitura
+lanche.preco = 20.0 # escrita com validacao
+\end{lstlisting}
+
+A solução: \texttt{@property}.
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{@property}: métodos disfarçados de atributos}
+\begin{lstlisting}
+class Lanche:
+    def __init__(self, nome, preco):
+        self._nome = nome
+        self.preco = preco  # usa o setter!
+
+    @property
+    def preco(self):
+        return self._preco
+
+    @preco.setter
+    def preco(self, valor):
+        if valor < 0:
+            raise ValueError("Preco negativo!")
+        if valor > 500:
+            raise ValueError("Preco acima do limite!")
+        self._preco = valor
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Usando a property}
+\begin{lstlisting}
+xtudo = Lanche("X-Tudo", 18.50)
+print(xtudo.preco)   # 18.5 (chama o getter)
+
+xtudo.preco = 22.0   # OK (chama o setter)
+xtudo.preco = -10     # ValueError: Preco negativo!
+xtudo.preco = 1000    # ValueError: Preco acima do limite!
+\end{lstlisting}
+
+\begin{block}{Vantagem}
+O código externo usa sintaxe de atributo, mas internamente
+há validação. Mudança transparente.
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Property somente-leitura}
+Use \texttt{@property} \textbf{sem} definir o setter:
+
+\begin{lstlisting}
+class Pedido:
+    def __init__(self):
+        self._itens = []
+
+    def adicionar(self, lanche, qtd=1):
+        self._itens.append((lanche, qtd))
+
+    @property
+    def total(self):
+        return sum(l.preco * q for l, q in self._itens)
+\end{lstlisting}
+
+\begin{lstlisting}
+pedido = Pedido()
+pedido.adicionar(xtudo, 2)
+print(pedido.total)     # 37.0
+pedido.total = 0        # AttributeError!
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Armadilha: recursão infinita}
+\begin{alertblock}{Cuidado!}
+Não use o mesmo nome para a property e o atributo interno.
+\end{alertblock}
+
+\begin{lstlisting}
+class Errado:
+    @property
+    def preco(self):
+        return self.preco  # chama a si mesmo!
+
+    @preco.setter
+    def preco(self, valor):
+        self.preco = valor  # chama a si mesmo!
+    # RecursionError!
+\end{lstlisting}
+
+\textbf{Solução:} armazene em \texttt{self.\_preco} (com prefixo).
+\end{frame}
+
+% ================================================================
+\section{Métodos Especiais (Dunders)}
+% ================================================================
+
+\begin{frame}[shrink=10]{O que são dunders?}
+Métodos com duplo sublinhado: \texttt{\_\_nome\_\_}
+
+São chamados automaticamente pelo Python em situações específicas:
+
+\medskip
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Você escreve} & \textbf{Python chama} \\
+\midrule
+\texttt{print(obj)}      & \texttt{obj.\_\_str\_\_()} \\
+\texttt{repr(obj)}       & \texttt{obj.\_\_repr\_\_()} \\
+\texttt{obj1 == obj2}    & \texttt{obj1.\_\_eq\_\_(obj2)} \\
+\texttt{obj1 < obj2}     & \texttt{obj1.\_\_lt\_\_(obj2)} \\
+\texttt{len(obj)}        & \texttt{obj.\_\_len\_\_()} \\
+\texttt{hash(obj)}       & \texttt{obj.\_\_hash\_\_()} \\
+\texttt{obj1 + obj2}     & \texttt{obj1.\_\_add\_\_(obj2)} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile,shrink=10]{\texttt{\_\_str\_\_} vs \texttt{\_\_repr\_\_}}
+\begin{lstlisting}
+class Lanche:
+    def __init__(self, nome, preco):
+        self._nome = nome
+        self._preco = preco
+
+xtudo = Lanche("X-Tudo", 18.5)
+print(xtudo)
+# <__main__.Lanche object at 0x7f3b2c>  (feio!)
+\end{lstlisting}
+
+Agora com dunders:
+\begin{lstlisting}
+    def __str__(self):
+        return f"{self._nome} - R${self._preco:.2f}"
+
+    def __repr__(self):
+        return f"Lanche('{self._nome}', {self._preco})"
+\end{lstlisting}
+
+\begin{lstlisting}
+print(xtudo)        # X-Tudo - R$18.50  (amigavel)
+repr(xtudo)         # Lanche('X-Tudo', 18.5) (tecnico)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{\_\_eq\_\_}: igualdade por valor}
+Por padrão, dois objetos com os mesmos dados são \textbf{diferentes}:
+
+\begin{lstlisting}
+a = Lanche("X-Tudo", 18.5)
+b = Lanche("X-Tudo", 18.5)
+print(a == b)  # False (compara identidade!)
+\end{lstlisting}
+
+Solução:
+\begin{lstlisting}
+    def __eq__(self, other):
+        if not isinstance(other, Lanche):
+            return NotImplemented
+        return (self._nome == other._nome
+                and self._preco == other._preco)
+\end{lstlisting}
+
+\begin{lstlisting}
+print(a == b)  # True
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{\_\_lt\_\_}: ordenação com \texttt{sorted()}}
+\begin{lstlisting}
+    def __lt__(self, other):
+        if not isinstance(other, Lanche):
+            return NotImplemented
+        return self._preco < other._preco
+\end{lstlisting}
+
+\begin{lstlisting}
+cardapio = [
+    Lanche("X-Tudo", 18.5),
+    Lanche("Misto",   8.0),
+    Lanche("Burgao", 22.0),
+]
+for l in sorted(cardapio):
+    print(l)
+# Misto - R$8.00
+# X-Tudo - R$18.50
+# Burgao - R$22.00
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{\_\_hash\_\_}: objetos em conjuntos e dicionários}
+Ao definir \texttt{\_\_eq\_\_}, o Python desabilita \texttt{\_\_hash\_\_}:
+
+\begin{lstlisting}
+lanches = {Lanche("X-Tudo", 18.5)}
+# TypeError: unhashable type: 'Lanche'
+\end{lstlisting}
+
+Solução:
+\begin{lstlisting}
+    def __hash__(self):
+        return hash((self._nome, self._preco))
+\end{lstlisting}
+
+\begin{alertblock}{Regra de ouro}
+Se \texttt{a == b}, então \texttt{hash(a) == hash(b)}.
+Use os mesmos atributos em ambos os métodos.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{\_\_len\_\_}: tamanho de coleções}
+\begin{lstlisting}
+class Pedido:
+    def __init__(self):
+        self._itens = []
+
+    def adicionar(self, lanche, qtd=1):
+        self._itens.append((lanche, qtd))
+
+    def __len__(self):
+        return sum(q for _, q in self._itens)
+\end{lstlisting}
+
+\begin{lstlisting}
+pedido = Pedido()
+pedido.adicionar(Lanche("X-Tudo", 18.5), 2)
+pedido.adicionar(Lanche("Misto", 8.0), 1)
+print(len(pedido))  # 3
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Tabela resumo: principais dunders}
+\begin{center}
+\scriptsize
+\begin{tabular}{lll}
+\toprule
+\textbf{Método} & \textbf{Operação} & \textbf{Quando usar} \\
+\midrule
+\texttt{\_\_init\_\_}  & Construtor          & Sempre \\
+\texttt{\_\_str\_\_}   & \texttt{print()}, \texttt{str()} & Saída amigável \\
+\texttt{\_\_repr\_\_}  & \texttt{repr()}, terminal & Debug, logs \\
+\texttt{\_\_eq\_\_}    & \texttt{==}         & Comparação por valor \\
+\texttt{\_\_lt\_\_}    & \texttt{<}, \texttt{sorted()} & Ordenação \\
+\texttt{\_\_hash\_\_}  & \texttt{set}, \texttt{dict} & Após definir \texttt{\_\_eq\_\_} \\
+\texttt{\_\_len\_\_}   & \texttt{len()}      & Coleções \\
+\texttt{\_\_add\_\_}   & \texttt{+}          & Soma/concatenação \\
+\texttt{\_\_sub\_\_}   & \texttt{-}          & Subtração \\
+\texttt{\_\_mul\_\_}   & \texttt{*}          & Multiplicação \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+% ================================================================
+\section{Prática --- Classe Fracao}
+% ================================================================
+
+\begin{frame}{Classe \texttt{Fracao}: especificação}
+Vamos construir uma classe completa que usa \textbf{tudo} que aprendemos:
+
+\begin{itemize}
+    \item Validação no construtor (denominador $\neq 0$)
+    \item Simplificação automática via MDC
+    \item Properties somente-leitura
+    \item \texttt{\_\_str\_\_}, \texttt{\_\_repr\_\_}
+    \item \texttt{\_\_eq\_\_}, \texttt{\_\_lt\_\_}, \texttt{\_\_hash\_\_}
+    \item \texttt{\_\_add\_\_}, \texttt{\_\_sub\_\_}, \texttt{\_\_mul\_\_}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile,shrink=15]{Classe \texttt{Fracao}: construtor e simplificação}
+\begin{lstlisting}
+from math import gcd
+
+class Fracao:
+    def __init__(self, num, den=1):
+        if den == 0:
+            raise ValueError("Denominador nao pode ser zero!")
+        # sinal sempre no numerador
+        if den < 0:
+            num, den = -num, -den
+        divisor = gcd(abs(num), den)
+        self._num = num // divisor
+        self._den = den // divisor
+
+    @property
+    def num(self):
+        return self._num
+
+    @property
+    def den(self):
+        return self._den
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Classe \texttt{Fracao}: representação}
+\begin{lstlisting}
+    def __str__(self):
+        if self._den == 1:
+            return str(self._num)
+        return f"{self._num}/{self._den}"
+
+    def __repr__(self):
+        return f"Fracao({self._num}, {self._den})"
+\end{lstlisting}
+
+\begin{lstlisting}
+print(Fracao(4, 6))   # 2/3
+print(Fracao(6, 3))   # 2
+repr(Fracao(4, 6))    # Fracao(2, 3)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=20]{Classe \texttt{Fracao}: comparação e hash}
+\begin{lstlisting}
+    def __eq__(self, other):
+        if not isinstance(other, Fracao):
+            return NotImplemented
+        return (self._num == other._num
+                and self._den == other._den)
+
+    def __lt__(self, other):
+        if not isinstance(other, Fracao):
+            return NotImplemented
+        return self._num * other._den < other._num * self._den
+
+    def __hash__(self):
+        return hash((self._num, self._den))
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=15]{Classe \texttt{Fracao}: operações aritméticas}
+\begin{lstlisting}
+    def __add__(self, other):
+        if not isinstance(other, Fracao):
+            return NotImplemented
+        return Fracao(self._num * other._den
+                      + other._num * self._den,
+                      self._den * other._den)
+
+    def __sub__(self, other):
+        if not isinstance(other, Fracao):
+            return NotImplemented
+        return Fracao(self._num * other._den
+                      - other._num * self._den,
+                      self._den * other._den)
+
+    def __mul__(self, other):
+        if not isinstance(other, Fracao):
+            return NotImplemented
+        return Fracao(self._num * other._num,
+                      self._den * other._den)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Classe \texttt{Fracao}: demonstração}
+\begin{lstlisting}
+a = Fracao(1, 2)
+b = Fracao(1, 3)
+
+print(a + b)          # 5/6
+print(a - b)          # 1/6
+print(a * b)          # 1/6
+print(a == Fracao(2, 4))  # True (simplificado!)
+\end{lstlisting}
+
+\begin{lstlisting}
+fracs = [Fracao(3,4), Fracao(1,2), Fracao(2,3)]
+print(sorted(fracs))  # [1/2, 2/3, 3/4]
+\end{lstlisting}
+
+\begin{lstlisting}
+# set() funciona porque temos __eq__ e __hash__
+s = {Fracao(1,2), Fracao(2,4), Fracao(3,6)}
+print(s)              # {1/2}
+\end{lstlisting}
+\end{frame}
+
+% #############################################################################
+% PARTE 3: Herança, Polimorfismo e Composição
+% #############################################################################
+
+% =============================================================================
+\section{Herança Simples}
+% =============================================================================
+
+\begin{frame}[fragile]{O Problema: Código Duplicado}
+  No food truck \textbf{O Podrão}, temos três lanches com código repetido:
+
+  \begin{columns}[T]
+    \column{0.32\textwidth}
+    \begin{lstlisting}
+class XTudo:
+    def __init__(self, preco):
+        self.preco = preco
+        self.nome = "X-Tudo"
+
+    def descrever(self):
+        return f"{self.nome}: R${self.preco:.2f}"
+
+    def preparar(self):
+        print("Fritando hambúrguer...")
+    \end{lstlisting}
+
+    \column{0.32\textwidth}
+    \begin{lstlisting}
+class Dogao:
+    def __init__(self, preco):
+        self.preco = preco
+        self.nome = "Dogão"
+
+    def descrever(self):
+        return f"{self.nome}: R${self.preco:.2f}"
+
+    def preparar(self):
+        print("Montando hot-dog...")
+    \end{lstlisting}
+
+    \column{0.32\textwidth}
+    \begin{lstlisting}
+class Acai:
+    def __init__(self, preco):
+        self.preco = preco
+        self.nome = "Açaí"
+
+    def descrever(self):
+        return f"{self.nome}: R${self.preco:.2f}"
+
+    def preparar(self):
+        print("Batendo açaí...")
+    \end{lstlisting}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Por que Código Duplicado é Ruim?}
+  \begin{alertblock}{Violação do Princípio DRY}
+    \textbf{Don't Repeat Yourself} --- código duplicado é fonte de bugs.
+  \end{alertblock}
+
+  \bigskip
+
+  \begin{itemize}
+    \item \texttt{\_\_init\_\_} e \texttt{descrever} são \textbf{idênticos} nas três classes
+    \item Se precisar adicionar \texttt{calorias}: alterar \textbf{três} classes
+    \item Se corrigir um bug em \texttt{descrever}: corrigir em \textbf{três} lugares
+    \item E se o cardápio crescer para 15 itens?
+  \end{itemize}
+
+  \bigskip
+
+  \begin{exampleblock}{Solução}
+    Extrair o que é \textbf{comum} para uma classe base $\Rightarrow$ \textbf{Herança}.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{O Relacionamento ``É Um''}
+  Herança modela o relacionamento \textbf{``é um''} (\emph{is-a}):
+
+  \medskip
+
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{lcc}
+      \toprule
+      \textbf{Afirmação} & \textbf{Verdade?} & \textbf{Herança?} \\
+      \midrule
+      XTudo é um Lanche           & \checkmark & Sim \\
+      Dogão é um Lanche           & \checkmark & Sim \\
+      Açaí é um Lanche            & \checkmark & Sim \\
+      Pedido é uma CaixaRegistradora & $\times$ & Não \\
+      Pedido \emph{tem} Lanches   & \checkmark & Composição \\
+      \bottomrule
+    \end{tabular}%
+  }% end resizebox
+  \end{center}
+
+  \medskip
+
+  \begin{alertblock}{Regra de Ouro}
+    Se ``B é um A'' faz sentido no domínio $\Rightarrow$ \texttt{class B(A)}.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Hierarquia de Classes}
+  % Coordinate map:
+  % (0,3)    = Lanche (parent node)
+  % (-3,0)   = XTudo (child left)
+  % (0,0)    = Dogao (child center)
+  % (3,0)    = Acai (child right)
+  \begin{center}
+    \begin{tikzpicture}[scale=1.1, every node/.style={scale=1.1}]
+      \node[draw, fill=blue!15, rounded corners, minimum width=3cm, minimum height=1cm, font=\bfseries]
+        (lanche) at (0,3) {Lanche};
+      \node[draw, fill=green!10, rounded corners, minimum width=2.5cm, minimum height=1cm]
+        (xtudo) at (-4,0) {XTudo};
+      \node[draw, fill=green!10, rounded corners, minimum width=2.5cm, minimum height=1cm]
+        (dogao) at (0,0) {Dogão};
+      \node[draw, fill=green!10, rounded corners, minimum width=2.5cm, minimum height=1cm]
+        (acai) at (4,0) {Açaí};
+
+      \draw[->, thick] (xtudo) -- node[left, font=\scriptsize]{herda} (lanche);
+      \draw[->, thick] (dogao) -- node[right, font=\scriptsize]{herda} (lanche);
+      \draw[->, thick] (acai) -- node[right, font=\scriptsize]{herda} (lanche);
+
+      \node[below=0.2cm of xtudo, font=\scriptsize\ttfamily, text=gray] {class XTudo(Lanche)};
+      \node[below=0.2cm of dogao, font=\scriptsize\ttfamily, text=gray] {class Dogao(Lanche)};
+      \node[below=0.2cm of acai, font=\scriptsize\ttfamily, text=gray] {class Acai(Lanche)};
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Classe Base: \texttt{Lanche}}
+  \begin{lstlisting}
+class Lanche:
+    def __init__(self, nome, preco):
+        self.nome = nome
+        self.preco = preco
+
+    def descrever(self):
+        return f"{self.nome}: R${self.preco:.2f}"
+
+    def preparar(self):
+        print(f"Preparando {self.nome}...")
+  \end{lstlisting}
+
+  \begin{exampleblock}{O que mudou?}
+    Todo código comum agora vive em \textbf{um único lugar}.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Subclasses com \texttt{super()}}
+  \begin{lstlisting}
+class XTudo(Lanche):
+    def __init__(self, preco, molho="especial"):
+        super().__init__("X-Tudo", preco)
+        self.molho = molho
+
+    def preparar(self):
+        print(f"Fritando hambúrguer com molho {self.molho}...")
+  \end{lstlisting}
+
+  \begin{lstlisting}
+class Dogao(Lanche):
+    def __init__(self, preco, tamanho="grande"):
+        super().__init__("Dogão", preco)
+        self.tamanho = tamanho
+
+    def preparar(self):
+        print(f"Montando hot-dog {self.tamanho}...")
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Herdando Métodos Automaticamente}
+  \begin{lstlisting}
+x = XTudo(25.0)
+d = Dogao(18.0)
+
+# descrever() é herdado de Lanche --- funciona sem reescrever!
+print(x.descrever())   # X-Tudo: R$25.00
+print(d.descrever())   # Dogão: R$18.00
+
+# preparar() foi sobrescrito em cada subclasse
+x.preparar()   # Fritando hambúrguer com molho especial...
+d.preparar()   # Montando hot-dog grande...
+  \end{lstlisting}
+
+  \begin{exampleblock}{Regra}
+    Se a subclasse \textbf{não} redefine um método, usa o da superclasse.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Verificando Tipos com \texttt{isinstance()}}
+  \begin{lstlisting}
+x = XTudo(25.0)
+
+isinstance(x, XTudo)    # True
+isinstance(x, Lanche)   # True  (XTudo EH UM Lanche)
+isinstance(x, Dogao)    # False
+
+type(x) == XTudo         # True
+type(x) == Lanche        # False (type() é exato)
+  \end{lstlisting}
+
+  \bigskip
+
+  \begin{center}
+    \begin{tabular}{lcc}
+      \toprule
+      \textbf{Verificação} & \textbf{\texttt{isinstance}} & \textbf{\texttt{type() ==}} \\
+      \midrule
+      Considera herança? & Sim & Não \\
+      Uso recomendado    & Geral & Raro \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+\end{frame}
+
+% =============================================================================
+\section{Sobrescrita de Métodos}
+% =============================================================================
+
+\begin{frame}[fragile]{Override: Redefinindo um Método}
+  \textbf{Sobrescrita} (\emph{override}): a subclasse fornece sua própria versão de um método herdado.
+
+  \begin{lstlisting}
+class Acai(Lanche):
+    def __init__(self, preco, complementos=None):
+        super().__init__("Açaí", preco)
+        self.complementos = complementos or ["granola", "banana"]
+
+    def preparar(self):
+        # Sobrescreve completamente o método de Lanche
+        print(f"Batendo açaí com {', '.join(self.complementos)}...")
+  \end{lstlisting}
+
+  \begin{alertblock}{Atenção}
+    O método da subclasse \textbf{substitui} o da superclasse --- não são acumulados.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Padrão Extend: \texttt{super()} + Extensão}
+  Quando queremos \textbf{estender} (não substituir) o comportamento do pai:
+
+  \begin{lstlisting}
+class XTudoEspecial(XTudo):
+    def __init__(self, preco, extras=None):
+        super().__init__(preco, molho="da casa")
+        self.extras = extras or ["bacon", "ovo"]
+
+    def descrever(self):
+        base = super().descrever()  # chama Lanche.descrever()
+        return f"{base} + {', '.join(self.extras)}"
+  \end{lstlisting}
+
+  \begin{lstlisting}
+xe = XTudoEspecial(32.0)
+print(xe.descrever())
+# X-Tudo: R$32.00 + bacon, ovo
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Armadilha: Esquecer \texttt{super().\_\_init\_\_()}}
+  \begin{lstlisting}
+class Coxinha(Lanche):
+    def __init__(self, preco):
+        # ESQUECEU super().__init__() !!!
+        self.recheio = "frango"
+
+c = Coxinha(8.0)
+c.recheio       # "frango" --- OK
+c.descrever()   # AttributeError: 'Coxinha' has no attribute 'nome'
+  \end{lstlisting}
+
+  \begin{alertblock}{Por quê?}
+    Sem \texttt{super().\_\_init\_\_()}, os atributos \texttt{nome} e \texttt{preco} nunca são criados.
+  \end{alertblock}
+
+  \begin{exampleblock}{Correção}
+    Sempre chame \texttt{super().\_\_init\_\_()} no início do \texttt{\_\_init\_\_} da subclasse.
+  \end{exampleblock}
+\end{frame}
+
+% =============================================================================
+\section{Polimorfismo e Duck Typing}
+% =============================================================================
+
+\begin{frame}[fragile]{Polimorfismo: Mesma Chamada, Comportamentos Diferentes}
+  \textbf{Polimorfismo}: objetos de tipos diferentes respondem à mesma mensagem, cada um à sua maneira.
+
+  \begin{lstlisting}
+pedido = [XTudo(25.0), Dogao(18.0), Acai(15.0)]
+
+for item in pedido:
+    item.preparar()  # cada classe executa seu próprio preparar()
+  \end{lstlisting}
+
+  Saída:
+  \begin{lstlisting}[numbers=none]
+Fritando hambúrguer com molho especial...
+Montando hot-dog grande...
+Batendo açaí com granola, banana...
+  \end{lstlisting}
+
+  \begin{exampleblock}{Essência}
+    O código \textbf{não precisa saber} o tipo exato --- basta que o objeto tenha o método.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Duck Typing}
+  \begin{quote}
+    \emph{``If it walks like a duck and quacks like a duck, then it must be a duck.''}
+  \end{quote}
+
+  \bigskip
+
+  \begin{lstlisting}
+class Bebida:          # NAO herda de Lanche!
+    def __init__(self, nome, preco):
+        self.nome = nome
+        self.preco = preco
+
+    def preparar(self):
+        print(f"Servindo {self.nome}...")
+
+    def descrever(self):
+        return f"{self.nome}: R${self.preco:.2f}"
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=10]{Duck Typing na Prática}
+  \begin{lstlisting}
+pedido = [XTudo(25.0), Dogao(18.0), Bebida("Guaraná", 6.0)]
+
+for item in pedido:
+    print(item.descrever())
+    item.preparar()
+  \end{lstlisting}
+
+  Saída:
+  \begin{lstlisting}[numbers=none]
+X-Tudo: R$25.00
+Fritando hambúrguer com molho especial...
+Dogão: R$18.00
+Montando hot-dog grande...
+Guaraná: R$6.00
+Servindo Guaraná...
+  \end{lstlisting}
+
+  \begin{alertblock}{Observação}
+    \texttt{Bebida} não herda de \texttt{Lanche}, mas funciona no mesmo loop porque tem os mesmos métodos. Isso é \textbf{duck typing}.
+  \end{alertblock}
+\end{frame}
+
+% =============================================================================
+\section{Herança vs.\ Composição}
+% =============================================================================
+
+\begin{frame}{Herança vs.\ Composição}
+  \begin{center}
+    \begin{tabular}{lll}
+      \toprule
+      \textbf{Relacionamento} & \textbf{Mecanismo} & \textbf{Exemplo} \\
+      \midrule
+      ``É um'' (\emph{is-a})  & Herança    & XTudo \textbf{é um} Lanche \\
+      ``Tem um'' (\emph{has-a}) & Composição & Pedido \textbf{tem} Lanches \\
+      ``Tem um'' (\emph{has-a}) & Composição & Pedido \textbf{tem} FormaPagamento \\
+      ``É um'' (\emph{is-a})  & Herança    & Pix \textbf{é uma} FormaPagamento \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile,shrink=10]{Composição no Código}
+  \begin{lstlisting}
+class FormaPagamento:
+    def processar(self, valor):
+        raise NotImplementedError
+
+class Pix(FormaPagamento):
+    def processar(self, valor):
+        print(f"Pix de R${valor:.2f} confirmado!")
+
+class Pedido:
+    def __init__(self, pagamento):
+        self.itens = []               # composição: tem lanches
+        self.pagamento = pagamento    # composição: tem forma de pgto
+
+    def adicionar(self, item):
+        self.itens.append(item)
+
+    def fechar(self):
+        total = sum(i.preco for i in self.itens)
+        self.pagamento.processar(total)
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Usando o Pedido}
+  \begin{lstlisting}
+pix = Pix()
+pedido = Pedido(pix)
+pedido.adicionar(XTudo(25.0))
+pedido.adicionar(Bebida("Guaraná", 6.0))
+pedido.fechar()
+# Pix de R$31.00 confirmado!
+  \end{lstlisting}
+
+  \begin{exampleblock}{Gang of Four}
+    \emph{``Favor composition over inheritance.''} \\
+    Se você só quer \textbf{reusar} comportamento, sem relação conceitual ``é um'', use composição.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Quando Usar Cada Um?}
+  \begin{center}
+    \begin{tabular}{lcc}
+      \toprule
+      \textbf{Critério} & \textbf{Herança} & \textbf{Composição} \\
+      \midrule
+      Relação ``é um'' genuína & \checkmark & \\
+      Apenas reusar código     &   & \checkmark \\
+      Trocar comportamento em runtime & & \checkmark \\
+      Hierarquia natural e estável & \checkmark & \\
+      Flexibilidade máxima & & \checkmark \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+
+  \begin{alertblock}{Regra Prática}
+    Comece com composição. Use herança apenas quando o ``é um'' for claro e estável.
+  \end{alertblock}
+\end{frame}
+
+% =============================================================================
+\section{Herança Múltipla e MRO}
+% =============================================================================
+
+\begin{frame}[fragile]{Herança Múltipla em Python}
+  Python permite herdar de \textbf{mais de uma classe}:
+
+  \begin{lstlisting}
+class Promocional:
+    def aplicar_desconto(self, pct):
+        self.preco *= (1 - pct / 100)
+
+class XTudoPromo(XTudo, Promocional):
+    pass
+
+xp = XTudoPromo(25.0)
+xp.aplicar_desconto(10)
+print(xp.preco)   # 22.5
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=10]{MRO --- Method Resolution Order}
+  Quando há conflito, Python usa o \textbf{C3 Linearization} para decidir qual método chamar:
+
+  \begin{lstlisting}
+print(XTudoPromo.__mro__)
+# (XTudoPromo, XTudo, Lanche, Promocional, object)
+  \end{lstlisting}
+
+  Python busca o método na ordem da MRO: da esquerda para a direita.
+
+  \begin{alertblock}{Conselho}
+    Herança múltipla pode causar confusão. Na prática:
+    \begin{itemize}
+      \item Use \textbf{mixins} simples (como \texttt{Promocional})
+      \item Prefira \textbf{composição} para combinações complexas
+      \item Evite hierarquias diamante
+    \end{itemize}
+  \end{alertblock}
+\end{frame}
+
+% =============================================================================
+\section{Classes Abstratas}
+% =============================================================================
+
+\begin{frame}[fragile,shrink=10]{O Problema: Métodos ``Esquecidos''}
+  \begin{lstlisting}
+class Funcionario:
+    def __init__(self, nome, salario_base):
+        self.nome = nome
+        self.salario_base = salario_base
+
+    def calcular_salario(self):
+        raise NotImplementedError("Subclasse deve implementar")
+  \end{lstlisting}
+
+  \begin{lstlisting}
+class Atendente(Funcionario):
+    pass   # esqueceu de implementar calcular_salario!
+
+a = Atendente("Maria", 1500)
+a.calcular_salario()  # NotImplementedError --- mas só descobre AQUI!
+  \end{lstlisting}
+
+  \begin{alertblock}{Problema}
+    O erro só aparece quando \texttt{calcular\_salario()} é chamado --- pode ser tarde demais.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink=15]{Solução: \texttt{ABC} e \texttt{@abstractmethod}}
+  \begin{lstlisting}
+from abc import ABC, abstractmethod
+
+class Funcionario(ABC):
+    def __init__(self, nome, salario_base):
+        self.nome = nome
+        self.salario_base = salario_base
+
+    @abstractmethod
+    def calcular_salario(self):
+        """Cada tipo de funcionário calcula diferente."""
+        pass
+  \end{lstlisting}
+
+  \begin{lstlisting}
+# Tentar instanciar a classe abstrata:
+f = Funcionario("João", 2000)
+# TypeError: Can't instantiate abstract class Funcionario
+#   with abstract method calcular_salario
+  \end{lstlisting}
+
+  \begin{exampleblock}{Vantagem}
+    O erro ocorre na \textbf{instanciação}, não na chamada do método --- falha cedo!
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink=10]{Subclasses Concretas}
+  \begin{lstlisting}
+class Atendente(Funcionario):
+    def calcular_salario(self):
+        return self.salario_base
+
+class Cozinheiro(Funcionario):
+    def __init__(self, nome, salario_base, adicional_insalubridade):
+        super().__init__(nome, salario_base)
+        self.adicional = adicional_insalubridade
+
+    def calcular_salario(self):
+        return self.salario_base + self.adicional
+
+class Entregador(Funcionario):
+    def __init__(self, nome, salario_base, entregas):
+        super().__init__(nome, salario_base)
+        self.entregas = entregas
+
+    def calcular_salario(self):
+        return self.salario_base + self.entregas * 5
+  \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=20]{Loop Polimórfico para a Folha de Pagamento}
+  \begin{lstlisting}
+equipe = [
+    Atendente("Maria", 1500),
+    Cozinheiro("João", 1800, 300),
+    Entregador("Carlos", 1200, 80),
+    Atendente("Ana", 1500),
+]
+
+total_folha = 0
+for func in equipe:
+    salario = func.calcular_salario()
+    total_folha += salario
+    print(f"{func.nome:.<20} R${salario:>8.2f}")
+
+print(f"{'TOTAL':.<20} R${total_folha:>8.2f}")
+  \end{lstlisting}
+
+  Saída:
+  \begin{lstlisting}[numbers=none]
+Maria............... R$ 1500.00
+João................ R$ 2100.00
+Carlos.............. R$ 1600.00
+Ana................. R$ 1500.00
+TOTAL............... R$ 6700.00
+  \end{lstlisting}
+\end{frame}
+
+% #############################################################################
+% PARTE 4: Tópicos Avançados e Boas Práticas
+% #############################################################################
+
+% ================================================================
+\section{@dataclass --- Eliminando Boilerplate}
+% ================================================================
+
+\begin{frame}[fragile,shrink=25]{O Problema: Boilerplate Repetitivo}
+Uma classe simples com \texttt{\_\_init\_\_}, \texttt{\_\_repr\_\_} e \texttt{\_\_eq\_\_}:
+
+\begin{lstlisting}
+class Lanche:
+    def __init__(self, nome, preco, ingredientes):
+        self.nome = nome
+        self.preco = preco
+        self.ingredientes = ingredientes
+
+    def __repr__(self):
+        return (f"Lanche(nome={self.nome!r}, "
+                f"preco={self.preco!r}, "
+                f"ingredientes={self.ingredientes!r})")
+
+    def __eq__(self, other):
+        if not isinstance(other, Lanche):
+            return NotImplemented
+        return (self.nome == other.nome
+                and self.preco == other.preco
+                and self.ingredientes == other.ingredientes)
+\end{lstlisting}
+
+\begin{alertblock}{Problema}
+$\sim$20 linhas para guardar 3 campos. E se a classe tiver 8 campos?
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink=3]{@dataclass: A Solução}
+\begin{lstlisting}
+from dataclasses import dataclass
+
+@dataclass
+class Lanche:
+    nome: str
+    preco: float
+    ingredientes: list[str]
+\end{lstlisting}
+
+O decorador gera automaticamente:
+\begin{itemize}
+  \item \texttt{\_\_init\_\_} --- com todos os campos como parâmetros
+  \item \texttt{\_\_repr\_\_} --- representação legível
+  \item \texttt{\_\_eq\_\_} --- comparação campo a campo
+\end{itemize}
+
+\begin{exampleblock}{Resultado}
+3 linhas substituem $\sim$20. O código expressa \textbf{o quê}, não \textbf{o como}.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Parâmetros Úteis do @dataclass}
+\begin{lstlisting}
+@dataclass(frozen=True)
+class ItemCardapio:
+    nome: str
+    preco: float
+    categoria: str
+\end{lstlisting}
+
+\begin{table}
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Parâmetro} & \textbf{Efeito} & \textbf{Quando usar} \\
+\midrule
+\texttt{frozen=True}  & Imutável (sem \texttt{setattr}) & Itens de cardápio, configs \\
+\texttt{order=True}   & Gera \texttt{<, <=, >, >=}     & Ordenar por campos \\
+\texttt{eq=True}       & Gera \texttt{\_\_eq\_\_} (padrão) & Quase sempre \\
+\texttt{slots=True}   & Usa \texttt{\_\_slots\_\_} (3.10+) & Performance \\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{frame}
+
+\begin{frame}[fragile]{Defaults Mutáveis: field(default\_factory)}
+\begin{lstlisting}
+from dataclasses import dataclass, field
+
+@dataclass
+class Pedido:
+    cliente: str
+    itens: list[str] = field(default_factory=list)
+    observacoes: dict[str, str] = field(default_factory=dict)
+    numero: int = field(default=0, repr=False)
+\end{lstlisting}
+
+\begin{alertblock}{Nunca faça isso}
+\texttt{itens: list[str] = []} --- o mesmo objeto é compartilhado entre instâncias!
+\end{alertblock}
+
+\texttt{field(default\_factory=list)} cria uma \textbf{nova lista} para cada instância.
+\end{frame}
+
+\begin{frame}[fragile,shrink=5]{@dataclass com Métodos Normais}
+\begin{lstlisting}
+@dataclass
+class Pedido:
+    cliente: str
+    itens: list[str] = field(default_factory=list)
+
+    def adicionar(self, item: str):
+        self.itens.append(item)
+
+    def total(self, cardapio: dict[str, float]) -> float:
+        return sum(cardapio[i] for i in self.itens)
+
+    def resumo(self) -> str:
+        return f"{self.cliente}: {len(self.itens)} itens"
+\end{lstlisting}
+
+\begin{exampleblock}{Ponto-chave}
+\texttt{@dataclass} gera o boilerplate; você adiciona a lógica de negócio.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}{Quando Usar / Quando NÃO Usar @dataclass}
+\begin{columns}[T]
+\column{0.48\textwidth}
+\textbf{Use quando:}
+\begin{itemize}
+  \item Classe é principalmente ``dados com métodos''
+  \item Precisa de \texttt{\_\_eq\_\_} e \texttt{\_\_repr\_\_}
+  \item Muitos campos (reduz boilerplate)
+  \item Quer imutabilidade (\texttt{frozen})
+\end{itemize}
+
+\column{0.48\textwidth}
+\textbf{NÃO use quando:}
+\begin{itemize}
+  \item \texttt{\_\_init\_\_} tem lógica complexa (validação pesada)
+  \item Herança profunda ($>$2 níveis)
+  \item Classe é majoritariamente comportamento
+  \item Compatibilidade com Python $<$3.7
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ================================================================
+\section{@classmethod e @staticmethod}
+% ================================================================
+
+\begin{frame}[shrink=5]{Três Tipos de Método}
+\begin{table}
+\centering
+\begin{tabular}{llll}
+\toprule
+\textbf{Tipo} & \textbf{Decorador} & \textbf{1\textsuperscript{o} Parâmetro} & \textbf{Acessa} \\
+\midrule
+Instância   & (nenhum)          & \texttt{self} & instância + classe \\
+Classe      & \texttt{@classmethod}  & \texttt{cls}  & apenas classe \\
+Estático    & \texttt{@staticmethod} & (nenhum)      & nada da classe \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{exampleblock}{Regra prática}
+\textbf{Precisa de \texttt{self}?} $\to$ método de instância.
+\textbf{Precisa de \texttt{cls}?} $\to$ classmethod.
+\textbf{Não precisa de nenhum?} $\to$ staticmethod.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink=10]{@classmethod como Construtor Alternativo}
+\begin{lstlisting}
+@dataclass
+class Lanche:
+    nome: str
+    preco: float
+    categoria: str
+
+    @classmethod
+    def from_csv_line(cls, linha: str) -> "Lanche":
+        nome, preco, cat = linha.strip().split(",")
+        return cls(nome, float(preco), cat)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Lanche":
+        return cls(**d)
+\end{lstlisting}
+
+\begin{lstlisting}
+x = Lanche.from_csv_line("X-Tudo,25.90,hamburguer")
+y = Lanche.from_dict({"nome": "Suco", "preco": 8.0,
+                       "categoria": "bebida"})
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=3]{@staticmethod para Utilitários}
+\begin{lstlisting}
+class Lanche:
+    # ...
+
+    @staticmethod
+    def calcular_taxa_servico(valor: float,
+                               percentual: float = 0.10) -> float:
+        """Taxa de serviço sobre o valor."""
+        return round(valor * percentual, 2)
+\end{lstlisting}
+
+\begin{lstlisting}
+taxa = Lanche.calcular_taxa_servico(50.00)  # 5.0
+taxa = Lanche.calcular_taxa_servico(50.00, 0.15)  # 7.5
+\end{lstlisting}
+
+\begin{exampleblock}{Quando usar}
+Lógica relacionada à classe, mas que não precisa de \texttt{self} nem de \texttt{cls}. Alternativa: função no módulo.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[shrink=25]{Guia de Decisão}
+\begin{center}
+\begin{tikzpicture}[
+  node distance=1.2cm,
+  every node/.style={font=\small},
+  decision/.style={diamond, draw, fill=blue!10, text width=3.2cm,
+    align=center, inner sep=1pt, aspect=2},
+  result/.style={rectangle, draw, fill=green!10, rounded corners,
+    text width=3cm, align=center, minimum height=0.8cm},
+  arr/.style={->, thick}
+]
+\node[decision] (q1) {Precisa acessar\\a instância?};
+\node[result, right=2.5cm of q1] (r1) {Método de\\instância (\texttt{self})};
+\node[decision, below=1.2cm of q1] (q2) {Precisa acessar\\a classe?};
+\node[result, right=2.5cm of q2] (r2) {\texttt{@classmethod}\\(\texttt{cls})};
+\node[result, below=1.2cm of q2] (r3) {\texttt{@staticmethod}};
+
+\draw[arr] (q1) -- node[above]{Sim} (r1);
+\draw[arr] (q1) -- node[left]{Não} (q2);
+\draw[arr] (q2) -- node[above]{Sim} (r2);
+\draw[arr] (q2) -- node[left]{Não} (r3);
+\end{tikzpicture}
+\end{center}
+\end{frame}
+
+% ================================================================
+\section{Princípios SOLID (Introdução)}
+% ================================================================
+
+\begin{frame}{SOLID --- Visão Geral}
+\begin{table}
+\centering
+\small
+\begin{tabular}{clp{6cm}}
+\toprule
+\textbf{Letra} & \textbf{Princípio} & \textbf{Ideia Central} \\
+\midrule
+\textbf{S} & Single Responsibility  & Uma classe, uma razão para mudar \\
+\textbf{O} & Open/Closed            & Aberta p/ extensão, fechada p/ modificação \\
+\textbf{L} & Liskov Substitution    & Subtipos substituem o pai sem surpresas \\
+\textbf{I} & Interface Segregation  & Interfaces pequenas e coesas \\
+\textbf{D} & Dependency Inversion   & Dependa de abstrações, não de concretos \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Veremos \textbf{S}, \textbf{O} e \textbf{L} com exemplos do Podrão.
+\end{frame}
+
+\begin{frame}[fragile]{SRP --- O Problema}
+\begin{lstlisting}
+class PedidoRuim:
+    def __init__(self, cliente, itens):
+        self.cliente = cliente
+        self.itens = itens
+
+    def calcular_total(self): ...       # lógica de negócio
+    def gerar_relatorio_html(self): ... # apresentação
+    def salvar_em_arquivo(self): ...    # persistência
+    def enviar_email(self): ...         # comunicação
+\end{lstlisting}
+
+\begin{alertblock}{4 razões para mudar}
+Mudança no cálculo, no formato HTML, no storage, ou no e-mail --- todas alteram a mesma classe.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{SRP --- A Solução: Separar Responsabilidades}
+\begin{lstlisting}
+class Pedido:
+    def calcular_total(self): ...
+
+class RelatorioHTML:
+    def gerar(self, pedido: Pedido): ...
+
+class Armazenamento:
+    def salvar(self, pedido: Pedido): ...
+
+class Enviador:
+    def enviar_email(self, pedido: Pedido, dest: str): ...
+\end{lstlisting}
+
+\begin{exampleblock}{Insight}
+Cada classe tem \textbf{uma única razão para mudar}. Testar cada uma é simples e independente.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{OCP --- O Problema}
+\begin{lstlisting}
+class CalculadoraDesconto:
+    def calcular(self, pedido, tipo):
+        if tipo == "percentual":
+            return pedido.total() * 0.10
+        elif tipo == "fixo":
+            return 5.00
+        elif tipo == "fidelidade":
+            return pedido.total() * 0.15
+        # ... cada novo tipo exige elif
+\end{lstlisting}
+
+\begin{alertblock}{Violação OCP}
+Para adicionar ``combo'', precisa \textbf{modificar} \texttt{CalculadoraDesconto}. A classe não está fechada para modificação.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink=20]{OCP --- A Solução: Polimorfismo}
+\begin{lstlisting}
+from abc import ABC, abstractmethod
+
+class Desconto(ABC):
+    @abstractmethod
+    def calcular(self, total: float) -> float: ...
+
+class DescontoPercentual(Desconto):
+    def __init__(self, taxa: float):
+        self.taxa = taxa
+    def calcular(self, total: float) -> float:
+        return total * self.taxa
+
+class DescontoFixo(Desconto):
+    def __init__(self, valor: float):
+        self.valor = valor
+    def calcular(self, total: float) -> float:
+        return min(self.valor, total)
+\end{lstlisting}
+
+\begin{exampleblock}{Insight}
+Novo desconto = nova classe. \texttt{Pedido} não muda. \textbf{Extensão sem modificação.}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink=15]{LSP --- O Problema Clássico}
+\begin{lstlisting}
+class Retangulo:
+    def __init__(self, largura, altura):
+        self._largura = largura
+        self._altura = altura
+
+    def set_largura(self, v):
+        self._largura = v
+
+    def area(self):
+        return self._largura * self._altura
+
+class Quadrado(Retangulo):
+    def set_largura(self, v):
+        self._largura = v
+        self._altura = v   # surpresa!
+\end{lstlisting}
+
+\begin{alertblock}{Violação LSP}
+Código que espera \texttt{Retangulo} e chama \texttt{set\_largura(5)} seguido de \texttt{area()} obtém resultado inesperado com \texttt{Quadrado}.
+\end{alertblock}
+\end{frame}
+
+% ================================================================
+\section{Padrões de Projeto}
+% ================================================================
+
+\begin{frame}[fragile,shrink=15]{Strategy Pattern --- Composição de Comportamento}
+\begin{lstlisting}
+class SemDesconto(Desconto):
+    def calcular(self, total: float) -> float:
+        return 0.0
+
+@dataclass
+class Pedido:
+    cliente: str
+    itens: list[str] = field(default_factory=list)
+    desconto: Desconto = field(
+        default_factory=SemDesconto)
+
+    def total(self, cardapio: dict) -> float:
+        bruto = sum(cardapio[i] for i in self.itens)
+        return bruto - self.desconto.calcular(bruto)
+\end{lstlisting}
+
+\begin{exampleblock}{Composição}
+\texttt{Pedido} recebe a estratégia; não sabe qual é. Novo desconto = nova classe, zero mudança em \texttt{Pedido}.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Strategy --- Uso}
+\begin{lstlisting}
+cardapio = {"X-Tudo": 25.90, "Suco": 8.00}
+
+p1 = Pedido("Ana", desconto=DescontoPercentual(0.10))
+p1.adicionar("X-Tudo")
+p1.adicionar("Suco")
+print(p1.total(cardapio))  # 30.51
+
+p2 = Pedido("Bruno", desconto=DescontoFixo(5.00))
+p2.adicionar("X-Tudo")
+print(p2.total(cardapio))  # 20.90
+\end{lstlisting}
+
+A estratégia pode ser trocada em \textbf{tempo de execução}:
+\begin{lstlisting}
+p1.desconto = DescontoFixo(10.00)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=5]{Factory Method --- Registry}
+\begin{lstlisting}
+class LancheFactory:
+    _registry: dict[str, type] = {}
+
+    @classmethod
+    def registrar(cls, nome: str, classe: type):
+        cls._registry[nome] = classe
+
+    @classmethod
+    def criar(cls, nome: str, **kwargs):
+        if nome not in cls._registry:
+            raise ValueError(f"Tipo desconhecido: {nome}")
+        return cls._registry[nome](**kwargs)
+
+# Registro
+LancheFactory.registrar("xtudo", XTudo)
+LancheFactory.registrar("xsalada", XSalada)
+LancheFactory.registrar("hamburguer", Hamburguer)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=5]{Factory Method --- Uso e Extensão}
+\begin{lstlisting}
+# Criação via string (ex: lido de arquivo/API)
+lanche = LancheFactory.criar("xtudo", preco=25.90)
+
+# Extensão em runtime --- sem tocar na Factory
+class XBacon(Lanche):
+    def __init__(self, preco=28.00):
+        super().__init__("X-Bacon", preco, ["bacon"])
+
+LancheFactory.registrar("xbacon", XBacon)
+lanche2 = LancheFactory.criar("xbacon")
+\end{lstlisting}
+
+\begin{exampleblock}{Vantagens}
+\begin{itemize}
+  \item Desacopla criação de uso
+  \item Extensível em runtime (\texttt{registrar})
+  \item String $\to$ objeto (útil para configs, APIs, CLIs)
+\end{itemize}
+\end{exampleblock}
+\end{frame}
+
+% ================================================================
+\section{Resumo do Módulo}
+% ================================================================
+
+\begin{frame}{Mapa de Conceitos: POO Completo}
+\begin{table}
+\centering
+\scriptsize
+\begin{tabular}{lll}
+\toprule
+\textbf{Conceito} & \textbf{Seção} & \textbf{No Podrão} \\
+\midrule
+Classe e objeto          & Classes e Objetos & \texttt{Lanche}, \texttt{Pedido} \\
+Atributos e métodos      & Classes e Objetos & \texttt{nome}, \texttt{preco()}, \texttt{adicionar()} \\
+Encapsulamento           & Encapsulamento & \texttt{\_preco}, \texttt{@property} \\
+Dunders                  & Métodos Especiais & \texttt{\_\_str\_\_}, \texttt{\_\_eq\_\_}, \texttt{\_\_add\_\_} \\
+Herança                  & Herança Simples & \texttt{XTudo(Lanche)}, \texttt{Dogao(Lanche)} \\
+Classe abstrata          & Classes Abstratas & \texttt{Funcionario(ABC)}, \texttt{Desconto(ABC)} \\
+Polimorfismo             & Polimorfismo & \texttt{preparar()} em cada subtipo \\
+Composição               & Herança vs Composição & \texttt{Pedido} tem lista de \texttt{Lanche} \\
+\texttt{@dataclass}      & @dataclass & \texttt{Pedido}, \texttt{ItemCardapio} \\
+\texttt{@classmethod}    & @classmethod & \texttt{Lanche.from\_csv\_line()} \\
+Strategy                 & Padrões de Projeto & \texttt{Desconto} $\to$ \texttt{DescontoPercentual} \\
+Factory                  & Padrões de Projeto & \texttt{LancheFactory.criar()} \\
+SOLID (S, O, L)          & Princípios SOLID & SRP, OCP, LSP \\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{frame}
+
+\begin{frame}{Os Três Mantras da POO}
+\begin{enumerate}
+  \item \textbf{Objetos agrupam dados e comportamento}
+
+  Não use listas paralelas. Crie uma classe que una o dado ao que se faz com ele.
+
+  \item \textbf{Prefira composição a herança}
+
+  Herança cria acoplamento forte. Composição permite trocar comportamento em runtime (Strategy).
+
+  \item \textbf{Cada classe, uma responsabilidade + extensão sem modificação}
+
+  SRP + OCP. Classes pequenas, coesas, extensíveis via polimorfismo.
+\end{enumerate}
+
+\begin{exampleblock}{Se lembrar apenas disso\ldots}
+Estes três princípios guiam a maior parte das decisões de design em POO.
+\end{exampleblock}
+\end{frame}
+
+\end{document}

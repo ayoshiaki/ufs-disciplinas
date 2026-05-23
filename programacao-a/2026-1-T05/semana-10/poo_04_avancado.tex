@@ -1,0 +1,836 @@
+% !TEX program = xelatex
+\documentclass[aspectratio=169]{beamer}
+\usetheme{UFS}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+
+% ── VS Code Light+ palette ──
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+\definecolor{fncolor}{HTML}{795E26}
+\definecolor{typecolor}{HTML}{267F99}
+
+\lstdefinestyle{modernstyle}{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{bgcolor},
+  rulecolor=\color{linecolor},
+  numberstyle=\tiny\color{numcolor},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  emphstyle=\color{fncolor},
+  emphstyle={[2]\color{typecolor}},
+  frame=single,
+  numbers=left,
+  numbersep=6pt,
+  tabsize=4,
+  showstringspaces=false,
+  breaklines=true,
+  columns=fullflexible,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+           {ã}{{\~a}}1 {õ}{{\~o}}1 {ç}{{\c{c}}}1 {Ç}{{\c{C}}}1
+           {à}{{\`a}}1 {ê}{{\^e}}1,
+  emph={from_csv_line,from_dict,calcular_taxa_servico,calcular_desconto,
+        criar,registrar,adicionar,total,processar,finalizar,
+        aplicar,gerar_relatorio,salvar,enviar_email},
+  emph={[2]Lanche,Pedido,Hamburguer,XTudo,XSalada,Bebida,
+        DescontoPercentual,DescontoFixo,SemDesconto,LancheFactory,
+        Cozinha,Caixa,RelatorioHTML,Armazenamento,Enviador,
+        PedidoRuim,Retangulo,Quadrado,ABC,abstractmethod,
+        dataclass,field},
+}
+\lstset{style=modernstyle}
+
+\title{COMP0496 -- Programação A \\ Programação Orientada a Objetos --- Parte 4}
+\subtitle{Tópicos Avançados e Boas Práticas}
+\author{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+\begin{frame}{Roteiro}
+\tableofcontents
+\end{frame}
+
+% ================================================================
+\section{@dataclass --- Eliminando Boilerplate}
+% ================================================================
+
+\begin{frame}[fragile]{O Problema: Boilerplate Repetitivo}
+Uma classe simples com \texttt{\_\_init\_\_}, \texttt{\_\_repr\_\_} e \texttt{\_\_eq\_\_}:
+
+\begin{lstlisting}
+class Lanche:
+    def __init__(self, nome, preco, ingredientes):
+        self.nome = nome
+        self.preco = preco
+        self.ingredientes = ingredientes
+
+    def __repr__(self):
+        return (f"Lanche(nome={self.nome!r}, "
+                f"preco={self.preco!r}, "
+                f"ingredientes={self.ingredientes!r})")
+
+    def __eq__(self, other):
+        if not isinstance(other, Lanche):
+            return NotImplemented
+        return (self.nome == other.nome
+                and self.preco == other.preco
+                and self.ingredientes == other.ingredientes)
+\end{lstlisting}
+
+\begin{alertblock}{Problema}
+$\sim$20 linhas para guardar 3 campos. E se a classe tiver 8 campos?
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{@dataclass: A Solução}
+\begin{lstlisting}
+from dataclasses import dataclass
+
+@dataclass
+class Lanche:
+    nome: str
+    preco: float
+    ingredientes: list[str]
+\end{lstlisting}
+
+O decorador gera automaticamente:
+\begin{itemize}
+  \item \texttt{\_\_init\_\_} --- com todos os campos como parâmetros
+  \item \texttt{\_\_repr\_\_} --- representação legível
+  \item \texttt{\_\_eq\_\_} --- comparação campo a campo
+\end{itemize}
+
+\begin{exampleblock}{Resultado}
+3 linhas substituem $\sim$20. O código expressa \textbf{o quê}, não \textbf{o como}.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Parâmetros Úteis do @dataclass}
+\begin{lstlisting}
+@dataclass(frozen=True)
+class ItemCardapio:
+    nome: str
+    preco: float
+    categoria: str
+\end{lstlisting}
+
+\begin{table}
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Parâmetro} & \textbf{Efeito} & \textbf{Quando usar} \\
+\midrule
+\texttt{frozen=True}  & Imutável (sem \texttt{setattr}) & Itens de cardápio, configs \\
+\texttt{order=True}   & Gera \texttt{<, <=, >, >=}     & Ordenar por campos \\
+\texttt{eq=True}       & Gera \texttt{\_\_eq\_\_} (padrão) & Quase sempre \\
+\texttt{slots=True}   & Usa \texttt{\_\_slots\_\_} (3.10+) & Performance \\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{frame}
+
+\begin{frame}[fragile]{Defaults Mutáveis: field(default\_factory)}
+\begin{lstlisting}
+from dataclasses import dataclass, field
+
+@dataclass
+class Pedido:
+    cliente: str
+    itens: list[str] = field(default_factory=list)
+    observacoes: dict[str, str] = field(default_factory=dict)
+    numero: int = field(default=0, repr=False)
+\end{lstlisting}
+
+\begin{alertblock}{Nunca faça isso}
+\texttt{itens: list[str] = []} --- o mesmo objeto é compartilhado entre instâncias!
+\end{alertblock}
+
+\texttt{field(default\_factory=list)} cria uma \textbf{nova lista} para cada instância.
+\end{frame}
+
+\begin{frame}[fragile]{@dataclass com Métodos Normais}
+\begin{lstlisting}
+@dataclass
+class Pedido:
+    cliente: str
+    itens: list[str] = field(default_factory=list)
+
+    def adicionar(self, item: str):
+        self.itens.append(item)
+
+    def total(self, cardapio: dict[str, float]) -> float:
+        return sum(cardapio[i] for i in self.itens)
+
+    def resumo(self) -> str:
+        return f"{self.cliente}: {len(self.itens)} itens"
+\end{lstlisting}
+
+\begin{exampleblock}{Ponto-chave}
+\texttt{@dataclass} gera o boilerplate; você adiciona a lógica de negócio.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}{Quando Usar / Quando NÃO Usar @dataclass}
+\begin{columns}[T]
+\column{0.48\textwidth}
+\textbf{Use quando:}
+\begin{itemize}
+  \item Classe é principalmente ``dados com métodos''
+  \item Precisa de \texttt{\_\_eq\_\_} e \texttt{\_\_repr\_\_}
+  \item Muitos campos (reduz boilerplate)
+  \item Quer imutabilidade (\texttt{frozen})
+\end{itemize}
+
+\column{0.48\textwidth}
+\textbf{NÃO use quando:}
+\begin{itemize}
+  \item \texttt{\_\_init\_\_} tem lógica complexa (validação pesada)
+  \item Herança profunda ($>$2 níveis)
+  \item Classe é majoritariamente comportamento
+  \item Compatibilidade com Python $<$3.7
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% ================================================================
+\section{@classmethod e @staticmethod}
+% ================================================================
+
+\begin{frame}{Três Tipos de Método}
+\begin{table}
+\centering
+\begin{tabular}{llll}
+\toprule
+\textbf{Tipo} & \textbf{Decorador} & \textbf{1º Parâmetro} & \textbf{Acessa} \\
+\midrule
+Instância   & (nenhum)          & \texttt{self} & instância + classe \\
+Classe      & \texttt{@classmethod}  & \texttt{cls}  & apenas classe \\
+Estático    & \texttt{@staticmethod} & (nenhum)      & nada da classe \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{exampleblock}{Regra prática}
+\textbf{Precisa de \texttt{self}?} $\to$ método de instância.
+\textbf{Precisa de \texttt{cls}?} $\to$ classmethod.
+\textbf{Não precisa de nenhum?} $\to$ staticmethod.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{@classmethod como Construtor Alternativo}
+\begin{lstlisting}
+@dataclass
+class Lanche:
+    nome: str
+    preco: float
+    categoria: str
+
+    @classmethod
+    def from_csv_line(cls, linha: str) -> "Lanche":
+        nome, preco, cat = linha.strip().split(",")
+        return cls(nome, float(preco), cat)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Lanche":
+        return cls(**d)
+\end{lstlisting}
+
+\begin{lstlisting}
+x = Lanche.from_csv_line("X-Tudo,25.90,hamburguer")
+y = Lanche.from_dict({"nome": "Suco", "preco": 8.0,
+                       "categoria": "bebida"})
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Por Que Não Uma Função Comum?}
+\begin{columns}[T]
+\column{0.48\textwidth}
+\textbf{Função livre:}
+\begin{lstlisting}
+def lanche_from_csv(linha):
+    nome, preco, cat = \
+        linha.split(",")
+    return Lanche(
+        nome, float(preco), cat
+    )
+\end{lstlisting}
+\begin{itemize}
+  \item Funciona, mas fica ``solta''
+  \item Não herda: sempre cria \texttt{Lanche}
+\end{itemize}
+
+\column{0.48\textwidth}
+\textbf{@classmethod:}
+\begin{lstlisting}
+@classmethod
+def from_csv_line(cls, linha):
+    nome, preco, cat = \
+        linha.split(",")
+    return cls(
+        nome, float(preco), cat
+    )
+\end{lstlisting}
+\begin{itemize}
+  \item Agrupada na classe
+  \item \texttt{cls} cria o subtipo correto
+\end{itemize}
+\end{columns}
+
+\begin{alertblock}{Herança}
+Se \texttt{XTudo(Lanche)}, então \texttt{XTudo.from\_csv\_line(...)} retorna um \texttt{XTudo}, não um \texttt{Lanche}.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{@staticmethod para Utilitários}
+\begin{lstlisting}
+class Lanche:
+    # ...
+
+    @staticmethod
+    def calcular_taxa_servico(valor: float,
+                               percentual: float = 0.10) -> float:
+        """Taxa de serviço sobre o valor."""
+        return round(valor * percentual, 2)
+\end{lstlisting}
+
+\begin{lstlisting}
+taxa = Lanche.calcular_taxa_servico(50.00)  # 5.0
+taxa = Lanche.calcular_taxa_servico(50.00, 0.15)  # 7.5
+\end{lstlisting}
+
+\begin{exampleblock}{Quando usar}
+Lógica relacionada à classe, mas que não precisa de \texttt{self} nem de \texttt{cls}. Alternativa: função no módulo.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}{Guia de Decisão}
+\begin{center}
+\begin{tikzpicture}[
+  node distance=1.2cm,
+  every node/.style={font=\small},
+  decision/.style={diamond, draw, fill=blue!10, text width=3.2cm,
+    align=center, inner sep=1pt, aspect=2},
+  result/.style={rectangle, draw, fill=green!10, rounded corners,
+    text width=3cm, align=center, minimum height=0.8cm},
+  arr/.style={->, thick}
+]
+\node[decision] (q1) {Precisa acessar\\a instância?};
+\node[result, right=2.5cm of q1] (r1) {Método de\\instância (\texttt{self})};
+\node[decision, below=1.2cm of q1] (q2) {Precisa acessar\\a classe?};
+\node[result, right=2.5cm of q2] (r2) {\texttt{@classmethod}\\(\texttt{cls})};
+\node[result, below=1.2cm of q2] (r3) {\texttt{@staticmethod}};
+
+\draw[arr] (q1) -- node[above]{Sim} (r1);
+\draw[arr] (q1) -- node[left]{Não} (q2);
+\draw[arr] (q2) -- node[above]{Sim} (r2);
+\draw[arr] (q2) -- node[left]{Não} (r3);
+\end{tikzpicture}
+\end{center}
+\end{frame}
+
+% ================================================================
+\section{Princípios SOLID (Introdução)}
+% ================================================================
+
+\begin{frame}{SOLID --- Visão Geral}
+\begin{table}
+\centering
+\begin{tabular}{cll}
+\toprule
+\textbf{Letra} & \textbf{Princípio} & \textbf{Ideia Central} \\
+\midrule
+\textbf{S} & Single Responsibility  & Uma classe, uma razão para mudar \\
+\textbf{O} & Open/Closed            & Aberta para extensão, fechada para modificação \\
+\textbf{L} & Liskov Substitution    & Subtipos substituem o pai sem surpresas \\
+\textbf{I} & Interface Segregation  & Interfaces pequenas e coesas \\
+\textbf{D} & Dependency Inversion   & Dependa de abstrações, não de concretos \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Hoje veremos \textbf{S}, \textbf{O} e \textbf{L} com exemplos do Podrão.
+\end{frame}
+
+\begin{frame}[fragile]{SRP --- O Problema}
+\begin{lstlisting}
+class PedidoRuim:
+    def __init__(self, cliente, itens):
+        self.cliente = cliente
+        self.itens = itens
+
+    def calcular_total(self): ...       # lógica de negócio
+    def gerar_relatorio_html(self): ... # apresentação
+    def salvar_em_arquivo(self): ...    # persistência
+    def enviar_email(self): ...         # comunicação
+\end{lstlisting}
+
+\begin{alertblock}{4 razões para mudar}
+Mudança no cálculo, no formato HTML, no storage, ou no e-mail --- todas alteram a mesma classe.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{SRP --- A Solução: Separar Responsabilidades}
+\begin{lstlisting}
+class Pedido:
+    def calcular_total(self): ...
+
+class RelatorioHTML:
+    def gerar(self, pedido: Pedido): ...
+
+class Armazenamento:
+    def salvar(self, pedido: Pedido): ...
+
+class Enviador:
+    def enviar_email(self, pedido: Pedido, dest: str): ...
+\end{lstlisting}
+
+\begin{exampleblock}{Insight}
+Cada classe tem \textbf{uma única razão para mudar}. Testar cada uma é simples e independente.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{OCP --- O Problema}
+\begin{lstlisting}
+class CalculadoraDesconto:
+    def calcular(self, pedido, tipo):
+        if tipo == "percentual":
+            return pedido.total() * 0.10
+        elif tipo == "fixo":
+            return 5.00
+        elif tipo == "fidelidade":
+            return pedido.total() * 0.15
+        # ... cada novo tipo exige elif
+\end{lstlisting}
+
+\begin{alertblock}{Violação OCP}
+Para adicionar ``combo'', precisa \textbf{modificar} \texttt{CalculadoraDesconto}. A classe não está fechada para modificação.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{OCP --- A Solução: Polimorfismo}
+\begin{lstlisting}
+from abc import ABC, abstractmethod
+
+class Desconto(ABC):
+    @abstractmethod
+    def calcular(self, total: float) -> float: ...
+
+class DescontoPercentual(Desconto):
+    def __init__(self, taxa: float):
+        self.taxa = taxa
+    def calcular(self, total: float) -> float:
+        return total * self.taxa
+
+class DescontoFixo(Desconto):
+    def __init__(self, valor: float):
+        self.valor = valor
+    def calcular(self, total: float) -> float:
+        return min(self.valor, total)
+\end{lstlisting}
+
+\begin{exampleblock}{Insight}
+Novo desconto = nova classe. \texttt{Pedido} não muda. \textbf{Extensão sem modificação.}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{LSP --- O Problema Clássico}
+\begin{lstlisting}
+class Retangulo:
+    def __init__(self, largura, altura):
+        self._largura = largura
+        self._altura = altura
+
+    def set_largura(self, v):
+        self._largura = v
+
+    def area(self):
+        return self._largura * self._altura
+
+class Quadrado(Retangulo):
+    def set_largura(self, v):
+        self._largura = v
+        self._altura = v   # surpresa!
+\end{lstlisting}
+
+\begin{alertblock}{Violação LSP}
+Código que espera \texttt{Retangulo} e chama \texttt{set\_largura(5)} seguido de \texttt{area()} obtém resultado inesperado com \texttt{Quadrado}.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{LSP --- Regra de Ouro}
+\begin{center}
+\Large
+\textit{``Se S é subtipo de T, objetos de T podem ser\\
+substituídos por objetos de S sem alterar\\
+as propriedades desejáveis do programa.''}
+\end{center}
+
+\vspace{0.5cm}
+
+\textbf{Teste prático:} se o código cliente precisa checar \texttt{isinstance} para decidir o que fazer, provavelmente há violação de LSP.
+
+\begin{exampleblock}{No Podrão}
+\texttt{Hamburguer} e \texttt{XTudo} são subtipos de \texttt{Lanche}. Qualquer código que recebe \texttt{Lanche} funciona com ambos --- sem \texttt{if isinstance(...)}.
+\end{exampleblock}
+\end{frame}
+
+% ================================================================
+\section{Padrões de Projeto}
+% ================================================================
+
+\begin{frame}[fragile]{Strategy --- O Problema}
+\begin{lstlisting}
+class Pedido:
+    def calcular_desconto(self):
+        if self.tipo_desconto == "percentual":
+            return self.total * 0.10
+        elif self.tipo_desconto == "fixo":
+            return 5.00
+        elif self.tipo_desconto == "nenhum":
+            return 0.0
+\end{lstlisting}
+
+Já vimos isso no OCP. A solução: \textbf{Strategy Pattern}.
+\end{frame}
+
+\begin{frame}[fragile]{Strategy --- Composição}
+\begin{lstlisting}
+class SemDesconto(Desconto):
+    def calcular(self, total: float) -> float:
+        return 0.0
+
+@dataclass
+class Pedido:
+    cliente: str
+    itens: list[str] = field(default_factory=list)
+    desconto: Desconto = field(
+        default_factory=SemDesconto)
+
+    def total(self, cardapio: dict) -> float:
+        bruto = sum(cardapio[i] for i in self.itens)
+        return bruto - self.desconto.calcular(bruto)
+\end{lstlisting}
+
+\begin{exampleblock}{Composição}
+\texttt{Pedido} recebe a estratégia; não sabe qual é. Novo desconto = nova classe, zero mudança em \texttt{Pedido}.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Strategy --- Uso}
+\begin{lstlisting}
+cardapio = {"X-Tudo": 25.90, "Suco": 8.00}
+
+p1 = Pedido("Ana", desconto=DescontoPercentual(0.10))
+p1.adicionar("X-Tudo")
+p1.adicionar("Suco")
+print(p1.total(cardapio))  # 30.51
+
+p2 = Pedido("Bruno", desconto=DescontoFixo(5.00))
+p2.adicionar("X-Tudo")
+print(p2.total(cardapio))  # 20.90
+\end{lstlisting}
+
+A estratégia pode ser trocada em \textbf{tempo de execução}:
+\begin{lstlisting}
+p1.desconto = DescontoFixo(10.00)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Strategy Pythônico: Funções como Estratégias}
+\begin{lstlisting}
+from typing import Callable
+
+@dataclass
+class PedidoFunc:
+    cliente: str
+    itens: list[str] = field(default_factory=list)
+    desconto: Callable[[float], float] = lambda t: 0.0
+
+    def total(self, cardapio: dict) -> float:
+        bruto = sum(cardapio[i] for i in self.itens)
+        return bruto - self.desconto(bruto)
+\end{lstlisting}
+
+\begin{lstlisting}
+p = PedidoFunc("Carlos",
+    desconto=lambda t: t * 0.10)  # 10%
+\end{lstlisting}
+
+\begin{exampleblock}{Quando usar}
+Classes: quando a estratégia tem estado ou configuração.
+Funções: quando é um cálculo simples sem estado.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Factory Method --- O Problema}
+\begin{lstlisting}
+def criar_lanche(tipo: str):
+    if tipo == "xtudo":
+        return XTudo()
+    elif tipo == "xsalada":
+        return XSalada()
+    elif tipo == "hamburguer":
+        return Hamburguer()
+    # ... cresce a cada novo lanche
+\end{lstlisting}
+
+\begin{alertblock}{Problemas}
+Cadeia de \texttt{if/elif} viola OCP. Adicionar um tipo exige modificar a função.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Factory Method --- Registry}
+\begin{lstlisting}
+class LancheFactory:
+    _registry: dict[str, type] = {}
+
+    @classmethod
+    def registrar(cls, nome: str, classe: type):
+        cls._registry[nome] = classe
+
+    @classmethod
+    def criar(cls, nome: str, **kwargs):
+        if nome not in cls._registry:
+            raise ValueError(f"Tipo desconhecido: {nome}")
+        return cls._registry[nome](**kwargs)
+
+# Registro
+LancheFactory.registrar("xtudo", XTudo)
+LancheFactory.registrar("xsalada", XSalada)
+LancheFactory.registrar("hamburguer", Hamburguer)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Factory Method --- Uso e Extensão}
+\begin{lstlisting}
+# Criação via string (ex: lido de arquivo/API)
+lanche = LancheFactory.criar("xtudo", preco=25.90)
+
+# Extensão em runtime --- sem tocar na Factory
+class XBacon(Lanche):
+    def __init__(self, preco=28.00):
+        super().__init__("X-Bacon", preco, ["bacon"])
+
+LancheFactory.registrar("xbacon", XBacon)
+lanche2 = LancheFactory.criar("xbacon")
+\end{lstlisting}
+
+\begin{exampleblock}{Vantagens}
+\begin{itemize}
+  \item Desacopla criação de uso
+  \item Extensível em runtime (\texttt{registrar})
+  \item String $\to$ objeto (útil para configs, APIs, CLIs)
+\end{itemize}
+\end{exampleblock}
+\end{frame}
+
+% ================================================================
+\section{Estudo de Caso --- Refatorando o Podrão}
+% ================================================================
+
+\begin{frame}[fragile]{O Código ``Legado'' (Procedural)}
+\begin{lstlisting}
+# Listas paralelas
+nomes = ["X-Tudo", "X-Salada", "Suco"]
+precos = [25.90, 20.00, 8.00]
+quantidades = [0, 0, 0]
+
+def fazer_pedido(idx, qtd):
+    quantidades[idx] += qtd
+
+def calcular_total():
+    total = 0
+    for i in range(len(nomes)):
+        total += precos[i] * quantidades[i]
+    return total
+
+def aplicar_desconto(total, tipo):
+    if tipo == "percentual": return total * 0.9
+    elif tipo == "fixo": return total - 5
+    return total
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Problemas do Código Legado}
+\begin{enumerate}
+  \item \textbf{Sopa de variáveis} --- listas paralelas sem conexão explícita
+  \item \textbf{SRP violado} --- tudo no mesmo escopo global
+  \item \textbf{OCP violado} --- novo desconto $=$ novo \texttt{elif}
+  \item \textbf{Sem encapsulamento} --- qualquer parte do código altera \texttt{quantidades}
+  \item \textbf{Impossível testar} --- funções dependem de estado global
+  \item \textbf{Impossível estender} --- novo lanche $=$ alterar 3 listas
+\end{enumerate}
+
+\begin{alertblock}{Diagnóstico}
+Este código funciona para 3 lanches. Com 30 lanches, 5 descontos e 3 formas de pagamento, vira pesadelo.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Versão OOP Refatorada --- Hierarquia}
+\begin{lstlisting}
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+
+class Lanche(ABC):
+    @abstractmethod
+    def preco(self) -> float: ...
+    @abstractmethod
+    def descricao(self) -> str: ...
+
+@dataclass(frozen=True)
+class Hamburguer(Lanche):
+    nome: str = "Hambúrguer"
+    _preco: float = 18.00
+    def preco(self) -> float: return self._preco
+    def descricao(self) -> str: return self.nome
+
+@dataclass(frozen=True)
+class XTudo(Lanche):
+    nome: str = "X-Tudo"
+    _preco: float = 25.90
+    def preco(self) -> float: return self._preco
+    def descricao(self) -> str: return self.nome
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Versão OOP Refatorada --- Pedido + Strategy}
+\begin{lstlisting}
+@dataclass
+class Pedido:
+    cliente: str
+    itens: list[Lanche] = field(default_factory=list)
+    desconto: Desconto = field(
+        default_factory=SemDesconto)
+
+    def adicionar(self, lanche: Lanche):
+        self.itens.append(lanche)
+
+    def total(self) -> float:
+        bruto = sum(i.preco() for i in self.itens)
+        return bruto - self.desconto.calcular(bruto)
+\end{lstlisting}
+
+\begin{lstlisting}
+class Cozinha:
+    def processar(self, pedido: Pedido): ...
+
+class Caixa:
+    def finalizar(self, pedido: Pedido): ...
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Mapa de Conceitos: Aulas 1--4}
+\begin{table}
+\centering
+\scriptsize
+\begin{tabular}{lll}
+\toprule
+\textbf{Conceito} & \textbf{Aula} & \textbf{No Podrão} \\
+\midrule
+Classe e objeto          & 1 & \texttt{Lanche}, \texttt{Pedido} \\
+Atributos e métodos      & 1 & \texttt{nome}, \texttt{preco()}, \texttt{adicionar()} \\
+Encapsulamento           & 1 & \texttt{\_preco}, \texttt{@property} \\
+Herança                  & 2 & \texttt{Hamburguer(Lanche)}, \texttt{XTudo(Lanche)} \\
+Classe abstrata          & 2 & \texttt{Lanche(ABC)}, \texttt{Desconto(ABC)} \\
+Polimorfismo             & 2 & \texttt{preco()} em cada subtipo \\
+Composição               & 3 & \texttt{Pedido} tem lista de \texttt{Lanche} \\
+\texttt{@dataclass}      & 4 & \texttt{Pedido}, \texttt{ItemCardapio} \\
+\texttt{@classmethod}    & 4 & \texttt{Lanche.from\_csv\_line()} \\
+Strategy                 & 4 & \texttt{Desconto} $\to$ \texttt{DescontoPercentual} \\
+Factory                  & 4 & \texttt{LancheFactory.criar()} \\
+SRP                      & 4 & \texttt{Cozinha}, \texttt{Caixa}, \texttt{Pedido} \\
+OCP                      & 4 & Novo desconto $=$ nova classe \\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{frame}
+
+% ================================================================
+\section{Resumo do Módulo}
+% ================================================================
+
+\begin{frame}{As 4 Aulas em Uma Tabela}
+\begin{table}
+\centering
+\scriptsize
+\begin{tabular}{clp{7cm}}
+\toprule
+\textbf{Aula} & \textbf{Tema} & \textbf{Conteúdo Principal} \\
+\midrule
+1 & Classes e Objetos    & Classe, instância, atributos, métodos, \texttt{\_\_init\_\_}, encapsulamento, \texttt{@property} \\
+2 & Herança e Polimorfismo & Herança, \texttt{super()}, ABC, \texttt{@abstractmethod}, \texttt{isinstance}, MRO \\
+3 & Composição e Agregação & ``tem-um'' vs ``é-um'', composição, agregação, delegação, \texttt{\_\_contains\_\_} \\
+4 & Avançado e SOLID       & \texttt{@dataclass}, \texttt{@classmethod}, \texttt{@staticmethod}, SRP, OCP, LSP, Strategy, Factory \\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{frame}
+
+\begin{frame}{Os Três Mantras da POO}
+\begin{enumerate}
+  \item \textbf{Objetos agrupam dados e comportamento}
+
+  Não use listas paralelas. Crie uma classe que una o dado ao que se faz com ele.
+
+  \item \textbf{Prefira composição a herança}
+
+  Herança cria acoplamento forte. Composição permite trocar comportamento em runtime (Strategy).
+
+  \item \textbf{Cada classe, uma responsabilidade + extensão sem modificação}
+
+  SRP + OCP. Classes pequenas, coesas, extensíveis via polimorfismo.
+\end{enumerate}
+
+\begin{exampleblock}{Se lembrar apenas disso\ldots}
+Estes três princípios guiam 90\% das decisões de design em POO.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}{Próximos Passos}
+\begin{columns}[T]
+\column{0.48\textwidth}
+\textbf{Nesta disciplina:}
+\begin{itemize}
+  \item Testes unitários (\texttt{pytest})
+  \item Type hints e \texttt{mypy}
+  \item Tratamento de exceções com classes
+  \item Iteradores e geradores
+\end{itemize}
+
+\column{0.48\textwidth}
+\textbf{Em disciplinas futuras:}
+\begin{itemize}
+  \item Interface Segregation (I)
+  \item Dependency Inversion (D)
+  \item Mais padrões: Observer, Decorator, Adapter
+  \item Arquitetura de software
+\end{itemize}
+\end{columns}
+
+\vspace{0.5cm}
+\begin{center}
+\Large \textbf{Obrigado! Dúvidas?}
+
+\normalsize \texttt{andreyoshiaki@dcomp.ufs.br}
+\end{center}
+\end{frame}
+
+\end{document}

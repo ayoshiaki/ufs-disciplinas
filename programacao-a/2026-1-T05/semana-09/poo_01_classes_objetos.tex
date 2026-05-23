@@ -1,0 +1,683 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Use the UFS theme
+\usetheme{UFS}
+
+% Additional packages
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+
+% --- Paleta VS Code Light+ ---
+\definecolor{bgcolor}{HTML}{FFFFFF}       % fundo branco
+\definecolor{linecolor}{HTML}{DDDDDD}     % borda cinza clara
+\definecolor{numcolor}{HTML}{999999}      % números de linha
+\definecolor{kwcolor}{HTML}{0000FF}       % keywords: azul
+\definecolor{strcolor}{HTML}{A31515}      % strings: vermelho escuro
+\definecolor{cmtcolor}{HTML}{008000}      % comentários: verde
+\definecolor{fncolor}{HTML}{795E26}       % funções: dourado/marrom
+\definecolor{typecolor}{HTML}{267F99}     % tipos/classes: azul-petróleo
+
+\lstdefinestyle{modernstyle}{
+    backgroundcolor=\color{bgcolor},
+    basicstyle=\ttfamily\footnotesize\color{black},
+    keywordstyle=\color{kwcolor}\bfseries,
+    stringstyle=\color{strcolor},
+    commentstyle=\color{cmtcolor}\itshape,
+    numberstyle=\tiny\color{numcolor},
+    % --- Layout ---
+    numbers=left,
+    numbersep=12pt,
+    xleftmargin=20pt,
+    framexleftmargin=20pt,
+    % --- Quebra de linha ---
+    breaklines=true,
+    breakatwhitespace=false,
+    % --- Espaçamento e tabs ---
+    tabsize=4,
+    keepspaces=true,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    % --- Moldura ---
+    frame=single,
+    rulecolor=\color{linecolor},
+    framesep=4pt,
+    % --- Legenda ---
+    captionpos=b,
+    upquote=true,
+    columns=fullflexible,
+}
+\lstset{style=modernstyle}
+
+% --- Metadados ---
+\title{COMP0496 -- Programação A \\ Programação Orientada a Objetos --- Parte 1}
+\subtitle{Classes, Objetos, Atributos e Métodos}
+\author{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+
+\begin{document}
+
+% ============================================================
+% SLIDE 1 – Capa
+% ============================================================
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ============================================================
+% SLIDE 2 – Roteiro
+% ============================================================
+\begin{frame}{Roteiro}
+  \tableofcontents
+\end{frame}
+
+% ############################################################
+% SEÇÃO 1: Aquecimento — Tudo em Python é Objeto
+% ############################################################
+\section{Aquecimento --- Tudo em Python é Objeto}
+
+% ============================================================
+% SLIDE 3
+% ============================================================
+\begin{frame}[fragile]{Tudo em Python é Objeto}
+  Você já usa objetos sem saber! Veja o que \texttt{type()} retorna:
+
+  \begin{lstlisting}[language=Python]
+>>> type("Oi")
+<class 'str'>
+>>> type([1, 2, 3])
+<class 'list'>
+>>> type(42)
+<class 'int'>
+  \end{lstlisting}
+
+  \vspace{0.3cm}
+  Cada valor em Python pertence a uma \textbf{classe} --- um tipo que define
+  quais operações são possíveis.
+\end{frame}
+
+% ============================================================
+% SLIDE 4
+% ============================================================
+\begin{frame}[fragile]{Objetos Possuem Métodos}
+  Métodos são funções que ``pertencem'' a um objeto:
+
+  \begin{lstlisting}[language=Python]
+>>> "programacao".upper()
+'PROGRAMACAO'
+
+>>> frutas = ["banana", "manga"]
+>>> frutas.append("uva")
+>>> frutas
+['banana', 'manga', 'uva']
+  \end{lstlisting}
+
+  \vspace{0.3cm}
+  \begin{block}{Ponto-chave}
+    POO = criar \textbf{seus próprios tipos} (classes)
+    com seus próprios métodos e atributos.
+  \end{block}
+\end{frame}
+
+% ############################################################
+% SEÇÃO 2: O Problema — A Sopa de Variáveis
+% ############################################################
+\section{O Problema --- A Sopa de Variáveis}
+
+% ============================================================
+% SLIDE 5
+% ============================================================
+\begin{frame}[fragile]{O Cenário: Lanchonete ``O Podrão''}
+  Você abriu um food truck e precisa de um sistema para gerenciar
+  o cardápio.
+
+  \vspace{0.3cm}
+  Primeira tentativa: variáveis soltas.
+
+  \begin{lstlisting}[language=Python]
+lanche1_nome = "X-Tudo"
+lanche1_preco = 18.50
+lanche1_ingredientes = "pao, hamburguer, queijo, ovo, bacon"
+
+lanche2_nome = "X-Salada"
+lanche2_preco = 14.00
+lanche2_ingredientes = "pao, hamburguer, queijo, alface, tomate"
+  \end{lstlisting}
+\end{frame}
+
+% ============================================================
+% SLIDE 6
+% ============================================================
+\begin{frame}{Por que Isso é Ruim?}
+  \begin{itemize}
+    \item \textbf{Dados soltos}: nome, preço e ingredientes não estão
+          conectados --- qualquer variável pode ser alterada isoladamente
+    \item \textbf{Não escala}: com 50 lanches, seriam 150 variáveis!
+    \item \textbf{Erros de digitação}: \texttt{lanche1\_preco} vs.\
+          \texttt{lanche1\_prço} --- sem aviso
+    \item \textbf{Sem comportamento}: não há como pedir a um lanche
+          que ``se descreva''
+  \end{itemize}
+
+  \vspace{0.5cm}
+  \begin{alertblock}{Analogia}
+    É como anotar pedidos em guardanapos separados:
+    fácil perder, fácil trocar, impossível de organizar.
+  \end{alertblock}
+\end{frame}
+
+% ############################################################
+% SEÇÃO 3: A Solução — Classes e Objetos
+% ############################################################
+\section{A Solução --- Classes e Objetos}
+
+% ============================================================
+% SLIDE 7
+% ============================================================
+\begin{frame}{Receita vs.\ Lanche Pronto}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Classe = Receita}
+      \begin{itemize}
+        \item Define \emph{quais} informações um lanche tem
+        \item Define \emph{o que} um lanche pode fazer
+        \item É um molde, um modelo
+        \item Existe uma única vez no código
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Objeto = Lanche Pronto}
+      \begin{itemize}
+        \item Preenche a receita com dados reais
+        \item Cada objeto é independente
+        \item Pode haver muitos objetos da mesma classe
+        \item Vive na memória do programa
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+% SLIDE 8
+% ============================================================
+\begin{frame}[fragile]{Primeira Classe: \texttt{Lanche}}
+  \begin{lstlisting}[language=Python]
+class Lanche:
+    """Representa um lanche do cardapio."""
+
+    def __init__(self, nome, preco, ingredientes):
+        self.nome = nome
+        self.preco = preco
+        self.ingredientes = ingredientes
+
+    def descrever(self):
+        return f"{self.nome} - R${self.preco:.2f}"
+  \end{lstlisting}
+\end{frame}
+
+% ============================================================
+% SLIDE 9
+% ============================================================
+\begin{frame}{Anatomia do \texttt{\_\_init\_\_}}
+  \begin{itemize}
+    \item \texttt{\_\_init\_\_} é o \textbf{construtor} --- é chamado
+          automaticamente ao criar um objeto
+    \item \texttt{self} é uma referência ao \textbf{próprio objeto}
+          que está sendo criado
+    \item \texttt{self.nome = nome} cria um \textbf{atributo de instância}
+          --- cada objeto terá o seu
+  \end{itemize}
+
+  \vspace{0.3cm}
+  \begin{block}{Atenção}
+    \texttt{self} \textbf{sempre} é o primeiro parâmetro de qualquer método,
+    mas \textbf{não} é passado na chamada --- Python cuida disso.
+  \end{block}
+\end{frame}
+
+% ============================================================
+% SLIDE 10
+% ============================================================
+\begin{frame}[fragile]{Criando Objetos (Instâncias)}
+  \begin{lstlisting}[language=Python]
+xtudo = Lanche("X-Tudo", 18.50, "pao, hamburguer, queijo, ovo, bacon")
+xsalada = Lanche("X-Salada", 14.00, "pao, hamburguer, queijo, alface")
+
+print(xtudo.descrever())    # X-Tudo - R$18.50
+print(xsalada.nome)         # X-Salada
+print(xsalada.preco)        # 14.0
+  \end{lstlisting}
+
+  \vspace{0.3cm}
+  Cada objeto é independente: alterar \texttt{xtudo.preco} não afeta
+  \texttt{xsalada.preco}.
+\end{frame}
+
+% ============================================================
+% SLIDE 11
+% ============================================================
+\begin{frame}[fragile]{Comparação: Antes vs.\ Depois}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Sem OOP}
+      \begin{lstlisting}[language=Python, basicstyle=\ttfamily\scriptsize]
+lanche1_nome = "X-Tudo"
+lanche1_preco = 18.50
+# ... e mais 148 variaveis
+      \end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Com OOP}
+      \begin{lstlisting}[language=Python, basicstyle=\ttfamily\scriptsize]
+xtudo = Lanche("X-Tudo", 18.50,
+               "pao, hamburguer...")
+# 1 variavel = 1 lanche completo
+      \end{lstlisting}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.5cm}
+  Dados e comportamento ficam \textbf{juntos} --- é isso que
+  ``orientação a objetos'' significa.
+\end{frame}
+
+% ============================================================
+% SLIDE 12
+% ============================================================
+\begin{frame}{Vocabulário Essencial}
+  \begin{table}
+    \centering
+    \begin{tabular}{ll}
+      \toprule
+      \textbf{Conceito} & \textbf{Significado} \\
+      \midrule
+      Classe         & Modelo/receita que define atributos e métodos \\
+      Objeto         & Instância concreta de uma classe \\
+      \texttt{\_\_init\_\_}  & Método construtor --- inicializa o objeto \\
+      \texttt{self}  & Referência ao próprio objeto \\
+      Atributo       & Variável que pertence ao objeto \\
+      Método         & Função que pertence à classe \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+% ============================================================
+% SLIDE 13
+% ============================================================
+\begin{frame}[fragile]{Métodos: Adicionando Comportamento}
+  \begin{lstlisting}[language=Python]
+class Lanche:
+    def __init__(self, nome, preco, ingredientes):
+        self.nome = nome
+        self.preco = preco
+        self.ingredientes = ingredientes
+
+    def descrever(self):
+        return f"{self.nome} - R${self.preco:.2f}"
+
+    def aplicar_desconto(self, percentual):
+        self.preco *= (1 - percentual / 100)
+
+    def tem_ingrediente(self, ingrediente):
+        return ingrediente in self.ingredientes
+  \end{lstlisting}
+\end{frame}
+
+% ============================================================
+% SLIDE 14
+% ============================================================
+\begin{frame}[fragile]{Usando os Métodos}
+  \begin{lstlisting}[language=Python]
+xtudo = Lanche("X-Tudo", 18.50, "pao, hamburguer, queijo, ovo")
+
+print(xtudo.descrever())             # X-Tudo - R$18.50
+
+xtudo.aplicar_desconto(10)
+print(xtudo.descrever())             # X-Tudo - R$16.65
+
+print(xtudo.tem_ingrediente("ovo"))  # True
+print(xtudo.tem_ingrediente("bacon"))# False
+  \end{lstlisting}
+
+  \vspace{0.3cm}
+  O objeto \textbf{sabe} como se descrever, como aplicar desconto
+  e como verificar ingredientes --- o comportamento está \emph{dentro} do objeto.
+\end{frame}
+
+% ############################################################
+% SEÇÃO 4: Atributos de Classe vs Instância
+% ############################################################
+\section{Atributos de Classe vs Instância}
+
+% ============================================================
+% SLIDE 15
+% ============================================================
+\begin{frame}{Dois Tipos de Atributos}
+  \begin{table}
+    \centering
+    \begin{tabular}{lll}
+      \toprule
+      & \textbf{Atributo de Classe} & \textbf{Atributo de Instância} \\
+      \midrule
+      Onde define  & Dentro da classe, fora de métodos & Dentro de \texttt{\_\_init\_\_} \\
+      Compartilhado & Sim, por todos os objetos & Não, cada objeto tem o seu \\
+      Acesso       & \texttt{Classe.atributo} & \texttt{self.atributo} \\
+      Exemplo      & Taxa de serviço (10\%) & Nome do lanche \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+% ============================================================
+% SLIDE 16
+% ============================================================
+\begin{frame}[fragile]{Exemplo: Atributo de Classe}
+  \begin{lstlisting}[language=Python]
+class Lanche:
+    taxa_servico = 0.10  # compartilhado por TODOS os lanches
+
+    def __init__(self, nome, preco, ingredientes):
+        self.nome = nome
+        self.preco = preco
+        self.ingredientes = ingredientes
+
+    def preco_com_taxa(self):
+        return self.preco * (1 + Lanche.taxa_servico)
+  \end{lstlisting}
+
+  \begin{lstlisting}[language=Python]
+xtudo = Lanche("X-Tudo", 18.50, "pao, hamburguer, queijo")
+print(xtudo.preco_com_taxa())  # 20.35
+
+Lanche.taxa_servico = 0.15    # altera para TODOS
+print(xtudo.preco_com_taxa())  # 21.275
+  \end{lstlisting}
+\end{frame}
+
+% ============================================================
+% SLIDE 17
+% ============================================================
+\begin{frame}[fragile]{Armadilha: Atributo de Classe Mutável}
+  \begin{lstlisting}[language=Python]
+class Lanche:
+    extras = []  # PERIGO! Lista compartilhada
+
+    def __init__(self, nome):
+        self.nome = nome
+
+    def adicionar_extra(self, extra):
+        self.extras.append(extra)
+  \end{lstlisting}
+
+  \begin{lstlisting}[language=Python]
+a = Lanche("X-Tudo")
+b = Lanche("X-Salada")
+a.adicionar_extra("bacon")
+print(b.extras)  # ['bacon'] -- b tambem tem bacon?!
+  \end{lstlisting}
+\end{frame}
+
+% ============================================================
+% SLIDE 18
+% ============================================================
+\begin{frame}[fragile]{Correção: Criar Mutáveis no \texttt{\_\_init\_\_}}
+  \begin{lstlisting}[language=Python]
+class Lanche:
+    def __init__(self, nome):
+        self.nome = nome
+        self.extras = []  # CORRETO: cada objeto tem sua lista
+
+    def adicionar_extra(self, extra):
+        self.extras.append(extra)
+  \end{lstlisting}
+
+  \begin{lstlisting}[language=Python]
+a = Lanche("X-Tudo")
+b = Lanche("X-Salada")
+a.adicionar_extra("bacon")
+print(a.extras)  # ['bacon']
+print(b.extras)  # []  -- independente!
+  \end{lstlisting}
+
+  \begin{alertblock}{Regra de Ouro}
+    Atributos mutáveis (listas, dicionários, conjuntos) devem ser
+    criados em \texttt{\_\_init\_\_}, \textbf{nunca} como atributos de classe.
+  \end{alertblock}
+\end{frame}
+
+% ############################################################
+% SEÇÃO 5: Prática — Classe Cardapio
+% ############################################################
+\section{Prática --- Classe Cardápio}
+
+% ============================================================
+% SLIDE 19
+% ============================================================
+\begin{frame}{Composição: Objetos Dentro de Objetos}
+  Um \texttt{Cardapio} contém uma \textbf{lista de objetos}
+  \texttt{Lanche}.
+
+  \vspace{0.3cm}
+  Isso é chamado de \textbf{composição}: um objeto é composto
+  por outros objetos.
+
+  \vspace{0.3cm}
+  \begin{block}{Analogia}
+    O cardápio do food truck não é um lanche --- ele \emph{contém}
+    lanches. A relação é ``tem-um'' (has-a), não ``é-um'' (is-a).
+  \end{block}
+\end{frame}
+
+% ============================================================
+% SLIDE 20
+% ============================================================
+\begin{frame}[fragile]{Classe \texttt{Cardapio}: Estrutura}
+  \begin{lstlisting}[language=Python]
+class Cardapio:
+    """Gerencia a colecao de lanches do food truck."""
+
+    def __init__(self, nome_food_truck):
+        self.nome_food_truck = nome_food_truck
+        self.lanches = []  # lista de objetos Lanche
+
+    def adicionar(self, lanche):
+        self.lanches.append(lanche)
+
+    def mostrar(self):
+        print(f"=== Cardapio: {self.nome_food_truck} ===")
+        for lanche in self.lanches:
+            print(f"  {lanche.descrever()}")
+  \end{lstlisting}
+\end{frame}
+
+% ============================================================
+% SLIDE 21
+% ============================================================
+\begin{frame}[fragile]{Classe \texttt{Cardapio}: Métodos de Consulta}
+  \begin{lstlisting}[language=Python]
+class Cardapio:
+    # ... (continuacao)
+
+    def preco_medio(self):
+        if not self.lanches:
+            return 0
+        total = sum(l.preco for l in self.lanches)
+        return total / len(self.lanches)
+
+    def mais_caro(self):
+        if not self.lanches:
+            return None
+        return max(self.lanches, key=lambda l: l.preco)
+  \end{lstlisting}
+\end{frame}
+
+% ============================================================
+% SLIDE 22
+% ============================================================
+\begin{frame}[fragile]{Usando o Cardápio}
+  \begin{lstlisting}[language=Python]
+cardapio = Cardapio("O Podrao")
+cardapio.adicionar(Lanche("X-Tudo", 18.50, "pao, hamburguer..."))
+cardapio.adicionar(Lanche("X-Salada", 14.00, "pao, alface..."))
+cardapio.adicionar(Lanche("Misto Quente", 8.00, "pao, presunto"))
+
+cardapio.mostrar()
+  \end{lstlisting}
+
+  Saída:
+  \begin{lstlisting}[language=Python, numbers=none]
+=== Cardapio: O Podrao ===
+  X-Tudo - R$18.50
+  X-Salada - R$14.00
+  Misto Quente - R$8.00
+  \end{lstlisting}
+\end{frame}
+
+% ============================================================
+% SLIDE 23
+% ============================================================
+\begin{frame}[fragile]{Consultando o Cardápio}
+  \begin{lstlisting}[language=Python]
+print(f"Preco medio: R${cardapio.preco_medio():.2f}")
+# Preco medio: R$13.50
+
+campeao = cardapio.mais_caro()
+print(f"Mais caro: {campeao.descrever()}")
+# Mais caro: X-Tudo - R$18.50
+  \end{lstlisting}
+
+  \vspace{0.5cm}
+  Note como \texttt{mais\_caro()} retorna um \textbf{objeto} \texttt{Lanche},
+  e podemos chamar \texttt{descrever()} nele --- objetos conversam entre si!
+\end{frame}
+
+% ============================================================
+% SLIDE 24
+% ============================================================
+\begin{frame}{Diagrama: Composição}
+  % Diagram: Composição Cardapio-Lanche
+  % Coordinates:
+  %   cardapio at (0, 0) -- objeto Cardapio
+  %   lanche1 at (6, 1.5) -- primeiro Lanche
+  %   lanche2 at (6, 0) -- segundo Lanche
+  %   lanche3 at (6, -1.5) -- terceiro Lanche
+  \begin{center}
+    \begin{tikzpicture}[
+      classbox/.style={draw, rounded corners, minimum width=3.5cm,
+                       minimum height=1.2cm, text width=3.3cm, align=center,
+                       fill=blue!10},
+      objbox/.style={draw, rounded corners, minimum width=3.0cm,
+                     minimum height=0.9cm, text width=2.8cm, align=center,
+                     fill=green!10},
+      >=stealth
+    ]
+      \node[classbox] (cardapio) at (0, 0)
+        {\textbf{Cardapio}\\``O Podrão''};
+      \node[objbox] (l1) at (7, 1.5)
+        {\footnotesize X-Tudo\\R\$18.50};
+      \node[objbox] (l2) at (7, 0)
+        {\footnotesize X-Salada\\R\$14.00};
+      \node[objbox] (l3) at (7, -1.5)
+        {\footnotesize Misto Quente\\R\$8.00};
+
+      \draw[->, thick] (cardapio) -- (l1)
+        node[midway, above, font=\footnotesize] {contém};
+      \draw[->, thick] (cardapio) -- (l2);
+      \draw[->, thick] (cardapio) -- (l3);
+
+      \node[font=\footnotesize, gray] at (0, -2.2)
+        {1 objeto Cardapio};
+      \node[font=\footnotesize, gray] at (7, -2.2)
+        {N objetos Lanche};
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ############################################################
+% SEÇÃO 6: Resumo
+% ############################################################
+\section{Resumo}
+
+% ============================================================
+% SLIDE 25
+% ============================================================
+\begin{frame}{Resumo da Aula}
+  \begin{table}
+    \centering
+    \small
+    \begin{tabular}{lp{8cm}}
+      \toprule
+      \textbf{Conceito} & \textbf{O que aprendemos} \\
+      \midrule
+      Classe       & Modelo que define atributos e métodos \\
+      Objeto       & Instância concreta com dados próprios \\
+      \texttt{\_\_init\_\_} & Construtor --- inicializa cada objeto \\
+      \texttt{self}  & Referência ao próprio objeto \\
+      Atrib.\ de instância & Pertence ao objeto (criado em \texttt{\_\_init\_\_}) \\
+      Atrib.\ de classe    & Compartilhado por todos os objetos \\
+      Método       & Função que opera sobre o objeto \\
+      Composição   & Objeto contém outros objetos (``tem-um'') \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{frame}
+
+% ============================================================
+% SLIDE 26
+% ============================================================
+\begin{frame}{Armadilhas para Lembrar}
+  \begin{enumerate}
+    \item \textbf{Esquecer \texttt{self}} no primeiro parâmetro de métodos
+          $\rightarrow$ \texttt{TypeError}
+    \item \textbf{Listas/dicts como atributo de classe} $\rightarrow$
+          compartilhamento indesejado entre objetos
+    \item \textbf{Confundir classe com objeto} $\rightarrow$
+          \texttt{Lanche.descrever()} sem instância dá erro
+    \item \textbf{Não chamar \texttt{\_\_init\_\_} corretamente} $\rightarrow$
+          atributos faltando (\texttt{AttributeError})
+  \end{enumerate}
+\end{frame}
+
+% ============================================================
+% SLIDE 27
+% ============================================================
+\begin{frame}{Próxima Aula: POO --- Parte 2}
+  \begin{itemize}
+    \item \textbf{Encapsulamento}: atributos públicos vs.\ privados
+    \item \textbf{\texttt{@property}}: getters e setters pythônicos
+    \item \textbf{Métodos especiais}: \texttt{\_\_str\_\_}, \texttt{\_\_repr\_\_},
+          \texttt{\_\_eq\_\_}
+    \item \textbf{Validação de dados}: garantir que preço $> 0$,
+          nome não vazio
+  \end{itemize}
+
+  \vspace{0.5cm}
+  O food truck ``O Podrão'' continua evoluindo!
+\end{frame}
+
+% ============================================================
+% SLIDE 28 – Encerramento
+% ============================================================
+\begin{frame}[plain]
+  \centering
+  \vfill
+  {\Large\textbf{Dúvidas?}}
+
+  \vspace{1cm}
+  {\normalsize Prof.\ Dr.\ André Yoshiaki Kashiwabara}\\
+  {\small \texttt{andreyoshiaki@dcomp.ufs.br}}\\
+  {\small DCOMP --- Universidade Federal de Sergipe}
+  \vfill
+\end{frame}
+
+\end{document}
