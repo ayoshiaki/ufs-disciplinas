@@ -1,0 +1,940 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns,
+  automata, intersections, calc, shapes}
+
+% ---------- Listings: paleta VS Code Light+ (estilo UFS) ----------
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\scriptsize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=8pt,
+  xleftmargin=14pt, framexleftmargin=14pt,
+  breaklines=true, tabsize=2,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=3pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+  morekeywords={var, record, sealed, permits},
+}
+\lstset{style=ufsStyle, language=Java}
+
+% ---------- TikZ styles para árvores (cores UFS) ----------
+\tikzset{
+  bstnode/.style={
+    circle, draw=UFSBlue, fill=UFSBlue!15, thick,
+    minimum size=7mm, inner sep=0pt, font=\small\bfseries
+  },
+  hl/.style={fill=UFSYellow!60, draw=UFSYellow!80!black},
+  nilnode/.style={
+    rectangle, draw=UFSGray, fill=UFSLightGray,
+    minimum size=4mm, inner sep=1pt, font=\tiny
+  },
+  edge/.style={-, thick, UFSBlue}
+}
+
+\title[BST]{Árvores Binárias de Busca (BST)}
+\subtitle{Aula 08 --- COMP0497}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP --- Universidade Federal de Sergipe\\
+Algoritmos e Estruturas de Dados 1 (COMP0497)}
+\date{\today}
+
+\begin{document}
+
+% ============================================================
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ============================================================
+% ============================================================
+\begin{frame}{O que você vai aprender hoje}
+\begin{center}
+\begin{tikzpicture}[
+  item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+    minimum width=7.5cm, minimum height=0.55cm, font=\small}
+]
+  \node[item] (t1) at (0, 0.0)  {1. Árvores binárias: conceitos e representação};
+  \node[item] (t2) at (0,-0.8)  {2. Travessias em profundidade (in/pre/post-order)};
+  \node[item] (t3) at (0,-1.6)  {3. Travessia em largura (BFS)};
+  \node[item] (t4) at (0,-2.4)  {4. BST: propriedade, busca, mínimo, sucessor};
+  \node[item] (t5) at (0,-3.2)  {5. BST: inserção e remoção};
+  \node[item] (t6) at (0,-4.0)  {6. Análise: altura $h$ e por que balancear};
+  \node[item] (t7) at (0,-4.8)  {7. Exercícios em sala};
+  \draw[->, thick] (t1)--(t2); \draw[->, thick] (t2)--(t3);
+  \draw[->, thick] (t3)--(t4); \draw[->, thick] (t4)--(t5);
+  \draw[->, thick] (t5)--(t6); \draw[->, thick] (t6)--(t7);
+\end{tikzpicture}
+\end{center}
+\end{frame}
+
+% ============================================================
+\section{Árvores binárias: conceitos e representação}
+
+\begin{frame}[shrink=10]{O que é uma árvore binária?}
+\begin{block}{Definição}
+Uma \textbf{árvore binária} é um conjunto finito de nós que é
+\emph{vazio}, ou consiste em um nó \emph{raiz} mais duas árvores
+binárias disjuntas chamadas \emph{subárvore esquerda} e
+\emph{subárvore direita}.
+\end{block}
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\textbf{Terminologia:}
+\begin{itemize}\small
+  \item \textbf{Raiz:} único nó sem pai.
+  \item \textbf{Filho / pai:} relação entre nós ligados.
+  \item \textbf{Folha:} nó sem filhos.
+  \item \textbf{Nó interno:} tem pelo menos um filho.
+  \item \textbf{Irmãos:} filhos do mesmo pai.
+  \item \textbf{Profundidade} de $x$: nº de arestas até a raiz.
+  \item \textbf{Nível $k$:} todos os nós de profundidade $k$.
+  \item \textbf{Altura} $h$: maior profundidade da árvore.
+\end{itemize}
+\end{column}
+\begin{column}{0.45\textwidth}
+\centering
+\begin{tikzpicture}[level distance=8mm, sibling distance=18mm,
+  level 2/.style={sibling distance=10mm}]
+  \node[bstnode,label=right:{\scriptsize raiz, prof. 0}]{A}
+    child{ node[bstnode]{B}
+      child{ node[bstnode]{D}} child{ node[bstnode]{E}} }
+    child{ node[bstnode]{C}
+      child[missing]
+      child{ node[bstnode,label=right:{\scriptsize folha, prof. 2}]{F}} };
+\end{tikzpicture}\\[2pt]
+\small $h = 2$, 6 nós, 3 folhas (D, E, F).
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[shrink=15]{Tipos especiais de árvores binárias}
+\begin{columns}[T]
+\begin{column}{0.33\textwidth}
+\centering\textbf{Cheia (full)}\\[2pt]
+\begin{tikzpicture}[level distance=7mm, sibling distance=14mm,
+  level 2/.style={sibling distance=8mm}]
+  \node[bstnode]{}
+    child{ node[bstnode]{}
+      child{ node[bstnode]{}} child{ node[bstnode]{}} }
+    child{ node[bstnode]{}};
+\end{tikzpicture}\\[2pt]
+\scriptsize Todo nó tem 0 ou 2 filhos.
+\end{column}
+\begin{column}{0.33\textwidth}
+\centering\textbf{Completa}\\[2pt]
+\begin{tikzpicture}[level distance=7mm, sibling distance=14mm,
+  level 2/.style={sibling distance=8mm}]
+  \node[bstnode]{}
+    child{ node[bstnode]{}
+      child{ node[bstnode]{}} child{ node[bstnode]{}} }
+    child{ node[bstnode]{}
+      child{ node[bstnode]{}} child[missing] };
+\end{tikzpicture}\\[2pt]
+\scriptsize Todos os níveis cheios, exceto talvez o último (preenchido à esquerda).
+\end{column}
+\begin{column}{0.33\textwidth}
+\centering\textbf{Perfeita}\\[2pt]
+\begin{tikzpicture}[level distance=7mm, sibling distance=14mm,
+  level 2/.style={sibling distance=8mm}]
+  \node[bstnode]{}
+    child{ node[bstnode]{}
+      child{ node[bstnode]{}} child{ node[bstnode]{}} }
+    child{ node[bstnode]{}
+      child{ node[bstnode]{}} child{ node[bstnode]{}} };
+\end{tikzpicture}\\[2pt]
+\scriptsize Todos os níveis completamente cheios.
+\end{column}
+\end{columns}
+\vspace{6pt}
+\begin{block}{Limites de altura}
+Para uma árvore binária com $n$ nós:
+\[
+\lceil \log_2(n+1) \rceil - 1 \;\le\; h \;\le\; n - 1
+\]
+O \emph{mínimo} é atingido por árvores perfeitas; o \emph{máximo}, por cadeias (uma sequência linear).
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Representação ligada}
+\begin{columns}[T]
+\begin{column}{0.45\textwidth}
+\centering
+\begin{tikzpicture}[
+  node distance=12mm,
+  cell/.style={rectangle split, rectangle split parts=3,
+    rectangle split horizontal, draw=UFSBlue, fill=UFSBlue!10,
+    minimum height=6mm, font=\small\ttfamily},
+  null/.style={rectangle, draw=UFSGray, fill=UFSLightGray,
+    minimum size=3mm, inner sep=1pt, font=\tiny}
+]
+  \node[cell] (r) {$\bullet$\nodepart{two}5\nodepart{three}$\bullet$};
+  \node[cell, below left=10mm and 0mm of r] (a) {$\bullet$\nodepart{two}3\nodepart{three}$\bullet$};
+  \node[cell, below right=10mm and 0mm of r] (b) {nil\nodepart{two}8\nodepart{three}nil};
+  \node[null, below left =6mm and -2mm of a] (n1) {nil};
+  \node[null, below right=6mm and -2mm of a] (n2) {nil};
+  \draw[->, UFSBlue] (r.one south) -- (a.north);
+  \draw[->, UFSBlue] (r.three south) -- (b.north);
+  \draw[->, UFSBlue] (a.one south) -- (n1.north);
+  \draw[->, UFSBlue] (a.three south) -- (n2.north);
+\end{tikzpicture}\\[2pt]
+\scriptsize Cada célula: \texttt{left | key | right}
+\end{column}
+\begin{column}{0.55\textwidth}
+\begin{lstlisting}
+class Node<K, V> {
+    K key;
+    V value;
+    Node<K, V> left, right;   // filhos
+    Node<K, V> parent;        // opcional (CLRS)
+
+    Node(K key, V value) {
+        this.key = key;
+        this.value = value;
+    }
+}
+\end{lstlisting}
+\begin{itemize}\scriptsize
+  \item \textbf{Sem} \texttt{parent}: estilo Sedgewick. Suficiente para BST.
+  \item \textbf{Com} \texttt{parent}: estilo CLRS. Facilita sucessor e remoção iterativos.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Representação por array (alternativa)}
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+Para árvores \emph{completas} (heaps), pode-se guardar a árvore em um \textbf{vetor} sem ponteiros:
+\begin{itemize}
+  \item raiz no índice 0;
+  \item filhos de $i$: $2i+1$ (esq) e $2i+2$ (dir);
+  \item pai de $i$: $\lfloor (i-1)/2 \rfloor$.
+\end{itemize}
+\begin{exampleblock}{Quando usar?}
+Ótimo para \alert{heaps} e árvores balanceadas estáticas.
+\emph{Ruim} para BSTs gerais — desperdiça memória se a árvore for esparsa.
+\end{exampleblock}
+\end{column}
+\begin{column}{0.45\textwidth}
+\centering
+\begin{tikzpicture}[level distance=8mm, sibling distance=18mm,
+  level 2/.style={sibling distance=9mm}]
+  \node[bstnode]{A}
+    child{ node[bstnode]{B}
+      child{ node[bstnode]{D}} child{ node[bstnode]{E}} }
+    child{ node[bstnode]{C}
+      child{ node[bstnode]{F}} child{ node[bstnode]{G}} };
+\end{tikzpicture}\\[6pt]
+{\small\ttfamily
+\begin{tabular}{|c|c|c|c|c|c|c|}
+\hline
+A & B & C & D & E & F & G \\
+\hline
+0 & 1 & 2 & 3 & 4 & 5 & 6 \\
+\hline
+\end{tabular}}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ============================================================
+\section{Definição e propriedade da BST}
+
+\begin{frame}{Por que precisamos de BST?}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Problema:}\\[2pt]
+Manter um \emph{dicionário ordenado} com inserções,
+remoções e buscas frequentes.
+
+\begin{itemize}
+  \item \alert{Vetor ordenado:} busca $O(\log n)$ \alert{mas} inserção $O(n)$.
+  \item \alert{Lista encadeada:} inserção $O(1)$ \alert{mas} busca $O(n)$.
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{Solução: BST}\\[2pt]
+Estrutura ligada que mantém a ordem
+e oferece todas as operações em \emph{tempo proporcional à altura}~$h$.
+\begin{itemize}
+  \item Inserção, busca, remoção: $O(h)$.
+  \item Em árvore balanceada: $h = O(\log n)$.
+\end{itemize}
+\end{column}
+\end{columns}
+\vspace{6pt}
+\begin{block}{Suporta}
+\textsc{Search, Min, Max, Predecessor, Successor, Insert, Delete}
+\hfill\tiny{(Cormen et al., cap. 12)}
+\end{block}
+\end{frame}
+
+\begin{frame}{BST: Definição}
+\begin{block}{Propriedade da árvore binária de busca}
+Para todo nó $x$:
+\begin{itemize}
+  \item se $y$ está na \emph{subárvore esquerda} de $x$: $\mathit{key}[y] \le \mathit{key}[x]$;
+  \item se $y$ está na \emph{subárvore direita}  de $x$: $\mathit{key}[y] \ge \mathit{key}[x]$.
+\end{itemize}
+\end{block}
+\begin{exampleblock}{Intuição}
+``Tudo à esquerda é menor (ou igual), tudo à direita é maior (ou igual).''
+Esta invariante vale \emph{recursivamente} em cada subárvore.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}{BST: exemplo visual}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\centering\textbf{(a) altura 2 --- eficiente}\\[4pt]
+\begin{tikzpicture}[level distance=10mm, sibling distance=18mm,
+  level 2/.style={sibling distance=9mm}]
+  \node[bstnode]{5}
+    child{ node[bstnode]{3}
+      child{ node[bstnode]{2}} child{ node[bstnode]{5}} }
+    child{ node[bstnode]{7}
+      child[missing] child{ node[bstnode]{8}} };
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.5\textwidth}
+\centering\textbf{(b) altura 4 --- ineficiente}\\[4pt]
+\begin{tikzpicture}[level distance=8mm, sibling distance=12mm]
+  \node[bstnode]{2}
+    child[missing]
+    child{ node[bstnode]{3}
+      child[missing]
+      child{ node[bstnode]{7}
+        child{ node[bstnode]{5}
+          child[missing] child{ node[bstnode]{5}} }
+        child{ node[bstnode]{8}} } };
+\end{tikzpicture}
+\end{column}
+\end{columns}
+\vspace{4pt}
+\begin{center}\small As mesmas chaves \{2,3,5,5,7,8\}, BSTs diferentes.\\
+O custo das operações depende de $h$, não de $n$.\end{center}
+\hfill\tiny{Fig.\ 12.1, Cormen et al.}
+\end{frame}
+
+% ============================================================
+\section{Travessias}
+
+\begin{frame}{Por que travessias?}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Problema:}\\
+Como visitar todos os nós em uma ordem útil?
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{Solução:} três travessias recursivas naturais.
+\begin{itemize}
+  \item \textbf{In-order:} esq, \emph{raiz}, dir \;$\Rightarrow$ ordem crescente.
+  \item \textbf{Pre-order:} raiz, esq, dir.
+  \item \textbf{Post-order:} esq, dir, raiz.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{In-order: imprime em ordem}
+\begin{columns}[T]
+\begin{column}{0.45\textwidth}
+\centering
+\begin{tikzpicture}[level distance=9mm, sibling distance=18mm,
+  level 2/.style={sibling distance=10mm}]
+  \node[bstnode]{5}
+    child{ node[bstnode]{3}
+      child{ node[bstnode]{2}} child{ node[bstnode]{5}} }
+    child{ node[bstnode]{7}
+      child[missing] child{ node[bstnode]{8}} };
+\end{tikzpicture}\\[4pt]
+\small Saída: \texttt{2 3 5 5 7 8}
+\end{column}
+\begin{column}{0.55\textwidth}
+\begin{lstlisting}
+void inorder(Node<K,V> x) {
+    if (x == null) return;
+    inorder(x.left);
+    System.out.println(x.key);
+    inorder(x.right);
+}
+\end{lstlisting}
+\begin{block}{Teorema 12.1 (Cormen)}
+\textsc{Inorder-Tree-Walk} executa em $\Theta(n)$ em uma BST com $n$ nós.
+\end{block}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile,shrink=5]{Pre-order e post-order}
+\begin{columns}[T]
+\begin{column}{0.38\textwidth}
+\centering
+\begin{tikzpicture}[level distance=8mm, sibling distance=18mm,
+  level 2/.style={sibling distance=10mm}]
+  \node[bstnode]{A}
+    child{ node[bstnode]{B}
+      child{ node[bstnode]{D}} child{ node[bstnode]{E}} }
+    child{ node[bstnode]{C}
+      child[missing] child{ node[bstnode]{F}} };
+\end{tikzpicture}\\[4pt]
+\small
+\textbf{pre-order:} A B D E C F\\
+\textbf{post-order:} D E B F C A
+\end{column}
+\begin{column}{0.62\textwidth}
+\begin{lstlisting}
+void preorder(Node<K,V> x) {
+    if (x == null) return;
+    visit(x);                    // raiz primeiro
+    preorder(x.left);
+    preorder(x.right);
+}
+
+void postorder(Node<K,V> x) {
+    if (x == null) return;
+    postorder(x.left);
+    postorder(x.right);
+    visit(x);                    // raiz por ultimo
+}
+\end{lstlisting}
+\begin{itemize}\scriptsize
+  \item \textbf{Pre-order:} cópia de árvores, serialização.
+  \item \textbf{Post-order:} liberar memória, avaliar expressão (folhas antes da raiz).
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ============================================================
+\section{Travessia em largura (BFS)}
+
+\begin{frame}[shrink=18]{BFS: visitar nível por nível}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Ideia:} usar uma \emph{fila} (FIFO). Visite a raiz, enfileire os filhos, repita.
+\begin{itemize}
+  \item Visita os nós por \textbf{nível crescente} de profundidade.
+  \item Custo: $\Theta(n)$ tempo, $O(\text{largura máxima})$ espaço.
+  \item Em árvore perfeita: largura $\approx n/2$.
+\end{itemize}
+\begin{block}{Quando usar BFS?}
+\begin{itemize}\small
+  \item Encontrar nó mais próximo da raiz com certa propriedade.
+  \item Calcular nível de cada nó.
+  \item Imprimir árvore "nível a nível".
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.5\textwidth}
+\centering
+\begin{tikzpicture}[level distance=8mm, sibling distance=20mm,
+  level 2/.style={sibling distance=10mm}]
+  \node[bstnode]{1}
+    child{ node[bstnode]{2}
+      child{ node[bstnode]{4}} child{ node[bstnode]{5}} }
+    child{ node[bstnode]{3}
+      child{ node[bstnode]{6}} child{ node[bstnode]{7}} };
+\end{tikzpicture}\\[4pt]
+\small Ordem BFS: \texttt{1 2 3 4 5 6 7}\\
+(em contraste: pre-order = 1 2 4 5 3 6 7)
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile,shrink=20]{BFS em Java moderno}
+\begin{lstlisting}
+import java.util.ArrayDeque;
+import java.util.Deque;
+
+public void bfs(Node<K, V> root) {
+    if (root == null) return;
+    Deque<Node<K, V>> fila = new ArrayDeque<>();
+    fila.offer(root);                          // enfileira raiz
+    while (!fila.isEmpty()) {
+        Node<K, V> x = fila.poll();            // remove da frente
+        System.out.println(x.key);
+        if (x.left  != null) fila.offer(x.left);
+        if (x.right != null) fila.offer(x.right);
+    }
+}
+\end{lstlisting}
+\begin{exampleblock}{DFS vs BFS}
+\textbf{DFS} (in/pre/post-order) usa \emph{pilha} (recursão); explora um ramo de cada vez.\\
+\textbf{BFS} usa \emph{fila}; explora a árvore em camadas.
+\end{exampleblock}
+\end{frame}
+
+% ============================================================
+\section{Busca, mínimo, máximo, sucessor}
+
+\begin{frame}[shrink=10]{Busca: o caminho da raiz}
+\begin{block}{Ideia}
+Compare $k$ com a chave de cada nó. Se $k < \mathit{key}[x]$, vá para a esquerda;
+se $k > \mathit{key}[x]$, vá para a direita.
+\end{block}
+\begin{columns}[T]
+\begin{column}{0.45\textwidth}
+\centering
+\begin{tikzpicture}[level distance=8mm, sibling distance=22mm,
+  level 2/.style={sibling distance=11mm},
+  level 3/.style={sibling distance=8mm}]
+  \node[bstnode,hl]{15}
+    child{ node[bstnode,hl]{6}
+      child{ node[bstnode]{3} }
+      child{ node[bstnode,hl]{7}
+        child[missing]
+        child{ node[bstnode,hl]{13}
+          child{ node[bstnode]{9}} child[missing]
+        } } }
+    child{ node[bstnode]{18} };
+\end{tikzpicture}\\[2pt]
+\small Buscando 13: $15 \to 6 \to 7 \to 13$
+\end{column}
+\begin{column}{0.55\textwidth}
+\begin{block}{Custo}
+$O(h)$ comparações. Em BST balanceada: $O(\log n)$.
+\end{block}
+\begin{exampleblock}{Versão iterativa (preferida em Java)}
+Evita estouro de pilha em árvores muito altas
+e é geralmente mais rápida.
+\end{exampleblock}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Busca em Java moderno (genéricos)}
+\begin{lstlisting}
+public class BST<Key extends Comparable<Key>, Value> {
+
+    public Value get(Key key) {
+        Node<Key,Value> x = root;
+        while (x != null) {
+            int cmp = key.compareTo(x.key);
+            if      (cmp < 0) x = x.left;
+            else if (cmp > 0) x = x.right;
+            else              return x.value;   // achou
+        }
+        return null;                            // ausente
+    }
+}
+\end{lstlisting}
+\begin{itemize}
+  \item \texttt{Key extends Comparable<Key>}: aceita qualquer tipo ordenável.
+  \item Versão iterativa, $O(h)$ tempo, $O(1)$ espaço extra.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Mínimo, máximo, sucessor}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Mínimo:} desça pela esquerda até \texttt{null}.\\[2pt]
+\textbf{Máximo:} desça pela direita até \texttt{null}.\\[6pt]
+\textbf{Sucessor de $x$ (próxima chave em ordem):}
+\begin{itemize}
+  \item se $x$ tem subárvore direita: \emph{mínimo} dessa subárvore;
+  \item caso contrário: \emph{primeiro ancestral} cujo filho esquerdo também é ancestral de $x$.
+\end{itemize}
+Tempo: $O(h)$ em ambos os casos.
+\end{column}
+\begin{column}{0.5\textwidth}
+\centering
+\begin{tikzpicture}[level distance=8mm, sibling distance=22mm,
+  level 2/.style={sibling distance=11mm},
+  level 3/.style={sibling distance=8mm}]
+  \node[bstnode]{15}
+    child{ node[bstnode]{6}
+      child{ node[bstnode]{3}
+        child{ node[bstnode]{2}} child[missing] }
+      child{ node[bstnode]{7}
+        child[missing]
+        child{ node[bstnode,hl]{13}} } }
+    child{ node[bstnode]{18}
+      child{ node[bstnode]{17}} child{ node[bstnode]{20}} };
+\end{tikzpicture}\\[2pt]
+\small Sucessor de 13 é 15 (sobe pelos ancestrais).
+\end{column}
+\end{columns}
+\end{frame}
+
+% ============================================================
+\section{Operações ordenadas: rank e select}
+
+\begin{frame}[fragile,shrink=10]{Rank e select com o campo \texttt{size}}
+\begin{block}{Por que manter \texttt{size} em cada nó?}
+\texttt{x.size = 1 + size(x.left) + size(x.right)} permite consultas \emph{ordinais} em $O(h)$:
+\begin{itemize}\small
+  \item \textbf{rank(key)}: quantas chaves são \emph{menores} que \texttt{key}?
+  \item \textbf{select(k)}: qual é a $k$-ésima menor chave? (índice 0)
+\end{itemize}
+\end{block}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}
+public int rank(Key key) {
+    return rank(root, key);
+}
+private int rank(Node<Key,Value> x, Key key) {
+    if (x == null) return 0;
+    int cmp = key.compareTo(x.key);
+    if      (cmp < 0) return rank(x.left, key);
+    else if (cmp > 0) return 1 + size(x.left)
+                          + rank(x.right, key);
+    else              return size(x.left);
+}
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}
+public Key select(int k) {
+    return select(root, k).key;
+}
+private Node<Key,Value> select(Node<Key,Value> x, int k) {
+    if (x == null) return null;
+    int t = size(x.left);
+    if      (t > k) return select(x.left,  k);
+    else if (t < k) return select(x.right, k - t - 1);
+    else            return x;
+}
+\end{lstlisting}
+\end{column}
+\end{columns}
+\hfill\tiny{Sedgewick \& Wayne, \emph{Algorithms} §3.2 --- também útil para \emph{range queries} em $O(\log n + k)$.}
+\end{frame}
+
+% ============================================================
+\section{Inserção e remoção}
+
+\begin{frame}[fragile,shrink=15]{Inserção: estilo Sedgewick (recursivo)}
+\begin{block}{Ideia}
+Buscar pela chave; ao chegar em \texttt{null}, criar nó. A versão recursiva
+\emph{retorna a subárvore} e atualiza ponteiros ao subir.
+\end{block}
+\begin{lstlisting}
+public void put(Key key, Value value) {
+    root = put(root, key, value);
+}
+private Node<Key,Value> put(Node<Key,Value> x, Key key, Value value) {
+    if (x == null) return new Node<>(key, value);
+    int cmp = key.compareTo(x.key);
+    if      (cmp < 0) x.left  = put(x.left,  key, value);
+    else if (cmp > 0) x.right = put(x.right, key, value);
+    else              x.value = value;             // chave ja existe
+    x.size = 1 + size(x.left) + size(x.right);     // mantem tamanho
+    return x;
+}
+\end{lstlisting}
+Custo: $O(h)$.\hfill\tiny{(Sedgewick, cap.\ 12)}
+\end{frame}
+
+\begin{frame}{Inserção: exemplo passo a passo}
+\centering
+Inserindo \alert{13} em uma BST existente.\\[4pt]
+\begin{tikzpicture}[level distance=9mm, sibling distance=20mm,
+  level 2/.style={sibling distance=12mm}]
+  \node[bstnode]{12}
+    child{ node[bstnode]{5}
+      child{ node[bstnode]{2}} child{ node[bstnode]{9}} }
+    child{ node[bstnode,hl]{18}
+      child{ node[bstnode,hl]{15}
+        child[edge from parent/.style={dashed,thick,UFSRed}]
+          { node[bstnode,hl]{13} } child[missing] }
+      child{ node[bstnode]{19}} };
+\end{tikzpicture}\\[4pt]
+\small O caminho 12 $\to$ 18 $\to$ 15 leva à posição correta. Aresta tracejada é a nova ligação.\\
+\hfill\tiny{Fig.\ 12.3, Cormen et al.}
+\end{frame}
+
+\begin{frame}[shrink=15]{Remoção: três casos}
+Seja $z$ o nó a remover.
+\begin{enumerate}
+  \item \textbf{$z$ sem filhos:} basta desligar $z$ do pai.
+  \item \textbf{$z$ com 1 filho:} pai de $z$ aponta para o único filho de $z$.
+  \item \textbf{$z$ com 2 filhos:} substitua $z$ pelo seu \emph{sucessor in-order} $y$
+        (o mínimo da subárvore direita); $y$ \emph{tem no máximo 1 filho}.
+\end{enumerate}
+\vspace{4pt}
+\begin{center}
+\begin{tikzpicture}[level distance=8mm, sibling distance=14mm,
+  level 2/.style={sibling distance=8mm}]
+  \node[bstnode]{15}
+    child{ node[bstnode]{5}
+      child{ node[bstnode]{3}}
+      child{ node[bstnode,hl]{12}
+        child{ node[bstnode]{10}} child{ node[bstnode]{13}} } }
+    child{ node[bstnode]{20}};
+\end{tikzpicture}\\
+\small Remover \alert{12}: sucessor é 13; copiar 13 para o lugar de 12 e remover o nó 13 original.
+\end{center}
+\hfill\tiny{Fig.\ 12.4, Cormen et al.\ --- método de Hibbard}
+\end{frame}
+
+\begin{frame}[fragile]{Remoção em Java (Hibbard)}
+\begin{lstlisting}
+private Node<Key,Value> delete(Node<Key,Value> x, Key key) {
+    if (x == null) return null;
+    int cmp = key.compareTo(x.key);
+    if      (cmp < 0) x.left  = delete(x.left,  key);
+    else if (cmp > 0) x.right = delete(x.right, key);
+    else {
+        if (x.right == null) return x.left;     // caso 1 ou 2
+        if (x.left  == null) return x.right;    // caso 2
+        Node<Key,Value> t = x;                  // caso 3
+        x = min(t.right);                       // sucessor
+        x.right = deleteMin(t.right);
+        x.left  = t.left;
+    }
+    x.size = 1 + size(x.left) + size(x.right);
+    return x;
+}
+\end{lstlisting}
+\end{frame}
+
+% ============================================================
+\section{Análise: altura e por que balancear}
+
+\begin{frame}{Altura: o que determina o custo}
+\begin{block}{Teorema (Cormen 12.4 / Aslam)}
+A altura esperada de uma BST construída \emph{aleatoriamente} por $n$ inserções
+de chaves distintas é $\mathbb{E}[h] = O(\log n)$.
+\end{block}
+\begin{exampleblock}{Mas no pior caso}
+Inserindo chaves em ordem crescente, a BST vira uma lista encadeada:
+$h = n - 1$ e todas as operações custam $\Theta(n)$.
+\end{exampleblock}
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\toprule
+Operação & BST balanceada & BST degenerada\\
+\midrule
+\textsc{Search / Insert / Delete} & $O(\log n)$ & $\Theta(n)$\\
+\textsc{Min / Max / Successor}    & $O(\log n)$ & $\Theta(n)$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+\begin{frame}[shrink=25]{Exemplo: efeito da ordem de inserção}
+\begin{columns}[T]
+\begin{column}{0.45\textwidth}
+\centering\textbf{Aleatória} \{5,2,7,1,3,6,8\}\\[2pt]
+\begin{tikzpicture}[level distance=8mm, sibling distance=16mm,
+  level 2/.style={sibling distance=8mm}]
+  \node[bstnode]{5}
+    child{ node[bstnode]{2}
+      child{ node[bstnode]{1}} child{ node[bstnode]{3}} }
+    child{ node[bstnode]{7}
+      child{ node[bstnode]{6}} child{ node[bstnode]{8}} };
+\end{tikzpicture}\\[2pt]
+\small $h = 2$, balanceada
+\end{column}
+\begin{column}{0.45\textwidth}
+\centering\textbf{Ordenada} \{1,2,3,4,5,6,7\}\\[2pt]
+\begin{tikzpicture}[level distance=6mm, sibling distance=8mm]
+  \node[bstnode]{1}
+    child[missing]
+    child{ node[bstnode]{2}
+      child[missing]
+      child{ node[bstnode]{3}
+        child[missing]
+        child{ node[bstnode]{4}
+          child[missing]
+          child{ node[bstnode]{5}
+            child[missing]
+            child{ node[bstnode]{6}
+              child[missing]
+              child{ node[bstnode]{7}} } } } } };
+\end{tikzpicture}\\[2pt]
+\small $h = 6$, degenerada
+\end{column}
+\end{columns}
+\vspace{4pt}
+\begin{block}{Motivação para a próxima aula}
+\emph{Árvores balanceadas} (AVL, rubro-negra) garantem $h = O(\log n)$ \alert{no pior caso}.
+\end{block}
+\end{frame}
+
+\begin{frame}[shrink=25]{Demonstração: a árvore vira uma lista}
+\centering
+Inserindo 1, 2, 3, 4, 5 \emph{em ordem}, a cada passo:\\[6pt]
+\begin{tikzpicture}[
+  level distance=6mm, sibling distance=8mm,
+  every node/.style={font=\scriptsize}
+]
+  \node[bstnode]{1}; \node at (0,-2.2) {após 1};
+\end{tikzpicture}
+\hfill
+\begin{tikzpicture}[level distance=6mm, sibling distance=8mm,
+  every node/.style={font=\scriptsize}]
+  \node[bstnode]{1}
+    child[missing] child{ node[bstnode]{2}};
+  \node at (0.2,-2.2) {após 1,2};
+\end{tikzpicture}
+\hfill
+\begin{tikzpicture}[level distance=6mm, sibling distance=8mm,
+  every node/.style={font=\scriptsize}]
+  \node[bstnode]{1}
+    child[missing]
+    child{ node[bstnode]{2}
+      child[missing] child{ node[bstnode]{3}}};
+  \node at (0.4,-2.2) {após 1,2,3};
+\end{tikzpicture}
+\hfill
+\begin{tikzpicture}[level distance=6mm, sibling distance=8mm,
+  every node/.style={font=\scriptsize}]
+  \node[bstnode]{1}
+    child[missing]
+    child{ node[bstnode]{2}
+      child[missing]
+      child{ node[bstnode]{3}
+        child[missing] child{ node[bstnode]{4}}}};
+  \node at (0.6,-2.2) {após 1,2,3,4};
+\end{tikzpicture}
+\hfill
+\begin{tikzpicture}[level distance=6mm, sibling distance=8mm,
+  every node/.style={font=\scriptsize}]
+  \node[bstnode]{1}
+    child[missing]
+    child{ node[bstnode]{2}
+      child[missing]
+      child{ node[bstnode]{3}
+        child[missing]
+        child{ node[bstnode,hl]{4}
+          child[missing] child{ node[bstnode,hl]{5}}}}};
+  \node at (0.8,-2.2) {após 1,2,3,4,5};
+\end{tikzpicture}\\[10pt]
+\begin{exampleblock}{Observe}
+A árvore degenera em uma \alert{lista encadeada}: $h = n-1$, busca $\Theta(n)$.
+O mesmo conjunto de chaves em ordem aleatória dá $h \approx 2$. A \emph{ordem de inserção} é tudo.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink=10]{Na vida real: \texttt{java.util.TreeMap} / \texttt{TreeSet}}
+\begin{block}{O Java já implementa BST balanceada}
+\texttt{TreeMap<K,V>} e \texttt{TreeSet<E>} são \emph{árvores rubro-negras}: garantem $O(\log n)$ no pior caso e ordenação automática das chaves.
+\end{block}
+\begin{lstlisting}
+import java.util.TreeMap;
+import java.util.NavigableMap;
+
+NavigableMap<String, Integer> agenda = new TreeMap<>();
+agenda.put("Ana",    11);
+agenda.put("Bruno",  55);
+agenda.put("Carla",  99);
+
+agenda.firstKey();          // "Ana"            -- min
+agenda.lastKey();           // "Carla"          -- max
+agenda.higherKey("Bruno");  // "Carla"          -- sucessor estrito
+agenda.headMap("Carla");    // {Ana=11, Bruno=55} -- range query
+\end{lstlisting}
+\begin{exampleblock}{Quando reimplementar?}
+\emph{Quase nunca em produção} --- use \texttt{TreeMap}. Implementamos BST do zero para \alert{entender} a estrutura e poder modificá-la (ex.: AVL, treap, BST aumentada para intervalos).
+\end{exampleblock}
+\end{frame}
+
+% ============================================================
+\section{Exercícios em sala}
+
+\begin{frame}[shrink=20]{Exercício 1 --- Construção e travessias}
+\begin{block}{Enunciado}
+Insira na BST inicialmente vazia, \emph{nesta ordem}, as chaves:
+\[
+50,\; 30,\; 70,\; 20,\; 40,\; 60,\; 80,\; 35,\; 45
+\]
+\textbf{Pedidos:}
+\begin{enumerate}
+  \item Desenhe a BST resultante.
+  \item Liste as chaves em \emph{in-order}, \emph{pre-order} e \emph{post-order}.
+  \item Liste a ordem da travessia \emph{BFS} (nível a nível).
+  \item Qual é a altura $h$ da árvore?
+\end{enumerate}
+\end{block}
+\begin{exampleblock}{Dica}
+A travessia in-order deve produzir as chaves em ordem crescente --- use isso para conferir seu desenho.
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[shrink=20]{Exercício 2 --- Busca, sucessor e remoção}
+\begin{block}{Use a árvore do Exercício 1}
+\begin{enumerate}
+  \item Quantas comparações são feitas ao buscar a chave 45? E a chave 55?
+  \item Qual é o sucessor in-order de 40? E o sucessor de 50?
+  \item Remova a chave 30 (nó com dois filhos) usando o método de Hibbard. Desenhe a árvore resultante.
+  \item Remova a chave 70. Desenhe a árvore resultante.
+  \item A altura mudou? Como?
+\end{enumerate}
+\end{block}
+\end{frame}
+
+\begin{frame}{Exercício 3 --- Pior caso e implementação}
+\begin{block}{Parte A --- pior caso}
+Insira em uma BST vazia, \emph{nesta ordem}: $1, 2, 3, 4, 5, 6, 7$.
+\begin{enumerate}
+  \item Desenhe a árvore.
+  \item Quantas comparações são necessárias para buscar a chave 7?
+  \item Quanto custaria a mesma busca em uma BST balanceada com as mesmas chaves?
+\end{enumerate}
+\end{block}
+\begin{block}{Parte B --- código}
+Escreva, em Java, um método \texttt{int contarFolhas(Node<K,V> x)} que retorna o número de folhas de uma subárvore.\\
+\emph{Resposta esperada:} 4 funções de uma linha + caso-base. Discuta a complexidade.
+\end{block}
+\end{frame}
+
+% ============================================================
+\section{Recapitulação}
+
+\begin{frame}[shrink=10]{Recapitulando}
+\begin{block}{O que aprendemos hoje}
+\begin{itemize}\small
+  \item \textbf{Árvore binária:} terminologia (raiz, folha, altura), tipos (cheia, completa, perfeita) e duas representações (ligada e por array).
+  \item \textbf{Travessias DFS:} in-order (ordenado), pre-order, post-order; todas em $\Theta(n)$.
+  \item \textbf{Travessia BFS:} nível a nível, usando fila (\texttt{ArrayDeque}).
+  \item \textbf{Propriedade da BST:} esquerda $\le$ raiz $\le$ direita.
+  \item \textbf{Search, Min, Max, Successor, Insert, Delete} custam $O(h)$.
+  \item \textbf{Inserção (Sedgewick)} recursiva retornando a subárvore; \textbf{Remoção (Hibbard)} usa sucessor in-order.
+  \item \textbf{Altura} é tudo: $O(\log n)$ esperado, $\Theta(n)$ no pior caso $\Rightarrow$ motiva árvores balanceadas.
+\end{itemize}
+\end{block}
+\begin{exampleblock}{Próxima aula}
+Árvores balanceadas (AVL): rotações que mantêm $h = O(\log n)$ no pior caso.
+\end{exampleblock}
+\end{frame}
+
+% ============================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+\nocite{*}
+\bibliographystyle{plain}
+\footnotesize
+\bibliography{../referencias}
+\end{frame}
+
+\end{document}
