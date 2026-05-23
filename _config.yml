@@ -1,0 +1,22 @@
+title: "Minhas Aulas"
+description: "Material didático"
+baseurl: "/aulas"           # troque pelo nome do seu repositório
+url: "https://SEU-USUARIO.github.io"
+
+theme: minima
+
+exclude:
+  - theme/              # pasta do submodule UFS_Beamer
+  - Makefile
+  - "**/*.aux"
+  - "**/*.log"
+  - "**/*.out"
+  - "**/*.toc"
+  - "**/*.snm"
+  - "**/*.nav"
+  - "**/*.synctex.gz"
+  - "**/*.fls"
+  - "**/*.fdb_latexmk"
+  - Gemfile
+  - Gemfile.lock
+  - README.md

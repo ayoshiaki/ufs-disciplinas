@@ -1,0 +1,33 @@
+# LaTeX — arquivos auxiliares
+*.aux
+*.log
+*.out
+*.toc
+*.snm
+*.nav
+*.vrb
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+_minted-*/
+
+# PDFs locais (remova o # abaixo se NÃO quiser versionar PDFs)
+# *.pdf
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# macOS
+.DS_Store
+
+# Jekyll
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+Gemfile.lock

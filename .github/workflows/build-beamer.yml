@@ -1,0 +1,103 @@
+name: Compilar Beamer e publicar GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ──────────────────────────────────────────────────────────────
+  # 1. Compila todos os slides.tex → slides.pdf
+  # ──────────────────────────────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # Checkout com submodules (acessa UFS_Beamer privado via token)
+      - name: Checkout repositório + submodule theme
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          # O token precisa ter acesso ao repo privado ayoshiaki/UFS_Beamer.
+          # Crie um Fine-Grained PAT com permissão "Contents: Read" em
+          # UFS_Beamer e adicione como secret GH_PAT neste repositório.
+          token: ${{ secrets.GH_PAT }}
+
+      # Instala TeX Live completo (inclui Beamer, TikZ, listings, etc.)
+      - name: Instalar TeX Live
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            texlive-full latexmk
+
+      # Compila cada slides.tex encontrado no repositório
+      - name: Compilar todos os slides.tex
+        run: |
+          THEME_DIR="${GITHUB_WORKSPACE}/theme"
+          export TEXINPUTS=".:${THEME_DIR}/:"
+          export BSTINPUTS="${TEXINPUTS}"
+
+          find . -name "slides.tex" | while read texfile; do
+            dir=$(dirname "$texfile")
+            echo "──────────────────────────────────────"
+            echo "Compilando: $texfile"
+            echo "──────────────────────────────────────"
+            (
+              cd "$dir"
+              # Adiciona o caminho do tema relativo à raiz do repo
+              TEXINPUTS=".:${GITHUB_WORKSPACE}/theme/:" \
+              pdflatex -interaction=nonstopmode -halt-on-error slides.tex
+              # Segunda passagem para referências cruzadas e ToC
+              TEXINPUTS=".:${GITHUB_WORKSPACE}/theme/:" \
+              pdflatex -interaction=nonstopmode slides.tex
+            )
+          done
+
+      # Remove arquivos auxiliares LaTeX antes do commit
+      - name: Limpar arquivos auxiliares
+        run: |
+          find . -name "*.aux" -o -name "*.log" -o -name "*.nav" \
+                 -o -name "*.out" -o -name "*.snm" -o -name "*.toc" \
+                 -o -name "*.vrb" -o -name "*.fls" -o -name "*.fdb_latexmk" \
+                 -o -name "*.synctex.gz" | xargs rm -f
+
+      # Faz commit dos PDFs gerados de volta ao branch main
+      - name: Commit dos PDFs compilados
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "**/*.pdf"
+          git diff --cached --quiet || \
+            git commit -m "ci: atualiza slides.pdf compilados [skip ci]"
+          git push
+
+  # ──────────────────────────────────────────────────────────────
+  # 2. Publica o site Jekyll no GitHub Pages
+  # ──────────────────────────────────────────────────────────────
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout (com PDFs já commitados)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Build com Jekyll
+        uses: actions/jekyll-build-pages@v1
+
+      - name: Deploy para GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,189 @@
+% -*- coding: utf-8 -*-
+% ============================================================
+%  Template de slides — UFS Beamer
+%  Baseado em: https://github.com/ayoshiaki/UFS_Beamer
+%
+%  Compilar localmente:
+%    make          (usa o Makefile na raiz do repositório)
+%  Ou manualmente:
+%    TEXINPUTS=".:$(git rev-parse --show-toplevel)/theme/:" pdflatex slides.tex
+% ============================================================
+
+\documentclass[aspectratio=169]{beamer}
+
+% --- Tema UFS --------------------------------------------------
+% Os arquivos .sty e imagens estão em /theme/ na raiz do repo.
+% O TEXINPUTS é configurado pelo Makefile / GitHub Actions.
+\usetheme{UFS}
+
+% --- Pacotes ---------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning, shapes.multipart, arrows.meta,
+                shadows, fit, chains,
+                decorations.pathreplacing, shapes.geometric, calc}
+
+% --- Configuração de listagens de código -----------------------
+\usepackage{listings}
+\definecolor{codegreen} {rgb}{0,   0.6, 0  }
+\definecolor{codegray}  {rgb}{0.5, 0.5, 0.5}
+\definecolor{codepurple}{rgb}{0.58,0,   0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{ufs}{
+  backgroundcolor  = \color{backcolour},
+  commentstyle     = \color{codegreen},
+  keywordstyle     = \color{magenta},
+  numberstyle      = \tiny\color{codegray},
+  stringstyle      = \color{codepurple},
+  basicstyle       = \ttfamily\tiny,
+  breaklines       = true,
+  captionpos       = b,
+  numbers          = left,
+  numbersep        = 5pt,
+  frame            = single,
+  rulecolor        = \color{gray},
+  extendedchars    = true,
+  literate =
+    {ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1
+    {õ}{{\~o}}1 {ó}{{\'o}}1 {í}{{\'i}}1
+    {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1
+    {ç}{{\c{c}}}1
+}
+\lstset{style=ufs}
+
+% ===============================================================
+%  METADADOS DA AULA — edite aqui
+% ===============================================================
+\title{Título da Aula}
+\subtitle{Nome da Disciplina}
+\author[Prof. André <andreyoshiaki@dcomp.ufs.br>]{Prof. Dr. André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação\\Universidade Federal de Sergipe}
+\date{\today}
+
+% Logo do departamento (opcional — remova a linha se não usar)
+% \departmentlogo{logo_dcomp.png}
+
+% ===============================================================
+\begin{document}
+
+% --- Capa ------------------------------------------------------
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% --- Sumário ---------------------------------------------------
+\begin{frame}{Sumário}
+  \tableofcontents
+\end{frame}
+
+% ===============================================================
+\section{Introdução}
+% ===============================================================
+
+\begin{frame}{Motivação}
+  \begin{itemize}
+    \item Por que estudar este tópico?
+    \item Aplicações práticas
+    \item O que veremos nesta aula
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Objetivos}
+  Ao final desta aula, o aluno será capaz de:
+  \begin{enumerate}
+    \item Objetivo 1
+    \item Objetivo 2
+    \item Objetivo 3
+  \end{enumerate}
+\end{frame}
+
+% ===============================================================
+\section{Desenvolvimento}
+% ===============================================================
+
+\begin{frame}{Conceito Principal}
+  \begin{block}{Definição}
+    Coloque aqui a definição formal do conceito.
+  \end{block}
+
+  \medskip
+  \begin{exampleblock}{Exemplo}
+    Ilustração prática do conceito.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Exemplo de Código}
+\begin{lstlisting}[language=Python, caption={Exemplo em Python}]
+def exemplo(n):
+    """Docstring em português."""
+    for i in range(n):
+        print(f"Iteração {i}")
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Diagrama com TikZ}
+  \begin{center}
+  \begin{tikzpicture}[
+    node distance=2cm,
+    box/.style={draw, rounded corners, minimum width=2cm,
+                minimum height=0.8cm, fill=UFSBlue!15}
+  ]
+    \node[box] (A) {Entrada};
+    \node[box, right of=A] (B) {Processo};
+    \node[box, right of=B] (C) {Saída};
+    \draw[->, thick] (A) -- (B);
+    \draw[->, thick] (B) -- (C);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ===============================================================
+\section{Exercícios}
+% ===============================================================
+
+\begin{frame}{Exercício Proposto}
+  \begin{alertblock}{Exercício}
+    Enunciado do exercício proposto.
+  \end{alertblock}
+
+  \medskip
+  \textbf{Dica:} Dica ou orientação para resolução.
+\end{frame}
+
+% ===============================================================
+\section{Conclusão}
+% ===============================================================
+
+\begin{frame}{Resumo}
+  \begin{columns}
+    \column{0.5\textwidth}
+      \textbf{O que vimos:}
+      \begin{itemize}
+        \item Tópico 1
+        \item Tópico 2
+      \end{itemize}
+    \column{0.5\textwidth}
+      \textbf{Próxima aula:}
+      \begin{itemize}
+        \item Tópico A
+        \item Tópico B
+      \end{itemize}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Referências}
+  \begin{thebibliography}{9}
+    \bibitem{ref1}
+      Autor, A.
+      \newblock \textit{Título do Livro}.
+      \newblock Editora, Ano.
+  \end{thebibliography}
+\end{frame}
+
+\end{document}
