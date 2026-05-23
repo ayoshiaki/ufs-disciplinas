@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "COMP0496 — Programação A — Turma 2026/1-A"
+title: "COMP0496 — Programação A — Turma 5 · 2026/1"
 ---
 
 <nav class="breadcrumb">
@@ -8,33 +8,102 @@ title: "COMP0496 — Programação A — Turma 2026/1-A"
   <span class="breadcrumb-sep">›</span>
   <a href="{{ 'programacao-a' | relative_url }}">COMP0496 — Programação A</a>
   <span class="breadcrumb-sep">›</span>
-  <span>2026/1-A</span>
+  <span>Turma 5 · 2026/1</span>
 </nav>
 
 <h1 class="page-title">COMP0496 — Programação A</h1>
-<p class="page-subtitle">Turma 2026/1-A · COMP0496</p>
+<p class="page-subtitle">Turma 5 · 2026/1 · Material organizado por semana</p>
 
-<div class="table-card">
-  <div class="table-card-header">📋 Semanas</div>
-  <table>
-    <thead>
-      <tr>
-        <th class="td-num">#</th>
-        <th>Tema</th>
-        <th>Material</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td class="td-num">01</td><td><a href="{{ 'programacao-a/2026-1-T05/semana-01' | relative_url }}">Expressões Booleanas</a></td><td>📓 Notebooks</td></tr>
-      <tr><td class="td-num">02</td><td><a href="{{ 'programacao-a/2026-1-T05/semana-02' | relative_url }}">Funções, Condicionais e Decomposição</a></td><td>📓 Notebooks · 📄 PDF</td></tr>
-      <tr><td class="td-num">03</td><td><a href="{{ 'programacao-a/2026-1-T05/semana-03' | relative_url }}">Repetição Controlada por Condição</a></td><td>📓 Notebooks · 📄 PDF</td></tr>
-      <tr><td class="td-num">04</td><td><a href="{{ 'programacao-a/2026-1-T05/semana-04' | relative_url }}">Iteração Definida e Busca Binária</a></td><td>📓 Notebooks · 📄 PDF</td></tr>
-      <tr><td class="td-num">05</td><td><a href="{{ 'programacao-a/2026-1-T05/semana-05' | relative_url }}">Listas e Ordenação</a></td><td>📓 Notebooks · 📄 PDF</td></tr>
-      <tr><td class="td-num">06</td><td><a href="{{ 'programacao-a/2026-1-T05/semana-06' | relative_url }}">Matrizes</a></td><td>📓 Notebooks</td></tr>
-      <tr><td class="td-num">07</td><td><a href="{{ 'programacao-a/2026-1-T05/semana-07' | relative_url }}">Recursão — Introdução</a></td><td>📓 Notebook · 📄 Simulado</td></tr>
-      <tr><td class="td-num">08</td><td><a href="{{ 'programacao-a/2026-1-T05/semana-08' | relative_url }}">Coleções, Funcional e Recursão Estrutural</a></td><td>📓 Notebooks · 📄 Slides</td></tr>
-      <tr><td class="td-num">09</td><td><a href="{{ 'programacao-a/2026-1-T05/semana-09' | relative_url }}">Orientação a Objetos</a></td><td>📓 Notebooks</td></tr>
-      <tr><td class="td-num">10</td><td><a href="{{ 'programacao-a/2026-1-T05/semana-10' | relative_url }}">Herança, Polimorfismo e Refatoração</a></td><td>📓 Notebooks</td></tr>
-    </tbody>
-  </table>
+<div class="weeks-grid">
+
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-01' | relative_url }}">
+    <div class="week-num">01</div>
+    <div class="week-body">
+      <div class="week-title">Expressões Booleanas</div>
+      <div class="week-desc">Operadores lógicos, avaliação e tabelas-verdade.</div>
+      <div class="week-badges"><span class="week-badge nb">5 notebooks</span></div>
+    </div>
+  </a>
+
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-02' | relative_url }}">
+    <div class="week-num">02</div>
+    <div class="week-body">
+      <div class="week-title">Funções, Condicionais e Decomposição</div>
+      <div class="week-desc">Definição de funções, controle de fluxo e decomposição top-down.</div>
+      <div class="week-badges"><span class="week-badge nb">7 notebooks</span><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-03' | relative_url }}">
+    <div class="week-num">03</div>
+    <div class="week-body">
+      <div class="week-title">Repetição Controlada por Condição</div>
+      <div class="week-desc">Laços <code>while</code> e introdução a listas.</div>
+      <div class="week-badges"><span class="week-badge nb">4 notebooks</span><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-04' | relative_url }}">
+    <div class="week-num">04</div>
+    <div class="week-body">
+      <div class="week-title">Iteração Definida e Busca Binária</div>
+      <div class="week-desc">Iteração sobre sequências, ordenação e busca binária.</div>
+      <div class="week-badges"><span class="week-badge nb">3 notebooks</span><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-05' | relative_url }}">
+    <div class="week-num">05</div>
+    <div class="week-body">
+      <div class="week-title">Listas e Ordenação</div>
+      <div class="week-desc">Trabalhando com listas, armazenamento e algoritmos de ordenação.</div>
+      <div class="week-badges"><span class="week-badge nb">3 notebooks</span><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-06' | relative_url }}">
+    <div class="week-num">06</div>
+    <div class="week-body">
+      <div class="week-title">Matrizes</div>
+      <div class="week-desc">Listas aninhadas e processamento de matrizes.</div>
+      <div class="week-badges"><span class="week-badge nb">2 notebooks</span></div>
+    </div>
+  </a>
+
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-07' | relative_url }}">
+    <div class="week-num">07</div>
+    <div class="week-body">
+      <div class="week-title">Recursão — Introdução</div>
+      <div class="week-desc">Primeiros passos em recursão e simulado da prova.</div>
+      <div class="week-badges"><span class="week-badge nb">1 notebook</span><span class="week-badge pdf">2 PDFs</span></div>
+    </div>
+  </a>
+
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-08' | relative_url }}">
+    <div class="week-num">08</div>
+    <div class="week-body">
+      <div class="week-title">Coleções, Funcional e Recursão Estrutural</div>
+      <div class="week-desc">Conjuntos, dicionários, programação funcional e recursão estrutural.</div>
+      <div class="week-badges"><span class="week-badge nb">8 notebooks</span><span class="week-badge pdf">8 PDFs</span></div>
+    </div>
+  </a>
+
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-09' | relative_url }}">
+    <div class="week-num">09</div>
+    <div class="week-body">
+      <div class="week-title">Orientação a Objetos</div>
+      <div class="week-desc">Objetos, classes, encapsulamento e métodos especiais.</div>
+      <div class="week-badges"><span class="week-badge nb">3 notebooks</span></div>
+    </div>
+  </a>
+
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-10' | relative_url }}">
+    <div class="week-num">10</div>
+    <div class="week-body">
+      <div class="week-title">Herança, Polimorfismo e Refatoração</div>
+      <div class="week-desc">Aprofundando em OO: herança, polimorfismo e padrões de qualidade.</div>
+      <div class="week-badges"><span class="week-badge nb">2 notebooks</span></div>
+    </div>
+  </a>
+
 </div>

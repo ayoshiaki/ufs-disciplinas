@@ -212,6 +212,105 @@ a:hover { text-decoration: underline; }
 
 .card-link:hover { text-decoration: underline; }
 
+/* ── Weeks grid (turma page) ──────────────────────────────── */
+
+.weeks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 2rem;
+}
+
+.week-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.week-card:hover {
+  border-color: #b3cef0;
+  box-shadow: 0 4px 16px rgba(3,78,162,0.10);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.week-num {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--ufs-blue-lt);
+  color: var(--ufs-blue);
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.5px;
+}
+
+.week-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.week-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
+.week-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+
+.week-desc code {
+  background: #f0f4fa;
+  color: var(--ufs-blue);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.week-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.week-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.week-badge.nb {
+  color: #7a5a00;
+  background: #fffbec;
+  border-color: #f5e3a0;
+}
+
+.week-badge.pdf {
+  color: #c0392b;
+  background: #fdf0ef;
+  border-color: #f5c6c3;
+}
+
 /* ── Aulas table ──────────────────────────────────────────── */
 
 .table-card {
