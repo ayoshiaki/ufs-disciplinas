@@ -46,8 +46,14 @@ aula:
 	@echo "──────────────────────────────────────"
 	@dir=$$(dirname $<); \
 	cd $$dir && \
-	TEXINPUTS=".:$(THEME)/:" pdflatex -interaction=nonstopmode -halt-on-error slides.tex && \
-	TEXINPUTS=".:$(THEME)/:" pdflatex -interaction=nonstopmode slides.tex
+	export TEXINPUTS=".:$(THEME)/:" && \
+	export BIBINPUTS=".:$(THEME)/:" && \
+	pdflatex -interaction=nonstopmode -halt-on-error slides.tex && \
+	if grep -q '\\bibdata' slides.aux 2>/dev/null; then \
+	  bibtex slides && \
+	  pdflatex -interaction=nonstopmode -halt-on-error slides.tex; \
+	fi && \
+	pdflatex -interaction=nonstopmode slides.tex
 	@echo "✔ $@ gerado com sucesso."
 
 ## Remove arquivos auxiliares LaTeX (mantém PDFs)
