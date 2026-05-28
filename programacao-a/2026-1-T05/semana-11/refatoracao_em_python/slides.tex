@@ -1,0 +1,768 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS — Universidade Federal de Sergipe
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb,graphicx,booktabs,xcolor}
+\usepackage[nolinks]{qrcode}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows,arrows.meta,positioning,matrix,fit,calc,
+  backgrounds,decorations.pathreplacing,shadows,patterns,
+  automata,intersections,shapes}
+
+% Listagens — paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  language=Python,
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\scriptsize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=8pt,
+  xleftmargin=16pt, framexleftmargin=16pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=3pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle}
+
+\title{Refatoração em Python}
+\subtitle{Cheiros, Refatorações e a Disciplina do Ciclo Red--Green--Refactor}
+\author{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP --- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{A narrativa: Problema $\to$ Solução $\to$ Disciplina}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue!60, fill=UFSBlue!10, rounded corners,
+      minimum width=9cm, minimum height=0.8cm, font=\small},
+    arrow/.style={->, thick, UFSBlue}
+  ]
+    \node[item] (t1) at (0, 1.5)  {Problema: \emph{enxergar} o que está ruim --- cheiros de código};
+    \node[item] (t2) at (0, 0.0)  {Solução: \emph{consertar} com refatorações nomeadas};
+    \node[item] (t3) at (0,-1.5)  {Disciplina: \emph{sustentar} com Red--Green--Refactor, testes e PEP 8};
+    \draw[arrow] (t1) -- (t2);
+    \draw[arrow] (t2) -- (t3);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\part{Problema: Maus Cheiros de Código}
+% =====================================================================
+\section{O que são \emph{code smells}}
+
+\begin{frame}{Por que falar de \emph{cheiros}?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[0.4em]
+      Código \emph{funciona} mas é difícil de manter,
+      estender ou entender. Bugs aparecem em cascata,
+      mudanças simples viram epopeias.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[0.4em]
+      Aprender a \textbf{farejar} sinais comuns de
+      degradação --- e ter uma refatoração específica
+      pronta para cada um.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Code Smell: definição}
+  \begin{block}{Definição (Kent Beck \& Martin Fowler)}
+    Um \emph{code smell} é uma estrutura no código que \textbf{sugere}
+    --- mas não prova --- a necessidade de refatoração.
+    Não é bug: o código funciona, mas algo está \emph{cheirando mal}.
+  \end{block}
+  \begin{exampleblock}{Intuição --- ``If it stinks, change it''}
+    O nariz é treinável. Quanto mais código você lê,
+    mais rápido percebe que algo está errado --- antes
+    mesmo de saber explicar o quê. Smells são \emph{atalhos heurísticos}.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Smell vs.\ Bug}
+  \begin{center}
+  \begin{tikzpicture}[
+    box/.style={rectangle, rounded corners, draw, minimum width=5.5cm,
+                minimum height=2.4cm, align=center, font=\small}
+  ]
+    \node[box, fill=UFSRed!20]    (bug)   at (-3.5, 0)
+      {\textbf{Bug}\\[0.3em]
+       Código se comporta errado.\\
+       Testes falham (ou deveriam).\\
+       \emph{Urgência:} alta.};
+    \node[box, fill=UFSYellow!40] (smell) at ( 3.5, 0)
+      {\textbf{Smell}\\[0.3em]
+       Código se comporta certo,\\
+       mas é frágil para mudar.\\
+       \emph{Urgência:} média/baixa.};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.4em}
+  \footnotesize Smells acumulados \textbf{viram} bugs ao longo do tempo --- é dívida técnica vencendo juros.
+\end{frame}
+
+\section{As quatro famílias de Fowler}
+
+\begin{frame}{O mapa dos Code Smells}
+  \begin{center}
+  \begin{tikzpicture}[
+    cat/.style={rectangle, draw, rounded corners, minimum width=3cm,
+                minimum height=0.7cm, font=\small\bfseries, align=center},
+    item/.style={rectangle, draw, rounded corners, fill=white,
+                 minimum width=3cm, minimum height=0.55cm, font=\scriptsize, align=center}
+  ]
+    \node[cat, fill=UFSRed!30]    (a) at (0,3)   {Bloaters};
+    \node[cat, fill=UFSYellow!50] (b) at (3.5,3) {OO Abusers};
+    \node[cat, fill=UFSBlue!25]   (c) at (7,3)   {Change Preventers};
+    \node[cat, fill=green!30]     (d) at (10.5,3){Dispensables};
+
+    \node[item] at (0,2.2)    {Long Method};
+    \node[item] at (0,1.5)    {Large Class};
+    \node[item] at (0,0.8)    {Long Parameter List};
+
+    \node[item] at (3.5,2.2)  {Switch Statements};
+    \node[item] at (3.5,1.5)  {Temporary Field};
+    \node[item] at (3.5,0.8)  {Refused Bequest};
+
+    \node[item] at (7,2.2)    {Divergent Change};
+    \node[item] at (7,1.5)    {Shotgun Surgery};
+    \node[item] at (7,0.8)    {Feature Envy};
+
+    \node[item] at (10.5,2.2) {Duplicated Code};
+    \node[item] at (10.5,1.5) {Dead Code};
+    \node[item] at (10.5,0.8) {Speculative Generality};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.4em}
+  \footnotesize Veremos um representante de cada família + os clássicos.
+\end{frame}
+
+\begin{frame}{As quatro famílias em uma frase}
+  \begin{itemize}
+    \item \textbf{Bloaters} --- coisas que \emph{incham} (métodos, classes, listas).
+    \item \textbf{OO Abusers} --- recursos de OO usados de forma errada (ou não usados).
+    \item \textbf{Change Preventers} --- estruturas que \emph{dificultam} mudanças futuras.
+    \item \textbf{Dispensables} --- coisas que \emph{não precisariam estar lá} (duplicação, código morto, abstração à toa).
+  \end{itemize}
+\end{frame}
+
+\section{Bloaters}
+
+\begin{frame}[fragile]{Long Method (Método Longo)}
+  \begin{alertblock}{Sintomas}
+    Mais de $\sim$20 linhas, muitos níveis de indentação,
+    comentários explicando \emph{blocos} de código.
+  \end{alertblock}
+\begin{lstlisting}
+def processar_pedido(p):
+    if not p.cliente: raise ValueError("sem cliente")
+    if not p.itens:   raise ValueError("sem itens")
+    total = 0
+    for i in p.itens: total += i.preco * i.qtd
+    if total > 1000: total *= 0.9
+    msg = f"Pedido {p.id}: R$ {total}"
+    smtp.send(p.cliente.email, msg)
+    return total
+\end{lstlisting}
+  \footnotesize\textbf{Refatoração de combate:} \emph{Extract Function} --- veremos a versão depois na Parte II.
+\end{frame}
+
+\begin{frame}{Large Class (Classe Grande)}
+  \begin{center}
+  \begin{tikzpicture}[
+    big/.style={rectangle, draw, fill=UFSRed!25, minimum width=3.5cm,
+                minimum height=3.5cm, font=\small, align=center},
+    small/.style={rectangle, draw, fill=green!25, minimum width=2.3cm,
+                  minimum height=0.55cm, font=\scriptsize, align=center}
+  ]
+    \node[big] (P) at (0,0) {\textbf{Pedido}\\[0.3em]
+      cliente, itens,\\
+      total, desconto,\\
+      frete, endereço,\\
+      pagamento, status\\[0.4em]
+      \emph{15 métodos}};
+
+    \node[small] at (5, 1.5)  {Pedido};
+    \node[small] at (5, 0.75) {Calculadora};
+    \node[small] at (5, 0.0)  {Frete};
+    \node[small] at (5,-0.75) {Pagamento};
+    \node[small] at (5,-1.5)  {Notificador};
+
+    \draw[->, thick, UFSBlue] (1.9, 0) -- (3.8, 0);
+  \end{tikzpicture}
+  \end{center}
+  \footnotesize\textbf{Refatoração:} \emph{Extract Class} --- separar por responsabilidade (SRP).
+\end{frame}
+
+\begin{frame}[fragile]{Long Parameter List}
+\begin{lstlisting}
+def criar_pedido(nome, cpf, email, rua, numero,
+                 cidade, cep, produto, qtd, preco,
+                 cupom, forma_pagto):
+    ...
+\end{lstlisting}
+  \footnotesize
+  \textbf{Sintoma:} mais de 3--4 parâmetros, especialmente quando vários
+  aparecem juntos (\emph{data clumps}).\\
+  \textbf{Refatoração:} \emph{Introduce Parameter Object} ---
+  agrupar em \texttt{Cliente}, \texttt{Endereco}, \texttt{ItemPedido}, \texttt{Pagamento}.
+\end{frame}
+
+\section{Dispensables, Change Preventers e OO Abusers}
+
+\begin{frame}[fragile]{Duplicated Code}
+  \begin{alertblock}{O problema}
+    A mesma estrutura aparece em mais de um lugar.
+    Mudança em um exige caçar e mudar os outros.
+  \end{alertblock}
+\begin{lstlisting}
+def preco_a(x): return x if x > 0 else -x
+def preco_b(y): return y if y > 0 else -y
+def preco_c(z): return z if z > 0 else -z
+# depois: def preco(v): return abs(v)
+\end{lstlisting}
+  \footnotesize\textbf{Refatorações de combate:} \emph{Extract Function},
+  \emph{Pull Up Method} (para superclasse), \emph{Extract Class} (utilitária).
+\end{frame}
+
+\begin{frame}{Divergent Change vs.\ Shotgun Surgery}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \centering\textbf{Divergent Change}\\
+      \begin{tikzpicture}[
+        cause/.style={ellipse, draw, fill=UFSYellow!50, font=\scriptsize, minimum width=1.8cm},
+        target/.style={rectangle, draw, fill=UFSRed!25, font=\scriptsize, minimum width=1.8cm, minimum height=0.8cm, align=center}
+      ]
+        \node[cause] (c1) at (-1.8, 1.0)  {layout};
+        \node[cause] (c2) at ( 1.8, 1.0)  {cálculo};
+        \node[cause] (c3) at ( 0,  -1.0)  {banco};
+        \node[target] (T) at (0, 0) {\textbf{Relatório}};
+        \draw[->] (c1) -- (T); \draw[->] (c2) -- (T); \draw[->] (c3) -- (T);
+      \end{tikzpicture}\\
+      \footnotesize Mesma classe muda por razões diferentes (viola SRP).\\
+      \textbf{Refatoração:} \emph{Extract Class}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering\textbf{Shotgun Surgery}\\
+      \begin{tikzpicture}[
+        src/.style={circle, draw, fill=UFSRed!30, minimum size=0.9cm, font=\scriptsize, align=center},
+        tgt/.style={rectangle, draw, fill=UFSBlue!15, minimum width=1.0cm, minimum height=0.5cm, font=\tiny}
+      ]
+        \node[src] (M) at (-2.4, 0) {fmt};
+        \node[tgt] (a) at (-0.6, 1.0) {A};
+        \node[tgt] (b) at ( 0.6, 1.0) {B};
+        \node[tgt] (c) at ( 1.8, 1.0) {C};
+        \node[tgt] (d) at (-0.6,-1.0) {D};
+        \node[tgt] (e) at ( 0.6,-1.0) {E};
+        \node[tgt] (f) at ( 1.8,-1.0) {F};
+        \foreach \n in {a,b,c,d,e,f}{\draw[->, dashed, UFSRed] (M) -- (\n);}
+      \end{tikzpicture}\\
+      \footnotesize Uma mudança obriga mexer em muitas classes.\\
+      \textbf{Refatoração:} \emph{Move Method/Field}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Switch Statements / cadeias \texttt{if-elif}}
+\begin{lstlisting}
+def calcular_frete(pedido):
+    if pedido.tipo == "NORMAL":   return pedido.peso * 5.0
+    elif pedido.tipo == "EXPRESSO": return pedido.peso * 10.0
+    elif pedido.tipo == "SEDEX":  return pedido.peso * 15.0
+    else: raise ValueError(pedido.tipo)
+\end{lstlisting}
+  \footnotesize
+  \textbf{Por que cheira mal?} adicionar um tipo novo exige caçar
+  \emph{todos} os switches --- é \emph{Shotgun Surgery} esperando para
+  acontecer.\\
+  \textbf{Refatoração:} \emph{Replace Conditional with Polymorphism}
+  (uma classe por tipo de envio).
+\end{frame}
+
+\begin{frame}{Recapitulando a Parte I}
+  \begin{center}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Smell} & \textbf{Refatoração de combate} \\
+    \midrule
+    Long Method            & Extract Function \\
+    Large Class            & Extract Class \\
+    Long Parameter List    & Introduce Parameter Object \\
+    Duplicated Code        & Extract Function / Pull Up \\
+    Divergent Change       & Extract Class \\
+    Shotgun Surgery        & Move Method / Field \\
+    Switch Statements      & Replace Conditional w/ Polymorphism \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\part{Solução: Refatoração}
+% =====================================================================
+\section{O que é refatoração}
+
+\begin{frame}{Refatoração: definição}
+  \begin{block}{Definição (Fowler, 2018)}
+    Refatorar é \emph{reestruturar código existente alterando sua estrutura
+    interna sem mudar seu comportamento externo observável}.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    Como reorganizar uma cozinha enquanto se cozinha: você muda onde as
+    coisas ficam, mas o jantar continua sendo o mesmo --- e a cada passo
+    você verifica que ainda está cozinhando.
+  \end{exampleblock}
+\end{frame}
+
+\section{Catálogo de refatorações básicas}
+
+\begin{frame}{Quatro refatorações que cobrem 80\% dos casos}
+  \begin{center}
+  \begin{tikzpicture}[
+    box/.style={rectangle, draw=UFSBlue!60, fill=UFSBlue!10, rounded corners,
+      minimum width=5.2cm, minimum height=1.2cm, font=\small,
+      align=left, text width=5cm}
+  ]
+    \node[box] (a) at (-3.0, 1.2)
+      {\textbf{Extract Function}\\
+       \scriptsize trecho coeso $\to$ função com nome próprio};
+    \node[box] (b) at ( 3.0, 1.2)
+      {\textbf{Rename}\\
+       \scriptsize trocar nome obscuro por nome que revela intenção};
+    \node[box] (c) at (-3.0,-1.2)
+      {\textbf{Inline}\\
+       \scriptsize indireção desnecessária $\to$ código no lugar};
+    \node[box] (d) at ( 3.0,-1.2)
+      {\textbf{Introduce Parameter Object}\\
+       \scriptsize grupo de parâmetros recorrentes $\to$ objeto};
+  \end{tikzpicture}
+  \end{center}
+  \vfill
+  \begin{center}
+  \qrcode[height=1.8cm]{https://refactoring.guru}\quad
+  \raisebox{0.6cm}{\small Catálogo completo: \texttt{refactoring.guru}}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Extract Function --- antes}
+\begin{lstlisting}
+def imprimir_extrato(cliente, lancamentos):
+    print(f"Cliente: {cliente.nome}")
+    print("-" * 30)
+    total = 0
+    for l in lancamentos:
+        total += l.valor
+    print(f"Total: R$ {total:.2f}")
+\end{lstlisting}
+\small O cálculo do total está \emph{escondido} dentro de uma função de
+impressão. O nome da função mente sobre o que ela faz.
+\end{frame}
+
+\begin{frame}[fragile]{Extract Function --- depois}
+\begin{lstlisting}
+def calcular_total(lancamentos):
+    return sum(l.valor for l in lancamentos)
+
+def imprimir_extrato(cliente, lancamentos):
+    print(f"Cliente: {cliente.nome}")
+    print("-" * 30)
+    total = calcular_total(lancamentos)
+    print(f"Total: R$ {total:.2f}")
+\end{lstlisting}
+\small Cada função tem \emph{um} motivo para mudar.
+\texttt{calcular\_total} agora é testável isoladamente e reutilizável.
+\end{frame}
+
+\begin{frame}{Mecânica passo a passo de Extract Function}
+  \begin{enumerate}
+    \item Identifique um trecho coeso com responsabilidade própria.
+    \item Crie uma função nova com nome que \emph{revele a intenção}.
+    \item Copie o trecho para a nova função; declare parâmetros para
+              cada variável usada de fora.
+    \item Substitua o trecho original por uma chamada à nova função.
+    \item \textbf{Rode os testes.} Se passarem, \emph{commit}.
+  \end{enumerate}
+  \vspace{6pt}
+  {\small Passos pequenos $+$ testes a cada passo $=$ confiança.}
+\end{frame}
+
+\section{Quando refatorar}
+
+\begin{frame}{Três gatilhos práticos}
+  \begin{center}
+  \begin{tikzpicture}[
+    g/.style={rectangle, draw=green!50!black, fill=green!10,
+      rounded corners, minimum width=10cm, minimum height=0.9cm,
+      font=\small, align=left, text width=9.5cm}
+  ]
+    \node[g] (g1) at (0, 1.5)
+      {\textbf{Regra dos três:} duplicou pela terceira vez? Extraia.};
+    \node[g] (g2) at (0, 0.0)
+      {\textbf{Antes de adicionar feature:} prepare o terreno onde
+       a nova funcionalidade vai entrar (\emph{``make the change easy,
+       then make the easy change''} -- Kent Beck).};
+    \node[g] (g3) at (0,-1.5)
+      {\textbf{Ao corrigir um bug:} se entender o bug foi difícil,
+       refatore para que o próximo na mesma região seja óbvio.};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Quando \emph{não} refatorar}
+  \begin{itemize}
+    \item Código que está prestes a ser \emph{descartado}.
+    \item Sem \emph{rede de testes} cobrindo o trecho --- escreva testes primeiro.
+    \item Misturado com mudança de comportamento no mesmo \emph{commit}
+          (separe: ou refatora, ou muda comportamento, nunca os dois juntos).
+    \item Sob pressão extrema de prazo, sem combinar com o time.
+  \end{itemize}
+\end{frame}
+
+\section{Estudo de caso}
+
+\begin{frame}[fragile]{Ponto de partida (cheirando mal)}
+\begin{lstlisting}
+def calc(itens, t):
+    s = 0
+    for i in itens:
+        s = s + i[0] * i[1]
+    if t == "vip":
+        s = s * 0.9
+    elif t == "func":
+        s = s * 0.8
+    return s
+\end{lstlisting}
+\small Cheiros: nomes opacos (\texttt{s}, \texttt{i}, \texttt{t}),
+tupla anônima como ``item'', desconto misturado com soma,
+\texttt{if/elif} sobre \emph{strings mágicas}.
+\end{frame}
+
+\begin{frame}[fragile]{Depois das refatorações}
+\begin{lstlisting}
+DESCONTO = {"vip": 0.10, "func": 0.20}
+
+def subtotal(itens):
+    return sum(item.preco * item.qtd for item in itens)
+
+def calcular_total(itens, perfil="comum"):
+    return subtotal(itens) * (1 - DESCONTO.get(perfil, 0))
+\end{lstlisting}
+\small Aplicamos: \emph{Rename}, \emph{Extract Function}
+(\texttt{subtotal}), \emph{Replace Conditional with Lookup}
+(dicionário \texttt{DESCONTO}) e \emph{Introduce Parameter Object}
+implícito (\texttt{item.preco} em vez de \texttt{i[0]}).
+\end{frame}
+
+% =====================================================================
+\part{Disciplina: Ciclo, Testes e PEP 8}
+% =====================================================================
+\section{Ciclo Red--Green--Refactor}
+
+\begin{frame}{Por que precisamos de um \emph{ciclo}?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[0.4em]
+      Refatorar ``no instinto'' quebra código.
+      Mudanças grandes misturam alteração de
+      \emph{estrutura} com alteração de
+      \emph{comportamento} --- e bugs se escondem.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[0.4em]
+      Um \textbf{ciclo curto e disciplinado} em que
+      cada passo é pequeno, verificável por testes e
+      reversível. \emph{Red--Green--Refactor.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O ciclo Red--Green--Refactor}
+  \begin{center}
+  \begin{tikzpicture}[
+    state/.style={circle, draw, minimum size=1.8cm, font=\scriptsize\bfseries, align=center},
+    arrow/.style={->, thick, >=Stealth}
+  ]
+    \node[state, fill=red!20]    (R) at (0,0)    {RED\\\tiny teste falha};
+    \node[state, fill=green!25]  (G) at (3.6,0)  {GREEN\\\tiny teste passa};
+    \node[state, fill=blue!15]   (F) at (1.8,-2.4) {REFACTOR\\\tiny limpe};
+
+    \draw[arrow] (R) to[bend left=20] node[above, font=\tiny]{escreva o mínimo} (G);
+    \draw[arrow] (G) to[bend left=20] node[right, font=\tiny]{melhore} (F);
+    \draw[arrow] (F) to[bend left=20] node[left,  font=\tiny]{próximo teste} (R);
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}\footnotesize
+    \item \textbf{Red:} teste que falha define o que o código deve fazer.
+    \item \textbf{Green:} faça passar do jeito mais simples.
+    \item \textbf{Refactor:} com a rede verde, melhore o design.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Os dois chapéus de Kent Beck}
+  \begin{center}
+  \begin{tikzpicture}[
+    hat/.style={rectangle, rounded corners, draw, minimum width=5cm,
+                minimum height=2.2cm, align=center, font=\small}
+  ]
+    \node[hat, fill=UFSYellow!40] (A) at (-3.5, 0)
+      {\textbf{Chapéu 1: Adicionar Função}\\[0.3em]
+       Mudar \emph{comportamento}.\\
+       \emph{Não} mexer em estrutura.\\
+       Testes novos podem falhar.};
+    \node[hat, fill=UFSBlue!20] (B) at (3.5, 0)
+      {\textbf{Chapéu 2: Refatorar}\\[0.3em]
+       Mudar \emph{estrutura}.\\
+       \emph{Não} mexer em comportamento.\\
+       Testes \textbf{continuam} passando.};
+    \draw[<->, thick, dashed] (A) -- (B)
+      node[midway, above, font=\scriptsize\itshape]{nunca os dois ao mesmo tempo};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Exemplo: um ciclo completo}
+  \textbf{Red} --- teste primeiro:
+\begin{lstlisting}
+def test_total_com_desconto():
+    assert total([10, 20, 30], desconto=0.1) == 54.0
+\end{lstlisting}
+  \textbf{Green} --- o mínimo que faz passar:
+\begin{lstlisting}
+def total(itens, desconto):
+    return sum(itens) * (1 - desconto)
+\end{lstlisting}
+  \textbf{Refactor} --- nomes e responsabilidades:
+\begin{lstlisting}
+def _aplicar_desconto(valor, taxa):
+    return valor * (1 - taxa)
+
+def total(itens, desconto=0.0):
+    return _aplicar_desconto(sum(itens), desconto)
+\end{lstlisting}
+\end{frame}
+
+\section{Testes com \texttt{pytest}}
+
+\begin{frame}{\texttt{pytest}: definição}
+  \begin{block}{Definição}
+    \texttt{pytest} é um framework de testes que descobre
+    automaticamente funções \texttt{test\_*} em arquivos \texttt{test\_*.py},
+    executa-as, e relata falhas com introspecção detalhada da expressão \texttt{assert}.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    Você escreve Python comum (\texttt{def} + \texttt{assert});
+    o framework cuida da descoberta, do relatório e da
+    rede de segurança que sustenta o ciclo Red--Green--Refactor.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Anatomia de um teste}
+\begin{lstlisting}
+# arquivo: test_carrinho.py
+from carrinho import total
+
+def test_total_lista_vazia():
+    assert total([]) == 0
+
+def test_total_soma_itens():
+    assert total([1, 2, 3]) == 6
+\end{lstlisting}
+Execução:
+\begin{lstlisting}[language=bash, keywordstyle=]
+$ pytest -v
+test_carrinho.py::test_total_lista_vazia   PASSED
+test_carrinho.py::test_total_soma_itens    PASSED
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Recursos essenciais do \texttt{pytest}}
+  \begin{itemize}
+    \item \textbf{Fixtures} (\texttt{@pytest.fixture}) --- preparam dados/estado reutilizáveis.
+    \item \textbf{Parametrização} (\texttt{@pytest.mark.parametrize}) --- um teste, vários casos.
+    \item \textbf{Exceções esperadas} (\texttt{with pytest.raises(...)}).
+    \item \textbf{Descoberta automática} --- arquivos \texttt{test\_*.py}, funções \texttt{test\_*}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Parametrização e exceções}
+\begin{lstlisting}
+import pytest
+
+@pytest.mark.parametrize("entrada,esperado", [
+    ([],       0),
+    ([1, 2],   3),
+    ([10]*5, 50),
+])
+def test_total(entrada, esperado):
+    assert total(entrada) == esperado
+
+def test_sacar_mais_que_saldo_falha():
+    c = Conta(saldo=100)
+    with pytest.raises(SaldoInsuficienteError):
+        c.sacar(150)
+\end{lstlisting}
+\small Um teste parametrizado roda várias vezes (uma falha não impede as outras);
+\texttt{pytest.raises} \emph{documenta} o contrato de exceções.
+\end{frame}
+
+\section{Estilo: PEP 8}
+
+\begin{frame}{PEP 8: definição}
+  \begin{block}{Definição}
+    \textbf{PEP 8} (\emph{Python Enhancement Proposal 8}) é o documento
+    que padroniza a aparência do código Python: indentação,
+    nomenclatura, comprimento de linha, espaçamento em torno de
+    operadores, organização de \texttt{import}s, entre outros.
+  \end{block}
+  \begin{exampleblock}{Intuição --- ``a hobgoblin of little minds''}
+    Consistência importa, mas não é cega: se a PEP 8 atrapalha
+    a legibilidade num caso específico, ignore-a \emph{nesse} caso.
+    Consistência local $>$ consistência global $>$ PEP 8 literal.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Regras essenciais da PEP 8}
+  \begin{center}
+  \begin{tikzpicture}[
+    rule/.style={rectangle, draw, rounded corners, fill=UFSBlue!8,
+                 minimum width=11cm, minimum height=0.7cm,
+                 font=\small, align=left, inner sep=6pt, text width=10.6cm}
+  ]
+    \node[rule] (r1) at (0, 2.4) {\textbf{Indentação:} 4 espaços por nível (nunca tab).};
+    \node[rule] (r2) at (0, 1.6) {\textbf{Linha:} máx.\ 79 caracteres de código, 72 de comentário.};
+    \node[rule] (r3) at (0, 0.8) {\textbf{Nomes:} \texttt{snake\_case} (funções), \texttt{PascalCase} (classes), \texttt{MAIUSCULAS} (constantes).};
+    \node[rule] (r4) at (0, 0.0) {\textbf{Imports:} um por linha, no topo, agrupados (stdlib, terceiros, locais).};
+    \node[rule] (r5) at (0,-0.8) {\textbf{Espaçamento:} 1 espaço em torno de \texttt{=}, exceto em argumentos default.};
+    \node[rule] (r6) at (0,-1.6) {\textbf{Comparações:} \texttt{is None} (não \texttt{== None}); \texttt{if x:} para coleções vazias.};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Antes e depois da PEP 8}
+\textbf{Antes} --- viola convenções:
+\begin{lstlisting}
+import os,sys
+def CalcularMedia( numeros ):
+  Total=0
+  for N in numeros:Total=Total+N
+  return Total/len( numeros )
+\end{lstlisting}
+\textbf{Depois} --- de acordo com a PEP 8:
+\begin{lstlisting}
+import os
+import sys
+
+
+def calcular_media(numeros):
+    return sum(numeros) / len(numeros)
+\end{lstlisting}
+\footnotesize\emph{Mesmo comportamento, leitura imediata.} É uma refatoração:
+estrutura mudou, comportamento não.
+\end{frame}
+
+\begin{frame}[fragile]{Ferramentas que aplicam PEP 8 automaticamente}
+  \begin{itemize}
+    \item \texttt{ruff} --- linter rapidíssimo, agrupa \texttt{flake8} e mais.
+    \item \texttt{black} --- formatador opinativo, padroniza tudo.
+    \item \texttt{isort} --- ordena \texttt{import}s.
+  \end{itemize}
+  \vspace{0.5em}
+\begin{lstlisting}[language=bash, keywordstyle=]
+$ ruff check src/
+$ black src/
+$ pytest
+\end{lstlisting}
+  \footnotesize\emph{Pipeline típico:} formatar $\to$ lintar $\to$ testar.
+\end{frame}
+
+\section{Integrando os três}
+
+\begin{frame}{O fluxo de trabalho profissional}
+  \begin{center}
+  \begin{tikzpicture}[
+    node distance=1.0cm and 1.2cm,
+    box/.style={rectangle, rounded corners, draw, minimum width=3cm,
+                minimum height=1cm, align=center, font=\small},
+    arrow/.style={->, thick, >=Stealth}
+  ]
+    \node[box, fill=UFSRed!25]    (red)   {Escreva teste\\(\texttt{pytest})};
+    \node[box, fill=green!30,  right=of red]   (green) {Implemente\\(funciona)};
+    \node[box, fill=UFSBlue!20, right=of green] (refac) {Refatore\\estrutura};
+    \node[box, fill=UFSYellow!40, below=of green] (style) {Formate\\(\texttt{ruff}/\texttt{black})};
+
+    \draw[arrow] (red)   -- (green);
+    \draw[arrow] (green) -- (refac);
+    \draw[arrow] (refac) -- (style);
+    \draw[arrow] (style.west) to[bend left=25] (red.south);
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}\footnotesize
+    \item Cheiros (Parte I) disparam refatorações nomeadas (Parte II).
+    \item Testes garantem que a refatoração não muda comportamento.
+    \item PEP 8 garante que o código refatorado é legível pela equipe.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Encerramento: próximos passos}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Pratique}
+        \begin{itemize}\small
+          \item Identifique 3 cheiros em um projeto seu.
+          \item Cubra-os com testes \texttt{pytest} antes de mexer.
+          \item Aplique a refatoração de combate em passos pequenos.
+          \item Rode \texttt{ruff} + \texttt{black} ao final.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{exampleblock}{Leituras recomendadas}
+        \begin{itemize}\small
+          \item Fowler (2018), \emph{Refactoring}, caps.\ 1 e 3.
+          \item Beck (2003), \emph{TDD by Example}, parte I.
+          \item Martin (2008), \emph{Clean Code}.
+          \item PEP 8 --- \texttt{peps.python.org/pep-0008}.
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \vspace{0.5em}
+  \begin{center}
+    \emph{``Make it work, make it right, make it fast.''} --- Kent Beck
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}

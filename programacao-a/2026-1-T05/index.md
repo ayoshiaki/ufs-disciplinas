@@ -106,4 +106,13 @@ title: "COMP0496 — Programação A — Turma 5 · 2026/1"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/semana-11' | relative_url }}">
+    <div class="week-num">11</div>
+    <div class="week-body">
+      <div class="week-title">Refatoração em Python</div>
+      <div class="week-desc">Cheiros de código, refatorações e ciclo Red–Green–Refactor.</div>
+      <div class="week-badges"><span class="week-badge nb">1 notebook</span><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
 </div>
