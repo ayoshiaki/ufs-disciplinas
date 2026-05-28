@@ -113,6 +113,12 @@ jobs:
 
       - name: Build com Jekyll
         uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./
+          destination: ./_site
+
+      - name: Upload artefato do Pages
+        uses: actions/upload-pages-artifact@v3
 
       - name: Deploy para GitHub Pages
         id: deployment
