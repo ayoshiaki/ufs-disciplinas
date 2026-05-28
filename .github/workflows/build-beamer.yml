@@ -38,7 +38,10 @@ jobs:
           export TEXINPUTS=".:${THEME_DIR}/:"
           export BSTINPUTS="${TEXINPUTS}"
 
-          find . -name "slides.tex" | while read texfile; do
+          find . -name "slides.tex" \
+            -not -path "./theme/*" \
+            -not -path "./TEMPLATE-aula/*" \
+            | while read texfile; do
             dir=$(dirname "$texfile")
             echo "──────────────────────────────────────"
             echo "Compilando: $texfile"

@@ -21,6 +21,7 @@ export TEXINPUTS := .:$(THEME)/:
 # Encontra todos os slides.tex no repositório
 TEX_FILES := $(shell find . -name "slides.tex" \
                -not -path "./theme/*" \
+               -not -path "./TEMPLATE-aula/*" \
                -not -path "./.git/*")
 
 PDF_FILES := $(TEX_FILES:.tex=.pdf)
