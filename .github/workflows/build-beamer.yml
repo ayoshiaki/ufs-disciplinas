@@ -79,12 +79,14 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Usa GITHUB_TOKEN (com contents:write) em vez do GH_PAT, que só tem leitura
+          # actions/checkout injeta um extraheader com o GH_PAT (só-leitura).
+          # Remove-o e configura o GITHUB_TOKEN (contents:write) para o push.
+          git config --local --unset-all "http.https://github.com/.extraheader" || true
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git add "**/*.pdf"
           git diff --cached --quiet || \
             git commit -m "ci: atualiza slides.pdf compilados [skip ci]"
-          git push
+          git push origin HEAD:${GITHUB_REF_NAME}
 
   # ──────────────────────────────────────────────────────────────
   # 2. Publica o site Jekyll no GitHub Pages
