@@ -51,8 +51,8 @@ aula:
 	export BIBINPUTS=".:$(THEME)/:" && \
 	pdflatex -interaction=nonstopmode -halt-on-error slides.tex && \
 	if grep -q '\\bibdata' slides.aux 2>/dev/null; then \
-	  bibtex slides && \
-	  pdflatex -interaction=nonstopmode -halt-on-error slides.tex; \
+	  bibtex slides || echo "⚠ bibtex falhou — seguindo sem bibliografia"; \
+	  pdflatex -interaction=nonstopmode slides.tex; \
 	fi && \
 	pdflatex -interaction=nonstopmode slides.tex
 	@echo "✔ $@ gerado com sucesso."
