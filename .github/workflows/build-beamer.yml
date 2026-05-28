@@ -45,11 +45,16 @@ jobs:
             echo "──────────────────────────────────────"
             (
               cd "$dir"
-              # Adiciona o caminho do tema relativo à raiz do repo
-              TEXINPUTS=".:${GITHUB_WORKSPACE}/theme/:" \
+              export TEXINPUTS=".:${GITHUB_WORKSPACE}/theme/:"
+              export BIBINPUTS=".:${GITHUB_WORKSPACE}/theme/:"
+              export BSTINPUTS=".:${GITHUB_WORKSPACE}/theme/:"
               pdflatex -interaction=nonstopmode -halt-on-error slides.tex
-              # Segunda passagem para referências cruzadas e ToC
-              TEXINPUTS=".:${GITHUB_WORKSPACE}/theme/:" \
+              # Roda bibtex se o slides.tex usa \bibliography
+              if grep -q '\\bibdata' slides.aux 2>/dev/null; then
+                bibtex slides
+                pdflatex -interaction=nonstopmode -halt-on-error slides.tex
+              fi
+              # Passagem final para referências cruzadas e ToC
               pdflatex -interaction=nonstopmode slides.tex
             )
           done
@@ -57,10 +62,12 @@ jobs:
       # Remove arquivos auxiliares LaTeX antes do commit
       - name: Limpar arquivos auxiliares
         run: |
-          find . -name "*.aux" -o -name "*.log" -o -name "*.nav" \
+          find . \( -name "*.aux" -o -name "*.log" -o -name "*.nav" \
                  -o -name "*.out" -o -name "*.snm" -o -name "*.toc" \
                  -o -name "*.vrb" -o -name "*.fls" -o -name "*.fdb_latexmk" \
-                 -o -name "*.synctex.gz" | xargs rm -f
+                 -o -name "*.bbl" -o -name "*.blg" \
+                 -o -name "*.synctex.gz" \) \
+                 -not -path "./.git/*" -not -path "./theme/*" -delete
 
       # Faz commit dos PDFs gerados de volta ao branch main
       - name: Commit dos PDFs compilados
