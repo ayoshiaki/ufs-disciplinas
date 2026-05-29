@@ -115,4 +115,13 @@ title: "COMP0496 — Programação A — Turma 5 · 2026/1"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/simulado_prova2.pdf' | relative_url }}" style="background: #fef3c7; border-color: #d97706;">
+    <div class="week-num" style="color: #b45309;">📝</div>
+    <div class="week-body">
+      <div class="week-title" style="color: #78350f;">SIMULADO — Prova 2</div>
+      <div class="week-desc">Simulado para preparação da Prova 2.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
 </div>
