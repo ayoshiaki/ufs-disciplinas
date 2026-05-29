@@ -88,4 +88,13 @@ title: "COMP0497 — Algoritmos e Estruturas de Dados 1 — Turma 4 · 2026/1"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos/2026-1-T04/aula-09-arvores-avl' | relative_url }}">
+    <div class="week-num">09</div>
+    <div class="week-body">
+      <div class="week-title">Árvores AVL</div>
+      <div class="week-desc">Balanceamento, rotações e análise de árvores AVL.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
 </div>

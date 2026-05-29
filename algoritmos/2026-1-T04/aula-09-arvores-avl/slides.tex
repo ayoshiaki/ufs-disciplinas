@@ -1,0 +1,845 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb,graphicx,booktabs,xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows,arrows.meta,positioning,matrix,fit,
+  backgrounds,decorations.pathreplacing,shadows,patterns,calc}
+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\scriptsize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=8pt,
+  xleftmargin=16pt, framexleftmargin=16pt,
+  breaklines=true, tabsize=2,
+  showstringspaces=false, frame=single,
+  rulecolor=\color{linecolor}, framesep=3pt, upquote=true,
+  columns=fullflexible, language=Python,
+}
+\lstset{style=ufsStyle}
+
+% Estilos TikZ reutilizáveis
+\tikzset{
+  avlnode/.style={circle, draw=UFSBlue, fill=UFSBlue!15, thick,
+    minimum size=7mm, font=\scriptsize\bfseries, inner sep=1pt},
+  badnode/.style={circle, draw=UFSRed, fill=UFSRed!20, thick,
+    minimum size=7mm, font=\scriptsize\bfseries, inner sep=1pt},
+  goodnode/.style={circle, draw=UFSYellow!80!black, fill=UFSYellow!40, thick,
+    minimum size=7mm, font=\scriptsize\bfseries, inner sep=1pt},
+  edge/.style={-, thick, UFSBlue!70},
+  subtree/.style={isosceles triangle, isosceles triangle apex angle=60,
+    draw=UFSBlue!70, fill=UFSBlue!8, shape border rotate=90,
+    minimum height=10mm, minimum width=10mm,
+    font=\scriptsize, inner sep=1pt, anchor=apex},
+}
+
+\title{Árvores AVL}
+\subtitle{Equilíbrio que garante \boldmath$O(\log n)$}
+\author{Prof.\ Andre Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+% ============================================================
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ============================================================
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=6cm, minimum height=0.7cm, font=\small},
+    arr/.style={-Latex, thick, UFSBlue}
+  ]
+    \node[item] (t1) at (0,2.4)  {Histórico: por que Adelson-Velsky e Landis (1962)};
+    \node[item] (t2) at (0,1.2)  {Motivação: o problema da BST desbalanceada};
+    \node[item] (t3) at (0,0)    {Definição e fator de balanceamento};
+    \node[item] (t4) at (0,-1.2) {Rotações simples e duplas};
+    \node[item] (t5) at (0,-2.4) {Aplicações reais: bancos de dados, kernels, jogos};
+    \draw[arr] (t1)--(t2); \draw[arr] (t2)--(t3);
+    \draw[arr] (t3)--(t4); \draw[arr] (t4)--(t5);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ============================================================
+\section{Histórico}
+
+\begin{frame}{1962: o primeiro algoritmo de árvore auto-balanceada}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{block}{Quem inventou}
+        Em \textbf{1962}, os matemáticos soviéticos
+        \textbf{Georgy Adelson-Velsky} e \textbf{Evgenii Landis}
+        publicaram, no \emph{Doklady Akademii Nauk SSSR},
+        a estrutura que ficou conhecida por suas iniciais:
+        \textbf{AVL}.
+      \end{block}
+      \begin{exampleblock}{Por que importou}
+        Foi a \emph{primeira} árvore de busca binária auto-balanceada,
+        garantindo busca, inserção e remoção
+        em tempo $O(\log n)$ no \emph{pior caso}.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.85]
+        \node[avlnode] (r) at (0,2) {30};
+        \node[avlnode] (a) at (-1.2,1) {20};
+        \node[avlnode] (b) at (1.2,1) {40};
+        \node[avlnode] (c) at (-1.8,0) {10};
+        \node[avlnode] (d) at (-0.6,0) {25};
+        \node[avlnode] (e) at (1.8,0) {50};
+        \draw[edge] (r)--(a); \draw[edge] (r)--(b);
+        \draw[edge] (a)--(c); \draw[edge] (a)--(d);
+        \draw[edge] (b)--(e);
+      \end{tikzpicture}\\[2pt]
+      {\scriptsize Uma AVL equilibrada}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Contexto histórico: o problema dos anos 60}
+  \begin{itemize}
+    \item Memória: \textbf{KB}, não GB. Tempo de CPU caríssimo.
+    \item Pesquisa em listas ordenadas $\Rightarrow$ $O(n)$ inaceitável.
+    \item BSTs já existiam, mas \emph{degradavam} para listas ligadas.
+    \item Adelson-Velsky e Landis perguntaram:
+      \emph{``Podemos manter o equilíbrio com custo constante por inserção?''}
+  \end{itemize}
+  \vspace{4pt}
+  \begin{alertblock}{Curiosidade}
+    A AVL (1962) veio antes da B-Tree (Bayer e McCreight, 1970--72)
+    e das árvores Rubro-Negras (cujo precursor, a B-tree binária
+    simétrica de Bayer, é de 1972; a forma rubro-negra foi
+    formalizada por Guibas e Sedgewick em 1978).
+  \end{alertblock}
+\end{frame}
+
+% ============================================================
+\section{Motivação}
+
+\begin{frame}{Por que precisamos de árvores balanceadas?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Caso bom — BST equilibrada}\\
+      Altura $h \approx \log_2 n$\\
+      Busca: $O(\log n)$
+      \vspace{4pt}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.7]
+        \node[goodnode] (r) at (0,2) {4};
+        \node[goodnode] (a) at (-1.2,1) {2};
+        \node[goodnode] (b) at (1.2,1) {6};
+        \node[goodnode] (c) at (-1.8,0) {1};
+        \node[goodnode] (d) at (-0.6,0) {3};
+        \node[goodnode] (e) at (0.6,0) {5};
+        \node[goodnode] (f) at (1.8,0) {7};
+        \draw[edge] (r)--(a); \draw[edge] (r)--(b);
+        \draw[edge] (a)--(c); \draw[edge] (a)--(d);
+        \draw[edge] (b)--(e); \draw[edge] (b)--(f);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Caso ruim — inserção ordenada}\\
+      Altura $h = n$\\
+      Busca: $O(n)$ \textcolor{UFSRed}{(degenerada!)}
+      \vspace{4pt}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.7]
+        \node[badnode] (a) at (0,2) {1};
+        \node[badnode] (b) at (0.6,1.2) {2};
+        \node[badnode] (c) at (1.2,0.4) {3};
+        \node[badnode] (d) at (1.8,-0.4) {4};
+        \node[badnode] (e) at (2.4,-1.2) {5};
+        \draw[edge] (a)--(b); \draw[edge] (b)--(c);
+        \draw[edge] (c)--(d); \draw[edge] (d)--(e);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Quanto custa a diferença? Um experimento mental}
+  \begin{block}{Buscar 1 elemento em $n = 1.000.000$ de chaves}
+  \centering
+  \begin{tabular}{lrr}
+    \toprule
+    Estrutura & Comparações & Tempo (1ns/op) \\
+    \midrule
+    Lista ligada           & $1.000.000$ & $1{,}0$ ms \\
+    BST degenerada         & $1.000.000$ & $1{,}0$ ms \\
+    \textbf{AVL equilibrada} & $\approx 20$ & $0{,}00002$ ms \\
+    \bottomrule
+  \end{tabular}
+  \end{block}
+  \begin{exampleblock}{Ganho}
+    \textbf{50.000 vezes} mais rápido — e a diferença \emph{cresce}
+    com o tamanho dos dados.
+  \end{exampleblock}
+\end{frame}
+
+% ============================================================
+\section{Definição}
+
+\begin{frame}{Árvore AVL: definição}
+  \begin{block}{Definição (Adelson-Velsky e Landis, 1962)}
+    \emph{Convenção de altura:} a altura de um nó é o \textbf{número de nós}
+    no caminho mais longo dele até uma folha; uma folha tem altura $1$ e a
+    sub-árvore vazia tem altura $0$.
+    {\scriptsize\emph{(Atenção: aqui contamos \textbf{nós}, não arestas ---
+    difere da aula de BST, onde uma folha tinha altura $0$.)}}\\[4pt]
+    Uma \textbf{árvore AVL} é uma BST em que, para \emph{todo} nó $v$,
+    \[
+      \mathrm{bf}(v) \;=\; h(\text{sub-árvore esquerda de }v)
+                       \;-\; h(\text{sub-árvore direita de }v)
+      \;\in\; \{-1,\,0,\,+1\}.
+    \]
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    Em \emph{cada} nó, os dois lados podem diferir em \textbf{no máximo 1}
+    nível de altura. Isso impede que a árvore vire ``galho torto''.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Fator de balanceamento na prática}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.95]
+        \node[avlnode, label=right:{\scriptsize bf=+1}]  (r) at (0,2.2) {30};
+        \node[avlnode, label=left:{\scriptsize bf=+1}] (a) at (-1.6,1.1) {20};
+        \node[avlnode, label=right:{\scriptsize bf=0}] (b) at (1.6,1.1) {40};
+        \node[avlnode, label=below:{\scriptsize bf=0}] (c) at (-2.3,0) {10};
+        \draw[edge] (r)--(a); \draw[edge] (r)--(b);
+        \draw[edge] (a)--(c);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \small
+      \textbf{Calculando bf}\\[2pt]
+      $\mathrm{bf}(20) = h(\text{esq}) - h(\text{dir})$\\
+      \hphantom{$\mathrm{bf}(20)$}$= 1 - 0 = +1$ \checkmark\\[2pt]
+      $\mathrm{bf}(30) = 2 - 1 = +1$ \checkmark\\[6pt]
+      Todos $\in\{-1,0,+1\}$:\\
+      \textbf{é uma AVL válida.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Quando o balanceamento é violado?}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.9]
+    \node[badnode, label=right:{\scriptsize bf=+2 \textcolor{UFSRed}{X}}] (r) at (0,2.4) {30};
+    \node[avlnode, label=left:{\scriptsize bf=+1}] (a) at (-1.5,1.2) {20};
+    \node[avlnode] (c) at (-2.5,0) {10};
+  \draw[edge] (r)--(a); \draw[edge] (a)--(c);
+  \end{tikzpicture}
+  \end{center}
+  \begin{alertblock}{Violação}
+    Após inserir o $10$, o nó $30$ tem altura esquerda $=2$ e direita $=0$:
+    $\mathrm{bf}(30)=+2$. \textbf{Precisamos rebalancear.}
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Limite de altura: por que AVL garante $O(\log n)$}
+  \begin{block}{Teorema}
+    A altura $h$ de uma AVL com $n$ nós satisfaz
+    \[
+      h \;\le\; 1{,}44 \cdot \log_2(n+2) + 0{,}672.
+    \]
+  \end{block}
+  \begin{exampleblock}{Consequência prática}
+    Para $n = 10^9$ chaves, $h < 45$.
+    \emph{Toda} busca, inserção ou remoção visita no máximo $45$ nós.
+  \end{exampleblock}
+\end{frame}
+
+% ============================================================
+\section{Rotações}
+
+\begin{frame}{A ferramenta-chave: rotação}
+  \begin{block}{Ideia}
+    Quando a inserção viola o balanceamento, aplicamos uma
+    \textbf{rotação} local: \emph{dois nós} trocam de posição
+    (e uma sub-árvore é reatribuída), preservando a ordem da BST
+    e restaurando $|\mathrm{bf}| \le 1$.
+  \end{block}
+  Há \textbf{quatro casos}, classificados pelo \emph{caminho}
+  do nó inserido a partir do desequilíbrio:
+  \begin{itemize}
+    \item \textbf{Esq-Esq} $\Rightarrow$ rotação simples à direita
+    \item \textbf{Dir-Dir} $\Rightarrow$ rotação simples à esquerda
+    \item \textbf{Esq-Dir} $\Rightarrow$ rotação dupla esq-dir
+    \item \textbf{Dir-Esq} $\Rightarrow$ rotação dupla dir-esq
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Rotação simples à direita (caso Esq-Esq)}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \centering \textbf{Antes (desbalanceada)}\\
+      \begin{tikzpicture}[scale=0.9]
+        \node[badnode] (z) at (0,3) {z};
+        \node[avlnode] (y) at (-1.4,2) {y};
+        \node[avlnode] (x) at (-2.6,1) {x};
+        \node[subtree] (t1) at (-3.3,0.4) {$T_1$};
+        \node[subtree] (t2) at (-1.9,0.4) {$T_2$};
+        \node[subtree] (t3) at (-0.5,1.4) {$T_3$};
+        \node[subtree] (t4) at (1.0,2.4)  {$T_4$};
+        \draw[edge] (z)--(y); \draw[edge] (y)--(x);
+        \draw[edge] (x)--(t1); \draw[edge] (x)--(t2);
+        \draw[edge] (y)--(t3); \draw[edge] (z)--(t4);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering \textbf{Depois}\\
+      \begin{tikzpicture}[scale=0.9]
+        \node[avlnode] (y) at (0,3) {y};
+        \node[avlnode] (x) at (-1.4,2) {x};
+        \node[avlnode] (z) at (1.4,2)  {z};
+        \node[subtree] (t1) at (-2.1,1.4) {$T_1$};
+        \node[subtree] (t2) at (-0.7,1.4) {$T_2$};
+        \node[subtree] (t3) at (0.7,1.4)  {$T_3$};
+        \node[subtree] (t4) at (2.1,1.4)  {$T_4$};
+        \draw[edge] (y)--(x); \draw[edge] (y)--(z);
+        \draw[edge] (x)--(t1); \draw[edge] (x)--(t2);
+        \draw[edge] (z)--(t3); \draw[edge] (z)--(t4);
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \vspace{4pt}
+  \begin{exampleblock}{Custo}
+    $O(1)$: apenas \textbf{três ponteiros} são reatribuídos.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Rotação dupla (caso Esq-Dir)}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.62,
+    st/.style={subtree, minimum height=5mm, minimum width=5mm}]
+
+    % --- 1. antes ---
+    \node[badnode] (z1) at (-7,4)   {z};
+    \node[avlnode] (y1) at (-8,3)   {y};
+    \node[avlnode] (x1) at (-7,2)   {x};
+    \node[st] (t1a) at (-8.7,2.3) {\tiny $T_1$};
+    \node[st] (t2a) at (-7.7,1.3) {\tiny $T_2$};
+    \node[st] (t3a) at (-6.3,1.3) {\tiny $T_3$};
+    \node[st] (t4a) at (-5.7,3.3) {\tiny $T_4$};
+    \draw[edge] (z1)--(y1); \draw[edge] (y1)--(x1);
+    \draw[edge] (y1)--(t1a); \draw[edge] (x1)--(t2a);
+    \draw[edge] (x1)--(t3a); \draw[edge] (z1)--(t4a);
+    \node at (-7,-0.3) {\scriptsize 1. desbalanceio Esq-Dir};
+
+    % --- 2. meio: rot. esq. em y ---
+    \node[badnode] (z2) at (0,4)   {z};
+    \node[avlnode] (x2) at (-1,3)  {x};
+    \node[avlnode] (y2) at (-2,2)  {y};
+    \node[st] (t1b) at (-2.7,1.3) {\tiny $T_1$};
+    \node[st] (t2b) at (-1.3,1.3) {\tiny $T_2$};
+    \node[st] (t3b) at (-0.3,2.3) {\tiny $T_3$};
+    \node[st] (t4b) at (1.3,3.3)  {\tiny $T_4$};
+    \draw[edge] (z2)--(x2); \draw[edge] (x2)--(y2);
+    \draw[edge] (y2)--(t1b); \draw[edge] (y2)--(t2b);
+    \draw[edge] (x2)--(t3b); \draw[edge] (z2)--(t4b);
+    \node at (0,-0.3) {\scriptsize 2. rotação à esq em $y$};
+
+    % --- 3. depois: rot. dir. em z ---
+    \node[avlnode] (xf) at (7,4)   {x};
+    \node[avlnode] (yf) at (6,3)   {y};
+    \node[avlnode] (zf) at (8,3)   {z};
+    \node[st] (t1c) at (5.3,2.3) {\tiny $T_1$};
+    \node[st] (t2c) at (6.7,2.3) {\tiny $T_2$};
+    \node[st] (t3c) at (7.3,2.3) {\tiny $T_3$};
+    \node[st] (t4c) at (8.7,2.3) {\tiny $T_4$};
+    \draw[edge] (xf)--(yf); \draw[edge] (xf)--(zf);
+    \draw[edge] (yf)--(t1c); \draw[edge] (yf)--(t2c);
+    \draw[edge] (zf)--(t3c); \draw[edge] (zf)--(t4c);
+    \node at (7,-0.3) {\scriptsize 3. rotação à dir em $z$};
+
+    \draw[-Latex, thick, UFSBlue] (-4.3,3)--(-3.0,3);
+    \draw[-Latex, thick, UFSBlue] (2.3,3)--(3.6,3);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Receita (nesta ordem)}
+    \textbf{Esq-Dir:}\quad
+    1)~rotação à \textbf{esquerda} no filho esquerdo~$y$;\quad
+    2)~rotação à \textbf{direita} no nó desbalanceado~$z$.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Exemplo: inserindo 1, 2, 3 em sequência}
+  \begin{columns}[T]
+    \begin{column}{0.32\textwidth}
+      \centering \textbf{Insere 1, 2}\\
+      \begin{tikzpicture}[scale=0.8]
+        \node[avlnode] (a) at (0,1.5) {1};
+        \node[avlnode] (b) at (0.8,0.7) {2};
+        \draw[edge] (a)--(b);
+      \end{tikzpicture}\\
+      \scriptsize bf válido
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \centering \textbf{Insere 3 (viola)}\\
+      \begin{tikzpicture}[scale=0.8]
+        \node[badnode] (a) at (0,1.5) {1};
+        \node[avlnode] (b) at (0.8,0.7) {2};
+        \node[avlnode] (c) at (1.6,-0.1) {3};
+        \draw[edge] (a)--(b); \draw[edge] (b)--(c);
+      \end{tikzpicture}\\
+      \scriptsize bf(1)=$-2$
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \centering \textbf{Rot. esquerda}\\
+      \begin{tikzpicture}[scale=0.8]
+        \node[goodnode] (b) at (0,1.5) {2};
+        \node[avlnode] (a) at (-0.8,0.7) {1};
+        \node[avlnode] (c) at (0.8,0.7) {3};
+        \draw[edge] (b)--(a); \draw[edge] (b)--(c);
+      \end{tikzpicture}\\
+      \scriptsize equilibrada \checkmark
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Recapitulando: rotações}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Rotação é uma operação \emph{local} de custo $O(1)$.
+      \item Quatro casos $\Rightarrow$ duas rotações simples e duas duplas.
+      \item A ordem da BST é \textbf{sempre} preservada.
+      \item No máximo \emph{uma} rotação após inserção;
+            até $O(\log n)$ após remoção.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ============================================================
+\section{Inserção}
+
+\begin{frame}{Inserção AVL: visão geral}
+  \begin{block}{Algoritmo em duas fases}
+    \begin{enumerate}
+      \item \textbf{Fase BST:} inserir a chave como em uma BST comum,
+            recursivamente, até encontrar uma folha.
+      \item \textbf{Fase de retorno:} subindo pela pilha de chamadas,
+            atualizar a altura de cada ancestral e, se $|\mathrm{bf}| > 1$,
+            aplicar a rotação correspondente.
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Custo}
+    Busca da posição: $O(\log n)$.\\
+    Atualização e rebalanceamento: $O(\log n)$ no caminho de volta.\\
+    \textbf{No máximo \emph{uma} rotação} (simples ou dupla) é
+    necessária por inserção.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Os 4 casos de desbalanceamento na inserção}
+  \begin{block}{Classificação pelo caminho do novo nó}
+  \centering
+  \begin{tabular}{lll}
+    \toprule
+    Condição & Caso & Rotação \\
+    \midrule
+    $\mathrm{bf}>1$ \ e \ chave $<$ filho-esq.chave   & Esq-Esq & dir.\ simples \\
+    $\mathrm{bf}<-1$ \ e \ chave $>$ filho-dir.chave  & Dir-Dir & esq.\ simples \\
+    $\mathrm{bf}>1$ \ e \ chave $>$ filho-esq.chave   & Esq-Dir & esq.\ no filho, dir.\ no nó \\
+    $\mathrm{bf}<-1$ \ e \ chave $<$ filho-dir.chave  & Dir-Esq & dir.\ no filho, esq.\ no nó \\
+    \bottomrule
+  \end{tabular}
+  \end{block}
+  \begin{exampleblock}{Regra prática}
+    O nome do caso indica os \textbf{dois primeiros passos do caminho}
+    do nó desbalanceado até o nó recém-inserido.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Os 4 casos, visualmente}
+  \begin{center}
+  {\scriptsize \textcolor{UFSRed}{$\bigstar$} = nó recém-inserido \quad
+   \textcolor{UFSRed}{vermelho} = nó desbalanceado ($|\mathrm{bf}|=2$) \quad
+   \textcolor{UFSYellow!80!black}{amarelo} = raiz após rebalancear}
+  \end{center}
+  \vspace{-2pt}
+  \centering
+  \begin{tikzpicture}[
+    scale=0.62, transform shape,
+    st/.style={subtree, minimum height=5mm, minimum width=5mm},
+    star/.style={circle, draw=UFSRed, fill=UFSRed!20, very thick,
+      minimum size=7mm, font=\scriptsize\bfseries, inner sep=0pt,
+      label={[font=\tiny, UFSRed]below:$\bigstar$}},
+    big/.style={-Latex, very thick, UFSBlue},
+    cpt/.style={font=\small\bfseries, UFSBlue},
+    rot/.style={font=\scriptsize\itshape, UFSBlue}
+  ]
+
+  % ===== Linha 1: Esq-Esq | Dir-Dir =====
+  % ---- Esq-Esq antes ----
+  \begin{scope}[xshift=0cm, yshift=0cm]
+    \node[cpt] at (0,3.6) {Esq-Esq};
+    \node[badnode] (z) at (0,2.8) {z};
+    \node[avlnode] (y) at (-1,1.8) {y};
+    \node[star]    (n) at (-2,0.8) {};
+    \node[st]      (t) at (1,1.8)  {};
+    \draw[edge] (z)--(y); \draw[edge] (y)--(n); \draw[edge] (z)--(t);
+  \end{scope}
+  \draw[big] (1.6,1.8)--(3.2,1.8) node[midway, above, rot] {rot.\ dir.};
+  % ---- Esq-Esq depois ----
+  \begin{scope}[xshift=4.7cm]
+    \node[avlnode]  (y) at (0,2.8) {y};
+    \node[goodnode] (yr) at (0,2.8) {};
+    \node[avlnode]  (x) at (-1,1.8) {x};
+    \node[avlnode]  (zd) at (1,1.8) {z};
+    \node[star]     (n) at (-1.8,0.8) {};
+    \node[st]       (t) at (1.8,0.8) {};
+    \draw[edge] (y)--(x); \draw[edge] (y)--(zd);
+    \draw[edge] (x)--(n); \draw[edge] (zd)--(t);
+    \node[goodnode] at (0,2.8) {y};
+  \end{scope}
+
+  % ---- Dir-Dir antes ----
+  \begin{scope}[xshift=8.5cm]
+    \node[cpt] at (0,3.6) {Dir-Dir};
+    \node[badnode] (z) at (0,2.8) {z};
+    \node[avlnode] (y) at (1,1.8) {y};
+    \node[star]    (n) at (2,0.8) {};
+    \node[st]      (t) at (-1,1.8) {};
+    \draw[edge] (z)--(y); \draw[edge] (y)--(n); \draw[edge] (z)--(t);
+  \end{scope}
+  \draw[big] (10.1,1.8)--(11.7,1.8) node[midway, above, rot] {rot.\ esq.};
+  % ---- Dir-Dir depois ----
+  \begin{scope}[xshift=13.2cm]
+    \node[goodnode] (y) at (0,2.8) {y};
+    \node[avlnode]  (zd) at (-1,1.8) {z};
+    \node[avlnode]  (x) at (1,1.8) {x};
+    \node[st]       (t) at (-1.8,0.8) {};
+    \node[star]     (n) at (1.8,0.8) {};
+    \draw[edge] (y)--(zd); \draw[edge] (y)--(x);
+    \draw[edge] (zd)--(t); \draw[edge] (x)--(n);
+  \end{scope}
+
+  % ===== Linha 2: Esq-Dir | Dir-Esq =====
+  % ---- Esq-Dir antes ----
+  \begin{scope}[xshift=0cm, yshift=-4.8cm]
+    \node[cpt] at (0,3.6) {Esq-Dir};
+    \node[badnode] (z) at (0,2.8) {z};
+    \node[avlnode] (y) at (-1,1.8) {y};
+    \node[star]    (n) at (0,0.8) {};
+    \node[st]      (t) at (1,1.8) {};
+    \draw[edge] (z)--(y); \draw[edge] (y)--(n); \draw[edge] (z)--(t);
+  \end{scope}
+  \draw[big] (1.6,-3.0)--(3.2,-3.0) node[midway, above, rot] {dupla esq-dir};
+  % ---- Esq-Dir depois ----
+  \begin{scope}[xshift=4.7cm, yshift=-4.8cm]
+    \node[goodnode] (n) at (0,2.8) {$\bigstar$};
+    \node[avlnode]  (y) at (-1,1.8) {y};
+    \node[avlnode]  (zd) at (1,1.8) {z};
+    \draw[edge] (n)--(y); \draw[edge] (n)--(zd);
+  \end{scope}
+
+  % ---- Dir-Esq antes ----
+  \begin{scope}[xshift=8.5cm, yshift=-4.8cm]
+    \node[cpt] at (0,3.6) {Dir-Esq};
+    \node[badnode] (z) at (0,2.8) {z};
+    \node[avlnode] (y) at (1,1.8) {y};
+    \node[star]    (n) at (0,0.8) {};
+    \node[st]      (t) at (-1,1.8) {};
+    \draw[edge] (z)--(y); \draw[edge] (y)--(n); \draw[edge] (z)--(t);
+  \end{scope}
+  \draw[big] (10.1,-3.0)--(11.7,-3.0) node[midway, above, rot] {dupla dir-esq};
+  % ---- Dir-Esq depois ----
+  \begin{scope}[xshift=13.2cm, yshift=-4.8cm]
+    \node[goodnode] (n) at (0,2.8) {$\bigstar$};
+    \node[avlnode]  (zd) at (-1,1.8) {z};
+    \node[avlnode]  (y) at (1,1.8) {y};
+    \draw[edge] (n)--(zd); \draw[edge] (n)--(y);
+  \end{scope}
+
+  \end{tikzpicture}
+\end{frame}
+
+\begin{frame}[fragile]{Inserção: pseudocódigo}
+\begin{lstlisting}
+def insert(node, key):
+  if node is None: return AVLNode(key)
+  if   key < node.key: node.left  = insert(node.left,  key)
+  elif key > node.key: node.right = insert(node.right, key)
+  else: return node                          # duplicata
+
+  node.height = 1 + max(h(node.left), h(node.right))
+  bf = h(node.left) - h(node.right)
+
+  if bf >  1 and key < node.left.key:  return rotate_right(node)   # EE
+  if bf < -1 and key > node.right.key: return rotate_left(node)    # DD
+  if bf >  1 and key > node.left.key:                              # ED
+      node.left = rotate_left(node.left); return rotate_right(node)
+  if bf < -1 and key < node.right.key:                             # DE
+      node.right = rotate_right(node.right); return rotate_left(node)
+  return node
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Exemplo: inserir 10, 20, 30, 40, 50}
+  \begin{columns}[T]
+    \begin{column}{0.33\textwidth}
+      \centering \textbf{Após 10, 20, 30}\\
+      {\scriptsize (rot.\ esq.\ em 10)}\\[2pt]
+      \begin{tikzpicture}[scale=0.75]
+        \node[avlnode] (b) at (0,1.5) {20};
+        \node[avlnode] (a) at (-0.8,0.7) {10};
+        \node[avlnode] (c) at (0.8,0.7) {30};
+        \draw[edge] (b)--(a); \draw[edge] (b)--(c);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \centering \textbf{Insere 40 (ok)}\\[2pt]
+      \begin{tikzpicture}[scale=0.75]
+        \node[avlnode] (b) at (0,1.5) {20};
+        \node[avlnode] (a) at (-0.8,0.7) {10};
+        \node[avlnode] (c) at (0.8,0.7) {30};
+        \node[avlnode] (d) at (1.6,-0.1) {40};
+        \draw[edge] (b)--(a); \draw[edge] (b)--(c); \draw[edge] (c)--(d);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \centering \textbf{Insere 50 (DD em 30)}\\[2pt]
+      \begin{tikzpicture}[scale=0.75]
+        \node[avlnode]  (b) at (0,1.8) {20};
+        \node[avlnode]  (a) at (-0.8,1.0) {10};
+        \node[goodnode] (d) at (0.8,1.0) {40};
+        \node[avlnode]  (c) at (0.0,0.2) {30};
+        \node[avlnode]  (e) at (1.6,0.2) {50};
+        \draw[edge] (b)--(a); \draw[edge] (b)--(d);
+        \draw[edge] (d)--(c); \draw[edge] (d)--(e);
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \vspace{4pt}
+  \begin{exampleblock}{Observação}
+    A rotação resolve o desbalanceio \emph{e} a altura do nó volta ao
+    valor anterior à inserção --- por isso a propagação cessa.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: inserção}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Inserção AVL = inserção BST + rebalanceamento na volta.
+      \item Quatro casos, identificados por $\mathrm{bf}$ e pela
+            comparação da chave com o filho.
+      \item Custo total $O(\log n)$, com no máximo uma rotação.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ============================================================
+\section{Remoção}
+
+\begin{frame}{Remoção AVL: visão geral}
+  \begin{block}{Algoritmo em três fases}
+    \begin{enumerate}
+      \item \textbf{Remoção BST:} localizar o nó e removê-lo
+            (folha, um filho, ou substituir pelo \emph{sucessor in-order}
+            quando há dois filhos).
+      \item \textbf{Atualização de altura:} ao retornar pela pilha,
+            recalcular a altura de cada ancestral.
+      \item \textbf{Rebalanceamento:} se $|\mathrm{bf}| > 1$, aplicar
+            a rotação adequada \textbf{e continuar subindo},
+            pois a altura pode ter mudado.
+    \end{enumerate}
+  \end{block}
+  \begin{alertblock}{Diferença crítica vs.\ inserção}
+    Uma única rotação \emph{não} basta: a remoção pode exigir
+    até $O(\log n)$ rotações em cascata ao longo do caminho.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Os 4 casos de desbalanceamento na remoção}
+  \begin{block}{Classificação pelo $\mathrm{bf}$ do filho ``mais alto''}
+  \centering
+  \begin{tabular}{lll}
+    \toprule
+    Condição & Caso & Rotação \\
+    \midrule
+    $\mathrm{bf}>1$ \ e \ $\mathrm{bf}(\text{filho-esq})\ge 0$  & Esq-Esq & dir.\ simples \\
+    $\mathrm{bf}<-1$ \ e \ $\mathrm{bf}(\text{filho-dir})\le 0$ & Dir-Dir & esq.\ simples \\
+    $\mathrm{bf}>1$ \ e \ $\mathrm{bf}(\text{filho-esq}) < 0$   & Esq-Dir & dupla esq-dir \\
+    $\mathrm{bf}<-1$ \ e \ $\mathrm{bf}(\text{filho-dir}) > 0$  & Dir-Esq & dupla dir-esq \\
+    \bottomrule
+  \end{tabular}
+  \end{block}
+  \begin{exampleblock}{Por que mudou o critério?}
+    Na inserção, o novo nó indica de que lado o desequilíbrio veio.
+    Na remoção, não há ``nó novo'' --- inspecionamos o
+    $\mathrm{bf}$ do filho oposto ao lado encurtado.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink=10]{Remoção: pseudocódigo (esboço)}
+\begin{lstlisting}
+def delete(node, key):
+  if node is None: return None
+  if   key < node.key: node.left  = delete(node.left,  key)
+  elif key > node.key: node.right = delete(node.right, key)
+  else:
+      if node.left is None:  return node.right        # 0 ou 1 filho
+      if node.right is None: return node.left
+      succ = min_node(node.right)                     # sucessor in-order
+      node.key = succ.key
+      node.right = delete(node.right, succ.key)
+
+  node.height = 1 + max(h(node.left), h(node.right))
+  bf = h(node.left) - h(node.right)
+
+  if bf >  1 and bf2(node.left)  >= 0: return rotate_right(node)  # EE
+  if bf >  1 and bf2(node.left)  <  0:
+      node.left = rotate_left(node.left);  return rotate_right(node) # ED
+  if bf < -1 and bf2(node.right) <= 0: return rotate_left(node)   # DD
+  if bf < -1 and bf2(node.right) >  0:
+      node.right = rotate_right(node.right); return rotate_left(node) # DE
+  return node
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Exemplo: remover 20 da árvore}
+  \begin{columns}[T]
+    \begin{column}{0.45\textwidth}
+      \centering \textbf{Antes (AVL válida)}\\[2pt]
+      \begin{tikzpicture}[scale=0.8]
+        \node[avlnode] (r) at (0,2.4) {30};
+        \node[avlnode] (a) at (-1.2,1.4) {20};
+        \node[avlnode] (b) at (1.2,1.4) {40};
+        \node[avlnode] (d) at (2.0,0.4) {50};
+        \draw[edge] (r)--(a); \draw[edge] (r)--(b);
+        \draw[edge] (b)--(d);
+      \end{tikzpicture}\\
+      \scriptsize $\mathrm{bf}(30)=1-2=-1$ \checkmark
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering \textbf{Remove 20 $\Rightarrow$ rot.\ esq.\ em 30}\\[2pt]
+      \begin{tikzpicture}[scale=0.8]
+        \node[goodnode] (b) at (0,2.4) {40};
+        \node[avlnode]  (r) at (-1.2,1.4) {30};
+        \node[avlnode]  (d) at (1.2,1.4) {50};
+        \draw[edge] (b)--(r); \draw[edge] (b)--(d);
+      \end{tikzpicture}\\
+      \scriptsize Após remover 20: $\mathrm{bf}(30)=0-2=-2$
+    \end{column}
+  \end{columns}
+  \vspace{2pt}
+  \begin{exampleblock}{Caso Dir-Dir}
+    O filho mais alto de $30$ é o $40$, com $\mathrm{bf}(40)=-1\le 0$
+    $\Rightarrow$ rotação simples à \textbf{esquerda} em $30$.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: remoção}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Remoção BST padrão + substituição pelo sucessor in-order.
+      \item Critério dos 4 casos usa o $\mathrm{bf}$ do filho mais alto.
+      \item Pode exigir \textbf{múltiplas rotações em cascata} ao subir.
+      \item Custo total ainda é $O(\log n)$.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ============================================================
+\section{Aplicações}
+
+\begin{frame}{Onde AVLs e suas primas vivem hoje}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Sistemas reais}
+        \begin{itemize}
+          \item \textbf{Kernel Linux}: árvores Rubro-Negras
+                (\texttt{rbtree.h}) escalonam processos.
+          \item \textbf{PostgreSQL / MySQL}: índices B-Tree
+                (parente da AVL para disco).
+          \item \textbf{C++ STL}: \texttt{std::map}, \texttt{std::set}.
+          \item \textbf{Java}: \texttt{TreeMap}, \texttt{TreeSet}.
+          \item \textbf{Redis}: \texttt{Sorted Sets} (skip lists,
+                mesma motivação).
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{exampleblock}{Casos de uso}
+        \begin{itemize}
+          \item Roteamento de pacotes em redes
+          \item Detecção de colisões em motores de jogo
+          \item Autocompletar e dicionários
+          \item Bancos de dados geoespaciais
+          \item Bibliotecas de \emph{intervalos} (calendários)
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Por que aprender AVL e não só ``usar uma biblioteca''?}
+  \begin{block}{Três razões}
+    \begin{enumerate}
+      \item \textbf{Modelo mental:} entender \emph{trade-offs} de altura
+            vs. custo de rebalanceamento.
+      \item \textbf{Porta de entrada:} Rubro-Negra, B-Tree, Treap,
+            Splay — todas derivam da mesma ideia.
+      \item \textbf{Entrevistas e olimpíadas:} aparece em
+            \emph{quase toda} entrevista de empresa de tecnologia.
+    \end{enumerate}
+  \end{block}
+  \begin{alertblock}{Mensagem final}
+    A AVL é uma das ideias mais elegantes da computação:
+    \emph{disciplina local} produz \emph{garantia global}.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Recapitulando a aula}
+  \begin{block}{Você agora sabe}
+    \begin{itemize}
+      \item Por que BSTs ingênuas falham e quem resolveu (1962).
+      \item Definir o fator de balanceamento e identificar violações.
+      \item Aplicar as 4 rotações para restaurar o equilíbrio.
+      \item Onde AVL (e parentes) sustentam sistemas reais.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Próximos passos}
+    Tutorial Jupyter: implementar inserção AVL em Python e
+    visualizar a árvore após cada operação.
+  \end{exampleblock}
+\end{frame}
+
+% ============================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \footnotesize
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
