@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "Semana 11 — Refatoração em Python"
+title: "Semana 11 — Refatoração e Qualidade de Software"
 disciplina: programacao-a
 turma: 2026-1-T05
 ---
@@ -15,8 +15,8 @@ turma: 2026-1-T05
   <span>Semana 11</span>
 </nav>
 
-<h1 class="page-title">Semana 11 — Refatoração em Python</h1>
-<p class="page-subtitle">Cheiros de código, refatorações e o ciclo Red–Green–Refactor</p>
+<h1 class="page-title">Semana 11 — Refatoração e Qualidade de Software</h1>
+<p class="page-subtitle">Cheiros de código, refatorações, ciclo Red–Green–Refactor e qualidade via PEPs</p>
 
 {% assign base = 'https://colab.research.google.com/github/ayoshiaki/ufs-disciplinas/blob/main/programacao-a/2026-1-T05/semana-11' %}
 
@@ -27,6 +27,10 @@ turma: 2026-1-T05
       <tr>
         <td><strong>Refatoração em Python</strong></td>
         <td class="td-right"><a class="badge-pdf" href="refatoracao_em_python/slides.pdf">📄 PDF</a></td>
+      </tr>
+      <tr>
+        <td><strong>Qualidade de Software — PEPs do ecossistema Python</strong></td>
+        <td class="td-right"><a class="badge-pdf" href="qualidade_de_software/slides.pdf">📄 PDF</a></td>
       </tr>
     </tbody>
   </table>
@@ -39,6 +43,10 @@ turma: 2026-1-T05
       <tr>
         <td><strong>Refatoração em Python — ciclo Red–Green–Refactor</strong></td>
         <td class="td-right"><a class="badge-colab" href="{{ base }}/refatoracao_em_python.ipynb">▶ Abrir no Colab</a></td>
+      </tr>
+      <tr>
+        <td><strong>Qualidade de Software — tutorial sobre PEPs</strong></td>
+        <td class="td-right"><a class="badge-colab" href="{{ base }}/qualidade_de_software.ipynb">▶ Abrir no Colab</a></td>
       </tr>
     </tbody>
   </table>

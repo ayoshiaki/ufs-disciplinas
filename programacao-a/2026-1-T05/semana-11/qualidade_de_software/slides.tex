@@ -1,0 +1,830 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb,graphicx,booktabs,xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows, arrows.meta, positioning, matrix,
+  fit, backgrounds, decorations.pathreplacing, shadows, patterns}
+\usepackage{listings}
+\usepackage{qrcode}
+
+% --- Helper: PEP com QR code ao lado ---
+% Uso: \pepqr{0008}{8}{Style Guide for Python Code}
+\newcommand{\pepqr}[3]{%
+  \begin{minipage}[c]{1.4cm}\centering
+    \qrcode[height=1.25cm]{https://peps.python.org/pep-#1/}\\[1pt]
+    {\scriptsize PEP #2}
+  \end{minipage}}
+
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+  language=Python,
+}
+\lstset{style=ufsStyle}
+
+\title{Qualidade de Software}
+\subtitle{Como o ecossistema Python aborda qualidade via PEPs}
+\author{Prof.\ Andre Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+% ============================================================
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ============================================================
+\begin{frame}{Agenda}
+  \tableofcontents
+\end{frame}
+
+% ============================================================
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=6.5cm, minimum height=0.65cm, font=\small},
+    arrow/.style={-Latex, thick, UFSBlue}
+  ]
+    \node[item] (t1) at (0, 2.4)  {1. Legibilidade e consistência (PEP 8, 7, 20)};
+    \node[item] (t2) at (0, 1.6)  {2. Documentação (PEP 257, 287)};
+    \node[item] (t3) at (0, 0.8)  {3. Tipagem estática (PEP 484, 526, 544, 561, 585, 604, 695)};
+    \node[item] (t4) at (0, 0.0)  {4. Robustez de erros (PEP 3134, 654, 678)};
+    \node[item] (t5) at (0,-0.8)  {5. Manutenibilidade no tempo (PEP 387)};
+    \node[item] (t6) at (0,-1.6)  {6. Empacotamento e reprodutibilidade (PEP 440, 508, 517/518/621)};
+    \draw[arrow] (t1)--(t2);
+    \draw[arrow] (t2)--(t3);
+    \draw[arrow] (t3)--(t4);
+    \draw[arrow] (t4)--(t5);
+    \draw[arrow] (t5)--(t6);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ============================================================
+\begin{frame}[shrink=5]{O que é qualidade de software?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Dimensões clássicas (ISO/IEC 25010):}
+      \begin{itemize}
+        \item Funcionalidade
+        \item Confiabilidade
+        \item Usabilidade
+        \item Eficiência
+        \item Manutenibilidade
+        \item Portabilidade
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Na prática diária:}
+      \begin{itemize}
+        \item Código legível por humanos
+        \item Bugs capturados cedo
+        \item Falhas diagnosticáveis
+        \item Evolução sem quebrar usuários
+        \item Builds reprodutíveis
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \begin{exampleblock}{Tese da aula}
+    No mundo Python, qualidade não é só ``boa prática''---é endereçada
+    \textbf{processualmente} via PEPs (Python Enhancement Proposals).
+  \end{exampleblock}
+\end{frame}
+
+% ============================================================
+\begin{frame}[shrink=5]{O custo de um bug ao longo do ciclo}
+  \begin{center}
+  \begin{tikzpicture}[xscale=0.85, yscale=0.55]
+    \draw[->, thick] (0,0) -- (11,0) node[right, font=\small] {fase};
+    \draw[->, thick] (0,0) -- (0,5) node[above, font=\small] {custo};
+    \foreach \x/\lbl in {1.2/escrita, 3.4/revisão, 5.6/CI/testes, 7.8/staging, 10/produção} {
+      \draw[thick] (\x,0.08) -- (\x,-0.08);
+      \node[below, font=\scriptsize] at (\x,-0.1) {\lbl};
+    }
+    \draw[UFSBlue, very thick, domain=0.5:10.2, samples=80]
+      plot (\x, {0.12 * exp(0.42*\x)});
+    \node[UFSBlue, font=\small] at (7.8, 2.0) {crescimento exponencial};
+    \node[UFSRed, font=\small, align=center] at (2.2, 4.3)
+      {\textbf{Ideia:} PEPs antecipam bugs};
+    \draw[UFSRed, ->, thick] (1.6, 3.8) -- (1.2, 0.4);
+  \end{tikzpicture}
+  \end{center}
+  \footnotesize Tipagem estática, linters e exceções estruturadas existem para
+  empurrar a detecção \emph{para a esquerda} no eixo.
+\end{frame}
+
+% ============================================================
+\begin{frame}{O que é uma PEP?}
+  \begin{block}{Python Enhancement Proposal}
+    Documento de desenho que descreve uma nova funcionalidade, processo
+    ou padrão para Python. É o mecanismo \textbf{oficial} de evolução
+    da linguagem e do ecossistema.
+  \end{block}
+  \begin{exampleblock}{Tipos}
+    \textbf{Standards Track} (mudanças na linguagem), \textbf{Informational}
+    (guias, ex.\ PEP 8), \textbf{Process} (governança, ex.\ PEP 387).
+  \end{exampleblock}
+\end{frame}
+
+% ============================================================
+\section{Legibilidade e consistência}
+
+\begin{frame}{Por que legibilidade importa?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\
+      Código é lido muito mais vezes do que escrito. Estilo inconsistente
+      cria atrito cognitivo em revisões e onboarding.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\
+      Convenções universais codificadas em PEPs, automatizadas por
+      formatadores e linters.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\begin{frame}{PEP 8, PEP 7 e PEP 20}
+  \begin{block}{PEP 8 --- Style Guide for Python Code}
+    Indentação, nomes, espaçamento, comprimento de linha (79/88), imports.
+  \end{block}
+  \begin{block}{PEP 7 --- Style Guide for C Code}
+    Mesmo papel, mas para o código C de CPython.
+  \end{block}
+  \begin{exampleblock}{PEP 20 --- The Zen of Python}
+    19 aforismos que orientam decisões de design:
+    ``\emph{Readability counts}'', ``\emph{Simple is better than complex}'',
+    ``\emph{Explicit is better than implicit}''.
+  \end{exampleblock}
+\end{frame}
+
+% ============================================================
+\begin{frame}[fragile]{PEP 8 na prática: antes e depois}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Antes (não conforme):}
+\begin{lstlisting}
+def soma(a,b ):
+  x=a+b
+  return  x
+
+class minha_classe :
+    def Metodo( self,X ):
+        return X*2
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{Depois (PEP 8):}
+\begin{lstlisting}
+def soma(a, b):
+    x = a + b
+    return x
+
+
+class MinhaClasse:
+    def metodo(self, x):
+        return x * 2
+\end{lstlisting}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Ferramentas: a cadeia de qualidade visual}
+  \begin{center}
+  \begin{tikzpicture}[
+    box/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=2.2cm, minimum height=1cm, font=\small, align=center},
+    arrow/.style={-Latex, thick}
+  ]
+    \node[box] (code)  at (0,0)   {Código\\ Python};
+    \node[box] (fmt)   at (3.2,0) {\texttt{black}\\ formatador};
+    \node[box] (lint)  at (6.4,0) {\texttt{ruff}/\texttt{flake8}\\ linter};
+    \node[box] (ok)    at (9.6,0) {Código\\ uniforme};
+    \draw[arrow] (code)--(fmt);
+    \draw[arrow] (fmt)--(lint);
+    \draw[arrow] (lint)--(ok);
+    \node[font=\scriptsize] at (3.2,-0.9) {PEP 8};
+    \node[font=\scriptsize] at (6.4,-0.9) {PEP 8 + extras};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.5em}
+  \footnotesize \texttt{ruff} reimplementa centenas de regras de PEP 8 e
+  outros linters em Rust, sendo ordens de magnitude mais rápido.
+\end{frame}
+
+% ============================================================
+\begin{frame}{Recapitulando: Legibilidade}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item PEP 8 e PEP 7 padronizam o visual do código.
+      \item PEP 20 (Zen) é a bússola filosófica.
+      \item \texttt{black}, \texttt{ruff}, \texttt{flake8} \emph{automatizam} a conformidade.
+    \end{itemize}
+  \end{block}
+  \vspace{0.4em}
+  \begin{center}
+    \pepqr{0008}{8}{}\hspace{0.6cm}
+    \pepqr{0007}{7}{}\hspace{0.6cm}
+    \pepqr{0020}{20}{}
+  \end{center}
+\end{frame}
+
+% ============================================================
+\section{Documentação}
+
+\begin{frame}{Por que documentação no código?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\
+      Documentação externa fica desatualizada. APIs sem descrição forçam
+      leitura do código-fonte para uso básico.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\
+      Docstrings padronizadas, próximas ao código, extraíveis por
+      ferramentas (Sphinx, pydoc, IDEs).
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\begin{frame}{PEP 257 e PEP 287}
+  \begin{block}{PEP 257 --- Docstring Conventions}
+    Onde colocar docstrings (módulo, classe, função), formato (triplo aspas),
+    estrutura (sumário em uma linha + descrição).
+  \end{block}
+  \begin{block}{PEP 287 --- reStructuredText Docstring Format}
+    Padroniza reST como markup das docstrings; base para Sphinx gerar HTML/PDF.
+  \end{block}
+  \begin{exampleblock}{Estilos populares}
+    Google style, NumPy style e Sphinx/reST --- todos compatíveis com PEP 257.
+  \end{exampleblock}
+\end{frame}
+
+% ============================================================
+\begin{frame}[fragile]{Docstring exemplar}
+\begin{lstlisting}
+def normalizar(vetor: list[float]) -> list[float]:
+    """Normaliza um vetor para norma euclidiana 1.
+
+    :param vetor: lista de numeros reais (nao vazia).
+    :returns: novo vetor com mesma direcao e norma 1.
+    :raises ValueError: se ``vetor`` tem norma zero.
+    """
+    norma = sum(x * x for x in vetor) ** 0.5
+    if norma == 0:
+        raise ValueError("vetor nulo nao pode ser normalizado")
+    return [x / norma for x in vetor]
+\end{lstlisting}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Pipeline da documentação}
+  \begin{center}
+  \begin{tikzpicture}[
+    node distance=0.6cm and 1.0cm,
+    box/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=2.4cm, minimum height=1cm, font=\small, align=center},
+    arr/.style={-Latex, thick, UFSBlue}
+  ]
+    \node[box] (src)    {Código\\ + docstring\\ (PEP 257)};
+    \node[box, right=of src] (rest) {reST\\ (PEP 287)};
+    \node[box, right=of rest] (sphinx) {\texttt{sphinx}\\ \texttt{autodoc}};
+    \node[box, right=of sphinx, fill=UFSYellow!30] (out) {HTML / PDF\\ \texttt{readthedocs}};
+    \draw[arr] (src)--(rest);
+    \draw[arr] (rest)--(sphinx);
+    \draw[arr] (sphinx)--(out);
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.5em}
+  \footnotesize O mesmo bloco de docstring alimenta IDEs (autocompletar e
+  \emph{hover}), \texttt{help()} no REPL e geração automática de site de
+  documentação --- desde que o formato seja consistente.
+\end{frame}
+
+% ============================================================
+\begin{frame}{Recapitulando: Documentação}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item PEP 257 define \emph{onde} e \emph{como} escrever docstrings.
+      \item PEP 287 padroniza o \emph{markup} (reST), habilitando Sphinx.
+      \item Documentação consistente é insumo para tooling e onboarding.
+    \end{itemize}
+  \end{block}
+  \vspace{0.4em}
+  \begin{center}
+    \pepqr{0257}{257}{}\hspace{0.8cm}
+    \pepqr{0287}{287}{}
+  \end{center}
+\end{frame}
+
+% ============================================================
+\section{Tipagem estática}
+
+\begin{frame}{Por que tipagem estática em Python?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\
+      Erros de tipo em Python ``puro'' só aparecem em tempo de execução,
+      muitas vezes em produção e longe da causa raiz.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\
+      Anotações de tipo opcionais + verificadores externos (\texttt{mypy},
+      \texttt{pyright}) que capturam erros antes de rodar.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\begin{frame}{A linha do tempo das PEPs de tipagem}
+  \begin{center}
+  \begin{tikzpicture}[
+    pep/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=1.8cm, minimum height=0.75cm, font=\scriptsize, align=center},
+    arrow/.style={-Latex, thick, UFSBlue}
+  ]
+    \node[pep] (p483) at (0,0)    {PEP 483\\ teoria};
+    \node[pep] (p484) at (2.2,0)  {PEP 484\\ type hints};
+    \node[pep] (p526) at (4.4,0)  {PEP 526\\ vars};
+    \node[pep] (p544) at (6.6,0)  {PEP 544\\ Protocols};
+    \node[pep] (p561) at (8.8,0)  {PEP 561\\ distrib.};
+    \node[pep] (p585) at (1.1,-1.4) {PEP 585\\ \texttt{list[int]}};
+    \node[pep] (p604) at (3.3,-1.4) {PEP 604\\ \texttt{X | Y}};
+    \node[pep] (p695) at (5.5,-1.4) {PEP 695\\ genéricos};
+    \draw[arrow] (p483)--(p484);
+    \draw[arrow] (p484)--(p526);
+    \draw[arrow] (p526)--(p544);
+    \draw[arrow] (p544)--(p561);
+    \draw[arrow] (p484) to[bend right=20] (p585);
+    \draw[arrow] (p585)--(p604);
+    \draw[arrow] (p604)--(p695);
+  \end{tikzpicture}
+  \end{center}
+  \footnotesize Bases teóricas $\to$ sintaxe inicial $\to$ extensões e ergonomia.
+\end{frame}
+
+% ============================================================
+\begin{frame}[fragile]{Type hints na prática (PEP 484, 585, 604)}
+\begin{lstlisting}
+# Estilo antigo (PEP 484 + typing)
+from typing import List, Optional, Union
+
+def buscar(ids: List[int],
+           filtro: Optional[str] = None) -> Union[str, int, None]:
+    ...
+
+# Estilo moderno (PEP 585 + PEP 604)
+def buscar(ids: list[int],
+           filtro: str | None = None) -> str | int | None:
+    ...
+\end{lstlisting}
+\vspace{0.3em}
+\footnotesize Genéricos nativos (\texttt{list[int]}) e união por barra
+(\texttt{str | None}) eliminam imports e melhoram legibilidade.
+\end{frame}
+
+% ============================================================
+\begin{frame}[fragile]{Protocols: subtipagem estrutural (PEP 544)}
+\begin{lstlisting}
+from typing import Protocol
+
+class TemArea(Protocol):
+    def area(self) -> float: ...
+
+def total(figuras: list[TemArea]) -> float:
+    return sum(f.area() for f in figuras)
+
+class Quadrado:           # nao herda de TemArea
+    def __init__(self, l): self.l = l
+    def area(self) -> float: return self.l * self.l
+
+total([Quadrado(3)])      # ok: compativel estruturalmente
+\end{lstlisting}
+\end{frame}
+
+% ============================================================
+\begin{frame}{PEP 561 --- distribuição de tipos}
+  \begin{block}{Problema}
+    Como um pacote informa que tem anotações verificáveis por \texttt{mypy}?
+  \end{block}
+  \begin{exampleblock}{Solução}
+    Arquivo marcador \texttt{py.typed} dentro do pacote + opção declarada
+    no \texttt{pyproject.toml}. Sem isso, type checkers ignoram tipos do
+    pacote importado.
+  \end{exampleblock}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Quando o bug é capturado?}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.95]
+    % linha de Python "puro"
+    \draw[thick] (0,2) -- (10,2);
+    \node[left, font=\small] at (0,2) {Sem tipos};
+    \foreach \x/\lbl in {1/escrita, 3/CI, 5/staging, 7.5/produção} {
+      \draw (\x,1.9)--(\x,2.1); \node[above, font=\scriptsize] at (\x,2.15) {\lbl};
+    }
+    \node[UFSRed, font=\large] at (7.5,1.6) {$\boldsymbol{\times}$};
+    \node[UFSRed, font=\scriptsize, align=center] at (7.5,1.1) {bug descoberto\\ pelo usuário};
+
+    % linha de Python tipado
+    \draw[thick] (0,0) -- (10,0);
+    \node[left, font=\small] at (0,0) {Com \texttt{mypy}};
+    \foreach \x/\lbl in {1/escrita, 3/CI, 5/staging, 7.5/produção} {
+      \draw (\x,-0.1)--(\x,0.1);
+    }
+    \node[UFSBlue, font=\large] at (1,-0.4) {$\boldsymbol{\checkmark}$};
+    \node[UFSBlue, font=\scriptsize, align=center] at (1,-0.95) {bug rejeitado\\ pelo type checker};
+
+    \draw[->, very thick, UFSBlue] (7.5,1.0) to[bend right=20] (1.3,-0.2);
+    \node[UFSBlue, font=\scriptsize, align=center] at (4.6,0.6) {tipagem empurra\\ a detecção\\ para a esquerda};
+  \end{tikzpicture}
+  \end{center}
+  \footnotesize Toda anotação \texttt{x: int} vira uma asserção verificável
+  \emph{antes} de qualquer execução.
+\end{frame}
+
+% ============================================================
+\begin{frame}{Recapitulando: Tipagem estática}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item PEPs 483/484 introduziram a fundação teórica e sintática.
+      \item PEPs 526, 544, 585, 604, 695 modernizaram a ergonomia.
+      \item PEP 561 trata a distribuição de tipos em pacotes publicados.
+      \item Habilitam \texttt{mypy}, \texttt{pyright} e suporte em IDEs.
+    \end{itemize}
+  \end{block}
+  \vspace{0.2em}
+  \begin{center}
+    \pepqr{0483}{483}{}\hspace{0.15cm}
+    \pepqr{0484}{484}{}\hspace{0.15cm}
+    \pepqr{0526}{526}{}\hspace{0.15cm}
+    \pepqr{0544}{544}{}\hspace{0.15cm}
+    \pepqr{0561}{561}{}\hspace{0.15cm}
+    \pepqr{0585}{585}{}\hspace{0.15cm}
+    \pepqr{0604}{604}{}\hspace{0.15cm}
+    \pepqr{0695}{695}{}
+  \end{center}
+\end{frame}
+
+% ============================================================
+\section{Robustez no tratamento de erros}
+
+\begin{frame}{Por que melhorar exceções?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\
+      Tracebacks confusos, causas raiz perdidas, múltiplas falhas
+      concorrentes mascarando umas às outras.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\
+      Encadeamento, grupos de exceções e notas anexáveis ampliam o
+      diagnóstico sem mudar o fluxo.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\begin{frame}[fragile]{PEP 3134 --- encadeamento de exceções}
+\begin{lstlisting}
+try:
+    parsear(config)
+except ValueError as e:
+    raise ConfigInvalida("config corrompida") from e
+# Traceback preserva a ValueError original via __cause__
+\end{lstlisting}
+\vspace{0.3em}
+\begin{exampleblock}{Benefício}
+  Diagnóstico mostra \emph{ambas} as exceções: a causa raiz e a
+  exceção semântica relançada.
+\end{exampleblock}
+\end{frame}
+
+% ============================================================
+\begin{frame}[fragile]{PEP 654 --- \texttt{ExceptionGroup} e \texttt{except*}}
+\begin{lstlisting}
+async def coletar():
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(fetch_a())
+        tg.create_task(fetch_b())
+        tg.create_task(fetch_c())
+# Se varias tasks falharem, recebe-se um ExceptionGroup
+
+try:
+    asyncio.run(coletar())
+except* TimeoutError as eg:
+    log_timeouts(eg.exceptions)
+except* ValueError as eg:
+    log_validacao(eg.exceptions)
+\end{lstlisting}
+\end{frame}
+
+% ============================================================
+\begin{frame}[fragile]{PEP 678 --- notas em exceções}
+\begin{lstlisting}
+try:
+    processar_linha(linha)
+except ValueError as e:
+    e.add_note(f"linha {n} do arquivo {caminho}")
+    e.add_note(f"valor original: {linha!r}")
+    raise
+\end{lstlisting}
+\vspace{0.3em}
+Anexa contexto \emph{sem} criar exceções novas e sem perder o tipo
+original--- ótimo para frameworks que querem enriquecer erros de terceiros.
+\end{frame}
+
+% ============================================================
+\begin{frame}{Recapitulando: Robustez}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item PEP 3134: encadeamento preserva causa raiz (\texttt{raise ... from}).
+      \item PEP 654: grupos de exceções tratam falhas concorrentes (\texttt{except*}).
+      \item PEP 678: notas anexam contexto sem alterar tipo da exceção.
+    \end{itemize}
+  \end{block}
+  \vspace{0.4em}
+  \begin{center}
+    \pepqr{3134}{3134}{}\hspace{0.6cm}
+    \pepqr{0654}{654}{}\hspace{0.6cm}
+    \pepqr{0678}{678}{}
+  \end{center}
+\end{frame}
+
+% ============================================================
+\section{Manutenibilidade no tempo}
+
+\begin{frame}{Por que política de compatibilidade?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\
+      Mudanças quebrando código de usuários minam confiança e fragmentam
+      o ecossistema.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\
+      Um processo \emph{previsível} de depreciação com janelas mínimas
+      e avisos claros.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\begin{frame}{PEP 387 --- Backwards Compatibility Policy}
+  \begin{block}{Regras principais}
+    \begin{itemize}
+      \item Mudanças incompatíveis exigem motivação documentada.
+      \item Funcionalidades depreciadas emitem \texttt{DeprecationWarning}.
+      \item Janela mínima de \textbf{2 releases} entre depreciação e remoção.
+      \item Mudanças silenciosas de comportamento são proibidas.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Por que ler PEP 387?}
+    Modelo de governança replicável em bibliotecas próprias e APIs
+    internas --- não só CPython.
+  \end{exampleblock}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Recapitulando: Manutenibilidade}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Qualidade no longo prazo exige processo, não só código.
+      \item PEP 387 institucionaliza a depreciação progressiva.
+      \item Sirva-se da política para seus próprios pacotes.
+    \end{itemize}
+  \end{block}
+  \vspace{0.4em}
+  \begin{center}
+    \pepqr{0387}{387}{}
+  \end{center}
+\end{frame}
+
+% ============================================================
+\section{Empacotamento e reprodutibilidade}
+
+\begin{frame}{Por que empacotamento é qualidade?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\
+      ``Funciona na minha máquina'': dependências implícitas, versões
+      flutuantes, builds não-reprodutíveis.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\
+      Padrões declarativos para versões, dependências e builds, todos
+      ancorados em \texttt{pyproject.toml}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Mapa das PEPs de empacotamento}
+  \begin{center}
+  \begin{tikzpicture}[
+    pep/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=4.3cm, minimum height=0.8cm, font=\small}
+  ]
+    \node[pep] at (0, 1.6)  {PEP 440 --- versionamento};
+    \node[pep] at (0, 0.7)  {PEP 508 --- spec.\ de dependências};
+    \node[pep] at (0,-0.2)  {PEP 517 --- API de build};
+    \node[pep] at (0,-1.1)  {PEP 518 --- requisitos de build};
+    \node[pep] at (0,-2.0)  {PEP 621 --- metadados em \texttt{pyproject.toml}};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ============================================================
+\begin{frame}[fragile]{\texttt{pyproject.toml} (PEP 518, 621)}
+\begin{lstlisting}[language={},basicstyle=\ttfamily\scriptsize\color{black}]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "meu-pacote"
+version = "1.2.0"           # PEP 440
+requires-python = ">=3.10"
+dependencies = [
+  "requests>=2.31,<3",      # PEP 508
+  "pydantic~=2.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "mypy", "ruff"]
+\end{lstlisting}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Pipeline de build (PEP 517/518/621)}
+  \begin{center}
+  \begin{tikzpicture}[
+    node distance=0.55cm and 0.55cm,
+    box/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=2.1cm, minimum height=1.0cm, font=\scriptsize, align=center},
+    arr/.style={-Latex, thick, UFSBlue}
+  ]
+    \node[box] (src) {Código-fonte\\ \texttt{src/}};
+    \node[box, right=of src] (toml) {\texttt{pyproject.toml}\\ PEP 518/621};
+    \node[box, right=of toml] (backend) {Backend\\ \texttt{hatchling}\\ PEP 517};
+    \node[box, right=of backend, fill=UFSYellow!30] (art) {\texttt{.whl}\\ \texttt{.tar.gz}};
+    \node[box, right=of art, fill=UFSYellow!30] (pypi) {PyPI};
+    \draw[arr] (src)--(toml);
+    \draw[arr] (toml)--(backend);
+    \draw[arr] (backend)--(art);
+    \draw[arr] (art)--(pypi);
+
+    \node[below=0.4cm of toml, font=\tiny, align=center, UFSBlue] {versão: PEP 440\\ deps: PEP 508};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.5em}
+  \footnotesize O mesmo arquivo declarativo (\texttt{pyproject.toml}) escolhe
+  o backend, declara dependências e descreve metadados --- builds reprodutíveis
+  em qualquer máquina com Python.
+\end{frame}
+
+% ============================================================
+\begin{frame}{Recapitulando: Empacotamento}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item PEP 440 e 508 padronizam versões e dependências.
+      \item PEP 517/518 desacoplam builds de \texttt{setuptools}.
+      \item PEP 621 centraliza metadados em \texttt{pyproject.toml}.
+      \item Resultado: builds previsíveis e auditáveis.
+    \end{itemize}
+  \end{block}
+  \vspace{0.4em}
+  \begin{center}
+    \pepqr{0440}{440}{}\hspace{0.35cm}
+    \pepqr{0508}{508}{}\hspace{0.35cm}
+    \pepqr{0517}{517}{}\hspace{0.35cm}
+    \pepqr{0518}{518}{}\hspace{0.35cm}
+    \pepqr{0621}{621}{}
+  \end{center}
+\end{frame}
+
+% ============================================================
+\section{Limites e síntese}
+
+\begin{frame}{O que as PEPs \emph{não} cobrem}
+  \begin{alertblock}{Testes automatizados}
+    Apesar de centrais para qualidade, \texttt{unittest} e o ecossistema
+    (\texttt{pytest}, \texttt{coverage}) evoluíram \emph{fora} do processo
+    de PEP.
+  \end{alertblock}
+  \begin{exampleblock}{Implicação prática}
+    Qualidade ``oficial'' (PEPs) cobre estilo, tipos, erros, pacotes; mas
+    a disciplina de testes vem de \emph{convenções de comunidade} e
+    bibliotecas externas.
+  \end{exampleblock}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Síntese: pilha de qualidade Python}
+  \begin{center}
+  \begin{tikzpicture}[
+    layer/.style={rectangle, draw=UFSBlue, rounded corners,
+      minimum width=11cm, minimum height=0.7cm, font=\small, align=center},
+  ]
+    \node[layer, fill=UFSBlue!5]   at (0, 2.4) {Reprodutibilidade --- PEP 440, 508, 517, 518, 621};
+    \node[layer, fill=UFSBlue!10]  at (0, 1.6) {Manutenibilidade --- PEP 387};
+    \node[layer, fill=UFSBlue!15]  at (0, 0.8) {Robustez --- PEP 3134, 654, 678};
+    \node[layer, fill=UFSBlue!20]  at (0, 0.0) {Tipagem --- PEP 483, 484, 526, 544, 561, 585, 604, 695};
+    \node[layer, fill=UFSBlue!25]  at (0,-0.8) {Documentação --- PEP 257, 287};
+    \node[layer, fill=UFSBlue!30]  at (0,-1.6) {Legibilidade --- PEP 7, 8, 20};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.3em}
+  \footnotesize Qualidade emerge da composição das camadas, não de
+  uma única ferramenta.
+\end{frame}
+
+% ============================================================
+\section*{Como começar amanhã}
+
+\begin{frame}{Checklist acionável para seu próximo projeto}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Setup mínimo (30 min):}
+      \begin{itemize}
+        \item Crie \texttt{pyproject.toml} (PEP 621)
+        \item Instale \texttt{ruff} + \texttt{black}
+        \item Instale \texttt{mypy} ou \texttt{pyright}
+        \item Adicione \texttt{py.typed} (PEP 561)
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Hábitos diários:}
+      \begin{itemize}
+        \item Docstring em toda função pública
+        \item Anote tipos nos parâmetros e retornos
+        \item Use \texttt{raise X from e} em catches
+        \item Rode \texttt{ruff check} no pre-commit
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \vspace{0.6em}
+  \begin{exampleblock}{Maturidade crescente}
+    Comece pequeno: 1 PEP por sprint. Em 6 meses sua base de código terá
+    estilo uniforme, tipos verificados e builds reprodutíveis --- sem grande
+    refatoração.
+  \end{exampleblock}
+\end{frame}
+
+% ============================================================
+\begin{frame}{Mensagem final}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10cm, minimum height=2.4cm, align=center, font=\large]
+    {\textbf{Qualidade não é um estado --- é um processo.}\\[0.4em]
+     \normalsize As PEPs codificam esse processo de forma\\
+     pública, versionada e auditável.};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.8em}
+  \begin{center}
+    \small Dúvidas? \texttt{andreyoshiaki@dcomp.ufs.br}
+  \end{center}
+\end{frame}
+
+% ============================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
