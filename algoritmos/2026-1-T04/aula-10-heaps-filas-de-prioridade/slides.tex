@@ -1,0 +1,947 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS — Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc}
+
+% Pseudocódigo
+\usepackage[ruled,vlined,portuguese]{algorithm2e}
+
+% Listagens — paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+  language=Python,
+}
+\lstset{style=ufsStyle}
+
+% Estilos TikZ reutilizáveis
+\tikzset{
+  hnode/.style={circle, draw=UFSBlue, fill=UFSBlue!12, very thick,
+    minimum size=0.85cm, font=\small\bfseries},
+  hsel/.style={circle, draw=UFSRed, fill=UFSYellow!40, very thick,
+    minimum size=0.85cm, font=\small\bfseries},
+  acell/.style={rectangle, draw=UFSBlue, minimum size=0.7cm, font=\small},
+  asel/.style={rectangle, draw=UFSRed, fill=UFSYellow!40, very thick,
+    minimum size=0.7cm, font=\small},
+  hedge/.style={thick, draw=UFSGray},
+}
+
+% --- Metadados ---
+\title{Heaps e Filas de Prioridade}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+% ====================== Capa ======================
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ====================== Agenda ======================
+\begin{frame}{Agenda}
+  \tableofcontents
+\end{frame}
+
+% ============ O que você vai aprender hoje ============
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=6.5cm, minimum height=0.8cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)    {1. Propriedades dos heaps (min/max, array)};
+    \node[item] (t2) at (0,-1.1) {2. Operações: \emph{heapify}, insert, extract};
+    \node[item] (t3) at (0,-2.2) {3. Filas de prioridade};
+    \node[item] (t4) at (0,-3.3) {4. Heap Sort};
+    \draw[-{Stealth}, very thick, UFSBlue] (t1)--(t2);
+    \draw[-{Stealth}, very thick, UFSBlue] (t2)--(t3);
+    \draw[-{Stealth}, very thick, UFSBlue] (t3)--(t4);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% =====================================================
+\section{Propriedades dos Heaps}
+% =====================================================
+
+\begin{frame}{Por que precisamos de heaps?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[0.3em]
+      Precisamos repetidamente do \emph{menor} (ou \emph{maior}) elemento de um
+      conjunto que muda com o tempo: inserções e remoções intercaladas.
+
+      \medskip
+      Lista ordenada: inserção custosa ($O(n)$).\\
+      Lista desordenada: busca do mínimo custosa ($O(n)$).
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[0.3em]
+      O \textbf{heap} mantém o extremo sempre no topo e equilibra os custos:
+      \begin{itemize}
+        \item inserção em $O(\log n)$
+        \item remoção do extremo em $O(\log n)$
+        \item acesso ao extremo em $O(1)$
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Heap binário: definição}
+  \begin{block}{Definição}
+    Um \textbf{heap binário} é uma árvore binária \emph{quase completa} que
+    satisfaz a \textbf{propriedade de heap}:
+    \begin{itemize}
+      \item \textbf{Min-heap:} todo nó é $\le$ seus filhos $\Rightarrow$ o
+        \emph{mínimo} fica na raiz.
+      \item \textbf{Max-heap:} todo nó é $\ge$ seus filhos $\Rightarrow$ o
+        \emph{máximo} fica na raiz.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    Não há ordenação total entre irmãos — apenas a relação pai/filho importa.
+    Por isso é mais barato de manter que uma estrutura totalmente ordenada.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Exemplo: isto é um min-heap?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=0.9cm,
+      level 1/.style={sibling distance=2.2cm},
+      level 2/.style={sibling distance=1.1cm}]
+      \node[hnode] {2}
+        child {node[hnode] {4}
+          child {node[hnode] {7}}
+          child {node[hnode] {8}}}
+        child {node[hnode] {3}};
+    \end{tikzpicture}\\[0.5em]
+    {\color{UFSBlue}\footnotesize válido: todo pai $\le$ filhos \checkmark}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=0.9cm,
+      level 1/.style={sibling distance=2.2cm},
+      level 2/.style={sibling distance=1.1cm}]
+      \node[hnode] {2}
+        child {node[hnode] {4}
+          child[edge from parent/.style={draw=UFSRed, very thick}]
+            {node[hsel] {1}}
+          child {node[hnode] {8}}}
+        child {node[hnode] {3}};
+    \end{tikzpicture}\\[0.5em]
+    {\color{UFSRed}\footnotesize \textbf{1 < 4: viola!} — inválido}
+    \end{column}
+  \end{columns}
+  \begin{center}
+    \footnotesize Verifique aresta por aresta: pai $\le$ filho (min-heap).
+  \end{center}
+\end{frame}
+
+\begin{frame}{Árvore quase completa $\Rightarrow$ array}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=2.4cm},
+      level 2/.style={sibling distance=1.2cm}]
+      \node[hnode] {1}
+        child {node[hnode] {3}
+          child {node[hnode] {5}}
+          child {node[hnode] {9}}}
+        child {node[hnode] {6}
+          child {node[hnode] {8}}};
+    \end{tikzpicture}\\[0.4em]
+    {\footnotesize Min-heap como árvore}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \foreach \v/\i [count=\x from 0] in {1/0,3/1,6/2,5/3,9/4,8/5} {
+        \node[acell] (c\x) at (\x*0.72,0) {\v};
+        \node[font=\tiny\color{UFSGray}] at (\x*0.72,-0.5) {\i};
+      }
+    \end{tikzpicture}\\[0.6em]
+    \begin{block}{Índices (base 0)}
+      \footnotesize
+      pai$(i)=\lfloor (i-1)/2 \rfloor$\\
+      esq$(i)=2i+1$ \qquad dir$(i)=2i+2$
+    \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Exemplo: navegando pelo array}
+  As fórmulas de índice viram \emph{contas concretas}. Tomemos $i=1$ (valor
+  \textbf{3}) e localizemos seu pai e seus dois filhos no array.
+  \begin{center}
+  \begin{tikzpicture}[node distance=0pt]
+    \foreach \v/\j [count=\x from 0] in {1/0,3/1,6/2,5/3,9/4,8/5} {
+      \node[acell] (c\x) at (\x*0.72,0) {\v};
+      \node[font=\tiny\color{UFSGray}] at (\x*0.72,-0.5) {\j};
+    }
+    \node[asel] at (1*0.72,0) {3};
+    \draw[-{Stealth}, very thick, UFSRed] (c1) to[bend left=55]
+      node[midway, above, font=\tiny, UFSRed] {pai} (c0);
+    \draw[-{Stealth}, very thick, UFSRed] (c1) to[bend right=45]
+      node[midway, below, font=\tiny, UFSRed] {esq} (c3);
+    \draw[-{Stealth}, very thick, UFSRed] (c1) to[bend left=45]
+      node[midway, above, font=\tiny, UFSRed] {dir} (c4);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Contas para $i=1$}
+    \footnotesize
+    esq$(1) = 2\cdot 1 + 1 = 3 \;\Rightarrow\; A[3] = 5$\\
+    dir$(1) = 2\cdot 1 + 2 = 4 \;\Rightarrow\; A[4] = 9$\\
+    pai$(1) = \lfloor (1-1)/2 \rfloor = 0 \;\Rightarrow\; A[0] = 1$
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: propriedades}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Heap = árvore binária quase completa + propriedade de heap.
+      \item Min-heap mantém o mínimo na raiz; max-heap, o máximo.
+      \item A estrutura é armazenada de forma compacta em um \textbf{array},
+        sem ponteiros.
+      \item Navegação por aritmética de índices: $2i+1$, $2i+2$,
+        $\lfloor(i-1)/2\rfloor$.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================
+\section{Operações}
+% =====================================================
+
+\begin{frame}{Operações fundamentais}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{itemize}
+        \item \textbf{sift-down} (\emph{heapify}): empurra um nó para baixo até
+          restaurar a propriedade.
+        \item \textbf{sift-up}: empurra um nó para cima após uma inserção.
+        \item \textbf{insert}: adiciona ao fim + sift-up.
+        \item \textbf{extract-min}: remove a raiz, traz o último ao topo +
+          sift-down.
+        \item \textbf{build-heap}: transforma um array qualquer em heap.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{block}{Complexidades}
+        \footnotesize
+        \begin{tabular}{ll}
+          \toprule
+          Operação & Custo \\
+          \midrule
+          acesso ao mínimo & $O(1)$ \\
+          insert & $O(\log n)$ \\
+          extract-min & $O(\log n)$ \\
+          build-heap & $O(n)$ \\
+          \bottomrule
+        \end{tabular}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Sift-down: passo 1 de 3}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=3cm},
+      level 2/.style={sibling distance=1.4cm}]
+      \node[hsel] {7}
+        child {node[hnode] {3}
+          child {node[hnode] {5}}
+          child {node[hnode] {4}}}
+        child {node[hnode] {8}};
+    \end{tikzpicture}\\[0.4em]
+    {\footnotesize Raiz \textbf{7} viola a propriedade de min-heap}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \foreach \v/\i [count=\x from 0] in {7/0,3/1,8/2,5/3,4/4} {
+        \node[acell] (c\x) at (\x*0.72,0) {\v};
+        \node[font=\tiny\color{UFSGray}] at (\x*0.72,-0.5) {\i};
+      }
+      \node[asel] at (0,0) {7};
+      \draw[-{Stealth}, very thick, UFSRed]
+        (0,0.45) to[bend left=40] (0.72,0.45);
+    \end{tikzpicture}\\[0.8em]
+    {\footnotesize Menor filho $=3$ (idx 1). Como $7>3$,
+     troca raiz $\leftrightarrow$ idx 1.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Sift-down: passo 2 de 3}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=3cm},
+      level 2/.style={sibling distance=1.4cm}]
+      \node[hnode] {3}
+        child {node[hsel] {7}
+          child {node[hnode] {5}}
+          child {node[hnode] {4}}}
+        child {node[hnode] {8}};
+    \end{tikzpicture}\\[0.4em]
+    {\footnotesize \textbf{7} desceu para idx 1; compara com 5 e 4}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \foreach \v/\i [count=\x from 0] in {3/0,7/1,8/2,5/3,4/4} {
+        \node[acell] (c\x) at (\x*0.72,0) {\v};
+        \node[font=\tiny\color{UFSGray}] at (\x*0.72,-0.5) {\i};
+      }
+      \node[asel] at (0.72,0) {7};
+      \draw[-{Stealth}, very thick, UFSRed]
+        (0.72,0.45) to[bend left=40] (2.88,0.45);
+    \end{tikzpicture}\\[0.8em]
+    {\footnotesize Menor filho $=4$ (idx 4). Como $7>4$,
+     troca idx 1 $\leftrightarrow$ idx 4.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Sift-down: passo 3 de 3 (fim)}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=3cm},
+      level 2/.style={sibling distance=1.4cm}]
+      \node[hnode] {3}
+        child {node[hnode] {4}
+          child {node[hnode] {5}}
+          child {node[hsel] {7}}}
+        child {node[hnode] {8}};
+    \end{tikzpicture}\\[0.4em]
+    {\footnotesize \textbf{7} chegou em idx 4, uma folha}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \foreach \v/\i [count=\x from 0] in {3/0,4/1,8/2,5/3,7/4} {
+        \node[acell] (c\x) at (\x*0.72,0) {\v};
+        \node[font=\tiny\color{UFSGray}] at (\x*0.72,-0.5) {\i};
+      }
+      \node[asel] at (2.88,0) {7};
+    \end{tikzpicture}\\[0.8em]
+    {\footnotesize \textbf{7} chegou a uma folha:
+     propriedade de min-heap restaurada.}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\footnotesize Caminho percorrido $\le$ altura
+   $\Rightarrow$ custo $O(\log n)$.}
+\end{frame}
+
+\begin{frame}{Insert (sift-up): passo 1 de 3}
+  Insere na próxima posição livre (fim) e sobe enquanto for menor que o pai.
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=2.4cm},
+      level 2/.style={sibling distance=1.2cm}]
+      \node[hnode] {3}
+        child {node[hnode] {5}
+          child {node[hsel] {2}}}
+        child {node[hnode] {6}};
+    \end{tikzpicture}\\[0.3em]
+    {\footnotesize \textbf{2} anexado em idx 3 (filho esq.\ de idx 1)}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \foreach \v/\i [count=\x from 0] in {3/0,5/1,6/2} {
+        \node[acell] (c\x) at (\x*0.72,0) {\v};
+        \node[font=\tiny\color{UFSGray}] at (\x*0.72,-0.5) {\i};
+      }
+      \node[asel] (c3) at (3*0.72,0) {2};
+      \node[font=\tiny\color{UFSGray}] at (3*0.72,-0.5) {3};
+      \draw[-{Stealth}, very thick, UFSRed] (c3) to[bend right=45] (c1);
+    \end{tikzpicture}\\[0.7em]
+    {\footnotesize Pai de idx 3 é idx 1 (valor 5). Como $2<5$, sobe:
+    troca idx 3 $\leftrightarrow$ idx 1.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Insert (sift-up): passo 2 de 3}
+  O 2 subiu uma vez; continua comparando com o novo pai.
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=2.4cm},
+      level 2/.style={sibling distance=1.2cm}]
+      \node[hnode] {3}
+        child {node[hsel] {2}
+          child {node[hnode] {5}}}
+        child {node[hnode] {6}};
+    \end{tikzpicture}\\[0.3em]
+    {\footnotesize \textbf{2} agora em idx 1}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \node[acell] (c0) at (0*0.72,0) {3};
+      \node[font=\tiny\color{UFSGray}] at (0*0.72,-0.5) {0};
+      \node[asel] (c1) at (1*0.72,0) {2};
+      \node[font=\tiny\color{UFSGray}] at (1*0.72,-0.5) {1};
+      \node[acell] (c2) at (2*0.72,0) {6};
+      \node[font=\tiny\color{UFSGray}] at (2*0.72,-0.5) {2};
+      \node[acell] (c3) at (3*0.72,0) {5};
+      \node[font=\tiny\color{UFSGray}] at (3*0.72,-0.5) {3};
+      \draw[-{Stealth}, very thick, UFSRed] (c1) to[bend right=45] (c0);
+    \end{tikzpicture}\\[0.7em]
+    {\footnotesize Pai de idx 1 é idx 0 (valor 3). Como $2<3$, sobe:
+    troca idx 1 $\leftrightarrow$ idx 0.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Insert (sift-up): passo 3 de 3 (fim)}
+  O 2 alcançou a raiz: não há pai, então o sift-up para.
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=2.4cm},
+      level 2/.style={sibling distance=1.2cm}]
+      \node[hsel] {2}
+        child {node[hnode] {3}
+          child {node[hnode] {5}}}
+        child {node[hnode] {6}};
+    \end{tikzpicture}\\[0.3em]
+    {\footnotesize \textbf{2} é a nova raiz (idx 0)}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \node[asel] (c0) at (0*0.72,0) {2};
+      \node[font=\tiny\color{UFSGray}] at (0*0.72,-0.5) {0};
+      \foreach \v/\i [count=\x from 1] in {3/1,6/2,5/3} {
+        \node[acell] (c\x) at (\x*0.72,0) {\v};
+        \node[font=\tiny\color{UFSGray}] at (\x*0.72,-0.5) {\i};
+      }
+    \end{tikzpicture}\\[0.7em]
+    {\footnotesize \textbf{2} virou a nova raiz. Custo $O(\log n)$.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Extract-min: passo 1 de 3}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=2.4cm}, level 2/.style={sibling distance=1.2cm}]
+      \node[hsel] {8}
+        child {node[hnode] {3}
+          child {node[hnode] {5}}
+          child {node[hnode] {9}}}
+        child {node[hnode] {6}};
+    \end{tikzpicture}\\[0.4em]
+    {\footnotesize Último (8) sobe ao topo}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \node[asel]  (c0) at (0*0.72,0) {8};
+      \node[acell] (c1) at (1*0.72,0) {3};
+      \node[acell] (c2) at (2*0.72,0) {6};
+      \node[acell] (c3) at (3*0.72,0) {5};
+      \node[acell] (c4) at (4*0.72,0) {9};
+      \foreach \i in {0,1,2,3,4}
+        \node[font=\tiny\color{UFSGray}] at (\i*0.72,-0.5) {\i};
+    \end{tikzpicture}\\[0.6em]
+    {\footnotesize \textbf{Ideia:} o mínimo está na raiz.}\\[0.3em]
+    {\footnotesize Removemos a raiz (2) e trazemos o \textbf{último}
+    elemento (8, idx 5) ao topo. $A=[8,3,6,5,9]$, tamanho 5.}\\[0.4em]
+    {\footnotesize\color{UFSBlue}\textbf{retorna 2}}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Extract-min: passo 2 de 3}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=2.4cm}, level 2/.style={sibling distance=1.2cm}]
+      \node[hnode] {3}
+        child {node[hsel] {8}
+          child {node[hnode] {5}}
+          child {node[hnode] {9}}}
+        child {node[hnode] {6}};
+    \end{tikzpicture}\\[0.4em]
+    {\footnotesize 8 desce por sift-down}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \node[asel]  (c0) at (0*0.72,0) {3};
+      \node[asel]  (c1) at (1*0.72,0) {8};
+      \node[acell] (c2) at (2*0.72,0) {6};
+      \node[acell] (c3) at (3*0.72,0) {5};
+      \node[acell] (c4) at (4*0.72,0) {9};
+      \foreach \i in {0,1,2,3,4}
+        \node[font=\tiny\color{UFSGray}] at (\i*0.72,-0.5) {\i};
+      \draw[-{Stealth}, very thick, UFSRed] (c0) to[bend left=45] (c1);
+    \end{tikzpicture}\\[0.6em]
+    {\footnotesize Filhos da raiz: 3 (idx 1) e 6 (idx 2); menor
+    filho $=3$.}\\[0.3em]
+    {\footnotesize Como $8>3$, troca idx $0 \leftrightarrow$ idx $1$.
+    $A=[3,8,6,5,9]$.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Extract-min: passo 3 de 3 (fim)}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=2.4cm}, level 2/.style={sibling distance=1.2cm}]
+      \node[hnode] {3}
+        child {node[hnode] {5}
+          child {node[hsel] {8}}
+          child {node[hnode] {9}}}
+        child {node[hnode] {6}};
+    \end{tikzpicture}\\[0.4em]
+    {\footnotesize 8 vira folha $\Rightarrow$ para}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \node[acell] (c0) at (0*0.72,0) {3};
+      \node[asel]  (c1) at (1*0.72,0) {5};
+      \node[acell] (c2) at (2*0.72,0) {6};
+      \node[asel]  (c3) at (3*0.72,0) {8};
+      \node[acell] (c4) at (4*0.72,0) {9};
+      \foreach \i in {0,1,2,3,4}
+        \node[font=\tiny\color{UFSGray}] at (\i*0.72,-0.5) {\i};
+      \draw[-{Stealth}, very thick, UFSRed] (c1) to[bend left=45] (c3);
+    \end{tikzpicture}\\[0.6em]
+    {\footnotesize Filhos de 8: 5 (idx 3) e 9 (idx 4); menor
+    filho $=5$.}\\[0.3em]
+    {\footnotesize Como $8>5$, troca idx $1 \leftrightarrow$ idx $3$;
+    depois 8 vira folha $\to$ para. $A=[3,5,6,8,9]$.}
+    \end{column}
+  \end{columns}
+  \begin{center}
+    {\footnotesize\color{UFSBlue}Retornou 2; heap restaurado em $O(\log n)$.}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Pseudocódigo: extract-min}
+\begin{lstlisting}
+def extract_min(heap):
+    minimo = heap[0]            # raiz = menor
+    ultimo = heap.pop()         # remove o ultimo
+    if heap:
+        heap[0] = ultimo        # ultimo vai ao topo
+        sift_down(heap, 0)      # restaura propriedade
+    return minimo               # custo total O(log n)
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Build-heap: $O(n)$, não $O(n\log n)$}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      Aplicar \emph{sift-down} de baixo para cima, começando no último nó
+      interno $\lfloor n/2\rfloor - 1$ até a raiz.
+
+      \medskip
+      A maioria dos nós está perto das folhas e percorre pouca altura. A soma
+      $\sum_h \frac{n}{2^{h+1}} \cdot h$ converge para $O(n)$.
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{exampleblock}{Por que importa}
+        Construir o heap de uma vez é \emph{linear} — mais barato que inserir os
+        $n$ elementos um a um ($O(n\log n)$).
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Build-heap: passo 1 de 2}
+  Aplicamos \emph{sift-down} nos nós internos, do último (idx 1) até a raiz;
+  folhas são ignoradas.
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=2.4cm},
+      level 2/.style={sibling distance=1.2cm}]
+      \node[hnode] {4}
+        child {node[hsel] {10}
+          child {node[hnode] {5}}
+          child {node[hnode] {1}}}
+        child {node[hnode] {3}};
+    \end{tikzpicture}\\[0.3em]
+    {\footnotesize Foco: idx 1; filhos 5 (idx 3) e 1 (idx 4)}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \foreach \v/\i [count=\x from 0] in {4/0,10/1,3/2,5/3,1/4} {
+        \ifnum\x=1 \node[asel] (c\x) at (\x*0.72,0) {\v};
+        \else\ifnum\x=4 \node[asel] (c\x) at (\x*0.72,0) {\v};
+        \else \node[acell] (c\x) at (\x*0.72,0) {\v};
+        \fi\fi
+        \node[font=\tiny\color{UFSGray}] at (\x*0.72,-0.5) {\i};
+      }
+      \draw[-{Stealth}, very thick, UFSRed] (c1) to[bend left=45] (c4);
+    \end{tikzpicture}\\[0.6em]
+    {\footnotesize menor filho $=1$. \textbf{$10>1$: troca idx 1 $\leftrightarrow$ idx 4.}\\
+    $[4,10,3,5,1]\to[4,1,3,5,10]$}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Build-heap: passo 2 de 2 (fim)}
+  Agora \emph{sift-down} na raiz (idx 0).
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=1.0cm,
+      level 1/.style={sibling distance=2.4cm},
+      level 2/.style={sibling distance=1.2cm}]
+      \node[hnode] {1}
+        child {node[hnode] {4}
+          child {node[hnode] {5}}
+          child {node[hnode] {10}}}
+        child {node[hnode] {3}};
+    \end{tikzpicture}\\[0.3em]
+    {\footnotesize Min-heap final: raiz $=1$ é o mínimo}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[node distance=0pt]
+      \foreach \v/\i [count=\x from 0] in {1/0,4/1,3/2,5/3,10/4} {
+        \ifnum\x=0 \node[asel] (c\x) at (\x*0.72,0) {\v};
+        \else \node[acell] (c\x) at (\x*0.72,0) {\v};
+        \fi
+        \node[font=\tiny\color{UFSGray}] at (\x*0.72,-0.5) {\i};
+      }
+    \end{tikzpicture}\\[0.6em]
+    {\footnotesize \textbf{$4>1$: troca idx 0 $\leftrightarrow$ idx 1};
+    depois $4$ (em idx 1) $\le$ filhos $5$ e $10\Rightarrow$ para.\\
+    $[4,1,3,5,10]\to[1,4,3,5,10]$}
+    \end{column}
+  \end{columns}
+  \begin{center}
+  {\footnotesize build-heap custa $O(n)$, não $O(n\log n)$.}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Recapitulando: operações}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \emph{sift-down} e \emph{sift-up} são os blocos básicos, ambos
+        $O(\log n)$.
+      \item insert = anexa ao fim + sift-up; extract = troca topo/fim +
+        sift-down.
+      \item build-heap em $O(n)$ aplicando sift-down de baixo para cima.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================
+\section{Filas de Prioridade}
+% =====================================================
+
+\begin{frame}{Por que precisamos de filas de prioridade?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[0.3em]
+      Atender elementos por \emph{prioridade}, não por ordem de chegada:
+      escalonamento de processos, emergências de um hospital, eventos de uma
+      simulação.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[0.3em]
+      Uma \textbf{fila de prioridade} é um TAD com operações
+      \texttt{insert(x)} e \texttt{extract-min/max()}.\\[0.3em]
+      O \textbf{heap} é a implementação eficiente padrão.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Fila de prioridade: definição}
+  \begin{block}{Definição (TAD)}
+    Coleção de elementos com chave de prioridade que suporta:
+    \begin{itemize}
+      \item \texttt{insert(x)} — adiciona um elemento;
+      \item \texttt{peek()} — consulta o de maior prioridade;
+      \item \texttt{extract()} — remove e retorna o de maior prioridade.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Aplicação clássica}
+    Algoritmo de \textbf{Dijkstra}: a cada passo extrai o vértice de menor
+    distância — exatamente um \texttt{extract-min}.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Exemplo: extração em ordem de prioridade}
+  Min-heap com chaves $\{2,3,6,5,9,8\}$: cada \texttt{extract-min} entrega
+  sempre a de maior prioridade (menor chave).
+  \begin{center}
+  \begin{tikzpicture}[node distance=0pt]
+    % --- array inicial ---
+    \foreach \v/\i [count=\x from 0] in {2/0,3/1,6/2,5/3,9/4,8/5} {
+      \node[acell] (c\x) at (\x*0.72,0) {\v};
+      \node[font=\tiny\color{UFSGray}] at (\x*0.72,-0.5) {\i};
+    }
+    \node[font=\footnotesize\color{UFSGray}] at (-1.6,0) {$A =$};
+
+    % --- esteira de saída ---
+    \foreach \v [count=\x from 0] in {2,3,5,6,8,9} {
+      \node[rectangle, draw=UFSBlue, fill=UFSBlue!20, minimum size=0.7cm,
+        font=\small] (o\x) at (\x*0.72,-2.2) {\v};
+    }
+    \node[font=\footnotesize\color{UFSGray}] at (-1.6,-2.2) {saída};
+
+    % --- seta de fluxo extract-min repetido ---
+    \draw[-{Stealth}, very thick, UFSRed] (1.26,-0.9) -- (1.26,-1.65)
+      node[midway, right, font=\scriptsize\color{UFSRed}]
+      {\texttt{extract-min} repetido};
+    \node[font=\footnotesize\bfseries\color{UFSBlue}] at (1.26,-3.0)
+      {saída ordenada (crescente)};
+  \end{tikzpicture}
+  \end{center}
+  Cada \texttt{extract-min} custa $O(\log n)$; a fila entrega o de maior
+  prioridade primeiro.
+  \vfill
+  {\footnotesize\color{UFSGray} Esta ideia é exatamente a base do Heap Sort
+  (a seguir).}
+\end{frame}
+
+\begin{frame}{Recapitulando: filas de prioridade}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Fila de prioridade é um TAD; heap é sua implementação eficiente.
+      \item \texttt{insert} e \texttt{extract} custam $O(\log n)$;
+        \texttt{peek}, $O(1)$.
+      \item Base de algoritmos como Dijkstra, Prim e escalonadores.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================
+\section{Heap Sort}
+% =====================================================
+
+\begin{frame}{Por que Heap Sort?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[0.3em]
+      Ordenar $n$ elementos com garantia de $O(n\log n)$ no \emph{pior caso} e
+      \textbf{sem memória extra}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[0.3em]
+      Construir um max-heap e extrair o máximo repetidamente, colocando-o no fim
+      do próprio array — ordenação \textbf{in-place}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Heap Sort: a ideia}
+  \begin{enumerate}
+    \item \textbf{build-heap} (max-heap) sobre o array — $O(n)$.
+    \item Troca a raiz (máximo) com o último elemento do heap.
+    \item Reduz o tamanho do heap em 1 e aplica \emph{sift-down} na raiz.
+    \item Repete até o heap ter 1 elemento.
+  \end{enumerate}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0pt]
+    \node[asel] (a0) at (0,0) {9};
+    \node[acell] (a1) at (0.72,0) {5};
+    \node[acell] (a2) at (1.44,0) {8};
+    \node[acell] (a3) at (2.16,0) {3};
+    \node[asel] (a4) at (2.88,0) {1};
+    \draw[-{Stealth}, very thick, UFSRed] (a0) to[bend left=45] (a4);
+    \node[font=\small] at (5.0,0) {troca raiz $\leftrightarrow$ fim};
+  \end{tikzpicture}
+  \end{center}
+  Após a troca, \textbf{9} fica fixo na posição final e o heap encolhe.
+\end{frame}
+
+\begin{frame}{Heap Sort: construindo o max-heap}
+  {\footnotesize \textbf{build-heap (max)} processa nós internos idx 1 e 0.}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+    \centering
+    {\scriptsize \textbf{passo a} (idx1=3): filhos 1, 9; maior 9; $3<9$ $\Rightarrow$ troca idx1$\leftrightarrow$idx4}\\[0.2em]
+    \begin{tikzpicture}[node distance=0pt]
+      \foreach \v/\i [count=\x from 0] in {5/0,3/1,8/2,1/3,9/4} {
+        \ifnum\i=1 \node[asel] (a\x) at (\x*0.62,0) {\v};
+        \else\ifnum\i=4 \node[asel] (a\x) at (\x*0.62,0) {\v};
+        \else \node[acell] (a\x) at (\x*0.62,0) {\v};\fi\fi
+        \node[font=\tiny\color{UFSGray}] at (\x*0.62,-0.4) {\i};
+      }
+      \draw[-{Stealth}, very thick, UFSRed] (a1) to[bend left=45] (a4);
+    \end{tikzpicture}\\[0.4em]
+    {\scriptsize \textbf{passo b} (idx0=5): filhos 9, 8; maior 9; $5<9$ $\Rightarrow$ troca idx0$\leftrightarrow$idx1; depois $5\ge\{1,3\}$ para}\\[0.2em]
+    \begin{tikzpicture}[node distance=0pt]
+      \foreach \v/\i [count=\x from 0] in {5/0,9/1,8/2,1/3,3/4} {
+        \ifnum\i=0 \node[asel] (b\x) at (\x*0.62,0) {\v};
+        \else\ifnum\i=1 \node[asel] (b\x) at (\x*0.62,0) {\v};
+        \else \node[acell] (b\x) at (\x*0.62,0) {\v};\fi\fi
+        \node[font=\tiny\color{UFSGray}] at (\x*0.62,-0.4) {\i};
+      }
+      \draw[-{Stealth}, very thick, UFSRed] (b0) to[bend left=45] (b1);
+    \end{tikzpicture}\\[0.4em]
+    {\scriptsize max-heap pronto: $[9,5,8,1,3]$ (raiz = máximo)}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+    \centering
+    \begin{tikzpicture}[level distance=0.95cm,
+      level 1/.style={sibling distance=2.2cm},
+      level 2/.style={sibling distance=1.1cm}]
+      \node[hnode] {9}
+        child {node[hnode] {5}
+          child {node[hnode] {1}}
+          child {node[hnode] {3}}}
+        child {node[hnode] {8}};
+    \end{tikzpicture}\\[0.3em]
+    {\scriptsize Árvore do max-heap:\\raiz 9; $\ge$ todos os filhos}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Heap Sort: extraindo o máximo}
+  {\scriptsize Cada linha: troca raiz$\leftrightarrow$fim e \emph{heapify};
+  sufixo ordenado em azul ($\,|\,$ separa heap $|$ ordenado).}
+  \vspace{-0.1em}
+  \centerline{%
+  \begin{tikzpicture}[scale=0.9, transform shape, node distance=0pt,
+    every node/.style={font=\scriptsize},
+    ac/.style={rectangle, draw=UFSBlue, minimum size=0.5cm},
+    so/.style={rectangle, draw=UFSBlue, fill=UFSBlue!20, minimum size=0.5cm}]
+    \def\dx{0.54}
+    % linha 1: [9,5,8,1,3]  troca 9<->idx4
+    \foreach \v/\x in {9/0,5/1,8/2,1/3,3/4}{\node[ac] at (\x*\dx,0){\v};}
+    \node[anchor=west] at (3.0,0) {troca 9$\leftrightarrow$idx4};
+    % linha 2: [3,5,8,1 | 9]  heapify -> [8,5,3,1 | 9]  troca 8<->idx3
+    \foreach \v/\x in {3/0,5/1,8/2,1/3}{\node[ac] at (\x*\dx,-0.56){\v};}
+    \node[so] at (4*\dx,-0.56){9};
+    \node[anchor=west] at (3.0,-0.56) {heapify $\to$ $[8,5,3,1\,|\,9]$, troca 8$\leftrightarrow$idx3};
+    % linha 3: [1,5,3 | 8,9]  heapify -> [5,1,3 | 8,9]  troca 5<->idx2
+    \foreach \v/\x in {1/0,5/1,3/2}{\node[ac] at (\x*\dx,-1.12){\v};}
+    \foreach \v/\x in {8/3,9/4}{\node[so] at (\x*\dx,-1.12){\v};}
+    \node[anchor=west] at (3.0,-1.12) {heapify $\to$ $[5,1,3\,|\,8,9]$, troca 5$\leftrightarrow$idx2};
+    % linha 4: [3,1 | 5,8,9]  heapify -> [3,1 | 5,8,9]  troca 3<->idx1
+    \foreach \v/\x in {3/0,1/1}{\node[ac] at (\x*\dx,-1.68){\v};}
+    \foreach \v/\x in {5/2,8/3,9/4}{\node[so] at (\x*\dx,-1.68){\v};}
+    \node[anchor=west] at (3.0,-1.68) {heapify $\to$ $[3,1\,|\,5,8,9]$, troca 3$\leftrightarrow$idx1};
+    % linha 5: [1 | 3,5,8,9]  fim
+    \node[ac] at (0,-2.24){1};
+    \foreach \v/\x in {3/1,5/2,8/3,9/4}{\node[so] at (\x*\dx,-2.24){\v};}
+    \node[anchor=west] at (3.0,-2.24) {fim $\Rightarrow$ $[1,3,5,8,9]$};
+  \end{tikzpicture}}
+
+  {\footnotesize $n$ extrações $\times\ O(\log n) = O(n\log n)$, in-place.}
+\end{frame}
+
+\begin{frame}{Heap Sort: complexidade}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+    \centering
+    \begin{tikzpicture}[scale=0.9]
+      \draw[->] (0,0)--(4.2,0) node[right]{\footnotesize $n$};
+      \draw[->] (0,0)--(0,3.2) node[above]{\footnotesize tempo};
+      \draw[domain=0.2:4, smooth, very thick, UFSRed]
+        plot (\x,{0.18*\x*\x}) node[right]{\scriptsize $O(n^2)$};
+      \draw[domain=0.2:4, smooth, very thick, UFSBlue]
+        plot (\x,{0.5*\x*ln(\x+1)}) node[right]{\scriptsize $O(n\log n)$};
+    \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Análise}
+        \begin{itemize}
+          \item build-heap: $O(n)$
+          \item $n$ extrações $\times\ O(\log n)$: $O(n\log n)$
+          \item \textbf{Total: $O(n\log n)$} no pior caso
+          \item Espaço extra: $O(1)$ (in-place)
+        \end{itemize}
+      \end{block}
+      \begin{alertblock}{Atenção}
+        Não é estável; na prática perde para o quicksort por constantes e
+        localidade de cache.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Recapitulando: Heap Sort}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Ordena in-place em $O(n\log n)$ no pior caso.
+      \item Reaproveita build-heap + extract-max repetido.
+      \item Garante o limite assintótico, mas não é estável.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ====================== Referências ======================
+\section*{Referências}
+\setbeamerfont{bibliography item}{size=\scriptsize}
+\setbeamerfont{bibliography entry author}{size=\scriptsize}
+\setbeamerfont{bibliography entry title}{size=\scriptsize}
+\setbeamerfont{bibliography entry location}{size=\scriptsize}
+\setbeamerfont{bibliography entry note}{size=\scriptsize}
+\begin{frame}{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

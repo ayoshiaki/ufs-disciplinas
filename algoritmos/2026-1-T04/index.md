@@ -97,4 +97,13 @@ title: "COMP0497 — Algoritmos e Estruturas de Dados 1 — Turma 4 · 2026/1"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos/2026-1-T04/aula-10-heaps-filas-de-prioridade' | relative_url }}">
+    <div class="week-num">10</div>
+    <div class="week-body">
+      <div class="week-title">Heaps e Filas de Prioridade</div>
+      <div class="week-desc">Heap binário em array, sift down, build heap, filas de prioridade e Heap Sort.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
 </div>
