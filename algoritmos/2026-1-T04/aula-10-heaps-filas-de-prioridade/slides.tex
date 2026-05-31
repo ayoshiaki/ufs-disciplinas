@@ -892,19 +892,7 @@ def extract_min(heap):
 \end{frame}
 
 \begin{frame}{Heap Sort: complexidade}
-  \begin{columns}[T]
-    \begin{column}{0.5\textwidth}
-    \centering
-    \begin{tikzpicture}[scale=0.9]
-      \draw[->] (0,0)--(4.2,0) node[right]{\footnotesize $n$};
-      \draw[->] (0,0)--(0,3.2) node[above]{\footnotesize tempo};
-      \draw[domain=0.2:4, smooth, very thick, UFSRed]
-        plot (\x,{0.18*\x*\x}) node[right]{\scriptsize $O(n^2)$};
-      \draw[domain=0.2:4, smooth, very thick, UFSBlue]
-        plot (\x,{0.5*\x*ln(\x+1)}) node[right]{\scriptsize $O(n\log n)$};
-    \end{tikzpicture}
-    \end{column}
-    \begin{column}{0.5\textwidth}
+ 
       \begin{block}{Análise}
         \begin{itemize}
           \item build-heap: $O(n)$
@@ -917,8 +905,7 @@ def extract_min(heap):
         Não é estável; na prática perde para o quicksort por constantes e
         localidade de cache.
       \end{alertblock}
-    \end{column}
-  \end{columns}
+    
 \end{frame}
 
 \begin{frame}{Recapitulando: Heap Sort}
