@@ -41,10 +41,6 @@ turma: 2026-1-T05
   <table>
     <tbody>
       <tr>
-        <td><strong>01 · Recursão sobre os naturais</strong></td>
-        <td class="td-right"><a class="badge-colab" href="{{ base }}/01-recursao-naturais.ipynb">▶ Abrir no Colab</a></td>
-      </tr>
-      <tr>
         <td><strong>02 · Recursão forte</strong></td>
         <td class="td-right"><a class="badge-colab" href="{{ base }}/02-recursao-forte.ipynb">▶ Abrir no Colab</a></td>
       </tr>

@@ -29,10 +29,6 @@ turma: 2026-1-T05
         <td class="td-right"><a class="badge-colab" href="{{ base }}/01-funcoes.ipynb">▶ Abrir no Colab</a></td>
       </tr>
       <tr>
-        <td><strong>02 · Expressões booleanas</strong><div class="td-sub">Operadores lógicos e avaliação</div></td>
-        <td class="td-right"><a class="badge-colab" href="{{ base }}/02-expressoesBooleanas.ipynb">▶ Abrir no Colab</a></td>
-      </tr>
-      <tr>
         <td><strong>03 · Condicionais</strong><div class="td-sub">if / elif / else</div></td>
         <td class="td-right"><a class="badge-colab" href="{{ base }}/03-condicionais.ipynb">▶ Abrir no Colab</a></td>
       </tr>
@@ -47,10 +43,6 @@ turma: 2026-1-T05
       <tr>
         <td><strong>01 · Funções — exercícios</strong></td>
         <td class="td-right"><a class="badge-colab" href="{{ base }}/01-funcoes-estudoIndividual.ipynb">▶ Abrir no Colab</a></td>
-      </tr>
-      <tr>
-        <td><strong>02 · Expressões booleanas — exercícios</strong></td>
-        <td class="td-right"><a class="badge-colab" href="{{ base }}/02-expressoesBooleanas-estudoIndividual.ipynb">▶ Abrir no Colab</a></td>
       </tr>
       <tr>
         <td><strong>03 · Condicionais — exercícios</strong></td>
