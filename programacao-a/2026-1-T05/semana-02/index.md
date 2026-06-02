@@ -29,8 +29,8 @@ turma: 2026-1-T05
         <td class="td-right"><a class="badge-colab" href="{{ base }}/01-funcoes.ipynb">▶ Abrir no Colab</a></td>
       </tr>
       <tr>
-        <td><strong>03 · Condicionais</strong><div class="td-sub">if / elif / else</div></td>
-        <td class="td-right"><a class="badge-colab" href="{{ base }}/03-condicionais.ipynb">▶ Abrir no Colab</a></td>
+        <td><strong>02 · Condicionais</strong><div class="td-sub">if / elif / else</div></td>
+        <td class="td-right"><a class="badge-colab" href="{{ base }}/02-condicionais.ipynb">▶ Abrir no Colab</a></td>
       </tr>
     </tbody>
   </table>
@@ -45,12 +45,12 @@ turma: 2026-1-T05
         <td class="td-right"><a class="badge-colab" href="{{ base }}/01-funcoes-estudoIndividual.ipynb">▶ Abrir no Colab</a></td>
       </tr>
       <tr>
-        <td><strong>03 · Condicionais — exercícios</strong></td>
-        <td class="td-right"><a class="badge-colab" href="{{ base }}/03-condicionais-estudoIndividual.ipynb">▶ Abrir no Colab</a></td>
+        <td><strong>02 · Condicionais — exercícios</strong></td>
+        <td class="td-right"><a class="badge-colab" href="{{ base }}/02-condicionais-estudoIndividual.ipynb">▶ Abrir no Colab</a></td>
       </tr>
       <tr>
-        <td><strong>04 · Decomposição e padrões</strong><div class="td-sub">Top-down e identificação de padrões</div></td>
-        <td class="td-right"><a class="badge-colab" href="{{ base }}/04-DecomposicaoEPadroes-estudoIndividual.ipynb">▶ Abrir no Colab</a></td>
+        <td><strong>03 · Decomposição e padrões</strong><div class="td-sub">Top-down e identificação de padrões</div></td>
+        <td class="td-right"><a class="badge-colab" href="{{ base }}/03-DecomposicaoEPadroes-estudoIndividual.ipynb">▶ Abrir no Colab</a></td>
       </tr>
     </tbody>
   </table>

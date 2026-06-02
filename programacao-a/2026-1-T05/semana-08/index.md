@@ -41,16 +41,16 @@ turma: 2026-1-T05
   <table>
     <tbody>
       <tr>
-        <td><strong>02 · Recursão forte</strong></td>
-        <td class="td-right"><a class="badge-colab" href="{{ base }}/02-recursao-forte.ipynb">▶ Abrir no Colab</a></td>
+        <td><strong>01 · Recursão forte</strong></td>
+        <td class="td-right"><a class="badge-colab" href="{{ base }}/01-recursao-forte.ipynb">▶ Abrir no Colab</a></td>
       </tr>
       <tr>
-        <td><strong>03 · Recursão estrutural (parte 1)</strong></td>
-        <td class="td-right"><a class="badge-colab" href="{{ base }}/03-recursao-estrutural1.ipynb">▶ Abrir no Colab</a></td>
+        <td><strong>02 · Recursão estrutural (parte 1)</strong></td>
+        <td class="td-right"><a class="badge-colab" href="{{ base }}/02-recursao-estrutural1.ipynb">▶ Abrir no Colab</a></td>
       </tr>
       <tr>
-        <td><strong>04 · Recursão estrutural (parte 2)</strong></td>
-        <td class="td-right"><a class="badge-colab" href="{{ base }}/04-recursao-estrutural2.ipynb">▶ Abrir no Colab</a></td>
+        <td><strong>03 · Recursão estrutural (parte 2)</strong></td>
+        <td class="td-right"><a class="badge-colab" href="{{ base }}/03-recursao-estrutural2.ipynb">▶ Abrir no Colab</a></td>
       </tr>
     </tbody>
   </table>
