@@ -56,10 +56,6 @@ turma: 2026-1-T05
         <td><strong>Semana 01 — Turma 5 (complementar)</strong><div class="td-sub">Tópicos adicionais e exemplos extras</div></td>
         <td class="td-right"><a class="badge-colab" href="{{ base }}/Semana01_T05_complementar.ipynb">▶ Abrir no Colab</a></td>
       </tr>
-      <tr>
-        <td><strong>Semana 01 — Turma 4</strong><div class="td-sub">Versão usada na Turma 4 (referência)</div></td>
-        <td class="td-right"><a class="badge-colab" href="{{ base }}/Semana01_T04.ipynb">▶ Abrir no Colab</a></td>
-      </tr>
     </tbody>
   </table>
 </div>
