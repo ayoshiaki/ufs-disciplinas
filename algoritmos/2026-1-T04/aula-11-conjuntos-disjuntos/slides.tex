@@ -1,0 +1,2055 @@
+\documentclass[aspectratio=169]{beamer}
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb,graphicx,booktabs,xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,shapes,shapes.geometric,positioning,calc,fit,
+  backgrounds,decorations.pathreplacing,matrix,patterns}
+\usepackage{listings}
+
+% UFS colors (explicit para uso no TikZ)
+\definecolor{UFSBlue}{RGB}{3,78,162}
+\definecolor{UFSYellow}{RGB}{253,185,19}
+\definecolor{UFSRed}{RGB}{237,28,36}
+\definecolor{UFSGray}{RGB}{100,100,100}
+\definecolor{UFSLightGray}{RGB}{230,230,230}
+
+% Listing style Java
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+\definecolor{numcolor}{HTML}{888888}
+
+\lstdefinestyle{java}{
+  language=Java,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=6pt,
+  xleftmargin=14pt,
+  breaklines=true, tabsize=2,
+  showstringspaces=false,
+  frame=single, rulecolor=\color{UFSBlue!30},
+  morekeywords={var,record,sealed,permits,yield,instanceof},
+}
+\lstset{style=java}
+
+% Estilos TikZ reutilizáveis
+\tikzset{
+  ufnode/.style={circle,draw=UFSBlue,fill=UFSBlue!15,thick,
+    font=\small\bfseries,minimum size=0.65cm,inner sep=1pt},
+  ufroot/.style={circle,draw=UFSRed,fill=UFSRed!20,very thick,
+    font=\small\bfseries,minimum size=0.65cm,inner sep=1pt},
+  ufedge/.style={-{Stealth[scale=0.8]},thick,UFSGray!80},
+  llbox/.style={rectangle,draw=UFSBlue,fill=UFSBlue!10,
+    minimum width=0.85cm,minimum height=0.58cm,font=\scriptsize,inner sep=2pt},
+  llrep/.style={rectangle,draw=UFSRed,fill=UFSRed!10,very thick,
+    minimum width=0.85cm,minimum height=0.58cm,font=\scriptsize\bfseries,inner sep=2pt},
+  step/.style={rectangle,rounded corners=3pt,draw=UFSGray,fill=UFSLightGray,
+    minimum width=1.5cm,minimum height=0.55cm,font=\scriptsize,align=center},
+}
+
+\title{Conjuntos Disjuntos}
+\subtitle{Union-Find, Path Compression e Representação por Floresta}
+\author{Prof.\ Andre Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\[2pt]
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+%% ================================================================
+%%  ABERTURA
+%% ================================================================
+
+\begin{frame}[plain]%% 1
+  \titlepage
+\end{frame}
+
+
+\begin{frame}{O que você vai aprender}%% 3
+  \begin{center}
+  \begin{tikzpicture}[
+    box/.style={rectangle,rounded corners=4pt,draw=UFSBlue,fill=UFSBlue!10,
+      minimum width=3.0cm,minimum height=0.68cm,font=\small\bfseries,align=center},
+    goal/.style={rectangle,rounded corners=4pt,draw=UFSRed,fill=UFSRed!10,
+      minimum width=3.0cm,minimum height=0.68cm,font=\small\bfseries,align=center},
+    ar/.style={-{Stealth},thick,UFSGray}
+  ]
+    %% Linha 1 – topo
+    \node[box] (adt)    at (0.5,3.0)   {Problema e ADT};
+    %% Linha 2 – duas alternativas
+    \node[box] (ll)     at (-3.0,2.0)  {Lista Encadeada};
+    \node[box] (forest) at (2.0,2.0)   {Floresta};
+    %% Linha 3 – heurísticas (lista: peso; floresta: rank, PC)
+    \node[box] (peso)   at (-3.8,1.0)  {Union por Peso};
+    \node[box] (rank)   at (-0.5,1.0)  {Union by Rank};
+    \node[box] (pc)     at (3.5,1.0)   {Path Compression};
+    %% Linha 4 – resultado e implementação
+    \node[goal] (ana)   at (1.0,0.0)   {Análise: $O(m\,\alpha(n))$};
+    \node[goal] (java)  at (4.6,0.0)   {Java Moderno};
+    %% Nota sobre alpha(n) abaixo do nó de análise
+    \node[font=\scriptsize,UFSGray,align=center,text width=4.0cm]
+      at (1.0,-0.75)
+      {($\alpha$: inversa de Ackermann — veremos adiante)};
+    %% Setas
+    \draw[ar] (adt)--(ll);
+    \draw[ar] (adt)--(forest);
+    \draw[ar] (ll)--(peso);
+    \draw[ar] (peso)--(ana);
+    \draw[ar] (forest)--(rank);
+    \draw[ar] (forest)--(pc);
+    \draw[ar] (rank)--(ana);
+    \draw[ar] (pc)--(ana);
+    \draw[ar] (ana)--(java);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+%% ================================================================
+%%  SEÇÃO 1 — MOTIVAÇÃO
+%% ================================================================
+\section{Motivação}
+
+\begin{frame}{Conectividade dinâmica}%% 4
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{block}{Problema}
+        Dados $n$ objetos, processar duas operações:
+        \begin{itemize}
+          \item \textbf{Union}$(p,q)$: registrar que $p$ e $q$ estão conectados
+          \item \textbf{Connected}$(p,q)$: $p$ e $q$ estão no mesmo componente?
+        \end{itemize}
+      \end{block}
+      \vspace{0.25cm}
+      Conectividade é transitiva: se $p$--$q$ e $q$--$r$, então $p$--$r$.\\
+      Matematicamente: \textbf{relação de equivalência}.
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{tikzpicture}[
+        n/.style={circle,draw=UFSBlue,fill=UFSBlue!15,minimum size=0.58cm,font=\scriptsize\bfseries}
+      ]
+        \foreach \i/\x/\y in {0/0/2.6,1/1.5/2.6,2/3/2.6,
+                               3/0/1.2, 4/1.5/1.2,5/3/1.2}
+          \node[n] (\i) at (\x,\y) {\i};
+        \draw[thick,UFSBlue] (0)--(3);
+        \draw[thick,UFSBlue] (1)--(4);
+        \draw[thick,UFSBlue] (3)--(4);
+        \draw[thick,UFSRed,dashed] (2)--(5);
+        \node[font=\tiny,UFSGray,below=0.1cm of 4]
+          {$\{0,1,3,4\}$\quad$\{2,5\}$};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Por que isso importa?}%% 5
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Algoritmos de grafos}
+        \begin{itemize}
+          \item Kruskal — MST em $O(m\,\alpha(n))$
+          \item Componentes conexas on-line
+          \item Detecção de ciclos
+          \item Menor caminho com pesos (Borůvka)
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Aplicações em sistemas}
+        \begin{itemize}
+          \item Unificação de tipos (compiladores)
+          \item Segmentação de imagens
+          \item Percolação (Monte Carlo)
+          \item Particionamento de memória (GC)
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Interface: Conjunto Disjunto (CLRS, Cap.\ 19)}%% 6
+  \begin{block}{Três operações fundamentais}
+    \begin{description}
+      \item[\textsc{Make-Set}$(x)$] Cria um conjunto $\{x\}$; $x$ é seu próprio representante.
+      \item[\textsc{Find-Set}$(x)$] Retorna o \emph{representante} do conjunto que contém $x$.
+      \item[\textsc{Union}$(x,y)$] Funde os conjuntos de $x$ e $y$ em um único conjunto.
+    \end{description}
+  \end{block}
+  \vspace{0.4cm}
+  \begin{alertblock}{Invariante fundamental}
+    $\textsc{Find-Set}(x) = \textsc{Find-Set}(y) \iff x$ e $y$ pertencem ao mesmo conjunto.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[shrink=8]{Exemplo: as três operações em ação}%% 6b
+  \begin{center}
+  \begin{tikzpicture}[
+    nd/.style={circle,draw=UFSBlue,fill=UFSBlue!10,minimum size=0.6cm,font=\scriptsize\bfseries},
+    rt/.style={circle,draw=UFSRed,fill=UFSRed!15,very thick,minimum size=0.6cm,font=\scriptsize\bfseries},
+    ar/.style={-{Stealth[scale=0.7]},thick,UFSGray},
+    lbl/.style={font=\scriptsize,UFSBlue},
+    op/.style={font=\scriptsize\ttfamily,UFSRed}
+  ]
+    %% Linha 0: Make-Set(1..4)  — labels fundidos para evitar sobreposição
+    \node[lbl,align=right] at (-1.5,3.5)
+      {\textsc{Make-Set}\\(1..4):};
+    \foreach \i in {1,...,4}
+      \node[rt] at ({(\i-1)*1.2},3.5) {\i};
+
+    %% Linha 1: Union(1,2) — root em y=2.4, filho em y=1.6
+    \node[op] at (-1.5,2.4) {Union(1,2):};
+    \node[rt,label={[font=\tiny]above:rep}] (r1) at (0.6,2.4) {1};
+    \node[nd] (n2) at (0.6,1.6) {2};          %% gap para próxima linha: 1.6-0.8=0.8cm>0.6
+    \draw[ar] (n2)--(r1);
+    \node[rt] at (2.4,2.4) {3};
+    \node[rt] at (3.6,2.4) {4};
+
+    %% Linha 2: Union(3,4) — root em y=0.8, filho em y=0.0
+    \node[op] at (-1.5,0.8) {Union(3,4):};
+    \node[rt] (r12) at (0.6,0.8) {1};
+    \node[nd] (n12) at (0.6,0.0) {2};
+    \draw[ar] (n12)--(r12);
+    \node[rt] (r3) at (3.0,0.8) {3};
+    \node[nd] (n4) at (3.0,0.0) {4};
+    \draw[ar] (n4)--(r3);
+
+    %% Linha 3: Find-Set(4) -> 3  — root em y=-1.2, filho em y=-2.0
+    \node[op] at (-1.5,-1.2) {Find-Set(4):};
+    \node[rt] (f3) at (3.0,-1.2) {3};
+    \node[nd] (f4) at (3.0,-2.0) {4};
+    \draw[ar] (f4)--(f3);
+    \draw[-{Stealth},very thick,UFSYellow!80!black] (f4)--++(0.7,0)
+      node[right,font=\scriptsize,UFSBlue] {retorna \textbf{3}};
+
+    %% Linha 4: Union(1,3) — painel direito
+    \node[op] at (5.5,2.4) {Union(1,3):};
+    \node[rt,label={[font=\tiny]above:rep\,de\,tudo}] (ur) at (6.8,2.4) {1};
+    \node[nd] (u2) at (6.0,1.5) {2};
+    \node[nd] (u3) at (6.8,1.5) {3};
+    \node[nd] (u4) at (7.6,0.6) {4};
+    \draw[ar] (u2)--(ur); \draw[ar] (u3)--(ur); \draw[ar] (u4)--(u3);
+    \node[font=\tiny,UFSGray] at (6.8,0.0) {$\{1,2,3,4\}$};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Cenário de uso típico}%% 7
+  \begin{enumerate}
+    \item \textbf{Fase de inicialização}: $n$ chamadas a \textsc{Make-Set} — uma por objeto.
+    \item \textbf{Fase de processamento}: as $m-n$ operações restantes são \textsc{Union} (no máximo $n-1$) e \textsc{Find-Set}.
+  \end{enumerate}
+  \vspace{0.4cm}
+  \begin{exampleblock}{Meta de desempenho}
+    Processar $m$ operações em tempo total $O(m\,\alpha(n))$,\\
+    onde $\alpha$ é a \textbf{inversa de Ackermann}: $\alpha(n)\leq 4$ para qualquer $n$ concebível.
+  \end{exampleblock}
+  \vspace{0.3cm}
+  \begin{center}
+    Na prática, é \textbf{praticamente linear}: $O(m\,\alpha(n))$ com $\alpha(n)\leq 4$.
+  \end{center}
+\end{frame}
+
+\begin{frame}{Evolução das implementações}%% 8
+  \begin{center}
+  \renewcommand{\arraystretch}{1.4}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Implementação} & \textbf{Find-Set} & \textbf{Union} \\
+    \midrule
+    Lista encadeada ingênua        & $O(1)$         & $O(n)$ \\
+    Lista + union por peso         & $O(1)$         & amort.\ $O(\lg n)$ \\
+    Floresta ingênua               & $O(n)$         & $O(1)$ \\
+    Floresta + union por rank      & $O(\lg n)$     & $O(1)$ \\
+    Floresta + path compression    & amort.\ $O(\lg n)$ & $O(1)$ \\
+    \textbf{Floresta + rank + PC}  & $\mathbf{O(\alpha(n))}$ & $\mathbf{O(1)}$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Recapitulando: Motivação}%% 9
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Conjuntos disjuntos modelam relações de equivalência dinâmicas
+      \item Três operações: \textsc{Make-Set}, \textsc{Find-Set}, \textsc{Union}
+      \item Objetivo: custo total $O(m\,\alpha(n))$ — praticamente linear
+      \item Duas heurísticas simples permitem atingir esse resultado
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+%% ================================================================
+%%  SEÇÃO 2 — LISTA ENCADEADA
+%% ================================================================
+\section{Representação por Lista Encadeada}
+
+\begin{frame}{Estrutura: lista encadeada}%% 10
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      Cada conjunto = uma \textbf{lista encadeada}:
+      \begin{itemize}
+        \item Cada nó tem campo \texttt{rep} → representante (head)
+        \item A lista mantém ponteiros \texttt{head} e \texttt{tail}
+        \item \textsc{Find-Set}$(x)$: retorna $x.\texttt{rep}$ em $O(1)$
+        \item \textsc{Union}: concatena e atualiza todos os \texttt{rep}
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{tikzpicture}[
+        nd/.style={llbox},
+        rp/.style={llrep},
+        ar/.style={-{Stealth[scale=0.7]},thick,UFSGray}
+      ]
+        \node[rp] (h) at (0,2.2) {$c_1$};
+        \node[nd] (a) at (1.2,2.2) {$c_2$};
+        \node[nd] (b) at (2.4,2.2) {$c_3$};
+        \draw[ar] (h)--(a); \draw[ar] (a)--(b);
+        \draw[ar,bend right=40,UFSRed] (a) to (h);
+        \draw[ar,bend right=40,UFSRed] (b) to (h);
+        \node[font=\tiny,UFSGray] at (1.2,1.4)
+          {ponteiros \texttt{rep} em vermelho};
+        \node[font=\tiny] at (-0.1,2.6) {\textsf{head}};
+        \node[font=\tiny] at (2.4,2.6) {\textsf{tail}};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=5]{Make-Set e Find-Set na lista}%% 11
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{\textsc{Make-Set}$(x)$}
+        $x.\texttt{next} \leftarrow \text{NIL}$\\
+        $x.\texttt{rep}  \leftarrow x$\\
+        $\text{novo conjunto}: \{\texttt{head}=x,\,\texttt{tail}=x\}$\\[4pt]
+        \textbf{Custo}: $O(1)$
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{\textsc{Find-Set}$(x)$}
+        \textbf{return} $x.\texttt{rep}$\\[4pt]
+        \textbf{Custo}: $O(1)$ — acesso direto.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.5cm}
+  \begin{exampleblock}{Exemplo: Make-Set(1), Make-Set(2), Make-Set(3)}
+    \begin{center}
+    \begin{tikzpicture}[
+      nd/.style={llrep},
+      ar/.style={-{Stealth[scale=0.7]},thick,UFSRed}
+    ]
+      \node[nd] (x1) at (0,0) {1};
+      \node[nd] (x2) at (2,0) {2};
+      \node[nd] (x3) at (4,0) {3};
+      \draw[ar] (x1) to[out=120,in=60,looseness=5] (x1);
+      \draw[ar] (x2) to[out=120,in=60,looseness=5] (x2);
+      \draw[ar] (x3) to[out=120,in=60,looseness=5] (x3);
+      \node[font=\tiny,UFSGray] at (0,-0.6) {$\{1\}$};
+      \node[font=\tiny,UFSGray] at (2,-0.6) {$\{2\}$};
+      \node[font=\tiny,UFSGray] at (4,-0.6) {$\{3\}$};
+    \end{tikzpicture}
+    \end{center}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Union na lista: algoritmo}%% 12
+  \begin{block}{\textsc{Union}$(x,y)$ — sem heurística}
+    \begin{enumerate}
+      \item $S_x \leftarrow \text{conjunto de } x$;\quad $S_y \leftarrow \text{conjunto de } y$
+      \item $S_x.\texttt{tail}.\texttt{next} \leftarrow S_y.\texttt{head}$
+      \item \textbf{Para cada} nó $z$ em $S_y$:\ $z.\texttt{rep} \leftarrow S_x.\texttt{head}$
+      \item $S_x.\texttt{tail} \leftarrow S_y.\texttt{tail}$
+    \end{enumerate}
+  \end{block}
+  \vspace{0.2cm}
+  \begin{alertblock}{Custo}
+    Passo 3 percorre toda $S_y$ $\Rightarrow$ $O(|S_y|)$.\\
+    Sem heurística, sequência adversarial leva a $\Theta(n^2)$.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Passo a passo: Union na lista}%% 13
+  \begin{center}
+  \begin{tikzpicture}[
+    nd/.style={llbox},
+    rp/.style={llrep},
+    ar/.style={-{Stealth[scale=0.65]},thick,UFSGray}
+  ]
+    %% Estado inicial: S1={a,b,c}  S2={d,e}
+    \node[font=\scriptsize\bfseries,UFSBlue] at (-0.7,3.0) {$S_1$:};
+    \node[rp] (a) at (0,3.0) {$a$};
+    \node[nd] (b) at (1.1,3.0) {$b$};
+    \node[nd] (c) at (2.2,3.0) {$c$};
+    \draw[ar] (a)--(b); \draw[ar] (b)--(c);
+    \draw[ar,bend right=30,UFSRed] (b) to (a);
+    \draw[ar,bend right=30,UFSRed] (c) to (a);
+
+    \node[font=\scriptsize\bfseries,UFSRed] at (-0.7,1.8) {$S_2$:};
+    \node[rp,fill=UFSRed!20] (d) at (0,1.8) {$d$};
+    \node[nd] (e) at (1.1,1.8) {$e$};
+    \draw[ar] (d)--(e);
+    \draw[ar,bend right=30,UFSRed] (e) to (d);
+
+    %% Seta de operação
+    \node[font=\small] at (5.2,2.4) {\textsc{Union}$(a,d)$};
+    \draw[-{Stealth},thick,UFSGray] (3.2,2.4)--(4.0,2.4);
+
+    %% Resultado
+    \node[font=\scriptsize\bfseries,UFSBlue] at (-0.7,0.4) {$S'$:};
+    \node[rp] (r1) at (0,0.4) {$a$};
+    \node[nd] (r2) at (1.1,0.4) {$b$};
+    \node[nd] (r3) at (2.2,0.4) {$c$};
+    \node[nd] (r4) at (3.3,0.4) {$d$};
+    \node[nd] (r5) at (4.4,0.4) {$e$};
+    \draw[ar] (r1)--(r2); \draw[ar] (r2)--(r3);
+    \draw[ar] (r3)--(r4); \draw[ar] (r4)--(r5);
+    \draw[ar,bend right=30,UFSRed] (r4) to (r1);
+    \draw[ar,bend right=30,UFSRed] (r5) to (r1);
+    \node[font=\tiny,UFSGray] at (2.2,-0.4)
+      {ponteiros \texttt{rep} de $d$ e $e$ atualizados para $a$ — custo $O(|S_2|)$};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Pior caso sem heurística}%% 14
+  \begin{alertblock}{Sequência adversarial}
+    \textsc{Union}$(x_1,x_2)$, \textsc{Union}$(x_2,x_3)$, \ldots, \textsc{Union}$(x_{n-1},x_n)$\\
+    sempre concatenando lista de 1 elemento na lista crescente:\\
+    custo $= 1 + 2 + \cdots + (n-1) = \Theta(n^2)$.
+  \end{alertblock}
+  \vspace{0.3cm}
+  \begin{center}
+  \begin{tikzpicture}[
+    nd/.style={llbox},
+    rp/.style={llrep},
+    ar/.style={-{Stealth[scale=0.65]},thick,UFSGray}
+  ]
+    \node[rp] (x1) at (0,0) {$x_1$};
+    \node[nd] (x2) at (1.1,0) {$x_2$};
+    \node[nd] (x3) at (2.2,0) {$x_3$};
+    \node at (3.3,0) {$\cdots$};
+    \node[nd] (xn) at (4.4,0) {$x_n$};
+    \draw[ar] (x1)--(x2); \draw[ar] (x2)--(x3);
+    \draw[ar] (x3)--(2.9,0); \draw[ar] (3.7,0)--(xn);
+    \draw[ar,bend right=35,UFSRed] (x2) to (x1);
+    \draw[ar,bend right=35,UFSRed] (x3) to (x1);
+    \draw[ar,bend right=35,UFSRed] (xn) to (x1);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Heurística: Union por Peso}%% 15
+  \begin{block}{Regra (CLRS, Seção 19.2)}
+    Anexar sempre a lista \textbf{menor} ao final da lista \textbf{maior}.\\
+    O representante guarda o \textbf{tamanho} do conjunto.
+  \end{block}
+  \vspace{0.3cm}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{exampleblock}{Lema chave}
+        Cada nó tem seu ponteiro \texttt{rep} atualizado \textbf{no máximo} $\lfloor\lg n\rfloor$ vezes.\\[4pt]
+        \textbf{Por quê?} A cada atualização, o conjunto ao qual $x$ pertence ao menos \textbf{dobra} de tamanho.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{block}{Teorema 19.1 (CLRS)}
+        Com $m$ operações totais sobre $n$ elementos:\\[4pt]
+        \textbf{Custo total}: $O(m + n\lg n)$
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Passo a passo: Union por Peso}%% 16
+  \begin{center}
+  \begin{tikzpicture}[
+    nd/.style={llbox},
+    rp/.style={llrep},
+    ar/.style={-{Stealth[scale=0.65]},thick,UFSGray},
+    lbl/.style={font=\tiny,UFSGray}
+  ]
+    %% Passo 1: {a,b,c} tamanho 3  {d} tamanho 1
+    \node[lbl] at (-1.0,3.2) {Passo 1:};
+    \node[rp] (p1a) at (0,3.2) {$a$\,(3)};
+    \node[nd] (p1b) at (1.4,3.2) {$b$};
+    \node[nd] (p1c) at (2.6,3.2) {$c$};
+    \node[rp,fill=UFSRed!15] (p1d) at (4.0,3.2) {$d$\,(1)};
+    \draw[ar] (p1a)--(p1b); \draw[ar] (p1b)--(p1c);
+
+    %% Seta
+    \draw[-{Stealth},thick,UFSBlue!50] (5.2,3.2)--(5.8,3.2);
+    \node[lbl] at (7.6,3.2) {$|S_a|{>}|S_d|$: anexar $d$ em $a$};
+
+    %% Resultado passo 1
+    \node[lbl] at (-1.0,2.0) {Resultado:};
+    \node[rp] (r1a) at (0,2.0) {$a$\,(4)};
+    \node[nd] (r1b) at (1.4,2.0) {$b$};
+    \node[nd] (r1c) at (2.6,2.0) {$c$};
+    \node[nd] (r1d) at (3.8,2.0) {$d$};
+    \draw[ar] (r1a)--(r1b); \draw[ar] (r1b)--(r1c); \draw[ar] (r1c)--(r1d);
+    \draw[ar,bend right=25,UFSRed] (r1d) to (r1a);
+
+    %% Passo 2: unir {a,b,c,d} com {e,f} tamanho 2
+    \node[lbl] at (-1.0,0.8) {Passo 2:};
+    \node[rp,fill=UFSRed!15] (p2e) at (0,0.8) {$e$\,(2)};
+    \node[nd] (p2f) at (1.4,0.8) {$f$};
+    \draw[ar] (p2e)--(p2f);
+    \node[lbl] at (5.5,0.8) {$|S_a|{>}|S_e|$: anexar $e,f$ em $a$};
+    \draw[-{Stealth},thick,UFSBlue!50] (2.8,0.8)--(3.4,0.8);
+    \node[lbl] at (-1.0,-0.3) {Resultado:};
+    \node[rp] (res) at (0.3,-0.3) {$a$\,(6)};
+    \node[lbl] at (2.5,-0.3) {$b\!\to\!c\!\to\!d\!\to\!e\!\to\!f$\ (todos com \texttt{rep}$=a$)};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Recapitulando: Lista Encadeada}%% 17
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \textsc{Find-Set} em $O(1)$; \textsc{Union} em $O(n)$ sem heurística
+      \item Union por peso: cada nó é atualizado $\leq \lfloor\lg n\rfloor$ vezes
+      \item Custo total: $O(m + n\lg n)$ com union por peso
+      \item Ainda caro para $n$ grande: precisamos evitar percorrer a lista no Union
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+%% ================================================================
+%%  SEÇÃO 3 — FLORESTA
+%% ================================================================
+\section{Representação por Floresta}
+
+\begin{frame}{Ideia: árvores enraizadas}%% 18
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Representação por floresta}
+        \begin{itemize}
+          \item Cada conjunto = uma \textbf{árvore enraizada}
+          \item Raiz = representante do conjunto
+          \item Cada nó guarda apenas o ponteiro para o \textbf{pai}
+          \item Raiz: $x.\texttt{parent} = x$
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{tikzpicture}
+        \node[ufroot] (r1) at (0.8,2.8) {1};
+        \node[ufnode] (n2) at (0,1.8) {2};
+        \node[ufnode] (n3) at (1.6,1.8) {3};
+        \node[ufnode] (n4) at (0,0.8) {4};
+        \draw[ufedge] (n2)--(r1); \draw[ufedge] (n3)--(r1);
+        \draw[ufedge] (n4)--(n2);
+        \node[ufroot] (r5) at (3.2,2.8) {5};
+        \node[ufnode] (n6) at (3.2,1.8) {6};
+        \draw[ufedge] (n6)--(r5);
+        \node[font=\tiny,UFSGray] at (2,0.2)
+          {$S_1=\{1,2,3,4\}$\quad $S_2=\{5,6\}$};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Passo a passo: Make-Set na floresta}%% 19
+  \begin{block}{\textsc{Make-Set}$(x)$}
+    $x.\texttt{parent} \leftarrow x$\\
+    $x.\texttt{rank}   \leftarrow 0$\quad (preparando para Union by Rank)\\[4pt]
+    \textbf{Custo}: $O(1)$
+  \end{block}
+  \vspace{0.3cm}
+  \begin{exampleblock}{Exemplo: Make-Set(1..6) — seis conjuntos singleton}
+    \begin{center}
+    \begin{tikzpicture}
+      \foreach \i in {1,...,6}
+        \node[ufroot] at ({(\i-1)*1.2},0) {\i};
+      \node[font=\tiny,UFSGray] at (3,-0.7)
+        {cada nó é raiz de si mesmo — rank 0};
+    \end{tikzpicture}
+    \end{center}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Passo a passo: Find-Set na floresta}%% 20
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{\textsc{Find-Set}$(x)$ — sem compressão}
+        \textbf{while} $x.\texttt{parent} \neq x$:\\
+        \quad $x \leftarrow x.\texttt{parent}$\\
+        \textbf{return} $x$\\[4pt]
+        \textbf{Custo}: $O(\text{altura da árvore})$
+      \end{block}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{tikzpicture}
+        \node[ufroot] (r)  at (1.2,3.2) {1};
+        \node[ufnode] (n2) at (0.4,2.2) {2};
+        \node[ufnode] (n3) at (2.0,2.2) {3};
+        \node[ufnode] (n4) at (0.4,1.2) {4};
+        \node[ufnode] (n7) at (0.4,0.2) {7};
+        \draw[ufedge] (n2)--(r); \draw[ufedge] (n3)--(r);
+        \draw[ufedge] (n4)--(n2); \draw[ufedge] (n7)--(n4);
+        % Highlight path from 7 to root
+        \draw[-{Stealth[scale=0.9]},very thick,UFSYellow!80!black]
+          (n7) to[bend right=25] (n4);
+        \draw[-{Stealth[scale=0.9]},very thick,UFSYellow!80!black]
+          (n4) to[bend right=25] (n2);
+        \draw[-{Stealth[scale=0.9]},very thick,UFSYellow!80!black]
+          (n2) to[bend right=25] (r);
+        \node[font=\tiny,UFSGray] at (1.2,-0.5)
+          {\textsc{Find-Set}(7): caminho amarelo até raiz 1};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=5]{Passo a passo: Union na floresta}%% 21
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{\textsc{Union}$(x,y)$ — sem rank}
+        $r_x \leftarrow \textsc{Find-Set}(x)$\\
+        $r_y \leftarrow \textsc{Find-Set}(y)$\\
+        \textbf{if} $r_x \neq r_y$:\\
+        \quad $r_y.\texttt{parent} \leftarrow r_x$\\[4pt]
+        \textbf{Custo}: $O(1)$ após encontrar raízes
+      \end{block}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{tikzpicture}
+        %% Antes
+        \node[ufroot] (ra) at (0,2.8) {1};
+        \node[ufnode] (na2) at (-0.6,1.8) {2};
+        \node[ufnode] (na3) at (0.6,1.8) {3};
+        \draw[ufedge] (na2)--(ra); \draw[ufedge] (na3)--(ra);
+        \node[ufroot] (rb) at (2.8,2.8) {4};
+        \node[ufnode] (nb5) at (2.8,1.8) {5};
+        \draw[ufedge] (nb5)--(rb);
+        \node[font=\tiny,UFSGray] at (1.4,3.2) {antes};
+        %% Depois
+        \draw[-{Stealth},thick,UFSGray] (1.4,1.2)--(1.4,0.6);
+        \node[ufroot] (rc) at (0.8,0) {1};
+        \node[ufnode] (nc2) at (0,- 0.9) {2};
+        \node[ufnode] (nc3) at (0.8,-0.9) {3};
+        \node[ufnode] (nc4) at (1.8,-0.9) {4};
+        \node[ufnode] (nc5) at (2.4,-1.8) {5};
+        \draw[ufedge] (nc2)--(rc); \draw[ufedge] (nc3)--(rc);
+        \draw[ufedge] (nc4)--(rc); \draw[ufedge] (nc5)--(nc4);
+        \node[font=\tiny,UFSGray] at (0.8,-2.4)
+          {\textsc{Union}(1,4)};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Sequência completa de operações}%% 22
+  \begin{center}
+  \begin{tikzpicture}[scale=0.92]
+    %% Estado 0: singletons 1..6
+    \node[font=\scriptsize\bfseries,UFSBlue,anchor=east] at (-0.35,4.2) {Início:};
+    \foreach \i in {1,...,6}
+      \node[ufroot,minimum size=0.55cm,font=\scriptsize] at ({(\i-1)*1.0},4.2) {\i};
+
+    %% Estado 1: Union(1,2), Union(3,4), Union(5,6)
+    \node[font=\scriptsize\bfseries,UFSBlue] at (-0.5,2.6) {U(1,2)};
+    \node[font=\scriptsize\bfseries,UFSBlue] at (-0.5,2.2) {U(3,4)};
+    \node[font=\scriptsize\bfseries,UFSBlue] at (-0.5,1.8) {U(5,6):};
+
+    \node[ufroot,minimum size=0.52cm,font=\scriptsize] (s1r) at (0.5,2.6) {1};
+    \node[ufnode,minimum size=0.52cm,font=\scriptsize] (s1a) at (0.5,1.8) {2};
+    \draw[ufedge] (s1a)--(s1r);
+
+    \node[ufroot,minimum size=0.52cm,font=\scriptsize] (s3r) at (2.2,2.6) {3};
+    \node[ufnode,minimum size=0.52cm,font=\scriptsize] (s3a) at (2.2,1.8) {4};
+    \draw[ufedge] (s3a)--(s3r);
+
+    \node[ufroot,minimum size=0.52cm,font=\scriptsize] (s5r) at (3.9,2.6) {5};
+    \node[ufnode,minimum size=0.52cm,font=\scriptsize] (s5a) at (3.9,1.8) {6};
+    \draw[ufedge] (s5a)--(s5r);
+
+    %% Estado 2: Union(1,3) — label recuado para não sobrepor nó 2
+    \node[font=\scriptsize\bfseries,UFSBlue] at (-0.8,0.5) {U(1,3):};
+    \node[ufroot,minimum size=0.52cm,font=\scriptsize] (t1r) at (0.5,0.8) {1};
+    \node[ufnode,minimum size=0.52cm,font=\scriptsize] (t1a) at (0.0,0) {2};
+    \node[ufnode,minimum size=0.52cm,font=\scriptsize] (t1b) at (0.9,0) {3};
+    \node[ufnode,minimum size=0.52cm,font=\scriptsize] (t1c) at (1.5,-0.7) {4};
+    \draw[ufedge] (t1a)--(t1r); \draw[ufedge] (t1b)--(t1r);
+    \draw[ufedge] (t1c)--(t1b);
+
+    %% Estado 3: Union(1,5)
+    \node[font=\scriptsize\bfseries,UFSBlue] at (4.5,0.5) {U(1,5):};
+    \node[ufroot,minimum size=0.52cm,font=\scriptsize] (u1r) at (6,1.0) {1};
+    \node[ufnode,minimum size=0.52cm,font=\scriptsize] (u1a) at (5.2,0.1) {2};
+    \node[ufnode,minimum size=0.52cm,font=\scriptsize] (u1b) at (5.8,0.1) {3};
+    \node[ufnode,minimum size=0.52cm,font=\scriptsize] (u1c) at (6.6,0.1) {5};
+    \node[ufnode,minimum size=0.52cm,font=\scriptsize] (u1d) at (5.8,-0.7) {4};
+    \node[ufnode,minimum size=0.52cm,font=\scriptsize] (u1e) at (7.2,-0.7) {6};
+    \draw[ufedge] (u1a)--(u1r); \draw[ufedge] (u1b)--(u1r);
+    \draw[ufedge] (u1c)--(u1r);
+    \draw[ufedge] (u1d)--(u1b); \draw[ufedge] (u1e)--(u1c);
+
+    %% Setas entre estados
+    \draw[-{Stealth},thick,UFSGray] (2,3.8)--(2,3.2);
+    \draw[-{Stealth},thick,UFSGray] (2,1.4)--(2,0.8) node[right,font=\tiny] {};
+    \draw[-{Stealth},thick,UFSGray] (3.2,0.5)--(4.4,0.5);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Problema: degeneração em cadeia}%% 23
+  \begin{alertblock}{Sequência adversarial para a floresta ingênua}
+    \textsc{Union}$(x_1,x_2)$, \textsc{Union}$(x_2,x_3)$, \ldots, \textsc{Union}$(x_{n-1},x_n)$
+    sempre conectando a raiz da árvore maior como filho da menor.
+  \end{alertblock}
+  \vspace{0.3cm}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[ufroot] (n1) at (0,0) {$x_1$};
+    \node[ufnode] (n2) at (1.2,0) {$x_2$};
+    \node[ufnode] (n3) at (2.4,0) {$x_3$};
+    \node at (3.6,0) {\ldots};
+    \node[ufnode] (nn) at (4.8,0) {$x_n$};
+    \draw[ufedge] (n2)--(n1); \draw[ufedge] (n3)--(n2);
+    \draw[ufedge] (n3)--(3.2,0); \draw[ufedge] (4.0,0)--(nn);
+    \node[font=\small,UFSGray,below=0.4cm of n3]
+      {altura $= n-1$ → \textsc{Find-Set} em $O(n)$};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Comparação: lista vs.\ floresta (sem heurísticas)}%% 24
+  \begin{center}
+  \renewcommand{\arraystretch}{1.5}
+  \begin{tabular}{lcc}
+    \toprule
+    & \textbf{Lista encadeada} & \textbf{Floresta ingênua} \\
+    \midrule
+    \textsc{Make-Set} & $O(1)$ & $O(1)$ \\
+    \textsc{Find-Set} & $O(1)$ & $O(n)$ \\
+    \textsc{Union}    & $O(n)$ & $O(1)$\,+\,\textsc{Find-Set} \\
+    Total $m$ ops    & $O(mn)$ pior caso & $O(mn)$ pior caso \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \vspace{0.3cm}
+  \begin{center}
+    Ambas são equivalentes no pior caso. \\
+    As \textbf{heurísticas} fazem a diferença — próximas seções.
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile,shrink=15]{Implementação Java: floresta básica}%% 25
+\begin{lstlisting}
+public class UnionFind {
+    private final int[] parent;
+
+    public UnionFind(int n) {
+        parent = new int[n];
+        for (int i = 0; i < n; i++) parent[i] = i; // Make-Set
+    }
+
+    // Find-Set sem compressao -- O(altura)
+    public int find(int x) {
+        while (parent[x] != x) x = parent[x];
+        return x;
+    }
+
+    // Union sem heuristica -- O(1) apos find
+    public void union(int x, int y) {
+        int rx = find(x), ry = find(y);
+        if (rx != ry) parent[ry] = rx;
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Recapitulando: Floresta}%% 26
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Floresta: cada nó guarda apenas ponteiro para o pai
+      \item \textsc{Make-Set} e \textsc{Union} em $O(1)$; \textsc{Find-Set} em $O(\text{altura})$
+      \item Sem heurísticas, árvore degenera em cadeia → $O(n)$ por Find
+      \item Solução: \textbf{Union by Rank} controla a altura da árvore
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+%% ================================================================
+%%  SEÇÃO 4 — UNION BY RANK
+%% ================================================================
+\section{Union by Rank}
+
+\begin{frame}{Motivação: controlar a altura}%% 27
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Problema}
+        Sem critério de escolha, Union pode criar árvores altas.\\
+        Find-Set percorre todo o caminho até a raiz.
+      \end{block}
+      \vspace{0.3cm}
+      \begin{block}{Solução: Union by Rank}
+        Manter um \textbf{rank} por nó — limite superior da altura.\\
+        No Union, a raiz de menor rank passa a ser filha da de maior rank.
+      \end{block}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{tikzpicture}
+        \node[font=\scriptsize,UFSRed] at (0.8,3.2) {ruim (degenerado)};
+        \node[ufroot] (d1) at (0,2.6) {1}; \node[ufnode] (d2) at (1,2.6) {2};
+        \node[ufnode] (d3) at (2,2.6) {3}; \draw[ufedge] (d2)--(d1); \draw[ufedge] (d3)--(d2);
+
+        \node[font=\scriptsize,UFSBlue] at (0.8,1.6) {bom (balanceado)};
+        \node[ufroot] (b1) at (0.8,1.0) {1};
+        \node[ufnode] (b2) at (0,0.2) {2}; \node[ufnode] (b3) at (1.6,0.2) {3};
+        \draw[ufedge] (b2)--(b1); \draw[ufedge] (b3)--(b1);
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Definição formal de rank (CLRS, Seção 19.3)}%% 28
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Rank}
+        \begin{itemize}
+          \item \textsc{Make-Set}$(x)$: $x.\texttt{rank} = 0$
+          \item Se $\texttt{rank}[r_x] > \texttt{rank}[r_y]$: $r_y \to r_x$ (rank inalterado)
+          \item Se ranks iguais: $r_y \to r_x$ e $r_x.\texttt{rank} \mathrel{+}= 1$
+        \end{itemize}
+      \end{block}
+      \begin{alertblock}{Invariante}
+        rank$(x)$ $\geq$ altura real da subárvore de $x$.\\
+        Árvore de rank $k$ $\Rightarrow$ $\geq 2^k$ nós.
+      \end{alertblock}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{tikzpicture}[
+        nr/.style={circle,draw=UFSBlue,fill=UFSBlue!15,minimum size=0.58cm,font=\scriptsize\bfseries},
+        rt/.style={circle,draw=UFSRed,fill=UFSRed!20,very thick,minimum size=0.58cm,font=\scriptsize\bfseries},
+        rl/.style={font=\tiny,UFSRed}
+      ]
+        \node[rt,label={[rl]right:r=3}] (r) at (1.8,3.2) {1};
+        \node[nr,label={[rl]right:r=2}] (a) at (0.8,2.2) {2};
+        \node[nr,label={[rl]right:r=2}] (b) at (2.8,2.2) {5};
+        \node[nr,label={[rl]left:r=1}]  (c) at (0.0,1.2) {3};
+        \node[nr,label={[rl]right:r=1}] (d) at (1.6,1.2) {4};
+        \node[nr,label={[rl]right:r=1}] (e) at (2.8,1.2) {6};
+        \node[nr,label={[rl]left:r=0}]  (f) at (0.0,0.2) {7};
+        \node[nr,label={[rl]right:r=0}] (g) at (1.6,0.2) {8};
+        \draw[ufedge] (a)--(r); \draw[ufedge] (b)--(r);
+        \draw[ufedge] (c)--(a); \draw[ufedge] (d)--(a);
+        \draw[ufedge] (e)--(b);
+        \draw[ufedge] (f)--(c); \draw[ufedge] (g)--(d);
+        \node[font=\tiny,UFSGray] at (1.8,-0.3) {altura real = 3 = rank da raiz};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Algoritmo Union by Rank}%% 29
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{block}{\textsc{Link}$(r_x, r_y)$}
+        \textbf{if} $r_x.\texttt{rank} > r_y.\texttt{rank}$:\\
+        \quad $r_y.\texttt{parent} \leftarrow r_x$\\
+        \textbf{elseif} $r_x.\texttt{rank} < r_y.\texttt{rank}$:\\
+        \quad $r_x.\texttt{parent} \leftarrow r_y$\\
+        \textbf{else}:\\
+        \quad $r_y.\texttt{parent} \leftarrow r_x$\\
+        \quad $r_x.\texttt{rank} \mathrel{+}= 1$
+      \end{block}
+      \begin{block}{\textsc{Union}$(x,y)$}
+        \textsc{Link}(\textsc{Find-Set}$(x)$, \textsc{Find-Set}$(y)$)
+      \end{block}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{exampleblock}{Resultado}
+        Altura máxima da árvore: $\lfloor\lg n\rfloor$\\[4pt]
+        \textsc{Find-Set} garante $O(\lg n)$ com esta heurística isolada.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Passo a passo: Union by Rank — Parte 1}%% 30
+  \begin{center}
+  \begin{tikzpicture}[
+    nr/.style={ufnode,font=\scriptsize\bfseries,minimum size=0.55cm},
+    rr/.style={ufroot,font=\scriptsize\bfseries,minimum size=0.55cm},
+    lbl/.style={font=\scriptsize,UFSGray}
+  ]
+    \node[lbl] at (-0.5,3.5) {Início (r=0):};
+    \foreach \i in {1,...,8}
+      \node[rr,label={[font=\tiny]below:r=0}] at ({(\i-1)*1.0},3.5) {\i};
+
+    \node[lbl] at (-0.5,2.0) {U(1,2):};
+    \node[rr,label={[font=\tiny]below:r=1}] (u12r) at (0.5,2.2) {1};
+    \node[nr] (u12a) at (0.5,1.4) {2};
+    \draw[ufedge] (u12a)--(u12r);
+
+    \node[lbl] at (2.0,2.0) {U(3,4):};
+    \node[rr,label={[font=\tiny]below:r=1}] (u34r) at (3.0,2.2) {3};
+    \node[nr] (u34a) at (3.0,1.4) {4};
+    \draw[ufedge] (u34a)--(u34r);
+
+    \node[lbl] at (4.5,2.0) {U(5,6):};
+    \node[rr,label={[font=\tiny]below:r=1}] (u56r) at (5.5,2.2) {5};
+    \node[nr] (u56a) at (5.5,1.4) {6};
+    \draw[ufedge] (u56a)--(u56r);
+
+    \node[lbl] at (7.0,2.0) {U(7,8):};
+    \node[rr,label={[font=\tiny]below:r=1}] (u78r) at (8.0,2.2) {7};
+    \node[nr] (u78a) at (8.0,1.4) {8};
+    \draw[ufedge] (u78a)--(u78r);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[shrink=20]{Passo a passo: Union by Rank — Parte 2}%% 31
+  \begin{center}
+  \begin{tikzpicture}[
+    nr/.style={ufnode,font=\scriptsize\bfseries,minimum size=0.55cm},
+    rr/.style={ufroot,font=\scriptsize\bfseries,minimum size=0.55cm},
+    lbl/.style={font=\scriptsize,UFSGray}
+  ]
+    \node[lbl] at (-0.5,2.5) {U(1,3) r=1=r=1:};
+    \node[rr,label={[font=\tiny]above:r=2}] (r1) at (1.0,2.5) {1};
+    \node[nr] (a2) at (0.2,1.5) {2};
+    \node[nr] (a3) at (1.0,1.5) {3};
+    \node[nr] (a4) at (1.8,0.7) {4};
+    \draw[ufedge] (a2)--(r1); \draw[ufedge] (a3)--(r1);
+    \draw[ufedge] (a4)--(a3);
+
+    \node[lbl] at (3.5,2.5) {U(5,7) r=1=r=1:};
+    \node[rr,label={[font=\tiny]above:r=2}] (r5) at (5.0,2.5) {5};
+    \node[nr] (b6) at (4.2,1.5) {6};
+    \node[nr] (b7) at (5.0,1.5) {7};
+    \node[nr] (b8) at (5.8,0.7) {8};
+    \draw[ufedge] (b6)--(r5); \draw[ufedge] (b7)--(r5);
+    \draw[ufedge] (b8)--(b7);
+
+    \node[lbl] at (-0.5,-0.5) {U(1,5) r=2=r=2:};
+    \node[rr,label={[font=\tiny]above:r=3}] (rr) at (4.0,-0.5) {1};
+    \node[nr] (c2) at (3.0,-1.5) {2};
+    \node[nr] (c3) at (3.8,-1.5) {3};
+    \node[nr] (c5) at (4.6,-1.5) {5};
+    \node[nr] (c4) at (3.8,-2.4) {4};
+    \node[nr] (c6) at (4.6,-2.4) {6};
+    \node[nr] (c7) at (5.4,-2.4) {7};
+    \node[nr] (c8) at (5.4,-3.2) {8};
+    \draw[ufedge] (c2)--(rr); \draw[ufedge] (c3)--(rr); \draw[ufedge] (c5)--(rr);
+    \draw[ufedge] (c4)--(c3); \draw[ufedge] (c6)--(c5); \draw[ufedge] (c7)--(c5);
+    \draw[ufedge] (c8)--(c7);
+    \node[lbl] at (4.0,-3.8) {rank cresce apenas quando ranks são iguais};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Propriedades do rank}%% 32
+  \begin{block}{Lema 19.2 (CLRS)}
+    Para qualquer nó $x$: a subárvore de $x$ tem pelo menos $2^{x.\texttt{rank}}$ nós.
+  \end{block}
+  \vspace{0.3cm}
+  \begin{block}{Corolário}
+    O rank máximo de qualquer nó numa floresta com $n$ elementos é $\lfloor\lg n\rfloor$.\\
+    Logo, a altura de qualquer árvore é no máximo $\lfloor\lg n\rfloor$.
+  \end{block}
+  \vspace{0.3cm}
+  \begin{exampleblock}{Consequência}
+    Com Union by Rank isolado: \textsc{Find-Set} em $O(\lg n)$.\\
+    Para $n = 10^9$: altura $\leq 30$ — razoável, mas ainda podemos fazer melhor.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Prova do lema (esboço)}%% 33
+  \begin{block}{Por que árvore de rank $k$ tem $\geq 2^k$ nós?}
+    \textbf{Base} ($k=0$): rank 0 → subárvore tem $\geq 1 = 2^0$ nó. \checkmark\\[4pt]
+    \textbf{Indução} ($k>0$): o rank de $r$ chega a $k$ somente quando \textsc{Link} une duas raízes de rank $k-1$.\\
+    Por hipótese, cada uma tem $\geq 2^{k-1}$ nós.\\
+    A árvore resultante tem $\geq 2^{k-1} + 2^{k-1} = 2^k$ nós. \checkmark
+  \end{block}
+  \vspace{0.2cm}
+  \begin{alertblock}{Propriedade adicional}
+    O número de nós com rank exatamente $k$ é $\leq n/2^k$.\\
+    Os ranks são \textbf{estritamente crescentes} no caminho de qualquer nó até a raiz.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink=25]{Código Java: Union by Rank}%% 34
+\begin{lstlisting}
+public class UnionFindRank {
+    private final int[] parent;
+    private final int[] rank;
+
+    public UnionFindRank(int n) {
+        parent = new int[n];
+        rank   = new int[n];
+        for (int i = 0; i < n; i++) parent[i] = i; // Make-Set
+    }
+
+    public int find(int x) {                 // Find-Set sem compressao
+        while (parent[x] != x) x = parent[x];
+        return x;
+    }
+
+    public void union(int x, int y) {        // Union by Rank
+        int rx = find(x), ry = find(y);
+        if (rx == ry) return;
+        if (rank[rx] < rank[ry]) { int t = rx; rx = ry; ry = t; }
+        parent[ry] = rx;                     // ry passa a ser filho de rx
+        if (rank[rx] == rank[ry]) rank[rx]++;
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Recapitulando: Union by Rank}%% 35
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Rank: limite superior da altura do nó
+      \item Union sempre coloca a raiz de menor rank como filha
+      \item Árvore de rank $k$ tem pelo menos $2^k$ nós
+      \item Altura máxima: $\lfloor\lg n\rfloor$ $\Rightarrow$ \textsc{Find-Set} em $O(\lg n)$
+      \item Próximo passo: \textbf{Path Compression} para reduzir ainda mais
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+%% ================================================================
+%%  SEÇÃO 5 — PATH COMPRESSION
+%% ================================================================
+\section{Path Compression}
+
+\begin{frame}[shrink=10]{O problema dos caminhos longos}%% 36
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{alertblock}{Custo do Find-Set}
+        Mesmo com Union by Rank, \textsc{Find-Set}$(x)$ percorre todo o caminho de $x$ até a raiz.\\[4pt]
+        Chamadas repetidas ao mesmo nó percorrem o mesmo caminho inutilmente.
+      \end{alertblock}
+      \vspace{0.3cm}
+      \begin{block}{Ideia}
+        Durante \textsc{Find-Set}, \textbf{comprimir o caminho}: fazer todos os nós visitados apontarem diretamente para a raiz.
+      \end{block}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{tikzpicture}
+        \node[ufroot] (r) at (1.2,4.0) {1};
+        \node[ufnode] (a) at (1.2,3.0) {2};
+        \node[ufnode] (b) at (1.2,2.0) {3};
+        \node[ufnode] (c) at (1.2,1.0) {4};
+        \node[ufnode] (d) at (1.2,0.0) {5};
+        \draw[ufedge] (a)--(r); \draw[ufedge] (b)--(a);
+        \draw[ufedge] (c)--(b); \draw[ufedge] (d)--(c);
+        \node[font=\tiny,UFSRed,align=center] at (2.4,2.0)
+          {Find-Set(5)\\percorre 4 arestas};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Algoritmo: Find-Set com Path Compression}%% 37
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{\textsc{Find-Set} recursivo (two-pass)}
+        \textbf{if} $x.\texttt{parent} \neq x$:\\
+        \quad $x.\texttt{parent} \leftarrow \textsc{Find-Set}(x.\texttt{parent})$\\
+        \textbf{return} $x.\texttt{parent}$
+      \end{block}
+      \vspace{0.3cm}
+      \begin{block}{\textsc{Find-Set} iterativo}
+        Primeiro percurso: encontrar a raiz.\\
+        Segundo percurso: atualizar todos os ponteiros para a raiz.
+      \end{block}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{exampleblock}{O que muda?}
+        \begin{itemize}
+          \item O valor retornado é idêntico ao sem compressão
+          \item Os ponteiros \texttt{parent} são \textbf{atualizados como efeito colateral}
+          \item O rank \textbf{não é atualizado} (pode ficar maior que a altura real)
+          \item Custo amortizado: $O(\lg n)$ com PC isolado
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Passo a passo: antes da compressão}%% 38
+  \begin{center}
+  \begin{tikzpicture}
+    \node[font=\small\bfseries,UFSBlue] at (-1.5,2) {Antes:};
+    \node[ufroot] (r)  at (0,4) {1};
+    \node[ufnode] (n2) at (0,3) {2};
+    \node[ufnode] (n3) at (0,2) {3};
+    \node[ufnode] (n4) at (0,1) {4};
+    \node[ufnode] (n5) at (0,0) {5};
+    \draw[ufedge] (n2)--(r);
+    \draw[ufedge] (n3)--(n2);
+    \draw[ufedge] (n4)--(n3);
+    \draw[ufedge] (n5)--(n4);
+
+    %% Seta de operacao
+    \draw[-{Stealth},thick,UFSGray] (1.5,2)--(2.5,2);
+    \node[font=\small] at (2.0,2.5) {\textsc{Find-Set}(5)};
+
+    %% Caminho visitado
+    \draw[-{Stealth[scale=1.0]},very thick,UFSYellow!80!black,bend right=30]
+      (n5) to (n4);
+    \draw[-{Stealth[scale=1.0]},very thick,UFSYellow!80!black,bend right=30]
+      (n4) to (n3);
+    \draw[-{Stealth[scale=1.0]},very thick,UFSYellow!80!black,bend right=30]
+      (n3) to (n2);
+    \draw[-{Stealth[scale=1.0]},very thick,UFSYellow!80!black,bend right=30]
+      (n2) to (r);
+    \node[font=\tiny,UFSGray] at (-1.5,0) {percorre 4 arestas};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Passo a passo: após a compressão}%% 39
+  \begin{center}
+  \begin{tikzpicture}
+    \node[font=\small\bfseries,UFSBlue] at (-2.5,1) {Após Find-Set(5):};
+    \node[ufroot] (r) at (0,2) {1};
+    \node[ufnode] (n2) at (-1.8,0.6) {2};
+    \node[ufnode] (n3) at (-0.6,0.6) {3};
+    \node[ufnode] (n4) at (0.6,0.6) {4};
+    \node[ufnode] (n5) at (1.8,0.6) {5};
+    \draw[ufedge,UFSBlue,very thick] (n2)--(r);
+    \draw[ufedge,UFSBlue,very thick] (n3)--(r);
+    \draw[ufedge,UFSBlue,very thick] (n4)--(r);
+    \draw[ufedge,UFSBlue,very thick] (n5)--(r);
+    \node[font=\small,UFSGray] at (0,-0.4)
+      {todos os nós 2,3,4,5 agora apontam diretamente para a raiz 1};
+    \node[font=\small,UFSBlue] at (0,-0.9)
+      {próximo Find-Set: $O(1)$ por nó};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile,shrink=30]{Implementação Java: Path Compression recursivo}%% 40
+\begin{lstlisting}
+public class UnionFindPC {
+    private final int[] parent;
+    private final int[] rank;
+
+    public UnionFindPC(int n) {
+        parent = new int[n];
+        rank   = new int[n];
+        for (int i = 0; i < n; i++) parent[i] = i;
+    }
+
+    // Find-Set com path compression (recursivo)
+    public int find(int x) {
+        if (parent[x] != x)
+            parent[x] = find(parent[x]); // comprime no retorno da recursao
+        return parent[x];
+    }
+
+    public void union(int x, int y) {
+        int rx = find(x), ry = find(y);
+        if (rx == ry) return;
+        if (rank[rx] < rank[ry]) { int t = rx; rx = ry; ry = t; }
+        parent[ry] = rx;
+        if (rank[rx] == rank[ry]) rank[rx]++;
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=25]{Implementação Java: Path Compression iterativo}%% 41
+\begin{lstlisting}
+// Dois percursos: encontrar raiz, depois comprimir
+public int find(int x) {
+    // 1. encontrar a raiz
+    int root = x;
+    while (parent[root] != root) root = parent[root];
+
+    // 2. comprimir: todos apontam para root
+    while (parent[x] != root) {
+        int next = parent[x];
+        parent[x] = root;
+        x = next;
+    }
+    return root;
+}
+\end{lstlisting}
+\vspace{0.3cm}
+\begin{block}{Comparação}
+  \begin{itemize}
+    \item Recursivo: elegante, mas usa pilha de chamadas
+    \item Iterativo: preferível para pilhas rasas e grandes $n$
+    \item Ambos produzem o mesmo resultado final
+  \end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: Path Compression}%% 42
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item PC faz todos os nós no caminho apontarem diretamente para a raiz
+      \item O rank \emph{não} é corrigido — pode ser maior que a altura real
+      \item Custo amortizado com PC isolado: $O(\lg n)$ por operação Find
+      \item PC e Union by Rank \emph{juntos} → $O(\alpha(n))$ — próxima seção
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+%% ================================================================
+%%  SEÇÃO 6 — COMBINAÇÃO DAS HEURÍSTICAS
+%% ================================================================
+\section{Combinação: Rank + Path Compression}
+
+\begin{frame}{Por que as heurísticas se complementam?}%% 43
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Union by Rank}
+        Controla a \textbf{estrutura de longo prazo}:\\
+        limita a altura durante os Unions.
+      \end{block}
+      \vspace{0.3cm}
+      \begin{block}{Path Compression}
+        Reduz o custo de \textbf{futuras consultas}:\\
+        achata a árvore durante os Finds.
+      \end{block}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{exampleblock}{Sinergia}
+        PC achata nós visitados → as futuras Finds são baratas.\\[6pt]
+        Rank preserva a propriedade de que as raízes têm rank alto → PC só ocorre em caminhos curtos (amortizado).\\[6pt]
+        Resultado: $O(\alpha(n))$ amortizado por operação.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Passo a passo combinado — Parte 1}%% 44
+  \begin{center}
+  \begin{tikzpicture}[
+    nr/.style={ufnode,font=\scriptsize\bfseries,minimum size=0.55cm},
+    rr/.style={ufroot,font=\scriptsize\bfseries,minimum size=0.55cm},
+    lbl/.style={font=\scriptsize,UFSGray}
+  ]
+    \node[lbl] at (-0.5,3.2) {Após U(1,2), U(3,4), U(1,3):};
+    \node[rr,label={[font=\tiny]above:r=2}] (rt) at (2,3.2) {1};
+    \node[nr] (n2) at (1,2.2) {2};
+    \node[nr] (n3) at (2,2.2) {3};
+    \node[nr] (n4) at (3,1.4) {4};
+    \draw[ufedge] (n2)--(rt); \draw[ufedge] (n3)--(rt);
+    \draw[ufedge] (n4)--(n3);
+
+    \draw[-{Stealth},thick,UFSGray] (4.5,2.6)--(5.2,2.6);
+    \node[lbl] at (6.8,3.2) {Find-Set(4):};
+    \node[rr,label={[font=\tiny]above:r=2}] (rt2) at (7.5,3.2) {1};
+    \node[nr] (n2b) at (6.5,2.2) {2};
+    \node[nr] (n3b) at (7.5,2.2) {3};
+    \node[nr] (n4b) at (8.5,2.2) {4};
+    \draw[ufedge] (n2b)--(rt2); \draw[ufedge] (n3b)--(rt2);
+    \draw[ufedge,UFSBlue,very thick] (n4b)--(rt2);
+    \node[lbl] at (7.5,1.4) {4 comprimido: aponta para 1};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Passo a passo combinado — Parte 2}%% 45
+  \begin{center}
+  \begin{tikzpicture}[
+    nr/.style={ufnode,font=\scriptsize\bfseries,minimum size=0.55cm},
+    rr/.style={ufroot,font=\scriptsize\bfseries,minimum size=0.55cm},
+    lbl/.style={font=\scriptsize,UFSGray}
+  ]
+    \node[lbl] at (0,3.8) {Adicionar U(5,6), U(7,8), U(5,7), U(1,5):};
+    \node[rr,label={[font=\tiny]above:r=3}] (rt) at (4,3.2) {1};
+    \node[nr] (n2) at (1.8,2.2) {2};
+    \node[nr] (n3) at (3,2.2) {3};
+    \node[nr] (n5) at (4.5,2.2) {5};
+    \node[nr] (n4) at (3,1.2) {4};
+    \node[nr] (n6) at (3.8,1.2) {6};
+    \node[nr] (n7) at (5.2,1.2) {7};
+    \node[nr] (n8) at (6,0.4) {8};
+    \draw[ufedge] (n2)--(rt); \draw[ufedge] (n3)--(rt);
+    \draw[ufedge] (n5)--(rt);
+    \draw[ufedge] (n4)--(n3); \draw[ufedge] (n6)--(n5);
+    \draw[ufedge] (n7)--(n5); \draw[ufedge] (n8)--(n7);
+
+    \draw[-{Stealth},thick,UFSGray] (7.0,2.2)--(7.8,2.2);
+    \node[lbl] at (9,3.4) {Find-Set(8):};
+    \node[rr,label={[font=\tiny]above:r=3}] (rt2) at (9,2.6) {1};
+    \node[nr] (n5b) at (8.2,1.6) {5};
+    \node[nr] (n7b) at (9.0,1.6) {7};
+    \node[nr] (n8b) at (9.8,1.6) {8};
+    \draw[ufedge] (n5b)--(rt2);
+    \draw[ufedge,UFSBlue,very thick] (n7b)--(rt2);
+    \draw[ufedge,UFSBlue,very thick] (n8b)--(rt2);
+    \node[lbl] at (9,0.8) {7 e 8 comprimidos};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile,shrink=5]{Código Java: GenericUnionFind\textless T\textgreater{} — Parte 1}%% 46
+\begin{lstlisting}
+import java.util.HashMap;
+import java.util.Map;
+
+public class GenericUnionFind<T> {
+    private final Map<T, T>       parent = new HashMap<>();
+    private final Map<T, Integer> rank   = new HashMap<>();
+
+    public void makeSet(T x) {
+        parent.put(x, x);
+        rank.put(x, 0);
+    }
+
+    public T find(T x) {        // pre-condicao: makeSet(x) ja chamado
+        if (!parent.get(x).equals(x))
+            parent.put(x, find(parent.get(x))); // path compression
+        return parent.get(x);
+    }
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=5]{Código Java: GenericUnionFind\textless T\textgreater{} — Parte 2}%% 47
+\begin{lstlisting}
+    public boolean union(T x, T y) {
+        T rx = find(x), ry = find(y);
+        if (rx.equals(ry)) return false; // ja no mesmo conjunto
+
+        int rankX = rank.get(rx), rankY = rank.get(ry);
+        if (rankX < rankY) { T tmp = rx; rx = ry; ry = tmp; }
+
+        parent.put(ry, rx);              // ry passa a ser filho de rx
+        if (rankX == rankY)              // ranks iguais: incrementar
+            rank.merge(rx, 1, Integer::sum);
+        return true;
+    }
+
+    public boolean connected(T x, T y) {
+        return find(x).equals(find(y));
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Recapitulando: Combinação}%% 48
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Union by Rank controla a estrutura de longo prazo (altura $\leq \lg n$)
+      \item Path Compression achata o caminho durante cada Find
+      \item Juntos: custo amortizado $O(\alpha(n))$ por operação
+      \item GenericUnionFind<T> implementa em Java com HashMap e generics
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+%% ================================================================
+%%  SEÇÃO 7 — ANÁLISE AMORTIZADA
+%% ================================================================
+\section{Análise Amortizada}
+
+\begin{frame}{Por que análise amortizada?}%% 49
+  \begin{block}{Custo por operação vs.\ custo total}
+    \begin{itemize}
+      \item Uma única \textsc{Find-Set} com PC pode ser cara ($O(\lg n)$)
+      \item Mas operações subsequentes sobre os mesmos nós são baratas
+      \item Análise por operação piora o limite real — análise \textbf{amortizada} é mais justa
+    \end{itemize}
+  \end{block}
+  \vspace{0.3cm}
+  \begin{exampleblock}{Análise amortizada pelo método do potencial}
+    Atribuímos um \textbf{potencial} $\Phi$ ao estado da estrutura.\\
+    Custo amortizado = custo real + $\Delta\Phi$.\\
+    Somando sobre $m$ operações: custo total $\leq \sum \text{amortizado} + \Phi_0$.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Função de Ackermann — intuição}%% 50
+  \begin{block}{Uma função que cresce \emph{incrivelmente} rápido}
+    \begin{itemize}
+      \item $A_0(j) = j+1$ (sucessor);\quad $A_1(j) = 2j+1$
+      \item $A_2(j) = 2^{j+1}(j+1)-1$;\quad logo $A_2(1) = 7$
+      \item $A_3(1) = A_2(7) = 2047$
+      \item $A_4(1) = A_3(2047)$ — maior que o nº de átomos no universo
+    \end{itemize}
+  \end{block}
+  \vspace{0.3cm}
+  \begin{alertblock}{Inversa de Ackermann: $\alpha(n)$}
+    $\alpha(n) = \min\{k : A_k(1) \geq n\}$\\[4pt]
+    Como $A_k(1)$ explode, $\alpha(n) \leq 4$ para \emph{qualquer} $n$ prático\\
+    (basta $n \leq A_4(1)$, um número astronômico).
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[shrink=20]{Função de Ackermann $A_k(j)$ (CLRS, Seção 19.4)}%% 51
+  \begin{block}{Definição (nível $k\geq 0$, argumento $j\geq 1$)}
+    \[
+      A_k(j) =
+      \begin{cases}
+        j+1                 & \text{se } k = 0 \\[2pt]
+        A_{k-1}^{(j+1)}(j)  & \text{se } k \geq 1
+      \end{cases}
+    \]
+    onde $A_{k-1}^{(j+1)}$ é $A_{k-1}$ aplicada $j+1$ vezes (iteração funcional).
+  \end{block}
+  \vspace{0.2cm}
+  \begin{center}
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{ccl}
+    \toprule
+    $k$ & $A_k(1)$ & fórmula geral \\
+    \midrule
+    0 & 2    & $A_0(j) = j+1$ \\
+    1 & 3    & $A_1(j) = 2j+1$ \\
+    2 & 7    & $A_2(j) = 2^{j+1}(j+1)-1$ \\
+    3 & 2047 & $A_3(1) = A_2(7)$ \\
+    4 & \multicolumn{2}{l}{$A_4(1) = A_3(2047) \gg 10^{80}$ (astronômico)} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}[shrink=20]{Inversa de Ackermann: $\alpha(n)$}%% 52
+  \begin{block}{Definição}
+    $\alpha(n) = \min\{\,k : A_k(1) \geq n\,\}$ \quad — o menor nível cujo $A_k(1)$ já alcança $n$.
+  \end{block}
+  \vspace{0.3cm}
+  \begin{center}
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Faixa de $n$} & $\alpha(n)$ \\
+    \midrule
+    $n \leq 2$                 & 0 \\
+    $n = 3$                    & 1 \\
+    $4 \leq n \leq 7$          & 2 \\
+    $8 \leq n \leq 2047$       & 3 \\
+    $2048 \leq n \leq A_4(1)$  & 4 \quad(todo $n$ concebível) \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \vspace{0.3cm}
+  \begin{center}
+    Como $A_4(1) \gg 10^{80}$, na prática $\alpha(n) \leq 4$ sempre.
+  \end{center}
+\end{frame}
+
+\begin{frame}{Crescimento comparado}%% 53
+  \begin{center}
+  \begin{tikzpicture}[xscale=0.9,yscale=0.7]
+    % Axes
+    \draw[-{Stealth},thick] (0,0)--(8.5,0) node[right] {$n$};
+    \draw[-{Stealth},thick] (0,0)--(0,5.5) node[above] {custo};
+    % Grid
+    \foreach \y in {1,...,5}
+      \draw[dotted,UFSGray!40] (0,\y)--(8,\y);
+    % O(n) linear
+    \draw[thick,UFSRed]   (0,0)--(7,5)   node[right,font=\scriptsize] {$O(n)$};
+    % O(n log n)
+    \draw[thick,UFSYellow!80!black] (0,0) plot[domain=1:4,samples=30]
+      (\x*1.75,{\x*log2(\x)/4}) node[right,font=\scriptsize] {$O(n\lg n)$};
+    % O(n alpha(n))
+    \draw[thick,UFSBlue,very thick] (0,0)--(7,0.3)
+      node[right,font=\scriptsize] {$O(n\,\alpha(n))$};
+    % Labels
+    \node[font=\scriptsize,UFSGray] at (4,-0.4) {escala logarítmica};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Teorema 19.14 (CLRS 4ª ed.)}%% 54
+  \begin{block}{Enunciado}
+    Seja uma sequência de $m$ operações \textsc{Make-Set}, \textsc{Union} e \textsc{Find-Set}
+    sobre $n$ elementos, usando \textbf{union por rank} e \textbf{path compression}.\\[6pt]
+    O tempo total no pior caso é:
+    \[
+      O(m\,\alpha(n))
+    \]
+  \end{block}
+  \vspace{0.3cm}
+  \begin{exampleblock}{Significado prático}
+    Como $\alpha(n) \leq 4$ para qualquer $n$ prático, o custo por operação é essencialmente $O(1)$ amortizado.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[shrink=10]{Por que surge $\alpha(n)$? (intuição)}%% 55
+  \begin{columns}[T]
+    \begin{column}{0.42\textwidth}
+      \begin{block}{Dois tipos de nó no caminho de Find-Set}
+        \textbf{Nó de bloco} (amarelo): seu pai está no \emph{mesmo bloco de ranks}.\\[4pt]
+        \textbf{Nó chave} (vermelho): seu pai está em \emph{bloco superior}.\\[6pt]
+        A contagem mostra:
+        \begin{itemize}
+          \item Nós chave por Find: $O(\alpha(n))$
+          \item Custo de nós de bloco: amortizado $O(1)$
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.55\textwidth}
+      \begin{tikzpicture}[
+        key/.style={circle,draw=UFSRed,fill=UFSRed!20,very thick,
+          minimum size=0.6cm,font=\scriptsize\bfseries},
+        blk/.style={circle,draw=UFSYellow!80!black,fill=UFSYellow!30,very thick,
+          minimum size=0.6cm,font=\scriptsize\bfseries},
+        rt/.style={circle,draw=UFSBlue,fill=UFSBlue!15,minimum size=0.6cm,
+          font=\scriptsize\bfseries},
+        ar/.style={-{Stealth[scale=0.7]},thick,UFSGray},
+        hl/.style={-{Stealth[scale=0.9]},very thick,UFSBlue!60}
+      ]
+        %% Path from leaf to root: leaf-blk-blk-key-blk-key-root
+        \node[rt]  (r)  at (0,4.8) {raiz};
+        \node[key] (k1) at (0,3.8) {$k_1$};
+        \node[blk] (b1) at (0,2.8) {$b_1$};
+        \node[blk] (b2) at (0,1.8) {$b_2$};
+        \node[key] (k2) at (0,0.8) {$k_2$};
+        \node[blk] (b3) at (0,-0.2){$b_3$};
+        \draw[ar] (b3)--(k2); \draw[ar] (k2)--(b2);
+        \draw[ar] (b2)--(b1); \draw[ar] (b1)--(k1);
+        \draw[ar] (k1)--(r);
+        %% Block labels
+        \node[font=\tiny,UFSGray,right=0.5cm of r]  {$B_3$};
+        \node[font=\tiny,UFSRed,right=0.5cm of k1]  {chave: muda bloco};
+        \node[font=\tiny,UFSYellow!80!black,right=0.5cm of b1] {bloco $B_2$};
+        \node[font=\tiny,UFSYellow!80!black,right=0.5cm of b2] {bloco $B_2$};
+        \node[font=\tiny,UFSRed,right=0.5cm of k2]  {chave: muda bloco};
+        \node[font=\tiny,UFSYellow!80!black,right=0.5cm of b3] {bloco $B_1$};
+        \node[font=\tiny,UFSBlue] at (0,-0.9)
+          {2 nós chave $\Rightarrow$ $O(\alpha(n))$ por Find};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Blocos de rank (intuição)}%% 56
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Definição}
+        $B_k = \bigl\{A_{k-1}(1)+1,\ldots,A_k(1)\bigr\}$,\ \ $B_0=\{0,\ldots,A_0(1)\}$\\[4pt]
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabular}{cl}
+          \toprule
+          \textbf{Bloco} & \textbf{Ranks} \\
+          \midrule
+          $B_0$ & $\{0,1,2\}$ \\
+          $B_1$ & $\{3\}$ \\
+          $B_2$ & $\{4,\ldots,7\}$ \\
+          $B_3$ & $\{8,\ldots,2047\}$ \\
+          $B_4$ & $\{2048,\ldots,A_4(1)\}$ \\
+          \bottomrule
+        \end{tabular}
+      \end{block}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{exampleblock}{Por que isso importa?}
+        Em qualquer árvore com $n$ nós práticos:\\
+        \begin{itemize}
+          \item ranks $\leq \lfloor\lg n\rfloor \leq 30$ (para $n=10^9$)
+          \item logo só os blocos $B_0$--$B_3$ são usados
+          \item \textbf{$\leq 4$ blocos} $\Rightarrow$ $O(\alpha(n))$ saltos por Find-Set
+        \end{itemize}
+        Esta é a origem do $\alpha(n)$.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Limite da análise amortizada}%% 57
+  \begin{block}{Custo total de $m$ operações}
+    \begin{description}
+      \item[\textsc{Make-Set}:] $n$ operações, $O(1)$ cada → total $O(n)$
+      \item[\textsc{Union}:] $\leq n-1$ operações, $O(1)$ cada → total $O(n)$
+      \item[\textsc{Find-Set}:] Nós chave por chamada: $O(\alpha(n))$;\\
+        nós de bloco: custo amortizável ao potencial → $O(1)$ total por op.
+    \end{description}
+  \end{block}
+  \vspace{0.3cm}
+  \begin{block}{Resultado}
+    Custo total $= O(m\,\alpha(n))$. No modelo de \emph{pointer machine} este limite é justo:\\
+    Fredman--Saks (1989) provam $\Omega(m\,\alpha(n))$ no pior caso.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Tabela comparativa de complexidade}%% 58
+  \begin{center}
+  \renewcommand{\arraystretch}{1.4}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Implementação} & \textbf{Por op.\ (amort.)} & \textbf{$m$ operações} \\
+    \midrule
+    Lista ingênua               & $O(n)$         & $O(mn)$ \\
+    Lista + union por peso      & $O(1)$ Find,\ amort.\ $O(\lg n)$ Union & $O(m+n\lg n)$ \\
+    Floresta + rank             & $O(\lg n)$     & $O(m\lg n)$ \\
+    Floresta + PC               & $O(\lg n)$     & $O(m\lg n)$ \\
+    \textbf{Floresta + rank + PC} & $O(\alpha(n))$ & $\mathbf{O(m\,\alpha(n))}$ \\
+    \bottomrule
+    \multicolumn{3}{l}{\small $\alpha(n) \leq 4$ para qualquer $n$ prático} \\
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Recapitulando: Análise Amortizada}%% 59
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Análise amortizada revela o custo médio real por operação
+      \item Função de Ackermann cresce mais rápido que qualquer função primitiva recursiva
+      \item $\alpha(n) \leq 4$ para qualquer $n$ concebível → prática é $O(1)$ amortizado
+      \item Teorema 19.14 (CLRS): $O(m\,\alpha(n))$ no pior caso (justo no modelo de \emph{pointer machine})
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+%% ================================================================
+%%  SEÇÃO 8 — JAVA MODERNO
+%% ================================================================
+\section{Implementação em Java Moderno}
+
+\begin{frame}{Java 17+: recursos relevantes}%% 60
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Para Union-Find genérico}
+        \begin{itemize}
+          \item \textbf{Generics} (\texttt{<T>}): suportar qualquer tipo
+          \item \textbf{HashMap}: mapeamento elemento → pai
+          \item \textbf{Records}: imutabilidade para metadados
+          \item \textbf{var}: inferência de tipo local
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Para uso em grafos}
+        \begin{itemize}
+          \item \textbf{Stream API}: processar arestas
+          \item \textbf{Comparator}: ordenar por peso
+          \item \textbf{instanceof pattern}: verificar tipos
+          \item \textbf{sealed interfaces}: modelar tipos fechados
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile,shrink=8]{Interface DisjointSet\textless T\textgreater{}}%% 61
+\begin{lstlisting}
+public interface DisjointSet<T> {
+    /** Cria um conjunto unitario {x}. */
+    void makeSet(T x);
+
+    /** Retorna o representante do conjunto de x. */
+    T find(T x);
+
+    /**
+     * Une os conjuntos de x e y.
+     * @return true se estavam em conjuntos diferentes
+     */
+    boolean union(T x, T y);
+
+    /** Verifica se x e y estao no mesmo conjunto. */
+    default boolean connected(T x, T y) {
+        return find(x).equals(find(y));
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=30]{Implementação com array de inteiros}%% 62
+\begin{lstlisting}
+public final class ArrayUnionFind {
+    private final int[] parent;
+    private final int[] rank;
+
+    public ArrayUnionFind(int n) {
+        parent = new int[n]; rank = new int[n];
+        for (int i = 0; i < n; i++) parent[i] = i;
+    }
+
+    public int find(int x) {
+        if (parent[x] != x) parent[x] = find(parent[x]);
+        return parent[x];
+    }
+
+    public boolean union(int x, int y) {
+        var rx = find(x); var ry = find(y);
+        if (rx == ry) return false;
+        if (rank[rx] < rank[ry]) { var t = rx; rx = ry; ry = t; }
+        parent[ry] = rx;
+        if (rank[rx] == rank[ry]) rank[rx]++;
+        return true;
+    }
+
+    public boolean connected(int x, int y) { return find(x)==find(y); }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Record Java para aresta de grafo}%% 63
+\begin{lstlisting}
+// Record: imutavel, equals/hashCode/toString automaticos (Java 16+)
+public record Edge<V>(V from, V to, double weight)
+    implements Comparable<Edge<V>> {
+
+    @Override
+    public int compareTo(Edge<V> other) {
+        return Double.compare(this.weight, other.weight);
+    }
+}
+
+// Uso com var e generics:
+var edges = List.of(
+    new Edge<>("A", "B", 3.0),
+    new Edge<>("B", "C", 1.5),
+    new Edge<>("A", "C", 4.2)
+);
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=20]{Kruskal com Stream API}%% 64
+\begin{lstlisting}
+public static <V> List<Edge<V>> kruskal(
+        Collection<V> vertices,
+        Collection<Edge<V>> edges) {
+
+    var uf = new GenericUnionFind<V>();
+    vertices.forEach(uf::makeSet);
+
+    return edges.stream()
+        .sorted()                       // ordena por peso (Comparable)
+        // efeito colateral seguro apenas em stream sequencial (nao use .parallel())
+        .filter(e -> uf.union(e.from(), e.to())) // false = ciclo
+        .collect(Collectors.toList());
+}
+
+// Uso:
+var mst = kruskal(graph.vertices(), graph.edges());
+mst.forEach(e -> System.out.printf("%s--%s: %.1f%n",
+    e.from(), e.to(), e.weight()));
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=15]{Detectar ciclos em grafo}%% 65
+\begin{lstlisting}
+public static <V> boolean hasCycle(
+        Collection<V> vertices,
+        Collection<Edge<V>> edges) {
+
+    var uf = new GenericUnionFind<V>();
+    vertices.forEach(uf::makeSet);
+
+    for (var edge : edges) {
+        // union retorna false se ja estao conectados = ciclo
+        if (!uf.union(edge.from(), edge.to())) {
+            return true;
+        }
+    }
+    return false;
+}
+\end{lstlisting}
+\vspace{0.2cm}
+\begin{block}{Custo}
+  $O(m\,\alpha(n))$ para $m$ arestas e $n$ vértices.
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile,shrink=5]{Testes JUnit 5 — Parte 1}%% 66
+\begin{lstlisting}
+import org.junit.jupiter.api.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+class UnionFindTest {
+    private ArrayUnionFind uf;
+
+    @BeforeEach void setUp() { uf = new ArrayUnionFind(10); }
+
+    @Test void singletons_are_not_connected() {
+        assertFalse(uf.connected(0, 1));
+        assertFalse(uf.connected(3, 7));
+    }
+
+    @Test void union_connects_elements() {
+        uf.union(0, 1); uf.union(1, 2);
+        assertTrue(uf.connected(0, 2));  // transitivo
+        assertFalse(uf.connected(0, 3));
+    }
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=25]{Testes JUnit 5 — Parte 2}%% 67
+\begin{lstlisting}
+    @Test void find_is_idempotent() {
+        uf.union(4, 5);
+        int r1 = uf.find(4);
+        int r2 = uf.find(4);
+        assertEquals(r1, r2);
+    }
+
+    @Test void union_returns_false_if_already_connected() {
+        uf.union(6, 7);
+        boolean first  = uf.union(6, 7); // mesmos
+        boolean second = uf.union(7, 6); // ordem invertida
+        assertFalse(first);
+        assertFalse(second);
+    }
+
+    @Test void kruskal_produces_mst_with_n_minus_1_edges() {
+        var vertices = List.of(0, 1, 2, 3);
+        var edges = List.of(new Edge<>(0,1,1.0), new Edge<>(1,2,2.0),
+                            new Edge<>(2,3,3.0), new Edge<>(0,3,9.0));
+        var mst = Kruskal.kruskal(vertices, edges);
+        assertEquals(3, mst.size());
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Recapitulando: Java Moderno}%% 68
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Interface \texttt{DisjointSet<T>}: contrato limpo com \texttt{default}
+      \item \texttt{GenericUnionFind<T>}: HashMap para tipos arbitrários
+      \item \texttt{ArrayUnionFind}: arrays para performance máxima com inteiros
+      \item Record \texttt{Edge<V>}: imutável, comparável, sem boilerplate
+      \item Kruskal com Stream API: elegante e conciso
+      \item JUnit 5: testes que documentam o comportamento esperado
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+%% ================================================================
+%%  SEÇÃO 9 — APLICAÇÕES
+%% ================================================================
+\section{Aplicações}
+
+\begin{frame}{Kruskal: Árvore Geradora Mínima}%% 69
+  \begin{center}
+  \begin{tikzpicture}[
+    nd/.style={circle,draw=UFSBlue,fill=UFSBlue!15,minimum size=0.65cm,font=\small\bfseries},
+    mst/.style={very thick,UFSBlue},
+    nst/.style={thick,dashed,UFSGray!50}
+  ]
+    \node[nd] (A) at (0,3)   {A};
+    \node[nd] (B) at (2.5,4) {B};
+    \node[nd] (C) at (5,3)   {C};
+    \node[nd] (D) at (1.5,1.5){D};
+    \node[nd] (E) at (3.5,1.5){E};
+
+    %% MST edges (destacadas)
+    \draw[mst] (A)--(B) node[midway,above left,font=\scriptsize] {2};
+    \draw[mst] (B)--(C) node[midway,above right,font=\scriptsize] {3};
+    \draw[mst] (A)--(D) node[midway,left,font=\scriptsize] {4};
+    \draw[mst] (D)--(E) node[midway,below,font=\scriptsize] {1};
+
+    %% Non-MST edges
+    \draw[nst] (B)--(D) node[midway,fill=white,inner sep=1pt,font=\scriptsize] {8};
+    \draw[nst] (C)--(E) node[midway,right,fill=white,inner sep=1pt,font=\scriptsize] {6};
+    \draw[nst] (B)--(E) node[midway,fill=white,inner sep=1pt,font=\scriptsize] {7};
+    \draw[nst] (A)--(E) node[midway,fill=white,inner sep=1pt,font=\scriptsize,below left] {9};
+
+    \node[font=\scriptsize,UFSBlue] at (2.5,0.5)
+      {MST: $\{D\text{-}E,A\text{-}B,B\text{-}C,A\text{-}D\}$, peso total = 10};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Kruskal: passo a passo com Union-Find}%% 70
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{block}{Algoritmo de Kruskal}
+        \begin{enumerate}
+          \item Ordenar arestas por peso crescente
+          \item Para cada aresta $(u,v)$ em ordem:\\
+            \quad Se \textsc{Find-Set}$(u) \neq$ \textsc{Find-Set}$(v)$:\\
+            \quad\quad adicionar à MST\\
+            \quad\quad \textsc{Union}$(u,v)$
+          \item Parar quando MST tem $n-1$ arestas
+        \end{enumerate}
+      \end{block}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{exampleblock}{Execução (exemplo anterior)}
+        \begin{tabular}{ll}
+          $D$-$E$ (1): & \textsc{Union}(D,E) \\
+          $A$-$B$ (2): & \textsc{Union}(A,B) \\
+          $B$-$C$ (3): & \textsc{Union}(B,C) \\
+          $A$-$D$ (4): & \textsc{Union}(A,D) \\
+          $C$-$E$ (6): & ciclo — ignora \\
+          $B$-$E$ (7): & ciclo — ignora \\
+        \end{tabular}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=8]{Percolação}%% 71
+  \begin{columns}[T]
+    \begin{column}{0.47\textwidth}
+      \begin{block}{Problema}
+        Grade $n \times n$ de sítios.\\
+        Cada sítio é aberto com probabilidade $p$.\\
+        O sistema \textbf{percola} se existe caminho de sítios abertos do topo à base.
+      \end{block}
+      \vspace{0.3cm}
+      \begin{block}{Solução com Union-Find}
+        Nós virtuais: \textit{top} e \textit{bottom}.\\
+        Ao abrir sítio $(i,j)$: unir com vizinhos abertos.\\
+        Percola $\iff$ \textsc{Find-Set}(\textit{top}) = \textsc{Find-Set}(\textit{bottom}).
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{tikzpicture}[scale=0.5]
+        % Grid 5x5
+        \foreach \i in {0,...,4} \foreach \j in {0,...,4}
+          \draw[UFSGray!30] (\i,\j) rectangle (\i+1,\j+1);
+        % Open cells (colored blue)
+        \foreach \pos in {(0,4),(1,4),(2,4),(2,3),(2,2),(3,2),(3,1),(3,0),(4,0)}
+          \fill[UFSBlue!40] \pos rectangle ++(1,1);
+        % Path highlighted
+        \draw[UFSRed,very thick,->]
+          (0.5,4.5)--(1.5,4.5)--(2.5,4.5)--(2.5,3.5)--
+          (2.5,2.5)--(3.5,2.5)--(3.5,1.5)--(3.5,0.5);
+        \node[font=\scriptsize,UFSBlue] at (2.5,-0.6) {sistema percola};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=5]{Outras aplicações}%% 72
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Compiladores}
+        \begin{itemize}
+          \item Unificação de tipos em Prolog/ML
+          \item Análise de equivalência de registradores
+          \item Eliminação de variáveis duplicadas (SSA)
+        \end{itemize}
+      \end{block}
+      \vspace{0.3cm}
+      \begin{block}{Processamento de imagens}
+        \begin{itemize}
+          \item Segmentação de objetos em imagens binárias
+          \item Flood fill com componentes conexas
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Redes e sistemas}
+        \begin{itemize}
+          \item Detecção de clusters em redes P2P
+          \item Controle de congestionamento (grupos de enlace)
+          \item Gerência de memória: blocos livres contíguos
+        \end{itemize}
+      \end{block}
+      \vspace{0.3cm}
+      \begin{block}{Jogos e simulações}
+        \begin{itemize}
+          \item Geração de labirintos (Kruskal)
+          \item Física: simulação de materiais granulares
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Resumo geral}%% 73
+  \begin{center}
+  \renewcommand{\arraystretch}{1.35}
+  \begin{tabular}{lllll}
+    \toprule
+    \textbf{Técnica} & \textbf{Make} & \textbf{Find} & \textbf{Union} & \textbf{Total} \\
+    \midrule
+    Lista ingênua      & $O(1)$ & $O(1)$     & $O(n)$         & $O(mn)$ \\
+    Lista + peso       & $O(1)$ & $O(1)$     & $O(\lg n)$     & $O(m{+}n\lg n)$ \\
+    Floresta ingênua   & $O(1)$ & $O(n)$     & $O(1)$         & $O(mn)$ \\
+    + rank             & $O(1)$ & $O(\lg n)$ & $O(1)$         & $O(m\lg n)$ \\
+    + PC               & $O(1)$ & $O(\lg n)$ & $O(1)$         & $O(m\lg n)$ \\
+    \textbf{+ rank+PC} & $O(1)$ & $O(\alpha)$& $O(1)$ & $\mathbf{O(m\alpha(n))}$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \vspace{0.2cm}
+  \begin{center}
+    \small$\alpha = \alpha(n) \leq 4$ para qualquer $n$ prático
+  \end{center}
+\end{frame}
+
+\begin{frame}{Recapitulação final}%% 74
+  \begin{block}{Jornada desta aula}
+    \begin{enumerate}
+      \item \textbf{Problema}: conectividade dinâmica — relação de equivalência
+      \item \textbf{Lista encadeada}: Find $O(1)$, Union $O(n)$ → melhor: $O(m{+}n\lg n)$
+      \item \textbf{Floresta}: Union $O(1)$, Find $O(\text{altura})$
+      \item \textbf{Union by Rank}: controla altura → $O(\lg n)$ por Find
+      \item \textbf{Path Compression}: achata o caminho → amortiza futuras Finds
+      \item \textbf{Juntos}: $O(\alpha(n)) \approx O(4)$ — praticamente $O(1)$
+      \item \textbf{Java}: GenericUnionFind<T>, Record, Stream, JUnit 5
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Leituras recomendadas}%% 75
+  \begin{itemize}
+    \item \textbf{CLRS 4ª ed.}, Capítulo 19 — \textit{Data Structures for Disjoint Sets}:\\
+      Seções 19.1–19.4: definições, listas, floresta, análise amortizada completa
+    \item \textbf{Tarjan, R.E. (1975)}: \textit{Efficiency of a Good But Not Linear Set Union Algorithm} — artigo original da análise com $\alpha(n)$
+    \item \textbf{Sedgewick \& Wayne} — \textit{Algorithms}, 4ª ed., Seção 1.5: abordagem prática com foco em Java
+    \item \textbf{Skiena} — \textit{The Algorithm Design Manual}, Cap.\ 8: Union-Find no contexto de grafos
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Exercícios propostos}%% 76
+  \begin{enumerate}
+    \item (CLRS 19.1-1) Se \textsc{Find-Set}$(x)$ for chamado em um nó $x$ cujo pai não é a raiz, o que acontece ao rank de $x$ após a compressão?
+    \item Implemente \texttt{nComponents(int n, int[][] edges)} que conta o número de componentes conexas de um grafo não-dirigido.
+    \item Mostre que a heurística de união por peso na lista encadeada garante $\lfloor\lg n\rfloor$ atualizações de ponteiro no máximo por elemento.
+    \item Implemente percolação Monte Carlo: estime a probabilidade de percolação para $p \in [0,1]$ numa grade $20\times 20$ com 10\,000 experimentos.
+    \item (Desafio) Implemente uma versão thread-safe de \texttt{ArrayUnionFind} usando \texttt{AtomicIntegerArray}.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Próximos tópicos}%% 77
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Construindo sobre Union-Find}
+        \begin{itemize}
+          \item Algoritmo de Kruskal completo e prova de corretude
+          \item Algoritmo de Borůvka e variantes
+          \item Minimum Spanning Forest
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Aprofundando a análise}
+        \begin{itemize}
+          \item Análise amortizada: método do potencial completo
+          \item Funções de Ackermann generalizadas
+          \item Lower bounds para Union-Find
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Dúvidas?}%% 78
+  \begin{center}
+    \vspace{0.5cm}
+    {\Large Conjuntos Disjuntos: Union-Find}\\[0.5cm]
+    {\large Path Compression + Union by Rank}\\[0.5cm]
+    {\large $\Rightarrow$ $O(m\,\alpha(n))$}\\[1cm]
+    \texttt{andreyoshiaki@dcomp.ufs.br}\\[0.3cm]
+    DCOMP -- Universidade Federal de Sergipe
+  \end{center}
+\end{frame}
+
+%% ================================================================
+%%  REFERÊNCIAS
+%% ================================================================
+\section*{Referências}
+
+\begin{frame}[allowframebreaks]{Referências}%% 79
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+
+\end{document}

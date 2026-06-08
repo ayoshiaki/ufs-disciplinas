@@ -1,8 +1,10 @@
 name: Compilar Beamer e publicar GitHub Pages
 
+# DESATIVADO: os slides são compilados localmente (`make`) e os PDFs são
+# commitados manualmente. Este workflow só roda sob disparo manual
+# (Actions → "Run workflow"), nunca automaticamente no push.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   # ──────────────────────────────────────────────────────────────
