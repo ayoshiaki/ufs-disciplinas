@@ -69,7 +69,7 @@
 % ============================================================
 % SLIDE 1 – Capa
 % ============================================================
-\begin{frame}[plain]
+\begin{frame}[plain,shrink]
   \titlepage
 \end{frame}
 
@@ -314,7 +314,7 @@ xtudo = Lanche("X-Tudo", 18.50,
 % ============================================================
 % SLIDE 13
 % ============================================================
-\begin{frame}[fragile]{Métodos: Adicionando Comportamento}
+\begin{frame}[fragile,shrink]{Métodos: Adicionando Comportamento}
   \begin{lstlisting}[language=Python]
 class Lanche:
     def __init__(self, nome, preco, ingredientes):
@@ -365,6 +365,7 @@ print(xtudo.tem_ingrediente("bacon"))# False
 \begin{frame}{Dois Tipos de Atributos}
   \begin{table}
     \centering
+    \small
     \begin{tabular}{lll}
       \toprule
       & \textbf{Atributo de Classe} & \textbf{Atributo de Instância} \\
@@ -381,7 +382,7 @@ print(xtudo.tem_ingrediente("bacon"))# False
 % ============================================================
 % SLIDE 16
 % ============================================================
-\begin{frame}[fragile]{Exemplo: Atributo de Classe}
+\begin{frame}[fragile,shrink]{Exemplo: Atributo de Classe}
   \begin{lstlisting}[language=Python]
 class Lanche:
     taxa_servico = 0.10  # compartilhado por TODOS os lanches
@@ -407,7 +408,7 @@ print(xtudo.preco_com_taxa())  # 21.275
 % ============================================================
 % SLIDE 17
 % ============================================================
-\begin{frame}[fragile]{Armadilha: Atributo de Classe Mutável}
+\begin{frame}[fragile,shrink]{Armadilha: Atributo de Classe Mutável}
   \begin{lstlisting}[language=Python]
 class Lanche:
     extras = []  # PERIGO! Lista compartilhada
@@ -430,7 +431,7 @@ print(b.extras)  # ['bacon'] -- b tambem tem bacon?!
 % ============================================================
 % SLIDE 18
 % ============================================================
-\begin{frame}[fragile]{Correção: Criar Mutáveis no \texttt{\_\_init\_\_}}
+\begin{frame}[fragile,shrink]{Correção: Criar Mutáveis no \texttt{\_\_init\_\_}}
   \begin{lstlisting}[language=Python]
 class Lanche:
     def __init__(self, nome):
@@ -481,7 +482,7 @@ print(b.extras)  # []  -- independente!
 % ============================================================
 % SLIDE 20
 % ============================================================
-\begin{frame}[fragile]{Classe \texttt{Cardapio}: Estrutura}
+\begin{frame}[fragile,shrink]{Classe \texttt{Cardapio}: Estrutura}
   \begin{lstlisting}[language=Python]
 class Cardapio:
     """Gerencia a colecao de lanches do food truck."""
@@ -524,7 +525,7 @@ class Cardapio:
 % ============================================================
 % SLIDE 22
 % ============================================================
-\begin{frame}[fragile]{Usando o Cardápio}
+\begin{frame}[fragile,shrink]{Usando o Cardápio}
   \begin{lstlisting}[language=Python]
 cardapio = Cardapio("O Podrao")
 cardapio.adicionar(Lanche("X-Tudo", 18.50, "pao, hamburguer..."))

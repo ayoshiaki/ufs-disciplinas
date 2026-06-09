@@ -74,7 +74,7 @@
 \begin{document}
 
 % ===== TÍTULO =====
-\begin{frame}
+\begin{frame}[plain,shrink]
   \titlepage
 \end{frame}
 
@@ -416,7 +416,7 @@ class Bebida:          # NÃO herda de Lanche!
   \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Duck Typing na Prática}
+\begin{frame}[fragile,shrink]{Duck Typing na Prática}
   \begin{lstlisting}
 pedido = [XTudo(25.0), Dogao(18.0), Bebida("Guaraná", 6.0)]
 
@@ -460,7 +460,7 @@ Servindo Guaraná...
   \end{center}
 \end{frame}
 
-\begin{frame}[fragile]{Composição no Código}
+\begin{frame}[fragile,shrink]{Composição no Código}
   \begin{lstlisting}
 class FormaPagamento:
     def processar(self, valor):
@@ -567,7 +567,7 @@ print(XTudoPromo.__mro__)
 % =============================================================================
 \section{Classes Abstratas}
 
-\begin{frame}[fragile]{O Problema: Métodos ``Esquecidos''}
+\begin{frame}[fragile,shrink]{O Problema: Métodos ``Esquecidos''}
   \begin{lstlisting}
 class Funcionario:
     def __init__(self, nome, salario_base):
@@ -591,7 +591,7 @@ a.calcular_salario()  # NotImplementedError — mas só descobre AQUI!
   \end{alertblock}
 \end{frame}
 
-\begin{frame}[fragile]{Solução: \texttt{ABC} e \texttt{@abstractmethod}}
+\begin{frame}[fragile,shrink]{Solução: \texttt{ABC} e \texttt{@abstractmethod}}
   \begin{lstlisting}
 from abc import ABC, abstractmethod
 
@@ -618,7 +618,7 @@ f = Funcionario("João", 2000)
   \end{exampleblock}
 \end{frame}
 
-\begin{frame}[fragile]{Subclasses Concretas}
+\begin{frame}[fragile,shrink]{Subclasses Concretas}
   \begin{lstlisting}
 class Atendente(Funcionario):
     def calcular_salario(self):
@@ -644,6 +644,7 @@ class Entregador(Funcionario):
 
 \begin{frame}{Por que Classes Abstratas Importam}
   \begin{center}
+    \small
     \begin{tabular}{lcc}
       \toprule
       \textbf{Aspecto} & \texttt{raise NotImplementedError} & \texttt{ABC + @abstractmethod} \\
@@ -683,7 +684,7 @@ class Entregador(Funcionario):
   \end{center}
 \end{frame}
 
-\begin{frame}[fragile]{Loop Polimórfico para a Folha}
+\begin{frame}[fragile,shrink]{Loop Polimórfico para a Folha}
   \begin{lstlisting}
 equipe = [
     Atendente("Maria", 1500),

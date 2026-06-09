@@ -72,7 +72,7 @@
 \begin{document}
 
 % --- Slide de título ---
-\begin{frame}
+\begin{frame}[plain]
     \titlepage
 \end{frame}
 
@@ -143,6 +143,7 @@
     \end{column}
     \begin{column}{0.40\textwidth}
         \begin{center}
+        \resizebox{\linewidth}{!}{%
         \begin{tikzpicture}[scale=0.85]
             \draw[->, thick] (0,0) -- (4.5,0) node[right] {\footnotesize entrada};
             \draw[->, thick] (0,0) -- (0,4) node[above] {\footnotesize tempo};
@@ -158,7 +159,7 @@
             % Melhor caso
             \draw[thick, gray!50, dotted] plot[smooth, domain=0.3:4] (\x, {0.3*\x});
             \node[gray!50, right] at (3.5, 1.0) {\footnotesize Melhor caso};
-        \end{tikzpicture}
+        \end{tikzpicture}}
         \end{center}
     \end{column}
     \end{columns}
@@ -474,11 +475,11 @@ MULTIPLY-STIFFNESS-MATRICES(A, B)
         \item \textbf{Passo recursivo:} O custo para a entrada $n$ depende de chamadas menores. Ex: $T(n) = 2T(n/2) + \Theta(n)$.
     \end{enumerate}
     
-    \vspace{0.4cm}
+    \vspace{0.25cm}
     Duas formas mais comuns:
-    
+
     \begin{center}
-    \renewcommand{\arraystretch}{1.4}
+    \renewcommand{\arraystretch}{1.3}
     \begin{tabular}{ll}
         \toprule
         \textbf{Forma} & \textbf{Significado} \\
@@ -505,7 +506,8 @@ MULTIPLY-STIFFNESS-MATRICES(A, B)
             \toprule
             \textbf{Grupo} & \textbf{Padrões} \\
             \midrule
-            Decréscimo ($n-1$) & 1.\ Fatorial, \ 2.\ Fibonacci, \ 6.\ Quick Sort (pior), \ 7.\ Hanói, \ 8.\ Potência \\
+            Decréscimo ($n-1$) & 1.\ Fatorial, \ 2.\ Fibonacci, \ 6.\ Quick Sort (pior) \\
+            & 7.\ Hanói, \ 8.\ Potência \\
             Divisão ($n/b$) & 3.\ Busca binária, \ 4.\ Máximo por divisão, \ 5.\ Merge Sort \\
             & 9.\ Exponenciação rápida, \ 10.\ Mult.\ de matrizes \\
             \bottomrule
@@ -573,6 +575,7 @@ FIBONACCI(n)
 \begin{frame}[fragile,shrink]{Padrão 3: Busca Binária Recursiva --- Subproblema Único}
     \begin{columns}[T]
     \begin{column}{0.52\textwidth}
+\small
 \begin{verbatim}
 RECURSIVE-BINARY-SEARCH(A, p, r, x)
 1  if p > r
@@ -687,6 +690,7 @@ HANOI-TOWER(n, origem, destino, auxiliar)
 \begin{frame}[fragile,shrink]{Padrão 8: Potência Ingênua --- Redução Linear}
     \begin{columns}[T]
     \begin{column}{0.48\textwidth}
+\small
 \begin{verbatim}
 POWER(a, n)
 1  if n == 0
@@ -704,6 +708,7 @@ POWER(a, n)
     \end{column}
     \begin{column}{0.48\textwidth}
         \textbf{Padrão 9: Exponenciação Rápida}
+\small
 \begin{verbatim}
 FAST-POWER(a, n)
 1  if n == 0 return 1
@@ -802,12 +807,12 @@ RECURSIVE-MATRIX-MULTIPLY(A, B)
 % =====================================================================
 \section{Parte IV -- Resolvendo Recorrências}
 
-\begin{frame}{Métodos para Resolver Recorrências}
+\begin{frame}[shrink]{Métodos para Resolver Recorrências}
     Uma recorrência como $T(n) = 2T(n/2) + \Theta(n)$ \textbf{não nos dá} a complexidade assintótica diretamente. Precisamos \emph{resolvê-la}.
-    
-    \vspace{0.4cm}
+
+    \vspace{0.3cm}
     \begin{center}
-    \renewcommand{\arraystretch}{1.4}
+    \renewcommand{\arraystretch}{1.3}
     \begin{tabular}{>{\bfseries}l p{7cm} l}
         \toprule
         Método & Para que serve & Força \\
@@ -840,6 +845,7 @@ RECURSIVE-MATRIX-MULTIPLY(A, B)
 
 \begin{frame}[fragile]{Árvore: $T(n) = 2T(n/2) + cn$}
     \begin{center}
+    \resizebox{0.92\textwidth}{!}{%
     \begin{tikzpicture}[level distance=1.5cm,
       level 1/.style={sibling distance=4cm},
       level 2/.style={sibling distance=2cm},
@@ -861,7 +867,7 @@ RECURSIVE-MATRIX-MULTIPLY(A, B)
       \node[right] at (3.5, -3) {\small Custo do nível: $4 \cdot c(n/4) = cn$};
       
       \draw[<->, thick, UFSBlue] (-3.5, -3.3) -- (-3.5, 0.3) node[midway, left] {$\log_2 n$ níveis};
-    \end{tikzpicture}
+    \end{tikzpicture}}
     \end{center}
     
     \vspace{0.2cm}

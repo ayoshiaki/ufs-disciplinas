@@ -173,7 +173,7 @@
 
 \section{Bloaters}
 
-\begin{frame}[fragile]{Long Method (Método Longo)}
+\begin{frame}[fragile,shrink=5]{Long Method (Método Longo)}
   \begin{alertblock}{Sintomas}
     Mais de $\sim$20 linhas, muitos níveis de indentação,
     comentários explicando \emph{blocos} de código.
@@ -341,7 +341,7 @@ def calcular_frete(pedido):
 
 \section{Catálogo de refatorações básicas}
 
-\begin{frame}{Quatro refatorações que cobrem 80\% dos casos}
+\begin{frame}[shrink]{Quatro refatorações que cobrem 80\% dos casos}
   \begin{center}
   \begin{tikzpicture}[
     box/.style={rectangle, draw=UFSBlue!60, fill=UFSBlue!10, rounded corners,
@@ -501,7 +501,7 @@ implícito (\texttt{item.preco} em vez de \texttt{i[0]}).
   \end{columns}
 \end{frame}
 
-\begin{frame}{O ciclo Red--Green--Refactor}
+\begin{frame}[shrink=5]{O ciclo Red--Green--Refactor}
   \begin{center}
   \begin{tikzpicture}[
     state/.style={circle, draw, minimum size=1.8cm, font=\scriptsize\bfseries, align=center},
@@ -609,7 +609,7 @@ test_carrinho.py::test_total_soma_itens    PASSED
   \end{itemize}
 \end{frame}
 
-\begin{frame}[fragile]{Parametrização e exceções}
+\begin{frame}[fragile,shrink=5]{Parametrização e exceções}
 \begin{lstlisting}
 import pytest
 
@@ -663,7 +663,7 @@ def test_sacar_mais_que_saldo_falha():
   \end{center}
 \end{frame}
 
-\begin{frame}[fragile]{Antes e depois da PEP 8}
+\begin{frame}[fragile,shrink=5]{Antes e depois da PEP 8}
 \textbf{Antes} --- viola convenções:
 \begin{lstlisting}
 import os,sys

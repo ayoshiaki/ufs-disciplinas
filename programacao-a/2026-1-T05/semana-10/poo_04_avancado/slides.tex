@@ -61,7 +61,7 @@
 
 \begin{document}
 
-\begin{frame}
+\begin{frame}[plain,shrink]
 \titlepage
 \end{frame}
 
@@ -73,7 +73,7 @@
 \section{@dataclass --- Eliminando Boilerplate}
 % ================================================================
 
-\begin{frame}[fragile]{O Problema: Boilerplate Repetitivo}
+\begin{frame}[fragile,shrink]{O Problema: Boilerplate Repetitivo}
 Uma classe simples com \texttt{\_\_init\_\_}, \texttt{\_\_repr\_\_} e \texttt{\_\_eq\_\_}:
 
 \begin{lstlisting}
@@ -236,7 +236,7 @@ Estático    & \texttt{@staticmethod} & (nenhum)      & nada da classe \\
 \end{exampleblock}
 \end{frame}
 
-\begin{frame}[fragile]{@classmethod como Construtor Alternativo}
+\begin{frame}[fragile,shrink]{@classmethod como Construtor Alternativo}
 \begin{lstlisting}
 @dataclass
 class Lanche:
@@ -261,7 +261,7 @@ y = Lanche.from_dict({"nome": "Suco", "preco": 8.0,
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Por Que Não Uma Função Comum?}
+\begin{frame}[fragile,shrink]{Por Que Não Uma Função Comum?}
 \begin{columns}[T]
 \column{0.48\textwidth}
 \textbf{Função livre:}
@@ -322,7 +322,7 @@ Lógica relacionada à classe, mas que não precisa de \texttt{self} nem de \tex
 \end{exampleblock}
 \end{frame}
 
-\begin{frame}{Guia de Decisão}
+\begin{frame}[shrink]{Guia de Decisão}
 \begin{center}
 \begin{tikzpicture}[
   node distance=1.2cm,
@@ -452,7 +452,7 @@ Novo desconto = nova classe. \texttt{Pedido} não muda. \textbf{Extensão sem mo
 \end{exampleblock}
 \end{frame}
 
-\begin{frame}[fragile]{LSP --- O Problema Clássico}
+\begin{frame}[fragile,shrink]{LSP --- O Problema Clássico}
 \begin{lstlisting}
 class Retangulo:
     def __init__(self, largura, altura):
@@ -512,7 +512,7 @@ class Pedido:
 Já vimos isso no OCP. A solução: \textbf{Strategy Pattern}.
 \end{frame}
 
-\begin{frame}[fragile]{Strategy --- Composição}
+\begin{frame}[fragile,shrink]{Strategy --- Composição}
 \begin{lstlisting}
 class SemDesconto(Desconto):
     def calcular(self, total: float) -> float:
@@ -555,7 +555,7 @@ p1.desconto = DescontoFixo(10.00)
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Strategy Pythônico: Funções como Estratégias}
+\begin{frame}[fragile,shrink]{Strategy Pythônico: Funções como Estratégias}
 \begin{lstlisting}
 from typing import Callable
 
@@ -620,7 +620,7 @@ LancheFactory.registrar("hamburguer", Hamburguer)
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Factory Method --- Uso e Extensão}
+\begin{frame}[fragile,shrink]{Factory Method --- Uso e Extensão}
 \begin{lstlisting}
 # Criação via string (ex: lido de arquivo/API)
 lanche = LancheFactory.criar("xtudo", preco=25.90)
@@ -647,7 +647,7 @@ lanche2 = LancheFactory.criar("xbacon")
 \section{Estudo de Caso --- Refatorando o Podrão}
 % ================================================================
 
-\begin{frame}[fragile]{O Código ``Legado'' (Procedural)}
+\begin{frame}[fragile,shrink]{O Código ``Legado'' (Procedural)}
 \begin{lstlisting}
 # Listas paralelas
 nomes = ["X-Tudo", "X-Salada", "Suco"]
@@ -685,7 +685,7 @@ Este código funciona para 3 lanches. Com 30 lanches, 5 descontos e 3 formas de 
 \end{alertblock}
 \end{frame}
 
-\begin{frame}[fragile]{Versão OOP Refatorada --- Hierarquia}
+\begin{frame}[fragile,shrink]{Versão OOP Refatorada --- Hierarquia}
 \begin{lstlisting}
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -712,7 +712,7 @@ class XTudo(Lanche):
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Versão OOP Refatorada --- Pedido + Strategy}
+\begin{frame}[fragile,shrink]{Versão OOP Refatorada --- Pedido + Strategy}
 \begin{lstlisting}
 @dataclass
 class Pedido:

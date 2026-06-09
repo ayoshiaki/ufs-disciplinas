@@ -56,7 +56,7 @@
 
 \begin{document}
 
-\begin{frame}
+\begin{frame}[plain,shrink]
 \titlepage
 \end{frame}
 
@@ -313,7 +313,7 @@ São chamados automaticamente pelo Python em situações específicas:
 \end{center}
 \end{frame}
 
-\begin{frame}[fragile]{\texttt{\_\_str\_\_} vs \texttt{\_\_repr\_\_}}
+\begin{frame}[fragile,shrink]{\texttt{\_\_str\_\_} vs \texttt{\_\_repr\_\_}}
 \begin{lstlisting}
 class Lanche:
     def __init__(self, nome, preco):
@@ -465,7 +465,7 @@ Vamos construir uma classe completa que usa \textbf{tudo} que aprendemos:
 \end{itemize}
 \end{frame}
 
-\begin{frame}[fragile]{Classe \texttt{Fracao}: construtor e simplificação}
+\begin{frame}[fragile,shrink]{Classe \texttt{Fracao}: construtor e simplificação}
 \begin{lstlisting}
 from math import gcd
 
@@ -526,7 +526,7 @@ repr(Fracao(4, 6))    # Fracao(2, 3)
 \end{lstlisting}
 \end{frame}
 
-\begin{frame}[fragile]{Classe \texttt{Fracao}: operações aritméticas}
+\begin{frame}[fragile,shrink]{Classe \texttt{Fracao}: operações aritméticas}
 \begin{lstlisting}
     def __add__(self, other):
         if not isinstance(other, Fracao):
