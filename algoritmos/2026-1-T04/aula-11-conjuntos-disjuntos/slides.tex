@@ -1722,10 +1722,12 @@ public class GenericUnionFind<T> {
   \begin{block}{Custo total de $m$ operações}
     \begin{description}
       \item[\textsc{Make-Set}:] $n$ operações, $O(1)$ cada → total $O(n)$
-      \item[\textsc{Union}:] $\leq n-1$ operações, $O(1)$ cada → total $O(n)$
-      \item[\textsc{Find-Set}:] Nós chave por chamada: $O(\alpha(n))$;\\
-        nós de bloco: custo amortizável ao potencial → $O(1)$ total por op.
+      \item[\textsc{Link} (parte do \textsc{Union}):] $\leq n-1$ vezes, $O(1)$ \emph{real} cada → total $O(n)$
+      \item[\textsc{Find-Set}:] saltos de bloco: $O(\alpha(n))$ por chamada;\\
+        passos no mesmo bloco: amortizados ao potencial → $O(1)$
     \end{description}
+    \vspace{2pt}
+    \footnotesize Cada \textsc{Union} $=$ \textsc{Find-Set}$\times 2 + $\textsc{Link}, logo herda o $O(\alpha(n))$ dos \textsc{Find-Set}.
   \end{block}
   \vspace{0.3cm}
   \begin{block}{Resultado}
