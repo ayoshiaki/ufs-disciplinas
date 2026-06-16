@@ -1685,6 +1685,39 @@ public class GenericUnionFind<T> {
   \end{alertblock}
 \end{frame}
 
+\begin{frame}[shrink=12]{Custo amortizado: $\hat c = c + \Delta\Phi$}%% 56d
+  \begin{columns}[T]
+    \begin{column}{0.4\textwidth}
+      \begin{block}{\textsc{Link}$(x,y)$: $O(\alpha(n))$}
+        Custo real $O(1)$.
+        \begin{itemize}
+          \item $y$: rank $+1$ (se iguais) $\Rightarrow \Delta\phi(y)\leq \alpha(n)$
+          \item $x$ vira não-raiz $\Rightarrow \phi(x)$ \textbf{não aumenta} ($\Delta\phi(x)\leq 0$)
+          \item demais nós: inalterados
+        \end{itemize}
+        $\Delta\Phi \leq \alpha(n) \Rightarrow \hat c = O(\alpha(n))$.
+      \end{block}
+    \end{column}
+    \begin{column}{0.58\textwidth}
+      \begin{block}{\textsc{Find}$(x)$: caminho com $k$ nós}
+        Custo real $\propto k$. \textbf{Nenhum} potencial aumenta. Classifique:
+        \begin{enumerate}
+          \item raiz $+$ filho da raiz ($2$): $\Delta\phi\leq 0$
+          \item fronteira ($\leq \alpha(n)$, uma por valor de $\mathrm{level}$): $\Delta\phi\leq 0$
+            --- custo real pago direto
+          \item demais ($\geq k-\alpha(n)-2$): $\mathrm{iter}$ sobe $\Rightarrow \phi$ \textbf{cai} $\geq 1$
+        \end{enumerate}
+      \end{block}
+      \begin{exampleblock}{Conta}
+        \vspace{-0.2cm}
+        \[ \Delta\Phi \;\leq\; -\,(k-\alpha(n)-2) \]
+        \vspace{-0.45cm}
+        \[ \hat c_{\textsc{Find}} = k + \Delta\Phi \;\leq\; \alpha(n)+2 \;=\; O(\alpha(n)) \]
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
 \begin{frame}{Limite da análise amortizada}%% 57
   \begin{block}{Custo total de $m$ operações}
     \begin{description}
