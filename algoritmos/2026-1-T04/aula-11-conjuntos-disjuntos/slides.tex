@@ -1362,7 +1362,9 @@ public class GenericUnionFind<T> {
   \begin{exampleblock}{Análise amortizada pelo método do potencial}
     Atribuímos um \textbf{potencial} $\Phi$ ao estado da estrutura.\\
     Custo amortizado = custo real + $\Delta\Phi$.\\
-    Somando sobre $m$ operações: custo total $\leq \sum \text{amortizado} + \Phi_0$.
+    Somando sobre $m$ operações: custo total $\leq \sum \text{amortizado} + \Phi_0$.\\[4pt]
+    \footnotesize A função $\Phi$ concreta (baseada em $\mathrm{level}$ e $\mathrm{iter}$) é definida adiante,
+    após introduzirmos a função de Ackermann.
   \end{exampleblock}
 \end{frame}
 
@@ -1474,55 +1476,7 @@ public class GenericUnionFind<T> {
   \end{exampleblock}
 \end{frame}
 
-\begin{frame}[shrink=10]{Por que surge $\alpha(n)$? (intuição)}%% 55
-  \begin{columns}[T]
-    \begin{column}{0.42\textwidth}
-      \begin{block}{Dois tipos de nó no caminho de Find-Set}
-        \textbf{Nó de bloco} (amarelo): seu pai está no \emph{mesmo bloco de ranks}.\\[4pt]
-        \textbf{Nó chave} (vermelho): seu pai está em \emph{bloco superior}.\\[6pt]
-        A contagem mostra:
-        \begin{itemize}
-          \item Nós chave por Find: $O(\alpha(n))$
-          \item Custo de nós de bloco: amortizado $O(1)$
-        \end{itemize}
-      \end{block}
-    \end{column}
-    \begin{column}{0.55\textwidth}
-      \begin{tikzpicture}[
-        key/.style={circle,draw=UFSRed,fill=UFSRed!20,very thick,
-          minimum size=0.6cm,font=\scriptsize\bfseries},
-        blk/.style={circle,draw=UFSYellow!80!black,fill=UFSYellow!30,very thick,
-          minimum size=0.6cm,font=\scriptsize\bfseries},
-        rt/.style={circle,draw=UFSBlue,fill=UFSBlue!15,minimum size=0.6cm,
-          font=\scriptsize\bfseries},
-        ar/.style={-{Stealth[scale=0.7]},thick,UFSGray},
-        hl/.style={-{Stealth[scale=0.9]},very thick,UFSBlue!60}
-      ]
-        %% Path from leaf to root: leaf-blk-blk-key-blk-key-root
-        \node[rt]  (r)  at (0,4.8) {raiz};
-        \node[key] (k1) at (0,3.8) {$k_1$};
-        \node[blk] (b1) at (0,2.8) {$b_1$};
-        \node[blk] (b2) at (0,1.8) {$b_2$};
-        \node[key] (k2) at (0,0.8) {$k_2$};
-        \node[blk] (b3) at (0,-0.2){$b_3$};
-        \draw[ar] (b3)--(k2); \draw[ar] (k2)--(b2);
-        \draw[ar] (b2)--(b1); \draw[ar] (b1)--(k1);
-        \draw[ar] (k1)--(r);
-        %% Block labels
-        \node[font=\tiny,UFSGray,right=0.5cm of r]  {$B_3$};
-        \node[font=\tiny,UFSRed,right=0.5cm of k1]  {chave: muda bloco};
-        \node[font=\tiny,UFSYellow!80!black,right=0.5cm of b1] {bloco $B_2$};
-        \node[font=\tiny,UFSYellow!80!black,right=0.5cm of b2] {bloco $B_2$};
-        \node[font=\tiny,UFSRed,right=0.5cm of k2]  {chave: muda bloco};
-        \node[font=\tiny,UFSYellow!80!black,right=0.5cm of b3] {bloco $B_1$};
-        \node[font=\tiny,UFSBlue] at (0,-0.9)
-          {2 nós chave $\Rightarrow$ $O(\alpha(n))$ por Find};
-      \end{tikzpicture}
-    \end{column}
-  \end{columns}
-\end{frame}
-
-\begin{frame}{Blocos de rank (intuição)}%% 56
+\begin{frame}{Blocos de rank (intuição)}%% 55
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
       \begin{block}{Definição}
@@ -1553,6 +1507,182 @@ public class GenericUnionFind<T> {
       \end{exampleblock}
     \end{column}
   \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=15]{Por que surge $\alpha(n)$? (intuição)}%% 56
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Dois tipos de passo de $x$ à raiz}
+        Subindo, os ranks \textbf{crescem}. Agrupe-os em \textbf{blocos}; cada
+        passo é de um tipo:\\[4pt]
+        \textcolor{UFSRed}{\textbf{Salta de bloco}}: pai em bloco superior.\\[3pt]
+        \textcolor{UFSGray}{\textbf{Mesmo bloco}}: pai no mesmo bloco.
+      \end{block}
+      \begin{exampleblock}{Contagem por Find}
+        \begin{itemize}
+          \item \textcolor{UFSRed}{Saltos de bloco}: $\leq$ nº de blocos $= O(\alpha(n))$
+          \item \textcolor{UFSGray}{Mesmo bloco}: pago pelo potencial $\Rightarrow$ amort.\ $O(1)$
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \centering
+      \begin{tikzpicture}[
+        nd/.style={circle,draw=UFSGray,fill=white,thick,
+          minimum size=0.55cm,font=\scriptsize\bfseries,inner sep=0pt},
+        rt/.style={circle,draw=UFSBlue,fill=UFSBlue!15,very thick,
+          minimum size=0.55cm,font=\scriptsize\bfseries,inner sep=0pt},
+        same/.style={-{Stealth[scale=0.7]},thick,UFSGray!70},
+        cross/.style={-{Stealth[scale=0.9]},very thick,UFSRed},
+      ]
+        %% Faixas de rank (fundo)
+        \fill[UFSBlue!8]    (-1.7,-0.5) rectangle (1.9,1.35);
+        \fill[UFSYellow!22] (-1.7,1.35) rectangle (1.9,3.15);
+        \fill[UFSRed!8]     (-1.7,3.15) rectangle (1.9,5.35);
+        \node[font=\scriptsize\bfseries,UFSBlue,anchor=west]           at (-1.65,0.45) {$B_1$};
+        \node[font=\scriptsize\bfseries,UFSYellow!70!black,anchor=west] at (-1.65,2.25) {$B_2$};
+        \node[font=\scriptsize\bfseries,UFSRed,anchor=west]            at (-1.65,4.25) {$B_3$};
+        %% direção do rank
+        \draw[-{Stealth[scale=0.7]},UFSGray!60] (1.55,-0.3)--(1.55,5.1);
+        \node[font=\tiny,UFSGray,rotate=-90] at (1.82,2.4) {rank cresce};
+        %% Nós do caminho (folha -> raiz), ranks crescentes
+        \node[nd] (a) at (0.3,0.0)  {$x$};
+        \node[nd] (b) at (0.3,0.9)  {};
+        \node[nd] (c) at (0.3,2.1)  {};
+        \node[nd] (d) at (0.3,2.7)  {};
+        \node[nd] (e) at (0.3,3.9)  {};
+        \node[rt] (r) at (0.3,4.8)  {raiz};
+        %% Arestas: mesmo bloco (cinza) vs salto de bloco (vermelho)
+        \draw[same]  (a)--(b);
+        \draw[cross] (b)--(c);
+        \draw[same]  (c)--(d);
+        \draw[cross] (d)--(e);
+        \draw[same]  (e)--(r);
+      \end{tikzpicture}\\[2pt]
+      {\footnotesize\color{UFSRed}\textbf{2 saltos de bloco} $\Rightarrow O(\alpha(n))$ por Find}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=28]{Exemplo numérico: blocos num caminho de Find}%% 56a
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Caminho de $x$ até a raiz}
+        Ranks ao subir (sempre crescentes):
+        \[ 0 \to 1 \to 3 \to 6 \to 10 \to 14 \]
+        \renewcommand{\arraystretch}{1.2}
+        \begin{tabular}{cl}
+          \toprule
+          \textbf{Rank} & \textbf{Bloco} \\
+          \midrule
+          $0,\ 1$   & $B_0=\{0,1,2\}$ \\
+          $3$       & $B_1=\{3\}$ \\
+          $6$       & $B_2=\{4,\ldots,7\}$ \\
+          $10,\ 14$ & $B_3=\{8,\ldots,2047\}$ \\
+          \bottomrule
+        \end{tabular}
+      \end{block}
+      \begin{exampleblock}{Contagem}
+        \textcolor{UFSRed}{\textbf{3 saltos}} $+$
+        \textcolor{UFSGray}{\textbf{2 no mesmo bloco}}.\\[2pt]
+        Caros $= 3 = (\text{nº blocos}-1) \leq \alpha(n)$,
+        qualquer que seja o tamanho do caminho.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}[
+        nd/.style={circle,draw=UFSGray,fill=white,thick,
+          minimum size=0.6cm,font=\scriptsize\bfseries,inner sep=0pt},
+        rt/.style={circle,draw=UFSBlue,fill=UFSBlue!15,very thick,
+          minimum size=0.6cm,font=\scriptsize\bfseries,inner sep=0pt},
+        same/.style={-{Stealth[scale=0.7]},thick,UFSGray!70},
+        cross/.style={-{Stealth[scale=0.9]},very thick,UFSRed},
+      ]
+        %% Faixas de rank (fundo)
+        \fill[UFSBlue!8]    (-1.5,-0.45) rectangle (1.7,1.0);
+        \fill[UFSGray!14]   (-1.5,1.0)   rectangle (1.7,2.05);
+        \fill[UFSYellow!22] (-1.5,2.05)  rectangle (1.7,3.35);
+        \fill[UFSRed!8]     (-1.5,3.35)  rectangle (1.7,5.4);
+        \node[font=\scriptsize\bfseries,UFSBlue,anchor=west]            at (-1.45,0.3) {$B_0$};
+        \node[font=\scriptsize\bfseries,UFSGray,anchor=west]            at (-1.45,1.5) {$B_1$};
+        \node[font=\scriptsize\bfseries,UFSYellow!70!black,anchor=west] at (-1.45,2.7) {$B_2$};
+        \node[font=\scriptsize\bfseries,UFSRed,anchor=west]             at (-1.45,4.3) {$B_3$};
+        %% Nós do caminho com o rank dentro
+        \node[nd] (a) at (0.4,0.0)  {0};
+        \node[nd] (b) at (0.4,0.6)  {1};
+        \node[nd] (c) at (0.4,1.5)  {3};
+        \node[nd] (d) at (0.4,2.7)  {6};
+        \node[nd] (e) at (0.4,4.1)  {10};
+        \node[rt] (r) at (0.4,4.95) {14};
+        \node[font=\tiny,UFSBlue,right=2pt of r] {raiz};
+        %% Arestas
+        \draw[same]  (a)--(b);
+        \draw[cross] (b)--(c);
+        \draw[cross] (c)--(d);
+        \draw[cross] (d)--(e);
+        \draw[same]  (e)--(r);
+      \end{tikzpicture}\\[2pt]
+      {\footnotesize\color{UFSRed}\textbf{3 saltos} (vermelhos) cobrem 4 blocos}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=15]{A função potencial $\Phi$ (CLRS, Seção 19.4)}%% 56b
+  \begin{block}{Potencial de um nó $x$ (após $q$ operações)}
+    Para um nó $x$ que \emph{não} é raiz e tem $x.\texttt{rank}\geq 1$, definimos
+    \[
+      \mathrm{level}(x) = \max\{\,k : x.p.\texttt{rank} \geq A_k(x.\texttt{rank})\,\},
+    \]
+    \[
+      \mathrm{iter}(x) = \max\{\,i : x.p.\texttt{rank} \geq A_{\mathrm{level}(x)}^{(i)}(x.\texttt{rank})\,\}.
+    \]
+    \vspace{-0.25cm}
+    \[
+      \phi_q(x) =
+      \begin{cases}
+        \alpha(n)\cdot x.\texttt{rank}
+          & \text{se } x \text{ é raiz ou } x.\texttt{rank}=0,\\[4pt]
+        \bigl(\alpha(n)-\mathrm{level}(x)\bigr)\,x.\texttt{rank} - \mathrm{iter}(x)
+          & \text{caso contrário.}
+      \end{cases}
+    \]
+  \end{block}
+  \begin{exampleblock}{Potencial total da floresta}
+    $\displaystyle \Phi_q = \sum_{x} \phi_q(x)$.\quad
+    No início todos os ranks são $0$, logo $\Phi_0 = 0$.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[shrink=12]{Por que esse potencial funciona}%% 56c
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Propriedades (Lemas 19.11--19.12)}
+        \begin{itemize}
+          \item $0 \leq \mathrm{level}(x) < \alpha(n)$
+          \item $1 \leq \mathrm{iter}(x) \leq x.\texttt{rank}$
+          \item $0 \leq \phi_q(x) \leq \alpha(n)\cdot x.\texttt{rank}$
+          \item Logo $\Phi_q \geq 0$ sempre, e $\Phi_0 = 0$
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Custo amortizado por operação}
+        \begin{description}
+          \item[\textsc{Make-Set}:] $\Delta\Phi = 0 \Rightarrow O(1)$
+          \item[\textsc{Union}:] $O(\alpha(n))$
+          \item[\textsc{Find-Set}:] $O(\alpha(n))$
+        \end{description}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.2cm}
+  \begin{alertblock}{Ideia central da prova de Find-Set (Lema 19.13)}
+    Na compressão, cada nó que \emph{não} é raiz, \emph{não} é filho da raiz e cujo
+    $\mathrm{level}$ coincide com o do pai tem seu $\phi$ \textbf{estritamente decrescido}
+    (aumenta $\mathrm{iter}$ ou $\mathrm{level}$). Sobram $\leq \alpha(n)+2$ nós que pagam custo
+    real; os demais saem da queda de $\Phi$ $\Rightarrow$ amortizado $O(\alpha(n))$.
+  \end{alertblock}
 \end{frame}
 
 \begin{frame}{Limite da análise amortizada}%% 57
