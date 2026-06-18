@@ -115,6 +115,15 @@ title: "COMP0496 — Programação A — Turma 5 · 2026/1"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-a/2026-1-T05/projeto' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
+    <div class="week-num" style="color: #1f6f43;">🎨</div>
+    <div class="week-body">
+      <div class="week-title" style="color: #14532d;">PROJETO — Projeto Paint</div>
+      <div class="week-desc">Programa estilo <em>paint</em> em Tkinter: do imperativo ao OO/MVC em 7 entregas.</div>
+      <div class="week-badges"><span class="week-badge nb">1 notebook</span><span class="week-badge nb">3 scripts</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'programacao-a/2026-1-T05/simulado_prova2.pdf' | relative_url }}" style="background: #fef3c7; border-color: #d97706;">
     <div class="week-num" style="color: #b45309;">📝</div>
     <div class="week-body">
