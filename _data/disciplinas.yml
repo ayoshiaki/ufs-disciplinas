@@ -5,6 +5,7 @@
     - id: 2026-1-T04
       semestre: "2026/1"
       label: "Turma 4"
+      arquivada: true
 
 - nome: COMP0496 — Programação A
   slug: programacao-a
@@ -13,3 +14,4 @@
     - id: 2026-1-T05
       semestre: "2026/1"
       label: "Turma 5"
+      arquivada: true
