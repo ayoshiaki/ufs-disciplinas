@@ -7,11 +7,30 @@
       label: "Turma 4"
       arquivada: true
 
+- nome: COMP0498 — Algoritmos e Estruturas de Dados II
+  slug: algoritmos-2
+  icone: "🌳"
+  turmas:
+    - id: 2026-2-T02
+      semestre: "2026/2"
+      label: "Turma 2"
+
 - nome: COMP0496 — Programação A
   slug: programacao-a
   icone: "🐍"
   turmas:
+    - id: 2026-2-T01
+      semestre: "2026/2"
+      label: "Turma 1"
     - id: 2026-1-T05
       semestre: "2026/1"
       label: "Turma 5"
       arquivada: true
+
+- nome: COMP0512 — Programação C
+  slug: programacao-c
+  icone: "⚡"
+  turmas:
+    - id: 2026-2-T02
+      semestre: "2026/2"
+      label: "Turma 2"
