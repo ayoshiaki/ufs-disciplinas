@@ -20,6 +20,7 @@ exclude:
   - Gemfile.lock
   - TEMPLATE-aula/
   - docs/
+  - CLAUDE.md
   - "**/*.aux"
   - "**/*.log"
   - "**/*.out"
