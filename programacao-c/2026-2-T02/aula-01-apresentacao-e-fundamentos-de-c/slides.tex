@@ -1,0 +1,567 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS — Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns}
+
+% Listagens — paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Metadados ---
+\title{Apresentação da Disciplina e Fundamentos de C}
+\subtitle{COMP0512 --- Programação C $\cdot$ Turma T02 $\cdot$ 2026.2}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{Agenda}
+  \tableofcontents
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=8.5cm, minimum height=0.8cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)   {Como a disciplina funciona: conteúdo, metodologia e avaliação};
+    \node[item] (t2) at (0,-1.2)  {Datas importantes do semestre 2026.2};
+    \node[item] (t3) at (0,-2.4)  {Revisão prática dos fundamentos de C: prever, executar e modificar código};
+    \draw[->, thick, UFSBlue] (t1)--(t2);
+    \draw[->, thick, UFSBlue] (t2)--(t3);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\section{A Disciplina}
+
+\begin{frame}{Identificação}
+  \begin{center}
+  \begin{tabular}{ll}
+    \toprule
+    Disciplina & Programação C (COMP0512) \\
+    Turma / Horário & T02 / 24T34 (segundas e quartas à tarde) \\
+    Carga horária & 60h (30h teórica + 30h prática) \\
+    Pré-requisito & COMP0496 \\
+    Período letivo & 17/08/2026 a 21/12/2026 \\
+    Professor & André Yoshiaki Kashiwabara \\
+    Contato & \texttt{andreyoshiaki@dcomp.ufs.br} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Objetivo geral}
+  \begin{block}{Objetivo}
+    Capacitar o aluno a projetar e implementar programas em linguagem C que
+    empreguem \textbf{estruturas de dados fundamentais}, \textbf{alocação
+    dinâmica de memória}, \textbf{modularização} e \textbf{manipulação de
+    arquivos}, seguindo boas práticas e padrões de codificação.
+  \end{block}
+  \begin{exampleblock}{Em outras palavras}
+    Ao final do semestre, você será capaz de construir programas C completos,
+    organizados em múltiplos arquivos, que gerenciam memória corretamente e
+    persistem dados em disco.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{O que veremos no semestre}
+  \begin{center}
+  \resizebox{0.9\textwidth}{!}{%
+  \begin{tikzpicture}[
+    unit/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=3.4cm, minimum height=0.95cm, font=\scriptsize, align=center},
+    eval/.style={rectangle, draw=UFSRed, fill=UFSRed!10, rounded corners,
+      minimum width=3.4cm, minimum height=0.95cm, font=\scriptsize, align=center},
+    seta/.style={->, thick, UFSGray}
+  ]
+    \node[unit] (u1) at (0,0)      {Registros, enum\\e typedef};
+    \node[unit] (u2) at (4.2,0)    {Ponteiros e alocação\\de memória};
+    \node[unit] (u3) at (8.4,0)    {Modularização e padrões\\de codificação};
+    \node[eval] (p1) at (12.6,0)   {1ª Avaliação\\(30/09)};
+    \node[unit] (u4) at (0,-1.9)   {Recursividade};
+    \node[unit] (u5) at (4.2,-1.9) {Listas, pilhas\\e filas};
+    \node[unit] (u6) at (8.4,-1.9) {Operadores\\bit-a-bit};
+    \node[unit] (u7) at (12.6,-1.9){Arquivos texto\\e binários};
+    \node[eval] (p2) at (0,-3.8)   {2ª Avaliação\\(02/12)};
+    \node[unit] (u8) at (4.2,-3.8) {Compilação e\\otimização};
+    \node[eval] (pj) at (8.4,-3.8) {Projeto integrador\\(14/12)};
+    \draw[seta] (u1)--(u2);
+    \draw[seta] (u2)--(u3);
+    \draw[seta] (u3)--(p1);
+    \draw[seta] (u4)--(u5);
+    \draw[seta] (u5)--(u6);
+    \draw[seta] (u6)--(u7);
+    \draw[seta] (p2)--(u8);
+    \draw[seta] (u8)--(pj);
+  \end{tikzpicture}}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Datas importantes}
+  \begin{center}
+  \begin{tabular}{lll}
+    \toprule
+    Data & O quê & Peso \\
+    \midrule
+    30/09/2026 & 1ª Avaliação (P1) — prova escrita individual & 2 \\
+    02/12/2026 & 2ª Avaliação (P2) — prova escrita individual & 2 \\
+    14/12/2026 & Apresentação do projeto integrador (PJ) & 1 \\
+    16/12/2026 & Avaliação de reposição & --- \\
+    21/12/2026 & Encerramento e consolidação das notas & --- \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{alertblock}{Sem aula}
+    07/09 (Independência), 12/10 (N.\ Sra.\ Aparecida), 28/10 (Dia do
+    Servidor Público) e 02/11 (Finados).
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Avaliação}
+  \begin{block}{Média final}
+    \[ MF = \frac{2 \cdot P1 + 2 \cdot P2 + PJ}{5} \]
+  \end{block}
+  \begin{itemize}
+    \item Aprovação: $MF \geq 5{,}0$ e frequência mínima de 75\% da carga horária.
+    \item Projeto integrador: aplicação em C integrando os conteúdos da disciplina.
+    \item Reposição (16/12): para quem faltou a uma das avaliações por motivo
+      justificado; a nota substitui a da avaliação perdida.
+    \item Exercícios e estudos dirigidos complementam a preparação ao longo do semestre.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Metodologia e comunicação}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Como serão as aulas}
+      \begin{itemize}
+        \item Presenciais, preferencialmente em laboratório.
+        \item Teoria com slides + implementação de código ao vivo.
+        \item Exercícios em sala e estudos dirigidos para casa.
+        \item Use a IDE de sua preferência.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Canais}
+      \begin{itemize}
+        \item \textbf{SIGAA}: envio de atividades e trabalhos.
+        \item E-mail: \texttt{andreyoshiaki@dcomp.ufs.br}
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Bibliografia básica}
+  \begin{itemize}
+    \item KERNIGHAN, B. W.; RITCHIE, D. M. \textit{C: a linguagem de programação
+      --- padrão ANSI}. Campus, 1989.
+    \item SCHILDT, H. \textit{C completo e total}. 3.\ ed.\ Makron Books, 1997.
+    \item TENENBAUM, A. M.; LANGSAM, Y.; AUGENSTEIN, M. J. \textit{Estruturas de
+      dados usando C}. Pearson Makron Books, 1995.
+  \end{itemize}
+  \begin{exampleblock}{Complementar (destaques)}
+    BACKES, \textit{Linguagem C: completa e descomplicada};
+    FEOFILOFF, \textit{Algoritmos em linguagem C};
+    DEITEL; DEITEL, \textit{C: como programar}.
+  \end{exampleblock}
+\end{frame}
+
+% =====================================================================
+\section{Revisão de Fundamentos da Linguagem C}
+
+\begin{frame}{Por que C?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[2mm]
+      Precisamos de uma linguagem que permita controlar a memória e o
+      hardware de perto --- sistemas operacionais, sistemas embarcados,
+      bancos de dados e interpretadores exigem esse controle.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[2mm]
+      C oferece acesso direto à memória (ponteiros), tipos simples e
+      previsíveis e compilação para código de máquina eficiente ---
+      é a base de Linux, Python, Git e de boa parte da infraestrutura
+      computacional moderna.
+    \end{column}
+  \end{columns}
+  \begin{block}{Nesta disciplina}
+    C é a ferramenta para entender \textbf{como os dados vivem na memória} ---
+    conhecimento que vale para qualquer linguagem.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Como será a revisão de hoje}
+  \begin{center}
+  \resizebox{0.92\textwidth}{!}{%
+  \begin{tikzpicture}[
+    fase/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=2.3cm, minimum height=0.9cm, font=\small\bfseries},
+    seta/.style={->, thick, UFSBlue}
+  ]
+    \node[fase] (p) at (0,0)    {Prever};
+    \node[fase] (r) at (2.9,0)  {Executar};
+    \node[fase] (i) at (5.8,0)  {Investigar};
+    \node[fase] (m) at (8.7,0)  {Modificar};
+    \node[fase] (k) at (11.6,0) {Criar};
+    \draw[seta] (p)--(r);
+    \draw[seta] (r)--(i);
+    \draw[seta] (i)--(m);
+    \draw[seta] (m)--(k);
+  \end{tikzpicture}}
+  \end{center}
+  \begin{block}{O contrato de hoje}
+    Vocês encontram o código \textbf{antes} da teoria --- a teoria chega como
+    resposta às perguntas que o código levantar.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Um programa para começar: a média da turma}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+#include <stdio.h>
+#define TAM 5
+
+double media(double v[], int n) {
+    double soma = 0.0;
+    for (int i = 0; i < n; i++)
+        soma += v[i];
+    return soma / n;
+}
+\end{lstlisting}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, firstnumber=10]
+int main(void) {
+    double notas[TAM];
+    printf("Digite %d notas: ", TAM);
+    for (int i = 0; i < TAM; i++)
+        scanf("%lf", &notas[i]);
+    double m = media(notas, TAM);
+    printf("Media: %.2f\n", m);
+    if (m >= 5.0)
+        printf("Turma aprovada\n");
+    else if (m >= 3.0)
+        printf("Turma em reposicao\n");
+    else
+        printf("Turma reprovada\n");
+    return 0;
+}
+\end{lstlisting}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{O que este programa faz?}
+  \begin{block}{Em duplas, anotem a previsão (2--3 min) --- sem computador!}
+    \begin{enumerate}
+      \item Com as notas \texttt{7.0 8.0 6.5 9.0 5.5}, o que aparece na tela,
+        linha por linha?
+      \item E com as notas \texttt{2.0 3.0 1.0 4.0 2.5}?
+      \item A média é impressa com quantas casas decimais? Por quê?
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Regra do jogo}
+    Não existe previsão ``feia'': previsão errada é o ponto de partida da
+    investigação. Anote exatamente o que você espera ver na tela.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[language={}, numbers=none, basicstyle=\ttfamily\small]
+$ gcc media_turma.c -o media_turma
+$ ./media_turma
+Digite 5 notas: 7.0 8.0 6.5 9.0 5.5
+Media: 7.20
+Turma aprovada
+\end{lstlisting}
+  \begin{itemize}
+    \item Sua previsão bateu com a saída real? Linha por linha?
+    \item Se divergiu, anote \textbf{onde} divergiu: é aí que mora a revisão de hoje.
+    \item Teste também o caso (b) e confira a classificação impressa.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{O que o \texttt{gcc} acabou de fazer?}
+  \begin{center}
+  \resizebox{0.92\textwidth}{!}{%
+  \begin{tikzpicture}[
+    etapa/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=2.5cm, minimum height=0.9cm, font=\scriptsize, align=center},
+    arq/.style={font=\scriptsize\ttfamily, text=UFSGray},
+    seta/.style={->, thick, UFSBlue}
+  ]
+    \node[etapa] (pre) at (0,0)  {Pré-\\processador};
+    \node[etapa] (com) at (4.0,0) {Compilador};
+    \node[etapa] (mon) at (8.0,0) {Montador};
+    \node[etapa] (lig) at (12.0,0) {Ligador\\(linker)};
+    \node[arq] (src) at (-2.6,0) {media\_turma.c};
+    \node[arq] (exe) at (14.6,0) {media\_turma};
+    \draw[seta] (src)--(pre);
+    \draw[seta] (pre)-- node[above=1pt, arq]{.i} (com);
+    \draw[seta] (com)-- node[above=1pt, arq]{.s} (mon);
+    \draw[seta] (mon)-- node[above=1pt, arq]{.o} (lig);
+    \draw[seta] (lig)--(exe);
+  \end{tikzpicture}}
+  \end{center}
+  \begin{exampleblock}{Na prática}
+    \texttt{gcc media\_turma.c -o media\_turma} executou as quatro etapas de
+    uma vez; \texttt{./media\_turma} rodou o programa.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{O que \texttt{\#include}, \texttt{main} e \texttt{return 0} fazem?}
+\begin{lstlisting}
+#include <stdio.h>   /* traz declaracoes de printf e scanf */
+
+int main(void) {     /* funcao principal: inicio da execucao */
+    /* ... corpo do programa ... */
+    return 0;        /* 0 indica sucesso ao sistema */
+}
+\end{lstlisting}
+  \begin{itemize}
+    \item \texttt{\#include} traz declarações de bibliotecas --- sem ele,
+      \texttt{printf} e \texttt{scanf} seriam nomes desconhecidos.
+    \item Todo programa começa em \texttt{main}, esteja ela onde estiver no arquivo.
+    \item Cada comando termina em \texttt{;} e blocos ficam entre \texttt{\{ \}}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Por que \texttt{double} e não \texttt{int}?}
+  \begin{center}
+  \small
+  \begin{tabular}{llll}
+    \toprule
+    Tipo & Conteúdo & Tamanho típico & Exemplo \\
+    \midrule
+    \texttt{int} & inteiros & 4 bytes & \texttt{42} \\
+    \texttt{float} & reais (precisão simples) & 4 bytes & \texttt{3.14f} \\
+    \texttt{double} & reais (precisão dupla) & 8 bytes & \texttt{2.718} \\
+    \texttt{char} & um caractere & 1 byte & \texttt{'A'} \\
+    \texttt{long} & inteiros grandes & 8 bytes & \texttt{1000000L} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{alertblock}{Atenção}
+    Os tamanhos dependem da plataforma --- use \texttt{sizeof} para verificar.
+  \end{alertblock}
+  \begin{exampleblock}{Guarde esta pergunta}
+    E se \texttt{soma} fosse \texttt{int}? Testaremos daqui a pouco,
+    modificando o programa.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Por que \texttt{\&notas[i]} no \texttt{scanf}?}
+\begin{lstlisting}
+printf("Digite %d notas: ", TAM);
+scanf("%lf", &notas[i]);        /* & = endereco da variavel */
+printf("Media: %.2f\n", m);
+\end{lstlisting}
+  \begin{itemize}
+    \item \texttt{printf} recebe o \textbf{valor}; \texttt{scanf} precisa do
+      \textbf{endereço} onde guardar o que for lido --- por isso o \texttt{\&}.
+    \item Formatos: \texttt{\%d} (int), \texttt{\%f}/\texttt{\%lf} (real), \texttt{\%c} (char), \texttt{\%s} (string).
+    \item \texttt{\%.2f} imprime com 2 casas decimais --- a resposta da pergunta (c).
+    \item O \texttt{\&} já é um ponteiro disfarçado --- tema das próximas semanas.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Como o programa decide ``aprovada''?}
+\begin{lstlisting}
+if (m >= 5.0)      printf("Turma aprovada\n");
+else if (m >= 3.0) printf("Turma em reposicao\n");
+else               printf("Turma reprovada\n");
+
+/* alternativa para menus e opcoes discretas */
+switch (opcao) {
+    case 1:  printf("Inserir\n"); break;
+    case 2:  printf("Remover\n"); break;
+    default: printf("Opcao invalida\n");
+}
+\end{lstlisting}
+  \begin{itemize}
+    \item As condições são testadas \textbf{em ordem}; a primeira verdadeira vence.
+    \item Com \texttt{m = 7.20}, o teste \texttt{m >= 5.0} já decide: ``Turma aprovada''.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Quantas vezes cada laço executa?}
+\begin{lstlisting}
+/* for: numero de repeticoes conhecido */
+for (int i = 0; i < TAM; i++)
+    scanf("%lf", &notas[i]);       /* executa TAM vezes */
+
+/* while: repete enquanto a condicao vale */
+int n = 32;
+while (n > 1)
+    n = n / 2;
+
+/* do-while: executa ao menos uma vez (menus!) */
+int opcao;
+do {
+    scanf("%d", &opcao);
+} while (opcao != 0);
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O que acontece na memória com \texttt{notas}?}
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10,
+      minimum width=1.5cm, minimum height=0.9cm, font=\small},
+    idx/.style={font=\scriptsize, text=UFSGray},
+    addr/.style={font=\tiny\ttfamily, text=UFSGray}
+  ]
+    \foreach \i/\v/\a in {0/7.0/0x100, 1/8.0/0x108, 2/6.5/0x110, 3/9.0/0x118, 4/5.5/0x120} {
+      \node[cel] (c\i) at (\i*1.5,0) {\v};
+      \node[idx] at (\i*1.5,0.8) {notas[\i]};
+      \node[addr] at (\i*1.5,-0.8) {\a};
+    }
+    \draw[decorate, decoration={brace, mirror, amplitude=6pt}, UFSGray]
+      (-0.75,-1.1) -- (6.75,-1.1) node[midway, below=8pt, font=\scriptsize]
+      {\texttt{double notas[5];} --- posições contíguas na memória};
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item Índices começam em \textbf{0}; o último é \texttt{TAM - 1}.
+    \item Cada \texttt{double} ocupa 8 bytes --- os endereços avançam de 8 em 8.
+    \item C \textbf{não verifica limites}: acessar \texttt{notas[5]} é erro silencioso.
+    \item Strings são vetores de \texttt{char} terminados em \texttt{'\textbackslash 0'}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Por que \texttt{media} recebe o vetor e o tamanho?}
+\begin{lstlisting}
+double media(double v[], int n) {   /* definida antes do main */
+    double soma = 0.0;
+    for (int i = 0; i < n; i++)
+        soma += v[i];
+    return soma / n;
+}
+\end{lstlisting}
+  \begin{itemize}
+    \item Parâmetros comuns são \textbf{copiados} (passagem por valor).
+    \item Vetores são a exceção: a função recebe o \textbf{endereço} do primeiro
+      elemento --- por isso o tamanho \texttt{n} precisa ir junto.
+    \item Para definir a função depois do \texttt{main}, declare antes um
+      \textbf{protótipo}: \texttt{double media(double v[], int n);}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Mãos à obra: altere o programa}
+  \begin{block}{Tarefas, em ordem crescente de desafio}
+    \begin{enumerate}
+      \item Mude \texttt{TAM} para 8 e ajuste o programa para continuar correto.
+        O que precisou mudar? O que mudou sozinho?
+      \item Troque o tipo de \texttt{soma} para \texttt{int}, execute com as
+        mesmas notas de antes e explique a nova saída.
+      \item Escreva \texttt{double maior(double v[], int n)} e imprima também
+        a maior nota da turma.
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Dica}
+    Depois de cada alteração: recompile, execute e \textbf{preveja antes de
+    olhar} a nova saída.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Desafio: seu primeiro programa do semestre}
+  \begin{block}{Desafio}
+    Escreva um programa que lê as notas \texttt{P1}, \texttt{P2} e \texttt{PJ}
+    de um aluno, calcula
+    \[ MF = \frac{2 \cdot P1 + 2 \cdot P2 + PJ}{5} \]
+    e imprime \textbf{Aprovado} ($MF \geq 5{,}0$), \textbf{Reposição}
+    ($3{,}0 \leq MF < 5{,}0$) ou \textbf{Reprovado} --- exatamente a regra de
+    avaliação desta disciplina.
+  \end{block}
+  \begin{exampleblock}{Terminou? Estenda}
+    Leia as notas de vários alunos, guarde as médias finais num vetor e conte
+    quantos foram aprovados.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Recapitulando}
+  \begin{block}{O que revisamos hoje}
+    \begin{itemize}
+      \item Compilação: do \texttt{.c} ao executável com \texttt{gcc}.
+      \item Tipos básicos, variáveis e operadores.
+      \item Entrada e saída com \texttt{printf} e \texttt{scanf}.
+      \item Decisão (\texttt{if}, \texttt{switch}) e repetição (\texttt{for}, \texttt{while}, \texttt{do-while}).
+      \item Funções com passagem por valor.
+      \item Vetores e strings: posições contíguas, índice a partir de 0.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Como revisamos}
+    Prevendo, executando, investigando, modificando e criando.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Para casa}
+  \begin{itemize}
+    \item \textbf{Próxima aula (19/08):} tipos de dados, estruturas de dados e
+      tipos abstratos de dados (conceitos).
+    \item Fazer o tutorial guiado (Jupyter Notebook) do Classroom --- ele
+      continua as tarefas de modificação e o desafio para quem não terminou
+      em sala.
+    \item Garantir um ambiente C funcionando: \texttt{gcc} ou IDE de preferência.
+    \item Revisar os capítulos iniciais de Kernighan \& Ritchie ou Backes.
+    \item Dúvidas: \texttt{andreyoshiaki@dcomp.ufs.br} ou no início da próxima aula.
+  \end{itemize}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \footnotesize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
