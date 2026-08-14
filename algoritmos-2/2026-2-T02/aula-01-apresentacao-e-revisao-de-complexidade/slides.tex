@@ -1,0 +1,766 @@
+% -*- coding: utf-8 -*-
+% ============================================================
+%  COMP0498 — Algoritmos e Estruturas de Dados II — 2026.2 T02
+%  Apresentação da Disciplina e Revisão de Complexidade
+%
+%  Compilar:
+%    TEXINPUTS=".:/Users/yoshiaki/work/ufs-disciplinas/theme/:" latexmk -pdf slides.tex
+% ============================================================
+
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage{tikz}
+\usetikzlibrary{positioning, shapes.multipart, arrows.meta,
+                shadows, fit, chains,
+                decorations.pathreplacing, shapes.geometric, calc}
+
+% ===============================================================
+%  METADADOS
+% ===============================================================
+\title{Apresentação da Disciplina e Revisão de Complexidade}
+\subtitle{COMP0498 --- Algoritmos e Estruturas de Dados II $\cdot$ Turma T02 $\cdot$ 2026.2}
+\author[Prof. André <andreyoshiaki@dcomp.ufs.br>]{Prof. Dr. André Yoshiaki Kashiwabara}
+\institute{DCOMP --- Universidade Federal de Sergipe}
+\date{18 de agosto de 2026}
+
+% ===============================================================
+\begin{document}
+
+% --- Capa ------------------------------------------------------
+\begin{frame}[plain,shrink]
+  \titlepage
+\end{frame}
+
+% --- Roteiro ---------------------------------------------------
+\begin{frame}{Roteiro de Hoje (90 min)}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Parte I --- A Disciplina} {\color{UFSGray}($\sim$40 min)}
+      \begin{itemize}
+        \item O que vamos estudar e por quê
+        \item As três unidades e o cronograma
+        \item Avaliação, metodologia e bibliografia
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Parte II --- Revisão de Complexidade} {\color{UFSGray}($\sim$50 min)}
+      \begin{itemize}
+        \item Por que analisar o pior caso
+        \item Algoritmos iterativos: regras de contagem
+        \item Algoritmos recursivos: recorrências
+        \item Teorema Mestre (visão rápida)
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===============================================================
+\section{Parte I --- A Disciplina}
+% ===============================================================
+
+\begin{frame}{Identificação}
+  \begin{center}
+  \renewcommand{\arraystretch}{1.4}
+  \begin{tabular}{>{\bfseries}l l}
+    \toprule
+    Disciplina & COMP0498 --- Algoritmos e Estruturas de Dados II \\
+    Carga horária & 60h (30h teóricas + 30h práticas) $\cdot$ 4 créditos \\
+    Pré-requisito & COMP0497 --- Algoritmos e Estruturas de Dados I \\
+    Horário & Terças e quintas-feiras, 35T34 \\
+    Período letivo & 18/08/2026 a 17/12/2026 \\
+    Professor & André Yoshiaki Kashiwabara \\
+    Contato & \texttt{andreyoshiaki@dcomp.ufs.br} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Objetivo da Disciplina}
+  \begin{block}{Objetivo geral}
+    Capacitar você a \textbf{projetar} e \textbf{analisar} algoritmos empregando as
+    principais técnicas de projeto --- força bruta, divisão e conquista, programação
+    dinâmica, método guloso, backtracking e branch and bound ---, com ênfase em
+    algoritmos sobre \textbf{grafos}, na demonstração de \textbf{corretude}, na análise de
+    \textbf{complexidade} e nas noções de \textbf{NP-completude}.
+  \end{block}
+
+  \vspace{0.4cm}
+  Em AED1 você aprendeu a \emph{usar} estruturas de dados e algoritmos prontos.
+  Aqui, o foco muda: dado um problema novo, \textbf{qual técnica escolher, como
+  provar que a solução funciona e quanto ela custa?}
+\end{frame}
+
+\begin{frame}{Mapa da Disciplina: Três Unidades}
+  \begin{center}
+  \begin{tikzpicture}[
+    unidade/.style={rectangle, rounded corners, draw=UFSBlue, thick,
+      fill=UFSBlue!10, minimum width=4.4cm, minimum height=2.9cm,
+      text width=4.1cm, align=left, font=\scriptsize},
+    titulo/.style={font=\small\bfseries, text=UFSBlue},
+    prova/.style={rectangle, rounded corners, fill=UFSYellow!40,
+      font=\scriptsize, minimum width=4.4cm}
+  ]
+    \node[unidade] (u1) at (0,0)
+      {Corretude: invariantes de laço\\[2pt]
+       Força bruta e busca exaustiva\\[2pt]
+       Quickselect e geração combinatória\\[2pt]
+       Grafos: representação, DFS, BFS, ordenação topológica};
+    \node[titulo, above=2pt of u1] {Unidade 1};
+
+    \node[unidade, right=0.5cm of u1] (u2)
+      {Recorrências e método mestre\\[2pt]
+       Divisão e conquista: Karatsuba e Strassen\\[2pt]
+       Programação dinâmica: mochila, LCS, distância de edição, Warshall e Floyd};
+    \node[titulo, above=2pt of u2] {Unidade 2};
+
+    \node[unidade, right=0.5cm of u2] (u3)
+      {Guloso: Huffman, Kruskal, Prim, Dijkstra\\[2pt]
+       Fluxo máximo e emparelhamento\\[2pt]
+       NP-completude: P, NP, reduções\\[2pt]
+       Backtracking e branch and bound};
+    \node[titulo, above=2pt of u3] {Unidade 3};
+
+    \node[prova, below=3pt of u1] {1ª Avaliação: \textbf{29/09}};
+    \node[prova, below=3pt of u2] {2ª Avaliação: \textbf{29/10}};
+    \node[prova, below=3pt of u3] {3ª Avaliação: \textbf{08/12}};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[shrink]{Unidade 1 --- Corretude, Busca Exaustiva e Grafos}
+  \begin{center}
+  \renewcommand{\arraystretch}{1.25}
+  \small
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Data} & \textbf{Conteúdo} \\
+    \midrule
+    18/08 & Apresentação e revisão de pré-requisitos (hoje) \\
+    20/08 e 25/08 & Corretude: invariantes de laço e terminação \\
+    27/08 & Força bruta e busca exaustiva \\
+    01/09 & Seleção e estatística de ordem (quickselect, mediana) \\
+    03/09 & Geração combinatória: subconjuntos e permutações \\
+    08/09 & \emph{Sem aula --- feriado municipal (São Cristóvão)} \\
+    10/09 & Grafos: conceitos e representações \\
+    15/09 e 17/09 & Busca em profundidade (DFS) \\
+    22/09 & Busca em largura (BFS) e ordenação topológica \\
+    24/09 & Exercícios e revisão \\
+    \textbf{29/09} & \textbf{1ª Avaliação} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Unidade 2 --- Divisão e Conquista e Programação Dinâmica}
+  \begin{center}
+  \renewcommand{\arraystretch}{1.25}
+  \small
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Data} & \textbf{Conteúdo} \\
+    \midrule
+    01/10 & Recorrências e método mestre: diagnóstico e limites \\
+    06/10 & Multiplicação de inteiros grandes (Karatsuba) \\
+    08/10 & Multiplicação de matrizes (Strassen) \\
+    13/10 & Programação dinâmica: memoization e subestrutura ótima \\
+    15/10 & Problema da mochila \\
+    20/10 & Subsequência comum máxima (LCS) e distância de edição \\
+    22/10 & PD em grafos: algoritmos de Warshall e de Floyd \\
+    27/10 & Exercícios e revisão \\
+    \textbf{29/10} & \textbf{2ª Avaliação} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}[shrink]{Unidade 3 --- Guloso, Fluxo e NP-Completude}
+  \begin{center}
+  \renewcommand{\arraystretch}{1.2}
+  \small
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Data} & \textbf{Conteúdo} \\
+    \midrule
+    03/11 & Método guloso: códigos de Huffman e argumento de troca \\
+    05/11 & Árvore geradora mínima: Kruskal e Prim \\
+    10/11 & Caminhos mínimos: Dijkstra \\
+    12/11 e 17/11 & Fluxo máximo (Ford-Fulkerson) e emparelhamento bipartido \\
+    19/11 a 26/11 & NP-completude: classes P/NP, reduções, exercícios \\
+    01/12 & Backtracking e branch and bound \\
+    03/12 & Exercícios e revisão; lista de reduções polinomiais \\
+    \textbf{08/12} & \textbf{3ª Avaliação} \\
+    15/12 & Avaliação de reposição; revisão final \\
+    17/12 & Encerramento e consolidação das notas \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Avaliação}
+  \begin{block}{Três provas escritas individuais, uma por unidade}
+    \[
+      \text{MF} = \frac{N_1 + N_2 + N_3}{3}
+    \]
+  \end{block}
+
+  \begin{itemize}
+    \item \textbf{N1} (29/09) e \textbf{N2} (29/10): prova escrita individual.
+    \item \textbf{N3} (08/12): prova escrita individual (\textbf{70\%}) + lista de
+      reduções polinomiais desenvolvida em casa (\textbf{30\%}).
+    \item \textbf{Reposição} (15/12): para quem faltou a uma avaliação por motivo
+      justificado; a nota substitui a da avaliação perdida.
+  \end{itemize}
+
+  \begin{alertblock}{Aprovação}
+    Média final $\ge 5{,}0$ \textbf{e} frequência mínima de 75\% da carga horária.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Como Serão as Aulas}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Em sala}
+      \begin{itemize}
+        \item Aulas presenciais, preferencialmente em laboratório.
+        \item Teoria com slides e quadro.
+        \item Implementações em \textbf{Linguagem C}, na IDE de sua preferência.
+        \item Exercícios resolvidos em sala.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Fora de sala}
+      \begin{itemize}
+        \item Exercícios e estudos dirigidos como trabalho de casa.
+        \item \textbf{SIGAA}: envio de atividades e trabalhos.
+        \item \textbf{Classroom}: material de cada aula disponibilizado após a aula.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Bibliografia}
+  \textbf{Básica:}
+  \begin{itemize}
+    \item Cormen, Leiserson, Rivest, Stein --- \emph{Introduction to Algorithms} (CLRS), 3ª ed., MIT Press, 2009.
+    \item Sedgewick, Wayne --- \emph{Algorithms}, 4ª ed., Addison-Wesley, 2011.
+    \item Levitin --- \emph{Introduction to the Design and Analysis of Algorithms}, 3ª ed., Pearson, 2012.
+  \end{itemize}
+
+  \vspace{0.3cm}
+  O CLRS é a referência principal para a maior parte do curso.
+\end{frame}
+
+\begin{frame}{O que Você Precisa Já Saber (COMP0497)}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Estruturas de dados}
+      \begin{itemize}
+        \item Vetores, listas, pilhas e filas
+        \item Árvores de busca
+        \item Fila de prioridade (heap)
+        \item Union-find
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Análise de algoritmos}
+      \begin{itemize}
+        \item Notação assintótica ($O$, $\Omega$, $\Theta$)
+        \item Análise de laços (iterativos)
+        \item Recorrências (recursivos)
+        \item Ordenação: Merge Sort, Quick Sort
+      \end{itemize}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.4cm}
+  \begin{block}{Agora}
+    Vamos revisar a coluna da direita --- \textbf{análise de complexidade} ---, que
+    será usada em \emph{todas} as aulas deste curso.
+  \end{block}
+\end{frame}
+
+% ===============================================================
+\section{Parte II --- Por que Analisar Algoritmos?}
+% ===============================================================
+
+\begin{frame}[shrink]{Por que Analisar o Pior Caso?}
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+      \begin{block}{Analogia: projeto estrutural}
+        Um engenheiro civil não projeta uma ponte para o dia típico de tráfego ---
+        ele projeta para o cenário mais extremo.
+      \end{block}
+
+      \textbf{A análise de pior caso nos dá:}
+      \begin{itemize}
+        \item \textbf{Garantia:} o algoritmo \emph{nunca} será mais lento que o limite.
+        \item \textbf{Segurança:} essencial em sistemas de tempo real.
+        \item \textbf{Comparabilidade:} um critério justo para comparar algoritmos.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \begin{center}
+      \resizebox{\linewidth}{!}{%
+      \begin{tikzpicture}[scale=0.85]
+        \draw[->, thick] (0,0) -- (4.5,0) node[right] {\footnotesize entrada};
+        \draw[->, thick] (0,0) -- (0,4) node[above] {\footnotesize tempo};
+        \draw[thick, UFSBlue] plot[smooth, domain=0.3:4] (\x, {0.2*\x*\x});
+        \node[UFSBlue, right] at (3.2, 3.5) {\footnotesize \textbf{Pior caso}};
+        \draw[thick, gray, dashed] plot[smooth, domain=0.3:4] (\x, {0.12*\x*\x});
+        \node[gray, right] at (3.5, 2.2) {\footnotesize Caso médio};
+        \draw[thick, gray!50, dotted] plot[smooth, domain=0.3:4] (\x, {0.3*\x});
+        \node[gray!50, right] at (3.5, 1.0) {\footnotesize Melhor caso};
+      \end{tikzpicture}}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A Notação Big-O}
+  \begin{alertblock}{Regra de ouro da análise de pior caso}
+    Assumimos que \textbf{laços percorrem o máximo de iterações} e que
+    \textbf{decisões seguem o caminho de maior custo}.
+  \end{alertblock}
+
+  \vspace{0.4cm}
+  A notação $O$ captura o \textbf{limite superior assintótico}: ignoramos constantes
+  e termos de menor ordem, focando no comportamento dominante quando $n \to \infty$.
+  \[
+    3n^2 + 10n + 42 \;=\; O(n^2)
+  \]
+
+  \vspace{0.2cm}
+  Também usaremos $\Omega$ (limite inferior) e $\Theta$ (limite justo) --- o CLRS,
+  capítulo 3, formaliza as três.
+\end{frame}
+
+\begin{frame}[shrink]{Quanto Custa Cada Classe de Complexidade?}
+  \begin{center}
+  \resizebox{0.62\textwidth}{!}{%
+  \begin{tikzpicture}[scale=1.1]
+    \draw[->, thick] (0,0) -- (6.3,0) node[right] {\small $n$};
+    \draw[->, thick] (0,0) -- (0,4.8) node[above] {\small operações};
+    \draw[thick, gray]     plot[smooth, domain=0.3:6]  (\x, {0.45*ln(\x)+0.55}) node[right, font=\scriptsize] {$\log n$};
+    \draw[thick, UFSBlue]  plot[smooth, domain=0:6]    (\x, {0.55*\x})          node[right, font=\scriptsize] {$n$};
+    \draw[thick, UFSYellow!80!black] plot[smooth, domain=1:6, samples=40] (\x, {0.397*\x*ln(\x)}) node[right, font=\scriptsize] {$n \log n$};
+    \draw[thick, orange]   plot[smooth, domain=0:3.6]  (\x, {0.35*\x*\x})       node[right, font=\scriptsize] {$n^2$};
+    \draw[thick, UFSRed]   plot[smooth, domain=0:2.75, samples=40] (\x, {0.28*exp(\x)}) node[right, font=\scriptsize] {$2^n$};
+  \end{tikzpicture}}
+  \end{center}
+
+  \begin{center}
+  \small Dobrar $n$: $\log n$ quase não muda $\cdot$ $n$ dobra $\cdot$
+  $n^2$ quadruplica $\cdot$ $2^n$ \textbf{eleva ao quadrado} o custo.
+  \end{center}
+\end{frame}
+
+% ===============================================================
+\section{Algoritmos Iterativos}
+% ===============================================================
+
+\begin{frame}[shrink]{Regras para Contar Operações}
+  \begin{center}
+  \renewcommand{\arraystretch}{1.4}
+  \begin{tabular}{>{\bfseries}l p{8.5cm}}
+    \toprule
+    Construção & Regra de análise \\
+    \midrule
+    Operação básica & Atribuições, aritméticas e acessos a array custam $O(1)$. \\
+    Sequência & O custo total é o do comando mais caro (Regra da Soma). \\
+    Decisão (\texttt{if/else}) & No pior caso, assumimos o ramo de maior custo. \\
+    Laço (\texttt{for/while}) & Custo do corpo $\times$ número máximo de iterações (Regra do Produto). \\
+    Laços consecutivos & Somam-se as complexidades (Regra da Soma). \\
+    Laços aninhados & Multiplicam-se as complexidades (Regra do Produto). \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Exemplo 1: Busca do Máximo --- $O(n)$}
+  \begin{block}{Juntando tudo: operação básica + laço + decisão}
+  \end{block}
+\begin{verbatim}
+ENCONTRAR-MAXIMO(A)
+1  maximo = A[1]                 // O(1)
+2  for i = 2 to A.length         // executa n - 1 vezes
+3      if A[i] > maximo          //   O(1)
+4          maximo = A[i]         //   O(1)
+5  return maximo                 // O(1)
+\end{verbatim}
+  \begin{itemize}
+    \item Corpo do laço: $O(1)$. Laço executa $n-1$ vezes: Regra do Produto $\Rightarrow O(n)$.
+    \item Fora do laço: $O(1)$. Regra da Soma $\Rightarrow O(n) + O(1) = O(n)$.
+  \end{itemize}
+  \hfill\fbox{Complexidade: $O(n)$}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{Exemplo 2: Selection Sort --- $O(n^2)$}
+  \begin{block}{Padrão: o laço interno depende do índice do externo}
+  \end{block}
+\begin{verbatim}
+SELECTION-SORT(A)
+1  n = A.length
+2  for i = 1 to n - 1
+3      menor = i
+4      for j = i + 1 to n
+5          if A[j] < A[menor]
+6              menor = j
+7      exchange A[i] with A[menor]
+\end{verbatim}
+  \textbf{Análise:} iterações do laço interno:
+  $(n{-}1) + (n{-}2) + \cdots + 1 = \frac{n(n-1)}{2}$ (progressão aritmética).
+
+  \vspace{0.2cm}
+  \hfill\fbox{Complexidade: $O(n^2)$}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{Exemplo 3: Busca Binária --- $O(\log n)$}
+  \begin{block}{Padrão: o espaço de busca é dividido por um fator constante}
+  \end{block}
+\begin{verbatim}
+BUSCA-BINARIA(A, alvo)
+1  inicio = 1
+2  fim = A.length
+3  while inicio <= fim
+4      meio = floor((inicio + fim) / 2)
+5      if A[meio] == alvo        return meio
+6      elseif A[meio] < alvo     inicio = meio + 1
+7      else                      fim = meio - 1
+8  return NIL
+\end{verbatim}
+  \textbf{Análise:} o espaço é dividido por 2 a cada iteração:
+  $n, n/2, n/4, \ldots, 1$. Isso leva $\log_2 n$ passos.
+
+  \vspace{0.1cm}
+  \hfill\fbox{Complexidade: $O(\log n)$}
+\end{frame}
+
+\begin{frame}[shrink]{Resumo: Padrões Iterativos}
+  \begin{center}
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Complexidade} & \textbf{Padrão típico} & \textbf{Exemplo} \\
+    \midrule
+    $O(1)$           & Acesso direto, sem laço           & Acesso a $A[i]$ \\
+    $O(\log n)$      & Divide espaço por constante       & Busca binária \\
+    $O(n)$           & Um laço sobre $n$ elementos       & Busca do máximo \\
+    $O(n \log n)$    & Laço $\times$ operação log        & $n$ buscas binárias \\
+    $O(n^2)$         & Dois laços aninhados              & Selection Sort \\
+    $O(n^3)$         & Três laços aninhados              & Multiplicação de matrizes \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.3cm}
+  \begin{alertblock}{Dica prática}
+    Conte os laços aninhados que dependem de $n$: 1 laço $\approx O(n)$,
+    2 laços $\approx O(n^2)$, 3 laços $\approx O(n^3)$.
+    Se o espaço é dividido a cada passo, pense em $\log n$.
+  \end{alertblock}
+\end{frame}
+
+% ===============================================================
+\section{Algoritmos Recursivos}
+% ===============================================================
+
+\begin{frame}{E Quando Não Há Laços para Contar?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Iterativo} --- já sabemos:
+      \begin{itemize}
+        \item Contamos laços explícitos.
+        \item Regras da Soma e do Produto.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Recursivo} --- nova abordagem:
+      \begin{itemize}
+        \item O algoritmo chama \emph{a si mesmo}.
+        \item Usamos \textbf{relações de recorrência}.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.5cm}
+  \begin{block}{Ideia central}
+    Expressamos o tempo $T(n)$ em função do tempo para instâncias menores:
+    \[
+      T(n) = \underbrace{a}_{\text{nº de chamadas}} \; T(\underbrace{n/b \text{ ou } n-1}_{\text{redução}}) \; + \underbrace{f(n)}_{\text{dividir/combinar}}
+    \]
+    com um caso base de custo constante, por exemplo $T(1) = \Theta(1)$.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile,shrink]{Fatorial vs.\ Fibonacci: a Ramificação Decide}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+\begin{verbatim}
+FATORIAL(n)
+1  if n == 0
+2      return 1
+3  return n * FATORIAL(n - 1)
+\end{verbatim}
+      \[
+        T(n) = T(n{-}1) + \Theta(1)
+      \]
+      Uma chamada por nível, profundidade $n$.
+
+      \hfill\fbox{$O(n)$}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+\begin{verbatim}
+FIBONACCI(n)
+1  if n <= 1
+2      return n
+3  return FIBONACCI(n - 1)
+4       + FIBONACCI(n - 2)
+\end{verbatim}
+      \[
+        T(n) = T(n{-}1) + T(n{-}2) + \Theta(1)
+      \]
+      Duas chamadas por nível: a árvore dobra.
+
+      \hfill\fbox{$O(2^n)$}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.3cm}
+  \begin{alertblock}{Lição}
+    A diferença entre linear e exponencial está no \textbf{número de ramificações}.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Merge Sort: Divisão Balanceada + Combinação Linear}
+\begin{verbatim}
+MERGE-SORT(A, p, r)
+1  if p < r
+2      q = floor((p + r) / 2)
+3      MERGE-SORT(A, p, q)
+4      MERGE-SORT(A, q + 1, r)
+5      MERGE(A, p, q, r)          // custo Theta(n)
+\end{verbatim}
+  \textbf{Recorrência:} $T(n) = 2T(n/2) + \Theta(n)$
+
+  \vspace{0.2cm}
+  Compare com \textsc{Encontrar-Máximo} por divisão, cuja recorrência é
+  $T(n) = 2T(n/2) + \Theta(1)$ e resulta em $O(n)$:
+  o custo de \textbf{combinar} faz toda a diferença entre $O(n)$ e $O(n \log n)$.
+\end{frame}
+
+\begin{frame}{Visualizando: Árvore de Recorrência do Merge Sort}
+  \begin{center}
+  \resizebox{0.88\textwidth}{!}{%
+  \begin{tikzpicture}[level distance=1.5cm,
+    level 1/.style={sibling distance=4cm},
+    level 2/.style={sibling distance=2cm},
+    every node/.style={align=center}]
+
+    \node {$cn$}
+      child {node {$c(n/2)$}
+        child {node {$c(n/4)$} edge from parent[dashed]}
+        child {node {$c(n/4)$} edge from parent[dashed]}
+      }
+      child {node {$c(n/2)$}
+        child {node {$c(n/4)$} edge from parent[dashed]}
+        child {node {$c(n/4)$} edge from parent[dashed]}
+      };
+
+    \node[right] at (3.5, 0)    {\small custo do nível: $cn$};
+    \node[right] at (3.5, -1.5) {\small custo do nível: $2 \cdot c(n/2) = cn$};
+    \node[right] at (3.5, -3)   {\small custo do nível: $4 \cdot c(n/4) = cn$};
+
+    \draw[<->, thick, UFSBlue] (-3.5, -3.3) -- (-3.5, 0.3) node[midway, left] {$\log_2 n$ níveis};
+  \end{tikzpicture}}
+  \end{center}
+
+  \vspace{0.2cm}
+  Cada nível custa $cn$; são $\log_2 n$ níveis.
+  \textbf{Total:} $cn \cdot \log_2 n = \Theta(n \log n)$.
+\end{frame}
+
+\begin{frame}[shrink]{Padrões Recursivos que Você Deve Reconhecer}
+  \begin{center}
+  \renewcommand{\arraystretch}{1.25}
+  \small
+  \begin{tabular}{lcc}
+    \toprule
+    \textbf{Algoritmo} & \textbf{Recorrência} & \textbf{Complexidade} \\
+    \midrule
+    Fatorial / potência ingênua & $T(n{-}1) + \Theta(1)$            & $O(n)$ \\
+    Fibonacci ingênuo           & $T(n{-}1) + T(n{-}2) + \Theta(1)$ & $O(2^n)$ \\
+    Busca binária               & $T(n/2) + \Theta(1)$              & $O(\log n)$ \\
+    Máximo por divisão          & $2T(n/2) + \Theta(1)$             & $O(n)$ \\
+    Merge Sort                  & $2T(n/2) + \Theta(n)$             & $O(n \log n)$ \\
+    Quick Sort (pior caso)      & $T(n{-}1) + \Theta(n)$            & $O(n^2)$ \\
+    Torre de Hanói              & $2T(n{-}1) + \Theta(1)$           & $O(2^n)$ \\
+    Exponenciação rápida        & $T(n/2) + \Theta(1)$              & $O(\log n)$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.2cm}
+  \begin{itemize}
+    \item $T(n{-}1) + \Theta(1) \Rightarrow O(n)$: são $n$ chamadas de custo constante.
+    \item $T(n/2) + \Theta(1) \Rightarrow O(\log n)$: dividir por 2 até 1 leva $\log n$ passos.
+    \item $2T(n{-}1) \Rightarrow O(2^n)$: \textbf{sinal de alerta} --- ramificação sem divisão.
+  \end{itemize}
+\end{frame}
+
+% ===============================================================
+\section{Teorema Mestre (Visão Rápida)}
+% ===============================================================
+
+\begin{frame}{Teorema Mestre: a ``Receita de Bolo''}
+  \begin{block}{Aplica-se a recorrências da forma padrão}
+    \[
+      T(n) = a\,T(n/b) + f(n) \qquad (a \ge 1,\; b > 1)
+    \]
+  \end{block}
+
+  \textbf{A essência:} comparamos o custo de dividir/combinar $f(n)$ com o
+  ``peso das folhas'' $n^{\log_b a}$. Quem domina?
+
+  \begin{center}
+  \renewcommand{\arraystretch}{1.4}
+  \small
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Caso} & \textbf{Condição} & \textbf{Resultado} \\
+    \midrule
+    1 --- Folhas dominam & $f(n) = O(n^{\log_b a - \epsilon})$ & $T(n) = \Theta(n^{\log_b a})$ \\
+    2 --- Empate & $f(n) = \Theta(n^{\log_b a})$ & $T(n) = \Theta(n^{\log_b a} \log n)$ \\
+    3 --- Raiz domina & $f(n) = \Omega(n^{\log_b a + \epsilon})$ {\scriptsize + regularidade} & $T(n) = \Theta(f(n))$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Teorema Mestre: Três Exemplos Rápidos}
+  \begin{enumerate}
+    \item $T(n) = 2T(n/2) + n$ (Merge Sort):\\
+      folhas $n^{\log_2 2} = n$; $f(n) = n = \Theta(n)$ --- empate (Caso 2).
+      \hfill\fbox{$\Theta(n \log n)$}
+    \vspace{0.25cm}
+    \item $T(n) = 4T(n/2) + n$:\\
+      folhas $n^{\log_2 4} = n^2$; $f(n) = n = O(n^{2-1})$ --- folhas dominam (Caso 1).
+      \hfill\fbox{$\Theta(n^2)$}
+    \vspace{0.25cm}
+    \item $T(n) = T(n/2) + n$:\\
+      folhas $n^{\log_2 1} = 1$; $f(n) = n = \Omega(n^{0+1})$ --- raiz domina (Caso 3).
+      \hfill\fbox{$\Theta(n)$}
+  \end{enumerate}
+
+  \vspace{0.4cm}
+  \begin{block}{Voltaremos a isso}
+    Na aula de \textbf{01/10} estudaremos o método mestre em profundidade:
+    diagnóstico, \emph{limitações} (quando ele não se aplica) e a árvore de recursão
+    como método geral.
+  \end{block}
+\end{frame}
+
+% ===============================================================
+\section{Exercícios e Encerramento}
+% ===============================================================
+
+\begin{frame}[fragile,shrink]{Exercícios em Sala: Qual a Complexidade?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{(a)}
+\begin{verbatim}
+for i = 1 to n
+    for j = 1 to n
+        soma = soma + A[i][j]
+\end{verbatim}
+      \textbf{(b)}
+\begin{verbatim}
+i = n
+while i > 1
+    i = i / 2
+\end{verbatim}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{(c)}
+\begin{verbatim}
+for i = 1 to n
+    j = n
+    while j > 1
+        j = j / 2
+\end{verbatim}
+      \textbf{(d)} Resolva a recorrência:
+      \[
+        T(n) = 3T(n/2) + n
+      \]
+      {\small (Dica: $\log_2 3 \approx 1{,}58$.)}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.4cm}
+  \begin{alertblock}{Como resolver}
+    Identifique o padrão (laços? divisão? recorrência?) e aplique as regras vistas hoje.
+    Discutiremos as respostas juntos.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Cheat Sheet: Guia Rápido de Complexidade}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Iterativos --- conte os laços:}
+      \begin{itemize}
+        \item Sem laço $\Rightarrow O(1)$
+        \item 1 laço sobre $n$ $\Rightarrow O(n)$
+        \item 2 laços aninhados $\Rightarrow O(n^2)$
+        \item 3 laços aninhados $\Rightarrow O(n^3)$
+        \item Divide espaço pela metade $\Rightarrow O(\log n)$
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Recursivos --- monte a recorrência:}
+      \begin{itemize}
+        \item Identifique $a$, $n/b$ ou $n{-}1$, e $f(n)$.
+        \item Resolva via árvore ou Teorema Mestre.
+      \end{itemize}
+
+      \vspace{0.2cm}
+      \textbf{Sinais de alerta:}
+      \begin{itemize}
+        \item $2T(n{-}1) \Rightarrow O(2^n)$ --- exponencial!
+        \item $T(n{-}1) + \Theta(n) \Rightarrow O(n^2)$
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Para a Próxima Aula}
+  \begin{itemize}
+    \item \textbf{Quinta-feira (20/08):} Noções de corretude --- invariantes de laço
+      e terminação. Como \emph{provar} que um algoritmo funciona?
+    \item \textbf{Leitura recomendada:} CLRS, capítulos 2 (análise e invariantes),
+      3 (crescimento de funções) e 4 (recorrências).
+  \end{itemize}
+
+  \vspace{0.5cm}
+  \begin{block}{Pergunta para levar}
+    O Quick Sort tem pior caso $O(n^2)$, mas na prática costuma ser mais rápido
+    que o Merge Sort ($O(n \log n)$ garantido). \textbf{Por quê?}
+    (Pense em constantes e no caso médio.)
+  \end{block}
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Referências}
+  \small
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
