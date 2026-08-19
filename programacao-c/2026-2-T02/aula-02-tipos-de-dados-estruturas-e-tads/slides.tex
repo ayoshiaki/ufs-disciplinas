@@ -1,0 +1,670 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS — Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns}
+
+% Listagens — paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Metadados ---
+\title{Programação C}
+\subtitle{Tipos de dados, estruturas de dados e tipos abstratos de dados}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{Agenda}
+  \tableofcontents
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10.5cm, minimum height=0.8cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)     {O que é um \textbf{tipo de dados}: como interpretar os bits e o que fazer com eles};
+    \node[item] (t2) at (0,-1.2)  {O que é uma \textbf{estrutura de dados}: como organizar muitos valores na memória};
+    \node[item] (t3) at (0,-2.4)  {O que é um \textbf{tipo abstrato de dados}: o que se pode fazer, sem dizer como};
+    \draw[->, thick, UFSBlue] (t1)--(t2);
+    \draw[->, thick, UFSBlue] (t2)--(t3);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\section{O programa de hoje}
+
+\begin{frame}[shrink=5]{De onde partimos}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Na aula passada:}\\[4pt]
+      Um programa que lê 5 notas num vetor, calcula a média numa função e
+      classifica a turma.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Hoje:}\\[4pt]
+      O mesmo problema cresceu: as notas ficam \textbf{cadastradas} e o
+      programa oferece \textbf{operações} sobre a coleção.
+    \end{column}
+  \end{columns}
+  \vspace{1em}
+  \begin{center}
+  \begin{tikzpicture}[
+    lente/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=3.6cm, minimum height=0.9cm, font=\small, align=center},
+    prog/.style={rectangle, draw=UFSGray, fill=UFSGray!10, rounded corners,
+      minimum width=3.2cm, minimum height=0.9cm, font=\small\ttfamily}
+  ]
+    \node[prog] (p) at (0,0) {notas\_turma.c};
+    \node[lente] (l1) at (-4.6,-2) {Tipos de\\dados};
+    \node[lente] (l2) at (0,-2)    {Estruturas de\\dados};
+    \node[lente] (l3) at (4.6,-2)  {Tipos abstratos\\de dados};
+    \draw[->, thick, UFSBlue] (p) -- (l1);
+    \draw[->, thick, UFSBlue] (p) -- (l2);
+    \draw[->, thick, UFSBlue] (p) -- (l3);
+  \end{tikzpicture}
+  \end{center}
+  \begin{center}
+    Vamos olhar um único programa por \textbf{três lentes} diferentes.
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile,shrink=5]{O programa: \texttt{inserir} e \texttt{media}}
+\begin{lstlisting}
+#include <stdio.h>
+#define CAPACIDADE 8
+
+int inserir(double v[], int n, double nota) {
+    if (n == CAPACIDADE)
+        return n;          /* colecao cheia: ignora a nota */
+    v[n] = nota;
+    return n + 1;
+}
+
+double media(double v[], int n) {
+    double soma = 0.0;
+    for (int i = 0; i < n; i++)
+        soma += v[i];
+    return soma / n;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{O programa: \texttt{maior}}
+\begin{lstlisting}
+double maior(double v[], int n) {
+    double m = v[0];
+    for (int i = 1; i < n; i++)
+        if (v[i] > m)
+            m = v[i];
+    return m;
+}
+\end{lstlisting}
+  \begin{itemize}
+    \item Repare no padrão: toda operação recebe o \textbf{vetor} e o
+      \textbf{contador} \texttt{n} --- e mais nada.
+    \item Leia com calma: você vai prever a saída do programa completo no
+      próximo passo.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile,shrink=5]{O programa: o \texttt{main}}
+\begin{lstlisting}
+int main(void) {
+    double notas[CAPACIDADE];
+    int n = 0;
+
+    n = inserir(notas, n, 7.0);
+    n = inserir(notas, n, 8.5);
+    n = inserir(notas, n, 6.0);
+
+    printf("%d notas cadastradas\n", n);
+    printf("media: %.2f\n", media(notas, n));
+    printf("maior: %.1f\n", maior(notas, n));
+    printf("cada nota ocupa %zu bytes\n", sizeof(double));
+    printf("o vetor ocupa %zu bytes\n", sizeof notas);
+    return 0;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Antes de executar, preveja --- em dupla, 2--3 minutos}
+    \begin{enumerate}
+      \item Escreva as \textbf{cinco linhas} de saída, exatamente como vão
+        aparecer no terminal.
+      \item Que valor sai como média? Com quantas casas decimais?
+      \item O vetor guarda \textbf{3 notas} --- quantos bytes você acha que a
+        última linha vai informar? Por quê?
+    \end{enumerate}
+  \end{block}
+  \vspace{0.5em}
+  Anote as previsões: vamos compará-las com a saída real já já.
+\end{frame}
+
+\begin{frame}[fragile]{Compile e execute}
+\begin{lstlisting}[language=bash, numbers=none]
+$ gcc notas_turma.c -o notas_turma
+$ ./notas_turma
+3 notas cadastradas
+media: 7.17
+maior: 8.5
+cada nota ocupa 8 bytes
+o vetor ocupa 64 bytes
+\end{lstlisting}
+  \begin{itemize}
+    \item Compare com a sua previsão: o que bateu? O que surpreendeu?
+    \item Duas surpresas comuns: a média \texttt{7.17} (e não \texttt{7.16}?)
+      e os \texttt{64 bytes} (e não 24?).
+    \item As respostas passam pelos três conceitos de hoje --- vamos a eles.
+  \end{itemize}
+\end{frame}
+
+% =====================================================================
+\section{Tipos de dados}
+
+\begin{frame}{Por que precisamos de tipos?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[4pt]
+      Para o computador, a memória é só uma sequência de \textbf{bits}.
+      O padrão \texttt{01000001} é a letra \texttt{A}? O número 65? Parte de
+      um número maior?\\[4pt]
+      Os bits, sozinhos, \textbf{não dizem o que significam}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[4pt]
+      O \textbf{tipo de dados} responde as duas perguntas que os bits não
+      respondem:
+      \begin{itemize}
+        \item \textbf{como interpretar} os bits;
+        \item \textbf{o que se pode fazer} com eles.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Tipo de dados: definição}
+  \begin{block}{Definição}
+    Um \textbf{tipo de dados} é um conjunto de \textbf{valores} possíveis,
+    as \textbf{operações} permitidas sobre eles e a \textbf{representação}
+    desses valores na memória (quantos bytes, em que formato).
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    O tipo é um \textbf{contrato de leitura}: os mesmos bits, lidos com
+    contratos diferentes, significam coisas diferentes --- como uma sequência
+    de letras que muda de sentido conforme o idioma em que você a lê.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Os mesmos bits, duas leituras}
+  \begin{center}
+  \begin{tikzpicture}[
+    bitcell/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10,
+      minimum width=0.62cm, minimum height=0.9cm, font=\ttfamily\small},
+    leitura/.style={rectangle, draw=UFSGray, fill=UFSGray!10, rounded corners,
+      minimum width=4.2cm, minimum height=0.9cm, font=\small, align=center}
+  ]
+    \foreach \i/\b in {0/0, 1/1, 2/0, 3/0, 4/0, 5/0, 6/0, 7/1} {
+      \node[bitcell] (b\i) at (\i*0.62,0) {\b};
+    }
+    \node[font=\scriptsize, text=UFSGray] at (2.2,0.85) {um byte na memória};
+    \node[leitura] (c) at (-2.2,-2) {lido como \texttt{char}:\\o caractere \texttt{'A'}};
+    \node[leitura] (i) at (6.6,-2)  {lido como número:\\o inteiro \texttt{65}};
+    \draw[->, thick, UFSBlue] (b1.south) -- (c.north);
+    \draw[->, thick, UFSBlue] (b6.south) -- (i.north);
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item O tipo também decide a \textbf{operação}: \texttt{7 / 2} vale
+      \texttt{3} (divisão inteira), mas \texttt{7.0 / 2} vale \texttt{3.5}.
+    \item Na aula passada: trocar \texttt{soma} para \texttt{int} mudou a
+      média --- mesmo programa, outro contrato de leitura.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Os tipos básicos de C}
+  \begin{center}
+  \begin{tabular}{llll}
+    \toprule
+    Tipo & Guarda & Tamanho típico & Exemplo de literal \\
+    \midrule
+    \texttt{char}   & um caractere        & 1 byte  & \texttt{'A'} \\
+    \texttt{int}    & inteiro             & 4 bytes & \texttt{42} \\
+    \texttt{float}  & real, $\sim$7 dígitos  & 4 bytes & \texttt{3.14f} \\
+    \texttt{double} & real, $\sim$15 dígitos & 8 bytes & \texttt{3.14} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \vspace{0.5em}
+  \begin{itemize}
+    \item O operador \texttt{sizeof} informa quantos \textbf{bytes} um tipo
+      (ou uma variável) ocupa --- o resultado tem tipo \texttt{size\_t} e é
+      impresso com \texttt{\%zu}.
+    \item ``Típico'' porque o padrão C fixa \textbf{mínimos}, não valores
+      exatos: os tamanhos podem variar entre máquinas.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{A lente dos tipos sobre o programa}
+  \begin{itemize}
+    \item \texttt{cada nota ocupa 8 bytes} --- é o \texttt{sizeof(double)}:
+      a \textbf{representação} faz parte do tipo.
+    \item A média exata é $21{,}5 / 3 = 7{,}1\overline{6}$; o
+      \texttt{double} guarda o valor com $\sim$15 dígitos e o \texttt{\%.2f}
+      \textbf{arredonda} para \texttt{7.17} --- não trunca.
+    \item Se \texttt{soma} fosse \texttt{int}, a divisão \texttt{soma / n}
+      seria inteira: média \texttt{7.00}. O \textbf{tipo escolhe a operação}.
+    \item \texttt{n} é \texttt{int} porque conta coisas; \texttt{notas}
+      guarda \texttt{double} porque notas têm casas decimais. Escolher tipo é
+      escolher \textbf{o que o valor significa}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Recapitulando: tipos de dados}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Bits não têm significado próprio; o \textbf{tipo} diz como
+        interpretá-los.
+      \item Tipo = \textbf{valores} + \textbf{operações} +
+        \textbf{representação}.
+      \item \texttt{sizeof} revela a representação; a mesma expressão muda de
+        resultado conforme o tipo (\texttt{7/2} vs.\ \texttt{7.0/2}).
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Pergunta-guia deste conceito}
+    \emph{``Como interpreto um valor e o que posso fazer com ele?''}
+  \end{exampleblock}
+\end{frame}
+
+% =====================================================================
+\section{Estruturas de dados}
+
+\begin{frame}{Por que precisamos de estruturas de dados?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[4pt]
+      Uma variável de um tipo básico guarda \textbf{um} valor. A turma tem
+      dezenas de notas; um texto tem milhares de caracteres.\\[4pt]
+      Criar \texttt{nota1}, \texttt{nota2}, \dots, \texttt{nota50} não
+      escala.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[4pt]
+      Uma \textbf{estrutura de dados}: uma forma de \textbf{organizar} muitos
+      valores na memória, com \textbf{regras de acesso} conhecidas.\\[4pt]
+      O vetor é a primeira que você já conhece.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Estrutura de dados: definição}
+  \begin{block}{Definição}
+    Uma \textbf{estrutura de dados} é uma forma de organizar e relacionar
+    dados na memória, junto com as \textbf{regras de acesso} a esses dados
+    (onde inserir, como percorrer, como localizar).
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    Uma biblioteca não é só uma pilha de livros: é a estante, a ordem nas
+    prateleiras e o catálogo. A \textbf{organização} é o que torna o acesso
+    rápido --- os dados são os mesmos, o arranjo é que muda tudo.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[shrink=8]{A estrutura do programa: vetor + contador}
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10,
+      minimum width=1.35cm, minimum height=0.9cm, font=\small},
+    vazia/.style={rectangle, draw=UFSGray, fill=white,
+      minimum width=1.35cm, minimum height=0.9cm, font=\scriptsize,
+      text=UFSGray},
+    idx/.style={font=\scriptsize, text=UFSGray}
+  ]
+    \node[cel] (c0) at (0,0)      {7.0};
+    \node[cel] (c1) at (1.35,0)   {8.5};
+    \node[cel] (c2) at (2.7,0)    {6.0};
+    \foreach \i in {3,...,7} {
+      \node[vazia] (c\i) at (\i*1.35,0) {?};
+    }
+    \foreach \i in {0,...,7} {
+      \node[idx] at (\i*1.35,0.8) {[\i]};
+    }
+    \draw[decorate, decoration={brace, mirror, amplitude=6pt}, UFSBlue]
+      (-0.67,-0.75) -- (3.37,-0.75) node[midway, below=8pt, font=\scriptsize]
+      {\texttt{n = 3} posições usadas};
+    \draw[decorate, decoration={brace, mirror, amplitude=6pt}, UFSGray]
+      (-0.67,-1.7) -- (10.12,-1.7) node[midway, below=8pt, font=\scriptsize]
+      {\texttt{CAPACIDADE = 8} posições reservadas --- $8 \times 8 = 64$ bytes};
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item Mistério dos 64 bytes resolvido: \texttt{sizeof} mede a
+      \textbf{capacidade reservada}, não o quanto está em uso.
+    \item A estrutura de hoje é a \textbf{dupla} vetor + \texttt{n}: os dados,
+      a organização (posições contíguas) e a regra (as \texttt{n} primeiras
+      valem).
+    \item C não verifica limites: a regra \texttt{n <= CAPACIDADE} é
+      \textbf{nossa} responsabilidade --- por isso o teste em \texttt{inserir}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Nem tudo é vetor: o panorama do semestre}
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10,
+      minimum width=0.7cm, minimum height=0.55cm, font=\scriptsize},
+    no/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners=2pt,
+      minimum width=0.7cm, minimum height=0.55cm, font=\scriptsize},
+    rot/.style={font=\small\bfseries, text=UFSBlue},
+    leg/.style={font=\scriptsize, text=UFSGray, align=center}
+  ]
+    % Vetor
+    \node[rot] at (0.7,1.1) {Vetor};
+    \foreach \i in {0,1,2,3} \node[cel] at (\i*0.7,0) {};
+    \node[leg] at (1.05,-0.8) {acesso direto\\pelo índice};
+    % Lista encadeada
+    \node[rot] at (5.3,1.1) {Lista encadeada};
+    \node[no] (n1) at (4.2,0) {};
+    \node[no] (n2) at (5.5,0) {};
+    \node[no] (n3) at (6.8,0) {};
+    \draw[->, UFSBlue] (n1) -- (n2);
+    \draw[->, UFSBlue] (n2) -- (n3);
+    \node[leg] at (5.5,-0.8) {cresce e encolhe\\sem capacidade fixa};
+    % Pilha
+    \node[rot] at (9.3,1.1) {Pilha};
+    \foreach \i in {0,1,2} \node[cel] at (9.3,-0.35+\i*0.55) {};
+    \draw[->, UFSBlue] (10.3,1.0) -- (9.75,0.75);
+    \node[leg] at (9.3,-1.2) {entra e sai\\pelo topo};
+    % Fila
+    \node[rot] at (13,1.1) {Fila};
+    \foreach \i in {0,1,2} \node[cel] at (12.3+\i*0.7,0) {};
+    \draw[->, UFSBlue] (11.3,0) -- (11.85,0);
+    \draw[->, UFSBlue] (13.45,0) -- (14,0);
+    \node[leg] at (13,-0.8) {entra no fim,\\sai da frente};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.5em}
+  \begin{itemize}
+    \item Cada organização favorece um uso: não existe estrutura
+      ``melhor'' --- existe a \textbf{adequada ao problema}.
+    \item Neste semestre vamos \textbf{implementar} cada uma delas em C, com
+      \texttt{struct} e ponteiros.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Recapitulando: estruturas de dados}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Estrutura de dados = \textbf{organização} + \textbf{regras de
+        acesso}, não só os dados.
+      \item Vetor + contador \texttt{n}: contíguo, capacidade fixa, as
+        \texttt{n} primeiras posições valem.
+      \item Manter as regras (ex.\ não passar da capacidade) é
+        responsabilidade do programa em C.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Pergunta-guia deste conceito}
+    \emph{``Como organizo muitos valores para acessá-los do jeito que o
+    problema pede?''}
+  \end{exampleblock}
+\end{frame}
+
+% =====================================================================
+\section{Tipos abstratos de dados}
+
+\begin{frame}{Por que precisamos de abstração?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[4pt]
+      Se quem \textbf{usa} a coleção de notas precisa conhecer o vetor, o
+      \texttt{n} e a capacidade, qualquer mudança interna quebra todo o
+      programa --- e cada usuário pode violar as regras sem querer.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[4pt]
+      Separar \textbf{o quê} se pode fazer (as operações e suas regras)
+      de \textbf{como} é feito (a estrutura interna).\\[4pt]
+      Essa separação tem nome: \textbf{tipo abstrato de dados} (TAD).
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Tipo abstrato de dados: definição}
+  \begin{block}{Definição}
+    Um \textbf{tipo abstrato de dados} é a especificação de um conjunto de
+    \textbf{operações} sobre uma coleção de valores e das \textbf{regras de
+    comportamento} dessas operações --- \textbf{sem fixar} como os dados são
+    representados nem como as operações são implementadas.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    Um caixa eletrônico: você conhece as operações (consultar saldo, sacar,
+    depositar) e as regras (não sacar mais que o saldo). Como o banco guarda
+    as contas por dentro? Você não sabe --- e \textbf{não precisa} saber.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[shrink=10]{A fronteira entre o quê e o como}
+  \begin{center}
+  \begin{tikzpicture}[
+    usuario/.style={rectangle, draw=UFSGray, fill=UFSGray!10, rounded corners,
+      minimum width=2.6cm, minimum height=0.9cm, font=\small\ttfamily},
+    op/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=2.6cm, minimum height=0.75cm, font=\small\ttfamily},
+    interno/.style={rectangle, draw=UFSBlue!60, fill=white, dashed,
+      minimum width=3.4cm, minimum height=0.75cm, font=\small\ttfamily}
+  ]
+    \node[usuario] (main) at (0,0) {main()};
+    \node[op] (op1) at (5,1.3)  {inserir()};
+    \node[op] (op2) at (5,0)    {media()};
+    \node[op] (op3) at (5,-1.3) {maior()};
+    \node[interno] (rep) at (10.2,0) {double v[8]; int n;};
+    \draw[->, thick, UFSBlue] (main) -- (op1);
+    \draw[->, thick, UFSBlue] (main) -- (op2);
+    \draw[->, thick, UFSBlue] (main) -- (op3);
+    \draw[->, UFSBlue!60, dashed] (op1) -- (rep);
+    \draw[->, UFSBlue!60, dashed] (op2) -- (rep);
+    \draw[->, UFSBlue!60, dashed] (op3) -- (rep);
+    \draw[very thick, UFSBlue] (7.3,2) -- (7.3,-2)
+      node[below=2pt, font=\scriptsize, text=UFSBlue] {fronteira da abstração};
+    \node[font=\scriptsize, text=UFSGray] at (2.5,2) {o quê: operações};
+    \node[font=\scriptsize, text=UFSGray] at (10.2,2) {como: representação};
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item O \texttt{main} do nosso programa só cruza a fronteira pelas
+      \textbf{operações} --- ele nunca toca \texttt{v[]} diretamente.
+    \item A regra ``não passar da capacidade'' vive \textbf{dentro} de
+      \texttt{inserir}: quem usa não consegue violá-la.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Você já usa TADs sem saber}
+  \begin{itemize}
+    \item \texttt{printf("media: \%.2f\textbackslash n", m)} --- você conhece
+      \textbf{o que} ele faz; sabe \textbf{como} ele converte o
+      \texttt{double} em texto e o entrega à tela? Não precisa.
+    \item As funções de \texttt{math.h} (\texttt{sqrt}, \texttt{pow}):
+      operações com comportamento conhecido, implementação escondida.
+    \item Toda a biblioteca padrão de C é organizada assim: \textbf{contratos}
+      no \texttt{.h}, implementação em outro lugar.
+  \end{itemize}
+  \begin{exampleblock}{A consequência prática}
+    Se amanhã a coleção de notas virar uma lista encadeada, só os corpos de
+    \texttt{inserir}, \texttt{media} e \texttt{maior} mudam --- o
+    \texttt{main} continua \textbf{idêntico}. Abstração é o que permite um
+    programa \textbf{evoluir} sem quebrar.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Os três conceitos, lado a lado}
+  \begin{center}
+  \begin{tabular}{p{3.1cm}p{4.6cm}p{4.6cm}}
+    \toprule
+    Conceito & Pergunta-guia & No programa de hoje \\
+    \midrule
+    Tipo de dados &
+    Como interpreto um valor e o que posso fazer com ele? &
+    \texttt{double}, \texttt{int}, \texttt{sizeof}, arredondamento \\[6pt]
+    Estrutura de dados &
+    Como organizo muitos valores na memória? &
+    vetor contíguo + contador \texttt{n} \\[6pt]
+    Tipo abstrato de dados &
+    O que se pode fazer, sem dizer como? &
+    \texttt{inserir}, \texttt{media}, \texttt{maior} escondendo o vetor \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \vspace{0.5em}
+  \begin{center}
+    Três níveis da mesma escada: \textbf{interpretar} um valor,
+    \textbf{organizar} muitos, \textbf{esconder} a organização.
+  \end{center}
+\end{frame}
+
+\begin{frame}{Recapitulando: tipos abstratos de dados}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item TAD = \textbf{operações} + \textbf{regras de comportamento}, sem
+        fixar a implementação.
+      \item A fronteira da abstração protege as regras e isola quem usa de
+        quem implementa.
+      \item Em C, a fronteira se materializa em \textbf{funções} (e, adiante,
+        em \texttt{struct} + headers).
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Pergunta-guia deste conceito}
+    \emph{``O que esta coleção faz --- independente de como é feita por
+    dentro?''}
+  \end{exampleblock}
+\end{frame}
+
+% =====================================================================
+\section{Mãos à obra}
+
+\begin{frame}[shrink=8]{Altere o programa}
+  \begin{block}{Tarefas, em ordem crescente de desafio --- uma por lente}
+    \begin{enumerate}
+      \item \textbf{Tipos:} troque \texttt{double} por \texttt{float} em todo
+        o programa. O que muda nas duas últimas linhas da saída? E na média?
+      \item \textbf{Estruturas:} num laço, insira 10 notas iguais a
+        \texttt{5.0}. Quantas entram? Como você descobre, pelo programa, que
+        as demais foram ignoradas?
+      \item \textbf{Abstração:} acrescente a operação
+        \texttt{double menor(double v[], int n)} e imprima também a menor
+        nota --- sem alterar nenhuma das operações existentes.
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Dica}
+    Para cada tarefa: altere, recompile e \textbf{preveja a saída antes de
+    executar}.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[shrink=8]{Desafio: registro de temperaturas}
+  \begin{block}{Desafio}
+    Uma estação meteorológica registra leituras de temperatura ao longo do
+    dia. Escreva as operações de um registro de temperaturas:
+    \begin{itemize}
+      \item \texttt{int registrar(double v[], int n, double t)} --- aceita
+        somente leituras entre $-10$ e $50\,^{\circ}$C (regra dentro da
+        operação!);
+      \item \texttt{double media(double v[], int n)};
+      \item \texttt{double amplitude(double v[], int n)} --- maior menos
+        menor leitura.
+    \end{itemize}
+    O \texttt{main} deve usar \textbf{apenas} essas operações.
+  \end{block}
+  \begin{exampleblock}{Terminou? Estenda}
+    Conte quantas leituras foram \textbf{rejeitadas} por estarem fora da
+    faixa --- sem quebrar a fronteira da abstração.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Recapitulando}
+  \begin{block}{Os três conceitos de hoje}
+    \begin{itemize}
+      \item \textbf{Tipo de dados:} valores + operações + representação ---
+        o contrato de leitura dos bits.
+      \item \textbf{Estrutura de dados:} organização + regras de acesso ---
+        o arranjo dos valores na memória.
+      \item \textbf{Tipo abstrato de dados:} operações + comportamento ---
+        o quê, sem o como.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Como trabalhamos}
+    Prevendo, executando, investigando, modificando e criando --- como será
+    em todo o semestre.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Para casa}
+  \begin{itemize}
+    \item \textbf{Próxima aula (24/08):} registros (\texttt{struct}) ---
+      declaração, acesso, structs aninhadas, alinhamento e padding na
+      memória. É a primeira estrutura que vamos construir de verdade.
+    \item Fazer o tutorial guiado (Jupyter Notebook) do Classroom --- ele
+      continua as tarefas de alteração e o desafio para quem não terminou em
+      sala.
+    \item Ler o capítulo introdutório de Tenenbaum, Langsam \& Augenstein
+      (\emph{Estruturas de dados usando C}) sobre tipos e abstração.
+    \item Dúvidas: \texttt{andreyoshiaki@dcomp.ufs.br} ou no início da
+      próxima aula.
+  \end{itemize}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \footnotesize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

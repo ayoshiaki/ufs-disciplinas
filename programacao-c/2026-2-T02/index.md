@@ -25,4 +25,13 @@ title: "COMP0512 — Programação C — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-c/2026-2-T02/aula-02-tipos-de-dados-estruturas-e-tads' | relative_url }}">
+    <div class="week-num">02</div>
+    <div class="week-body">
+      <div class="week-title">Tipos de Dados, Estruturas de Dados e TADs</div>
+      <div class="week-desc">Os três conceitos a partir de um mesmo programa: representação, organização na memória e abstração.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge nb">1 notebook</span></div>
+    </div>
+  </a>
+
 </div>
