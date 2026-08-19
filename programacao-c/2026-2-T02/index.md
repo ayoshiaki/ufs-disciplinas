@@ -34,4 +34,13 @@ title: "COMP0512 — Programação C — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-c/2026-2-T02/projeto' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
+    <div class="week-num" style="color: #1f6f43;">📒</div>
+    <div class="week-body">
+      <div class="week-title" style="color: #14532d;">PROJETO — Contabilidade Pessoal por Partidas Dobradas</div>
+      <div class="week-desc">Sistema de terminal em C em quatro fases: contas e lançamentos, histórico navegável, persistência e relatórios.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
 </div>
