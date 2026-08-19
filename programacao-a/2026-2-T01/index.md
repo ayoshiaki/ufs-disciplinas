@@ -14,6 +14,18 @@ title: "COMP0496 — Programação A — Turma 1 · 2026/2"
 <h1 class="page-title">COMP0496 — Programação A</h1>
 <p class="page-subtitle">Turma 1 · 2026/2 · Material organizado por aula</p>
 
+<div class="table-card">
+  <div class="table-card-header">📖 Leitura para as aulas</div>
+  <table>
+    <tbody>
+      <tr>
+        <td><strong>Material de leitura da disciplina</strong></td>
+        <td class="td-right"><a class="badge-code" href="https://pnrf2rer8zng7nzqm8bcz3.streamlit.app" target="_blank" rel="noopener">🔗 Acessar</a></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
 <div class="weeks-timeline">
 </div>
 
