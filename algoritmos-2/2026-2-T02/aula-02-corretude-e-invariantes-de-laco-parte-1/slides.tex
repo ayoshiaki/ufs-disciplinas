@@ -1,0 +1,457 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS — Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit, calc,
+  backgrounds, decorations.pathreplacing, shadows, patterns}
+
+% Listagens — paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Metadados ---
+\title{Algoritmos e Estruturas de Dados II}
+\subtitle{Corretude de algoritmos iterativos e invariantes de laço --- Parte 1}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=9.5cm, minimum height=0.75cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)    {Por que testar um algoritmo não basta para garantir que ele é correto};
+    \node[item] (t2) at (0,-1.1) {O que é um \textbf{invariante de laço} e as três propriedades que o tornam uma prova};
+    \node[item] (t3) at (0,-2.2) {Prova de corretude da \textbf{busca do máximo} em um vetor};
+    \node[item] (t4) at (0,-3.3) {Prova de corretude da \textbf{ordenação por inserção}};
+    \draw[->, thick, UFSBlue] (t1)--(t2);
+    \draw[->, thick, UFSBlue] (t2)--(t3);
+    \draw[->, thick, UFSBlue] (t3)--(t4);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Agenda}
+  \tableofcontents
+\end{frame}
+
+% =====================================================================
+\section{Corretude e invariantes de laço}
+% =====================================================================
+
+\begin{frame}{Por que precisamos provar corretude?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}
+      \begin{itemize}
+        \item Testes mostram que o algoritmo funciona \emph{nos casos testados} --- nunca em todos.
+        \item Um vetor de 20 inteiros de 32 bits tem mais entradas possíveis do que átomos observáveis conseguiríamos testar.
+        \item Laços são a principal fonte de erros sutis: uma iteração a mais, uma a menos, um índice trocado.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}
+      \begin{itemize}
+        \item Um \emph{argumento matemático} que vale para \textbf{toda} entrada válida.
+        \item Para algoritmos iterativos, a ferramenta central é o \textbf{invariante de laço}.
+        \item A mesma ideia que usamos para projetar o laço serve para \emph{provar} que ele funciona.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O que significa ``o algoritmo é correto''?}
+  \begin{block}{Definição (corretude)}
+    Um algoritmo é \textbf{correto} quando, para \emph{toda} entrada que satisfaz a
+    \textbf{precondição}, ele \textbf{termina} e sua saída satisfaz a \textbf{poscondição}.
+  \end{block}
+  \begin{exampleblock}{Exemplo: busca do máximo}
+    \textbf{Precondição:} vetor $A[0..n-1]$ com $n \geq 1$ elementos.\\
+    \textbf{Poscondição:} o valor devolvido é $\max\{A[0], A[1], \ldots, A[n-1]\}$.
+  \end{exampleblock}
+  \begin{itemize}
+    \item Corretude \emph{parcial}: \textbf{se} terminar, a resposta é certa.
+    \item Corretude \emph{total}: parcial $+$ garantia de \textbf{término}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Invariante de laço: definição}
+  \begin{block}{Definição}
+    Um \textbf{invariante de laço} é uma afirmação sobre as variáveis do programa que é
+    \textbf{verdadeira no início de cada iteração} do laço.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    É a ``promessa'' que o laço mantém enquanto trabalha: descreve \emph{o que já foi
+    conquistado} até aquele ponto. Ao final, a promessa acumulada deve implicar o
+    resultado desejado.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{As três propriedades de uma prova por invariante}
+  \begin{center}
+  \begin{tikzpicture}[
+    fase/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=3.6cm, minimum height=1.2cm, font=\small, align=center},
+    seta/.style={->, thick, UFSBlue}
+  ]
+    \node[fase] (ini) at (0,0)
+      {\textbf{Inicialização}\\ vale \emph{antes} da\\ primeira iteração};
+    \node[fase] (man) at (5,0)
+      {\textbf{Manutenção}\\ cada iteração\\ preserva o invariante};
+    \node[fase] (ter) at (10,0)
+      {\textbf{Término}\\ ao sair, invariante\\ $\Rightarrow$ poscondição};
+    \draw[seta] (ini)--(man);
+    \draw[seta] (man)--(ter);
+    \draw[seta] (man) to[out=140, in=40, looseness=4] (man);
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item É o esquema da \textbf{indução matemática}: inicialização é o caso base,
+      manutenção é o passo indutivo --- e a ``indução'' para quando o laço termina.
+    \item Para corretude \emph{total}, mostramos também que o laço \textbf{termina}
+      (ex.: uma quantidade inteira não negativa que decresce a cada iteração).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Recapitulando: corretude e invariantes}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Testar mostra presença de acertos, não ausência de erros: corretude exige prova.
+      \item Corretude = precondição $\rightarrow$ poscondição $+$ término.
+      \item Invariante de laço: afirmação verdadeira no início de toda iteração.
+      \item Prova em três passos: inicialização, manutenção e término.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Primeiro algoritmo: busca do máximo}
+% =====================================================================
+
+\begin{frame}{Por que começar pela busca do máximo?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[2pt]
+      Dado um vetor $A[0..n-1]$ com $n \geq 1$, encontrar o valor máximo.
+      \begin{itemize}
+        \item Algoritmo de uma linha de raciocínio --- ideal para ver a \emph{mecânica} da prova sem distrações.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[2pt]
+      Percorrer o vetor guardando o maior valor \emph{já visto}.
+      \begin{itemize}
+        \item ``O maior já visto'' é exatamente o invariante --- a frase informal \emph{é} a afirmação formal.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Busca do máximo: o algoritmo}
+\begin{lstlisting}
+int maximo(int A[], int n) {   /* pre: n >= 1            */
+    int max = A[0];
+    for (int i = 1; i < n; i++) {
+        /* invariante: max == maior valor de A[0..i-1]   */
+        if (A[i] > max)
+            max = A[i];
+    }
+    return max;                /* pos: max(A[0..n-1])    */
+}
+\end{lstlisting}
+  \begin{block}{Invariante}
+    No início da iteração de índice $i$:\quad $\texttt{max} = \max\{A[0], \ldots, A[i-1]\}$.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Busca do máximo: o invariante em figura}
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={draw, minimum width=0.95cm, minimum height=0.8cm, font=\small},
+    visto/.style={cel, fill=UFSBlue!20},
+    atual/.style={cel, fill=UFSYellow!50},
+    resto/.style={cel, fill=UFSLightGray}
+  ]
+    \node[visto] (a0) at (0,0)    {3};
+    \node[visto] (a1) at (0.95,0) {9};
+    \node[visto] (a2) at (1.9,0)  {4};
+    \node[atual] (a3) at (2.85,0) {7};
+    \node[resto] (a4) at (3.8,0)  {1};
+    \node[resto] (a5) at (4.75,0) {8};
+
+    \foreach \i/\n in {0/a0,1/a1,2/a2,3/a3,4/a4,5/a5}
+      \node[below=1pt of \n, font=\scriptsize, color=UFSGray] {\i};
+
+    \draw[decorate, decoration={brace, amplitude=5pt}, thick, UFSBlue]
+      (-0.47,0.5) -- (2.37,0.5)
+      node[midway, above=6pt, font=\small, color=UFSBlue]
+      {já visto: $\texttt{max} = 9$};
+    \node[above=14pt of a3, font=\small] {$i = 3$};
+    \draw[->, thick] ($(a3.north)+(0,0.35)$) -- (a3.north);
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item Azul: prefixo $A[0..i-1]$ já examinado --- o invariante fala \textbf{só} sobre ele.
+    \item Amarelo: elemento da iteração atual; cinza: ainda não examinado.
+    \item A iteração ``incorpora'' $A[i]$ ao prefixo e restaura o invariante para $i+1$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Busca do máximo: prova de corretude}
+  \begin{itemize}
+    \item \textbf{Inicialização} ($i = 1$): $\texttt{max} = A[0] = \max\{A[0]\}$
+      --- o invariante vale para o prefixo de tamanho 1. \checkmark
+    \item \textbf{Manutenção}: suponha $\texttt{max} = \max\{A[0..i-1]\}$ no início da iteração $i$.
+      \begin{itemize}
+        \item Se $A[i] > \texttt{max}$: novo $\texttt{max} = A[i] = \max\{A[0..i]\}$.
+        \item Senão: $A[i] \leq \texttt{max}$, logo $\texttt{max}$ já é $\max\{A[0..i]\}$.
+      \end{itemize}
+      Nos dois casos o invariante vale para $i+1$. \checkmark
+    \item \textbf{Término}: o laço para com $i = n$; o invariante dá
+      $\texttt{max} = \max\{A[0..n-1]\}$ --- exatamente a poscondição. \checkmark
+    \item \textbf{O laço termina?} $n - i$ é inteiro, não negativo e decresce 1 por iteração. \checkmark
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Exemplo: onde a prova pega um erro}
+  \begin{exampleblock}{Versão com erro: e se o laço começasse com \texttt{max = 0}?}
+    Com $\texttt{max} = 0$ e $i = 0$, a ``inicialização'' exigiria
+    $0 = \max\{\,\} $ --- o prefixo vazio não tem máximo, e para o vetor
+    $A = [-5, -2, -9]$ a função devolveria $0$, que nem está no vetor.
+  \end{exampleblock}
+  \begin{itemize}
+    \item O passo de \textbf{inicialização} falha: a prova não sai do lugar --- e o erro
+      aparece \emph{antes} de qualquer teste.
+    \item Erro clássico de quem inicializa acumuladores ``no chute'': o invariante obriga
+      a escolher $\texttt{max} = A[0]$ (e $i = 1$).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Recapitulando: busca do máximo}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item O invariante formaliza a frase ``\texttt{max} é o maior já visto''.
+      \item Os três passos da prova foram diretos: caso base no prefixo de tamanho 1,
+        análise de dois casos na manutenção, poscondição no término.
+      \item A prova diagnostica erros de inicialização que testes podem não revelar.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Segundo algoritmo: ordenação por inserção}
+% =====================================================================
+
+\begin{frame}{Por que a ordenação por inserção?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[2pt]
+      Ordenar $A[0..n-1]$ em ordem não decrescente.
+      \begin{itemize}
+        \item Agora o invariante não fala de \emph{um valor}, mas de uma
+          \emph{propriedade estrutural} de um trecho do vetor.
+        \item Há dois laços aninhados --- um invariante para cada.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[2pt]
+      Como organizar cartas na mão: a cada passo, inserir a próxima carta na posição
+      certa entre as que \emph{já estão ordenadas}.
+      \begin{itemize}
+        \item ``As cartas na mão estão ordenadas'' é o invariante do laço externo.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Ordenação por inserção: o algoritmo}
+\begin{lstlisting}
+void insercao(int A[], int n) {
+    for (int i = 1; i < n; i++) {
+        /* invariante: A[0..i-1] ordenado, com os        */
+        /* mesmos elementos que estavam em A[0..i-1]     */
+        int chave = A[i];
+        int j = i - 1;
+        while (j >= 0 && A[j] > chave) {
+            A[j + 1] = A[j];
+            j--;
+        }
+        A[j + 1] = chave;
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O invariante do laço externo em figura}
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={draw, minimum width=0.95cm, minimum height=0.8cm, font=\small},
+    ord/.style={cel, fill=UFSBlue!20},
+    atual/.style={cel, fill=UFSYellow!50},
+    resto/.style={cel, fill=UFSLightGray}
+  ]
+    \node[ord]   (a0) at (0,0)    {2};
+    \node[ord]   (a1) at (0.95,0) {5};
+    \node[ord]   (a2) at (1.9,0)  {8};
+    \node[atual] (a3) at (2.85,0) {4};
+    \node[resto] (a4) at (3.8,0)  {1};
+    \node[resto] (a5) at (4.75,0) {6};
+
+    \foreach \i/\n in {0/a0,1/a1,2/a2,3/a3,4/a4,5/a5}
+      \node[below=1pt of \n, font=\scriptsize, color=UFSGray] {\i};
+
+    \draw[decorate, decoration={brace, amplitude=5pt}, thick, UFSBlue]
+      (-0.47,0.5) -- (2.37,0.5)
+      node[midway, above=6pt, font=\small, color=UFSBlue]
+      {$A[0..i-1]$ ordenado};
+    \node[above=14pt of a3, xshift=1.6cm, font=\small] (lbl) {$\texttt{chave} = A[i]$};
+    \draw[->, thick] (lbl.south west) -- (a3.north);
+
+    \draw[->, thick, UFSRed] (a3.south) to[out=-90, in=-90, looseness=1.6]
+      node[below, font=\scriptsize, color=UFSRed] {inserir na posição certa}
+      ($(a1.south)+(0.47,0)$);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Invariante do laço externo}
+    No início da iteração $i$: o trecho $A[0..i-1]$ está \textbf{ordenado} e contém
+    \textbf{os mesmos elementos} que ocupavam $A[0..i-1]$ originalmente.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Por que ``os mesmos elementos''?}
+  \begin{exampleblock}{Um algoritmo ``ordenado'' demais}
+    \texttt{for (i = 0; i < n; i++) A[i] = i;} \quad deixa o vetor perfeitamente
+    ordenado --- e completamente errado.
+  \end{exampleblock}
+  \begin{itemize}
+    \item ``Estar ordenado'' sozinho é uma poscondição \textbf{fraca demais}: precisamos
+      que o resultado seja uma \emph{permutação} da entrada.
+    \item Por isso o invariante tem \textbf{duas} cláusulas: ordem $+$ mesmos elementos.
+    \item Na inserção, só \emph{deslocamos} e \emph{recolocamos} a chave: nenhum valor é
+      criado ou destruído --- a permutação é preservada.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Ordenação por inserção: prova (laço externo)}
+  \begin{itemize}
+    \item \textbf{Inicialização} ($i = 1$): $A[0..0]$ tem um único elemento ---
+      ordenado e intacto. \checkmark
+    \item \textbf{Manutenção}: o laço interno desloca uma posição à direita os elementos
+      de $A[0..i-1]$ maiores que a chave e a insere logo antes deles.
+      \begin{itemize}
+        \item Invariante do laço interno: $A[j+2..i]$ contém os elementos deslocados,
+          todos $> \texttt{chave}$, e $A[0..j]$ está intacto.
+        \item Ao inserir a chave em $A[j+1]$: $A[0..i]$ fica ordenado, com os mesmos
+          elementos de antes. \checkmark
+      \end{itemize}
+    \item \textbf{Término}: o laço para com $i = n$; o invariante dá $A[0..n-1]$
+      ordenado e permutação da entrada --- a poscondição de ordenação. \checkmark
+    \item \textbf{O laço termina?} Externo: $n - i$ decresce. Interno: $j + 1 \geq 0$
+      decresce a cada iteração. \checkmark
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Exemplo: rastreando o invariante em $A = [5, 2, 4, 1]$}
+  \begin{center}
+  \small
+  \begin{tabular}{c l l}
+    \toprule
+    Início de $i$ & Vetor & Invariante: $A[0..i-1]$ ordenado? \\
+    \midrule
+    $i = 1$ & $[\mathbf{5} \mid 2, 4, 1]$ & $[5]$ \checkmark \\
+    $i = 2$ & $[\mathbf{2, 5} \mid 4, 1]$ & $[2,5]$ \checkmark \\
+    $i = 3$ & $[\mathbf{2, 4, 5} \mid 1]$ & $[2,4,5]$ \checkmark \\
+    saída ($i = 4$) & $[\mathbf{1, 2, 4, 5}]$ & $[1,2,4,5]$ \checkmark\ $=$ poscondição \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{itemize}
+    \item A barra separa o prefixo ordenado (invariante) do restante do vetor.
+    \item Rastrear o invariante em um exemplo \textbf{não é a prova} --- mas é o melhor
+      jeito de \emph{descobrir} qual invariante provar.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Recapitulando: ordenação por inserção}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Invariantes podem afirmar propriedades estruturais (``prefixo ordenado''),
+        não apenas valores.
+      \item A poscondição de ordenação exige duas cláusulas: ordem e permutação da entrada.
+      \item Laços aninhados: cada laço tem seu invariante, e o do interno sustenta a
+        manutenção do externo.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section*{Encerramento}
+% =====================================================================
+
+\begin{frame}{Resumo da aula e o que vem a seguir}
+  \begin{block}{Hoje}
+    \begin{itemize}
+      \item Invariante de laço $+$ três passos (inicialização, manutenção, término)
+        $=$ prova de corretude de algoritmos iterativos.
+      \item Busca do máximo: invariante sobre um valor acumulado.
+      \item Ordenação por inserção: invariante estrutural com laços aninhados.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Na Parte 2}
+    Dois algoritmos em que o invariante é menos óbvio --- e mais necessário:
+    \textbf{busca binária} (famosa por implementações erradas) e o
+    \textbf{particionamento} do quicksort.
+  \end{exampleblock}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

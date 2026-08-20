@@ -25,4 +25,13 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-02-corretude-e-invariantes-de-laco-parte-1' | relative_url }}">
+    <div class="week-num">02</div>
+    <div class="week-body">
+      <div class="week-title">Corretude de Algoritmos Iterativos e Invariantes de Laço — Parte 1</div>
+      <div class="week-desc">Inicialização, manutenção e término; corretude da busca do máximo e da ordenação por inserção.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
 </div>
