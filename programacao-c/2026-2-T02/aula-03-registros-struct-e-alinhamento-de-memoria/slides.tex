@@ -1,0 +1,870 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS — Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns}
+
+% Listagens — paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Metadados ---
+\title{Registros (\texttt{struct})}
+\subtitle{Declaração, acesso, registros aninhados e o layout dos dados na memória}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% =====================================================================
+\section{Um programa para começar}
+
+\begin{frame}{Por que precisamos de registros?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2mm]
+      Um aluno tem nome, matrícula, data de nascimento e média. Com o que
+      sabemos até aqui, guardamos isso em \textbf{vetores paralelos}: um para
+      nomes, outro para matrículas, outro para médias.
+      \\[2mm]
+      Nada garante que \texttt{nome[3]} e \texttt{media[3]} sejam da
+      \emph{mesma} pessoa. Ordenar por média exige reordenar todos os vetores
+      em sincronia.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2mm]
+      Um \textbf{registro} agrupa campos de tipos diferentes sob um único
+      nome. O aluno passa a ser \emph{um} valor: cabe em uma variável, entra
+      em um vetor, vira parâmetro e vira retorno de função.
+      \\[2mm]
+      ``Os dados de um aluno'' deixam de ser convenção na cabeça do
+      programador e viram um \textbf{tipo} que o compilador conhece.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Vetores paralelos $\times$ vetor de registros}
+  \begin{center}
+  \resizebox{0.95\textwidth}{!}{%
+  \begin{tikzpicture}[
+    cel/.style={rectangle, draw=UFSGray, fill=white, minimum width=1.5cm,
+      minimum height=0.6cm, font=\scriptsize},
+    rot/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, minimum width=1.5cm,
+      minimum height=0.6cm, font=\scriptsize},
+    rot2/.style={rectangle, draw=UFSBlue, fill=UFSYellow!25, minimum width=1.5cm,
+      minimum height=0.6cm, font=\scriptsize},
+    rot3/.style={rectangle, draw=UFSBlue, fill=UFSRed!12, minimum width=1.5cm,
+      minimum height=0.6cm, font=\scriptsize},
+    rotulo/.style={font=\scriptsize\ttfamily, anchor=east}
+  ]
+    % --- esquerda: vetores paralelos
+    \node[font=\small\bfseries] at (2.3,1.2) {Vetores paralelos};
+    \node[rotulo] at (-0.2,0.4)  {nome};
+    \node[rotulo] at (-0.2,-0.3) {matricula};
+    \node[rotulo] at (-0.2,-1.0) {media};
+    \foreach \x/\nm/\mt/\md in {0.75/Ana/202600123/8.75,
+                                2.25/Bia/202600124/6.50,
+                                3.75/Caio/202600125/9.10} {
+      \node[cel] at (\x,0.4)  {\nm};
+      \node[cel] at (\x,-0.3) {\mt};
+      \node[cel] at (\x,-1.0) {\md};
+    }
+    \node[font=\scriptsize, text=UFSRed, align=center] at (2.3,-1.9)
+      {sincronia mantida ``na mão'':\\trocar um vetor exige trocar os outros};
+
+    % --- direita: vetor de registros
+    \node[font=\small\bfseries] at (11,1.2) {Vetor de registros};
+    \node[rotulo] at (8.0,-0.3) {turma};
+    \foreach \i/\x in {0/9.0, 1/11.0, 2/13.0} {
+      \node[rot]  at (\x,0.4)  {nome};
+      \node[rot2] at (\x,-0.3) {matricula};
+      \node[rot3] at (\x,-1.0) {media};
+    }
+    \foreach \x in {9.0, 11.0, 13.0} {
+      \draw[UFSBlue, thick, rounded corners]
+        (\x-0.82,-1.38) rectangle (\x+0.82,0.78);
+    }
+    \node[font=\scriptsize, text=UFSBlue, align=center] at (11,-1.9)
+      {cada aluno é \emph{um} valor:\\\texttt{turma[0]}, \texttt{turma[1]}, \texttt{turma[2]}};
+  \end{tikzpicture}}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Um programa para começar: a ficha do aluno}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+#include <stdio.h>
+#include <string.h>
+
+struct Data {
+    int dia;
+    int mes;
+    int ano;
+};
+struct Aluno {
+    char        nome[20];
+    int         matricula;
+    struct Data nascimento;
+    double      media;
+};
+\end{lstlisting}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, firstnumber=15]
+int main(void) {
+    struct Aluno a;
+    strcpy(a.nome, "Ana Souza");
+    a.matricula = 202600123;
+    a.nascimento.dia = 7;
+    a.nascimento.mes = 3;
+    a.nascimento.ano = 2005;
+    a.media = 8.75;
+    printf("%s (%d)\n", a.nome, a.matricula);
+    printf("Media: %.2f\n", a.media);
+    printf("sizeof(Aluno) = %zu\n",
+           sizeof(struct Aluno));
+    return 0;
+}
+\end{lstlisting}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{O que este programa faz?}
+  \begin{block}{Em duplas, anotem a previsão (3--4 min) --- sem computador!}
+    \begin{enumerate}
+      \item Quais são exatamente as três linhas impressas na tela?
+      \item Quantos \emph{bytes} ocupa \texttt{struct Data}? E \texttt{struct Aluno}?
+      \item Some o tamanho de cada campo de \texttt{struct Aluno} separadamente.
+        Esse total tem que bater com \texttt{sizeof(struct Aluno)}?
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Regra do jogo}
+    Escreva um número, não um ``mais ou menos''. Previsão errada é o ponto de
+    partida da investigação --- e a pergunta 3 é a mais interessante da aula.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[language={}, numbers=none, basicstyle=\ttfamily\small]
+$ gcc ficha_aluno.c -o ficha_aluno
+$ ./ficha_aluno
+Ana Souza (202600123)
+Media: 8.75
+sizeof(Aluno) = 48
+\end{lstlisting}
+  \begin{alertblock}{A soma dos campos não fecha}
+    \texttt{char nome[20]} $=20$, \texttt{int matricula} $=4$,
+    \texttt{struct Data} $=12$, \texttt{double media} $=8$.
+    Total: \textbf{44 bytes}. Mas \texttt{sizeof} respondeu \textbf{48}.
+  \end{alertblock}
+  \begin{block}{A pergunta que guia o resto da aula}
+    Onde estão os 4 bytes que ninguém pediu --- e quem decidiu colocá-los ali?
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Registros: declaração e acesso}
+
+\begin{frame}{Registro: definição}
+  \begin{block}{Definição}
+    Um \textbf{registro} (\texttt{struct}) é um tipo composto que agrupa um
+    número fixo de \textbf{campos} (ou membros), possivelmente de tipos
+    diferentes, sob um único nome. Cada campo tem nome próprio e ocupa uma
+    região distinta da memória do registro.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    Um vetor é uma \emph{fila de itens iguais} acessados por índice; um
+    registro é uma \emph{ficha de campos diferentes} acessados por nome.
+    O vetor responde ``qual é o terceiro?''; o registro responde ``qual é a média?''.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Anatomia da declaração}
+\begin{lstlisting}[basicstyle=\ttfamily\small]
+struct Aluno {        /* Aluno e' a TAG do registro   */
+    char   nome[20];  /* campo 1                      */
+    int    matricula; /* campo 2                      */
+    double media;     /* campo 3                      */
+};                    /* ; obrigatorio aqui!          */
+
+struct Aluno a;       /* declara UMA variavel do tipo  */
+struct Aluno turma[40];/* vetor de 40 registros        */
+\end{lstlisting}
+  \begin{itemize}
+    \item A declaração cria um \textbf{tipo}, não uma variável: nenhuma memória
+      é reservada até você escrever \texttt{struct Aluno a;}.
+    \item O nome completo do tipo é \texttt{struct Aluno} --- as duas palavras.
+    \item Esquecer o \texttt{;} depois do \texttt{\}} é o erro mais comum.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Um apelido para o tipo: \texttt{typedef}}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+/* sem typedef */
+struct Aluno {
+    char nome[20];
+    int  matricula;
+};
+
+struct Aluno a;
+struct Aluno turma[40];
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+/* com typedef */
+typedef struct {
+    char nome[20];
+    int  matricula;
+} Aluno;
+
+Aluno a;
+Aluno turma[40];
+\end{lstlisting}
+\end{column}
+\end{columns}
+  \begin{block}{Qual usar?}
+    As duas formas geram exatamente o mesmo tipo em memória. O \texttt{typedef}
+    encurta o código; a forma com \texttt{struct} deixa explícito que o tipo é
+    um registro. Nesta aula usaremos \texttt{struct Nome} para não esconder nada.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Acesso aos campos: o operador ponto}
+\begin{lstlisting}[basicstyle=\ttfamily\small]
+struct Aluno a;
+
+a.matricula = 202600123;      /* escrita: campo a esquerda do = */
+a.media     = 8.75;
+strcpy(a.nome, "Ana Souza");  /* vetor de char: use strcpy      */
+
+printf("%d\n", a.matricula);  /* leitura                        */
+a.media = a.media + 0.5;      /* campo se usa como variavel     */
+\end{lstlisting}
+  \begin{itemize}
+    \item \texttt{a.media} \emph{é} uma variável \texttt{double}: vale em toda
+      expressão onde um \texttt{double} valeria.
+    \item \texttt{a.nome} é um vetor --- \texttt{a.nome = "Ana"} \textbf{não}
+      compila; use \texttt{strcpy}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Inicialização}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+/* 1. por lista, na ordem de declaracao dos campos */
+struct Aluno a = {"Ana Souza", 202600123, 8.75};
+/* 2. campos nomeados (C99) -- ordem livre, resto zerado */
+struct Aluno b = {.matricula = 202600124, .media = 7.0};
+/* 3. tudo zerado */
+struct Aluno c = {0};
+/* 4. campo a campo, depois da declaracao */
+struct Aluno d;
+d.matricula = 202600125;
+\end{lstlisting}
+  \begin{alertblock}{Cuidado}
+    Sem inicialização, os campos de \texttt{d} contêm \textbf{lixo} --- o que
+    estava naquela região da pilha. Ler antes de escrever dá valores
+    imprevisíveis.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Registro copia inteiro --- vetor não}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+struct Aluno a = {"Ana Souza", 202600123, 8.75};
+struct Aluno b;
+
+b = a;              /* copia OS 48 BYTES: b e a sao independentes */
+b.media = 10.0;     /* nao afeta a.media                          */
+
+int v[3] = {1,2,3}, w[3];
+w = v;              /* ERRO de compilacao: vetor nao se atribui   */
+\end{lstlisting}
+  \begin{block}{Consequência prática}
+    O registro é um \textbf{valor}: pode ser atribuído, passado por cópia e
+    devolvido por \texttt{return}. Repare que o vetor \texttt{nome[20]}
+    \emph{dentro} do registro também é copiado --- ``vetor não se atribui''
+    vale para o vetor solto, não para o campo.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Registros em funções}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* recebe uma COPIA: alteracoes nao saem da funcao */
+void imprime(struct Aluno x) {
+    printf("%-20s %d  %.2f\n", x.nome, x.matricula, x.media);
+}
+
+/* devolve um registro construido dentro da funcao */
+struct Aluno cria(const char *nome, int mat, double media) {
+    struct Aluno novo;
+    strcpy(novo.nome, nome);
+    novo.matricula = mat;
+    novo.media     = media;
+    return novo;               /* copia de volta para quem chamou */
+}
+\end{lstlisting}
+  \begin{exampleblock}{Guarde esta pergunta}
+    E se o registro tivesse 500 bytes e fosse passado assim dentro de um laço de
+    um milhão de iterações? A resposta --- passar o \emph{endereço} --- é a
+    próxima aula.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Vetor de registros}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+struct Aluno turma[3] = {
+    {"Ana Souza",   202600123, 8.75},
+    {"Bia Rocha",   202600124, 6.50},
+    {"Caio Lima",   202600125, 9.10}
+};
+
+double soma = 0.0;
+for (int i = 0; i < 3; i++)
+    soma += turma[i].media;    /* indexa o vetor, DEPOIS pega o campo */
+
+printf("Media da turma: %.2f\n", soma / 3);
+\end{lstlisting}
+  \begin{itemize}
+    \item \texttt{turma[i].media}: primeiro \texttt{[i]} escolhe o registro,
+      depois \texttt{.media} escolhe o campo dentro dele.
+    \item Ordenar a turma por média agora é trocar registros inteiros --- e a
+      ficha de cada aluno viaja junta, sem risco de dessincronizar.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Recapitulando: declaração e acesso}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{struct Tag \{ campos \};} cria um \textbf{tipo}; a memória
+        só aparece ao declarar uma variável.
+      \item Campos se acessam por nome com o operador ponto e valem como
+        variáveis comuns.
+      \item Inicialização: por lista, por campos nomeados, com \texttt{\{0\}} ou
+        campo a campo --- sem inicializar, há lixo.
+      \item Registros se atribuem, se passam para funções e se retornam ---
+        sempre por \textbf{cópia}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Registros aninhados}
+
+\begin{frame}{Por que aninhar registros?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2mm]
+      A data de nascimento tem três partes que só fazem sentido juntas.
+      Espalhá-las como \texttt{dia\_nasc}, \texttt{mes\_nasc},
+      \texttt{ano\_nasc} dentro de \texttt{struct Aluno} funciona --- até
+      aparecer a data de matrícula, e depois a de colação. Aí são nove campos
+      soltos e nenhuma função que receba ``uma data''.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2mm]
+      Declarar \texttt{struct Data} uma vez e \textbf{usá-la como tipo de
+      campo}. Toda função que valida, compara ou imprime datas passa a servir
+      a qualquer registro que contenha uma --- e o conceito ``data'' fica
+      escrito em um lugar só.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Um registro como campo de outro}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+struct Data {              /* precisa vir ANTES de ser usada */
+    int dia, mes, ano;
+};
+
+struct Aluno {
+    char        nome[20];
+    int         matricula;
+    struct Data nascimento;   /* campo do tipo struct Data */
+    struct Data matriculado;  /* outro campo, mesmo tipo   */
+    double      media;
+};
+\end{lstlisting}
+  \begin{itemize}
+    \item \texttt{struct Data} tem de estar declarada antes --- o compilador
+      precisa saber o tamanho do campo.
+    \item Um registro \textbf{não} pode conter a si mesmo (seria de tamanho
+      infinito); só um \emph{ponteiro} para si mesmo.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Acesso encadeado: leia da esquerda para a direita}
+  \begin{center}
+  \resizebox{0.72\textwidth}{!}{%
+  \begin{tikzpicture}[
+    ext/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+      minimum width=3.2cm, minimum height=0.75cm, font=\small},
+    int/.style={rectangle, draw=UFSYellow!80!black, fill=UFSYellow!25,
+      minimum width=2.6cm, minimum height=0.7cm, font=\small},
+    seta/.style={->, thick, UFSGray}
+  ]
+    \node[font=\Large\ttfamily] (expr) at (0,2.6) {a.nascimento.ano};
+
+    \node[ext] (a)  at (-4.6,0.8) {\texttt{a}};
+    \node[font=\scriptsize, align=center] at (-4.6,-0.1) {a variável\\\texttt{struct Aluno}};
+
+    \node[ext] (n1) at (0,1.4)  {\texttt{nome[20]}};
+    \node[ext] (n2) at (0,0.6)  {\texttt{matricula}};
+    \node[ext, fill=UFSYellow!20] (n3) at (0,-0.2) {\texttt{nascimento}};
+    \node[ext] (n4) at (0,-1.0) {\texttt{media}};
+    \node[font=\scriptsize] at (0,-1.8) {campos de \texttt{struct Aluno}};
+
+    \node[int] (d1) at (4.6,0.6)  {\texttt{dia}};
+    \node[int] (d2) at (4.6,-0.2) {\texttt{mes}};
+    \node[int, fill=UFSRed!15] (d3) at (4.6,-1.0) {\texttt{ano}};
+    \node[font=\scriptsize] at (4.6,-1.8) {campos de \texttt{struct Data}};
+
+    \draw[seta] (a) -- node[above=2pt, font=\scriptsize\ttfamily]{.nascimento} (n3);
+    \draw[seta] (n3) -- node[above=2pt, font=\scriptsize\ttfamily]{.ano} (d3);
+  \end{tikzpicture}}
+  \end{center}
+  \begin{block}{Regra}
+    Cada ponto desce um nível. \texttt{a.nascimento} é um valor completo do tipo
+    \texttt{struct Data}; \texttt{a.nascimento.ano} é o \texttt{int} dentro dele.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Exemplo: usando o registro interno como valor}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+struct Data hoje = {17, 8, 2026};
+
+struct Aluno a;
+a.nascimento = hoje;              /* copia a struct Data inteira    */
+a.nascimento.ano = 2005;          /* ajusta so um campo interno     */
+
+/* funcao que serve a QUALQUER data, venha de onde vier */
+int idade_em(struct Data nasc, struct Data ref) {
+    int anos = ref.ano - nasc.ano;
+    if (ref.mes < nasc.mes || (ref.mes == nasc.mes && ref.dia < nasc.dia))
+        anos--;
+    return anos;
+}
+
+printf("%d anos\n", idade_em(a.nascimento, hoje));   /* 21 anos */
+\end{lstlisting}
+  \begin{exampleblock}{Repare}
+    \texttt{a.nascimento} entrou na função como argumento: o campo interno é
+    um valor completo.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Inicialização de registros aninhados}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+/* chaves internas espelham o aninhamento */
+struct Aluno a = {"Ana Souza", 202600123, {7, 3, 2005}, 8.75};
+
+/* com campos nomeados, fica auto-explicativo */
+struct Aluno b = {
+    .nome       = "Bia Rocha",
+    .matricula  = 202600124,
+    .nascimento = {.dia = 12, .mes = 11, .ano = 2004},
+    .media      = 6.5
+};
+\end{lstlisting}
+  \begin{itemize}
+    \item As chaves internas são opcionais para o compilador, mas obrigatórias
+      para quem vai ler o código depois.
+    \item Em vetores: \texttt{turma[i].nascimento.ano} --- índice primeiro,
+      depois os pontos.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Recapitulando: registros aninhados}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Um registro pode ser campo de outro, desde que declarado antes.
+      \item Cada ponto desce um nível: \texttt{a.nascimento.ano}.
+      \item O campo interno é um valor completo: pode ser atribuído de uma vez e
+        passado para funções.
+      \item Aninhar concentra um conceito (``data'') em um lugar só e permite
+        reutilizar as funções que operam sobre ele.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Alinhamento e padding na memória}
+
+\begin{frame}{De volta à pergunta: 44 ou 48?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{O que contamos:}\\[2mm]
+      \small
+      \begin{tabular}{lr}
+        \toprule
+        Campo & Bytes \\
+        \midrule
+        \texttt{char nome[20]}       & 20 \\
+        \texttt{int matricula}       & 4 \\
+        \texttt{struct Data nascimento} & 12 \\
+        \texttt{double media}        & 8 \\
+        \midrule
+        \textbf{Soma}                & \textbf{44} \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{O que o compilador respondeu:}\\[2mm]
+      \begin{center}
+        \texttt{sizeof(struct Aluno) = 48}
+      \end{center}
+      \vspace{2mm}
+      \small
+      A diferença não é bug: o compilador \textbf{inseriu bytes} de propósito,
+      para que cada campo comece em um endereço que o processador lê de uma vez.
+    \end{column}
+  \end{columns}
+  \begin{block}{Vocabulário de hoje}
+    \textbf{Alinhamento} --- em que endereços um tipo pode começar.
+    \textbf{Offset} --- a que distância do início da struct o campo começa.
+    \textbf{Padding} --- bytes vazios inseridos para o offset dar certo.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Por que o hardware exige alinhamento}
+  \begin{center}
+  \resizebox{0.78\textwidth}{!}{%
+  \begin{tikzpicture}[
+    byte/.style={rectangle, draw=UFSGray, minimum width=0.8cm,
+      minimum height=0.7cm, font=\tiny},
+    dado/.style={rectangle, draw=UFSBlue, fill=UFSBlue!25, minimum width=0.8cm,
+      minimum height=0.7cm, font=\tiny},
+    ruim/.style={rectangle, draw=UFSRed, fill=UFSRed!25, minimum width=0.8cm,
+      minimum height=0.7cm, font=\tiny}
+  ]
+    % memoria alinhada
+    \node[font=\small\bfseries, anchor=west] at (-2.6,1.9) {\texttt{int} alinhado (offset 4)};
+    \foreach \i in {0,...,7} { \node[byte] at (\i*0.8,1.2) {}; }
+    \foreach \i in {4,...,7} { \node[dado] at (\i*0.8,1.2) {}; }
+    \foreach \x in {-0.4, 2.8, 6.0} {
+      \draw[line width=1.4pt, UFSYellow!70!black] (\x,0.68) -- (\x,1.72);
+    }
+    \node[font=\scriptsize, anchor=west, text=UFSBlue] at (6.4,1.2)
+      {\textbf{1} leitura de palavra};
+
+    % memoria desalinhada
+    \node[font=\small\bfseries, anchor=west] at (-2.6,0.1) {\texttt{int} desalinhado (offset 2)};
+    \foreach \i in {0,...,7} { \node[byte] at (\i*0.8,-0.6) {}; }
+    \foreach \i in {2,...,5} { \node[ruim] at (\i*0.8,-0.6) {}; }
+    \foreach \x in {-0.4, 2.8, 6.0} {
+      \draw[line width=1.4pt, UFSYellow!70!black] (\x,-1.12) -- (\x,-0.08);
+    }
+    \node[font=\scriptsize, anchor=west, text=UFSRed] at (6.4,-0.6)
+      {\textbf{2} leituras + junção};
+
+    \node[font=\scriptsize, anchor=west] at (-2.6,-1.6)
+      {As barras douradas marcam as fronteiras de palavra da memória (4 bytes).};
+  \end{tikzpicture}}
+  \end{center}
+  \begin{block}{A regra do hardware}
+    Um tipo de $N$ bytes quer começar em um endereço múltiplo de $N$. Em x86 o
+    acesso desalinhado é lento; em várias arquiteturas ARM e RISC ele
+    simplesmente \textbf{falha}. O compilador prefere gastar bytes a arriscar isso.
+  \end{block}
+\end{frame}
+
+\begin{frame}{As três regras que o compilador segue}
+  \begin{block}{Ao montar o registro, na ordem em que você escreveu os campos}
+    \begin{enumerate}
+      \item Cada campo tem um \textbf{alinhamento} $a$ --- nos tipos básicos,
+        igual ao tamanho (\texttt{char} 1, \texttt{short} 2, \texttt{int} 4,
+        \texttt{double} 8).
+      \item O campo é colocado no \textbf{próximo offset múltiplo de $a$};
+        os bytes pulados viram \textbf{padding interno}.
+      \item O alinhamento da struct é o \textbf{maior} entre os de seus campos,
+        e o tamanho total sobe até o próximo múltiplo dele --- o
+        \textbf{padding final}.
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Por que a regra 3 existe}
+    Em \texttt{struct Aluno turma[40]}, cada elemento começa
+    \texttt{sizeof(struct Aluno)} bytes depois do anterior. Sem múltiplo de 8,
+    o campo \texttt{media} de \texttt{turma[1]} cairia desalinhado.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{O mapa de bytes de \texttt{struct Aluno}}
+  \begin{center}
+  \resizebox{0.95\textwidth}{!}{%
+  \begin{tikzpicture}[
+    blk/.style={rectangle, draw=UFSBlue, fill=UFSBlue!12, minimum height=1.1cm,
+      font=\scriptsize, align=center},
+    pad/.style={rectangle, draw=UFSRed, fill=UFSRed!15, minimum height=1.1cm,
+      font=\scriptsize, align=center, pattern=north east lines,
+      pattern color=UFSRed!40},
+    marca/.style={font=\scriptsize\ttfamily, text=UFSGray}
+  ]
+    % escala: 0.28cm por byte
+    \def\s{0.28}
+    % nome[20]: 0..19
+    \node[blk, minimum width=20*\s cm, anchor=west] (n) at (0,0)
+      {\texttt{nome[20]}\\\scriptsize 20 bytes};
+    % matricula: 20..23
+    \node[blk, minimum width=4*\s cm, anchor=west] (m) at (20*\s,0)
+      {\texttt{matricula}\\\scriptsize 4};
+    % nascimento: 24..35
+    \node[blk, fill=UFSYellow!25, minimum width=12*\s cm, anchor=west] (d) at (24*\s,0)
+      {\texttt{nascimento}\\\scriptsize 12 (3 $\times$ int)};
+    % padding 36..39
+    \node[pad, minimum width=4*\s cm, anchor=west] (p) at (36*\s,0) {};
+    % media 40..47
+    \node[blk, minimum width=8*\s cm, anchor=west] (v) at (40*\s,0)
+      {\texttt{media}\\\scriptsize 8};
+
+    % reguas de offset
+    \foreach \o in {0,20,24,36,40,48} {
+      \draw[UFSGray] (\o*\s,-0.62) -- (\o*\s,-0.95);
+      \node[marca, anchor=north] at (\o*\s,-0.95) {\o};
+    }
+    \node[marca, anchor=north west] at (0,-1.5) {offset (bytes)};
+
+    % anotacao do padding
+    \node[font=\scriptsize, text=UFSRed, align=center, anchor=south]
+      at (38*\s,0.75) {4 bytes de padding};
+    \draw[->, UFSRed] (38*\s,0.72) -- (38*\s,0.58);
+    \node[font=\scriptsize, text=UFSRed, align=left, anchor=west]
+      at (49*\s,0) {\texttt{media} é \texttt{double}:\\precisa começar em\\múltiplo de 8 $\Rightarrow$ 40};
+  \end{tikzpicture}}
+  \end{center}
+  \begin{block}{Conferindo}
+    Offsets: \texttt{nome} 0, \texttt{matricula} 20, \texttt{nascimento} 24,
+    \texttt{media} 40. Último byte usado: 47. Tamanho 48, múltiplo de 8 ---
+    aqui não sobrou padding final, só os 4 bytes internos antes de \texttt{media}.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Medindo em vez de adivinhar: \texttt{sizeof} e \texttt{offsetof}}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+#include <stdio.h>
+#include <stddef.h>     /* offsetof */
+
+int main(void) {
+    printf("sizeof  = %zu\n", sizeof(struct Aluno));
+    printf("nome       @ %zu\n", offsetof(struct Aluno, nome));
+    printf("matricula  @ %zu\n", offsetof(struct Aluno, matricula));
+    printf("nascimento @ %zu\n", offsetof(struct Aluno, nascimento));
+    printf("media      @ %zu\n", offsetof(struct Aluno, media));
+    return 0;
+}
+\end{lstlisting}
+  \begin{exampleblock}{Saída (Linux/macOS 64 bits)}
+    \texttt{sizeof = 48} \quad
+    \texttt{nome @ 0} \quad \texttt{matricula @ 20} \quad
+    \texttt{nascimento @ 24} \quad \texttt{media @ 40}
+  \end{exampleblock}
+  \begin{alertblock}{Não decore números}
+    Os tamanhos dependem da arquitetura: aprenda o \emph{mecanismo} e meça.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{A ordem dos campos muda o tamanho}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+struct Ruim {
+    char c;
+    int  i;
+    char d;
+};
+/* sizeof = 12 */
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+struct Boa {
+    int  i;
+    char c;
+    char d;
+};
+/* sizeof = 8 */
+\end{lstlisting}
+\end{column}
+\end{columns}
+  \begin{center}
+  \resizebox{0.66\textwidth}{!}{%
+  \begin{tikzpicture}[
+    b/.style={rectangle, draw=UFSGray, minimum width=0.85cm, minimum height=0.65cm,
+      font=\scriptsize\ttfamily},
+    u/.style={b, draw=UFSBlue, fill=UFSBlue!18},
+    p/.style={b, draw=UFSRed, fill=UFSRed!18}
+  ]
+    \node[font=\small\ttfamily, anchor=east] at (-0.6,0.7) {Ruim};
+    \foreach \i/\t/\st in {0/c/u, 1/{}/p, 2/{}/p, 3/{}/p,
+                           4/i/u, 5/i/u, 6/i/u, 7/i/u,
+                           8/d/u, 9/{}/p, 10/{}/p, 11/{}/p}
+      { \node[\st] at (\i*0.85,0.7) {\t}; }
+    \node[font=\scriptsize, anchor=west, text=UFSRed] at (11.6,0.7) {6 bytes desperdiçados};
+
+    \node[font=\small\ttfamily, anchor=east] at (-0.6,-0.4) {Boa};
+    \foreach \i/\t/\st in {0/i/u, 1/i/u, 2/i/u, 3/i/u,
+                           4/c/u, 5/d/u, 6/{}/p, 7/{}/p}
+      { \node[\st] at (\i*0.85,-0.4) {\t}; }
+    \node[font=\scriptsize, anchor=west, text=UFSBlue] at (11.6,-0.4) {2 bytes de padding final};
+  \end{tikzpicture}}
+  \end{center}
+  \begin{block}{Regra prática}
+    Declare os campos do \textbf{maior alinhamento para o menor}. Os mesmos
+    dados ocuparam $33\%$ menos memória --- em um milhão de registros, isso
+    são megabytes.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Quando isso importa de verdade}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Importa}
+      \begin{itemize}
+        \item Vetores grandes --- o padding é multiplicado pelo número de
+          elementos.
+        \item Sistemas embarcados, com RAM escassa.
+        \item Desempenho: mais registros por linha de cache.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Não importa}
+      \begin{itemize}
+        \item Uma ou poucas variáveis do tipo.
+        \item Quando reordenar prejudica a leitura sem ganho medido.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \begin{alertblock}{Armadilha clássica}
+    \texttt{fwrite(\&a, sizeof a, 1, f)} grava \emph{também} o padding, com
+    lixo dentro --- outra máquina pode ler tudo errado.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: alinhamento e padding}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{sizeof} de um registro $\geq$ soma dos campos: a diferença é
+        \textbf{padding}.
+      \item Cada campo começa em um offset múltiplo do seu alinhamento; o
+        tamanho total é múltiplo do maior alinhamento da struct.
+      \item O padding existe porque o processador lê a memória em blocos
+        alinhados --- é preço de velocidade e de correção.
+      \item Reordenar campos do maior para o menor reduz o desperdício, e
+        \texttt{sizeof}/\texttt{offsetof} medem o resultado.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Tarefas}
+
+\begin{frame}{Altere o programa}
+  \begin{block}{Tarefa 1 --- prever antes de compilar}
+    Acrescente \texttt{char turma;} a \texttt{struct Aluno}, logo depois de
+    \texttt{matricula}. Anote sua previsão de \texttt{sizeof} \emph{antes} de
+    compilar; depois meça. Explique a diferença (ou a ausência dela).
+  \end{block}
+  \begin{block}{Tarefa 2 --- reordenar}
+    Reordene os campos de \texttt{struct Aluno} do maior alinhamento para o
+    menor e meça \texttt{sizeof} antes e depois. Deu ganho? Depois repita com
+    \texttt{struct \{ char flag; double valor; int id; char tipo; \}} e explique
+    por que os dois casos se comportam de forma diferente.
+  \end{block}
+  \begin{block}{Tarefa 3 --- aninhar mais um nível}
+    Crie \texttt{struct Endereco} (rua, número, CEP) e inclua-a em
+    \texttt{struct Aluno}. Imprima \texttt{a.endereco.cep} e recalcule o
+    tamanho total.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{exampleblock}{Cadastro da turma}
+    Escreva um programa que:
+    \begin{enumerate}
+      \item declare \texttt{struct Aluno turma[5]} com data aninhada;
+      \item preencha os cinco alunos no próprio código;
+      \item imprima uma tabela com nome, matrícula, nascimento e média;
+      \item informe o aluno de maior média e a média da turma;
+      \item imprima \texttt{sizeof(struct Aluno)}, a soma dos campos e quantos
+        bytes de padding existem por aluno e no vetor inteiro.
+    \end{enumerate}
+  \end{exampleblock}
+  \begin{block}{Entrega}
+    O tutorial traz o esqueleto, os testes e as perguntas de investigação.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Resumo da aula}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10.5cm, minimum height=0.75cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)    {\texttt{struct} agrupa campos de tipos diferentes em um valor único};
+    \node[item] (t2) at (0,-1.1) {O ponto acessa campos; cada ponto desce um nível de aninhamento};
+    \node[item] (t3) at (0,-2.2) {O compilador insere padding para alinhar cada campo};
+    \node[item] (t4) at (0,-3.3) {\texttt{sizeof} e \texttt{offsetof} medem; a ordem dos campos decide o custo};
+    \draw[->, thick, UFSBlue] (t1)--(t2);
+    \draw[->, thick, UFSBlue] (t2)--(t3);
+    \draw[->, thick, UFSBlue] (t3)--(t4);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Próxima aula}
+    Ponteiros: em vez de copiar 48 bytes, passar um endereço --- e o operador
+    \texttt{->} para chegar aos campos a partir dele.
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \scriptsize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
