@@ -1,0 +1,475 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS — Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit, calc,
+  backgrounds, decorations.pathreplacing, shadows, patterns}
+
+% Listagens — paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Metadados ---
+\title{Algoritmos e Estruturas de Dados II}
+\subtitle{Corretude de algoritmos iterativos e invariantes de laço --- Parte 2}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=9.5cm, minimum height=0.75cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)    {Relembrar o método: invariante $+$ inicialização, manutenção e término};
+    \node[item] (t2) at (0,-1.1) {Prova de corretude da \textbf{busca binária} --- e por que tantas implementações erram};
+    \node[item] (t3) at (0,-2.2) {Prova de corretude do \textbf{particionamento de Lomuto} (coração do quicksort)};
+    \node[item] (t4) at (0,-3.3) {Usar o invariante como \textbf{ferramenta de projeto}, não só de prova};
+    \draw[->, thick, UFSBlue] (t1)--(t2);
+    \draw[->, thick, UFSBlue] (t2)--(t3);
+    \draw[->, thick, UFSBlue] (t3)--(t4);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Agenda}
+  \tableofcontents
+\end{frame}
+
+% =====================================================================
+\section{Relembrando o método}
+% =====================================================================
+
+\begin{frame}{O método em uma figura}
+  \begin{center}
+  \begin{tikzpicture}[
+    fase/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=3.6cm, minimum height=1.2cm, font=\small, align=center},
+    seta/.style={->, thick, UFSBlue}
+  ]
+    \node[fase] (ini) at (0,0)
+      {\textbf{Inicialização}\\ vale \emph{antes} da\\ primeira iteração};
+    \node[fase] (man) at (5,0)
+      {\textbf{Manutenção}\\ cada iteração\\ preserva o invariante};
+    \node[fase] (ter) at (10,0)
+      {\textbf{Término}\\ ao sair, invariante\\ $\Rightarrow$ poscondição};
+    \draw[seta] (ini)--(man);
+    \draw[seta] (man)--(ter);
+    \draw[seta] (man) to[out=140, in=40, looseness=4] (man);
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item Na Parte 1: busca do máximo (invariante sobre um valor) e ordenação por
+      inserção (invariante estrutural, laços aninhados).
+    \item Hoje: busca binária e particionamento --- e, para corretude total, uma medida
+      inteira não negativa que decresce a cada iteração (garantia de término).
+  \end{itemize}
+\end{frame}
+
+% =====================================================================
+\section{Terceiro algoritmo: busca binária}
+% =====================================================================
+
+\begin{frame}{Por que a busca binária merece uma prova?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[2pt]
+      Dado $A[0..n-1]$ \textbf{ordenado} e um valor $x$, devolver um índice $i$ com
+      $A[i] = x$, ou $-1$ se $x$ não está no vetor.
+      \begin{itemize}
+        \item Publicada em 1946; a primeira versão correta para todo $n$ demorou
+          mais de uma década a aparecer.
+        \item Bentley: a maioria dos programadores profissionais não a implementa
+          corretamente de primeira.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[2pt]
+      Manter uma \emph{janela} $[lo..hi]$ onde $x$ \emph{ainda pode} estar e cortá-la
+      pela metade a cada comparação.
+      \begin{itemize}
+        \item O invariante diz exatamente o que a janela significa --- e dita como
+          atualizar \texttt{lo} e \texttt{hi} sem erro.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Busca binária: o algoritmo}
+\begin{lstlisting}
+int busca_binaria(int A[], int n, int x) { /* pre: A ordenado */
+    int lo = 0, hi = n - 1;
+    while (lo <= hi) {
+        /* invariante: se x esta em A, esta em A[lo..hi] */
+        int meio = lo + (hi - lo) / 2;
+        if (A[meio] == x)      return meio;
+        else if (A[meio] < x)  lo = meio + 1;
+        else                   hi = meio - 1;
+    }
+    return -1;   /* janela vazia: x nao esta no vetor    */
+}
+\end{lstlisting}
+  \begin{block}{Invariante}
+    No início de cada iteração: \textbf{se} $x$ ocorre em $A[0..n-1]$,
+    \textbf{então} $x$ ocorre em $A[lo..hi]$.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Busca binária: o invariante em figura}
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={draw, minimum width=0.95cm, minimum height=0.8cm, font=\small},
+    fora/.style={cel, fill=UFSLightGray},
+    dentro/.style={cel, fill=UFSBlue!20},
+    meio/.style={cel, fill=UFSYellow!50}
+  ]
+    \node[fora]   (a0) at (0,0)    {1};
+    \node[fora]   (a1) at (0.95,0) {3};
+    \node[dentro] (a2) at (1.9,0)  {4};
+    \node[dentro] (a3) at (2.85,0) {7};
+    \node[meio]   (a4) at (3.8,0)  {9};
+    \node[dentro] (a5) at (4.75,0) {11};
+    \node[dentro] (a6) at (5.7,0)  {15};
+    \node[fora]   (a7) at (6.65,0) {20};
+
+    \foreach \i/\n in {0/a0,1/a1,2/a2,3/a3,4/a4,5/a5,6/a6,7/a7}
+      \node[below=1pt of \n, font=\scriptsize, color=UFSGray] {\i};
+
+    \node[below=14pt of a2, font=\small, color=UFSBlue] {$lo$};
+    \node[below=14pt of a6, font=\small, color=UFSBlue] {$hi$};
+    \node[below=14pt of a4, font=\small] {$meio$};
+
+    \draw[decorate, decoration={brace, amplitude=5pt}, thick, UFSBlue]
+      (1.43,0.5) -- (6.17,0.5)
+      node[midway, above=6pt, font=\small, color=UFSBlue]
+      {se $x$ está no vetor, está aqui};
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item Cinza: regiões já \textbf{descartadas} --- a ordenação garante que $x$ não está nelas.
+    \item O invariante é \emph{condicional}: não promete que $x$ está na janela; promete
+      que \textbf{fora dela é impossível}.
+    \item Janela vazia ($lo > hi$) $+$ invariante $\Rightarrow$ $x$ não está no vetor: o
+      \texttt{return -1} está \emph{provado}, não ``chutado''.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Busca binária: prova de corretude}
+  \begin{itemize}
+    \item \textbf{Inicialização}: $[lo..hi] = [0..n-1]$ é o vetor inteiro ---
+      a implicação vale trivialmente. \checkmark
+    \item \textbf{Manutenção}: seja $m$ o meio. Se $A[m] < x$, a ordenação dá
+      $A[k] \leq A[m] < x$ para todo $k \leq m$: descartar $[lo..m]$ é seguro, e
+      $lo = m + 1$ preserva o invariante. Caso $A[m] > x$ é simétrico. \checkmark
+    \item \textbf{Término com retorno no laço}: só retornamos $meio$ quando
+      $A[meio] = x$ --- correto por inspeção. \checkmark
+    \item \textbf{Término com janela vazia}: $lo > hi$ e o invariante
+      (contrapositiva): $x$ não está em $A[lo..hi]$ vazio, logo não está no vetor
+      --- devolver $-1$ é correto. \checkmark
+    \item \textbf{O laço termina?} A medida $hi - lo + 1$ (tamanho da janela) é
+      $\geq 0$ e \textbf{decresce estritamente}: $meio$ está em $[lo..hi]$, e os dois
+      ramos excluem $meio$ da nova janela. \checkmark
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Exemplo: dois erros clássicos que a prova denuncia}
+  \begin{exampleblock}{Erro 1: \texttt{lo = meio} em vez de \texttt{lo = meio + 1}}
+    Com janela $[3..4]$, $meio = 3$ e $A[3] < x$: a ``nova'' janela continua $[3..4]$.
+    A medida $hi - lo + 1$ \textbf{não decresce} --- laço infinito. A prova de término
+    exige excluir $meio$.
+  \end{exampleblock}
+  \begin{exampleblock}{Erro 2: \texttt{meio = (lo + hi) / 2}}
+    Matematicamente idêntico --- mas em C, com $n$ grande, $lo + hi$ pode estourar o
+    \texttt{int} (overflow) e tornar \texttt{meio} negativo.
+    \texttt{lo + (hi - lo) / 2} calcula o mesmo valor sem estourar.
+  \end{exampleblock}
+  \begin{itemize}
+    \item O primeiro erro é \emph{lógico}: a prova o captura no passo de término.
+    \item O segundo é da \emph{máquina}: a prova vale sobre inteiros ideais; a
+      implementação precisa respeitar os limites do tipo.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Recapitulando: busca binária}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Invariante condicional: ``se $x$ está no vetor, está na janela $[lo..hi]$''.
+      \item A manutenção usa a \textbf{precondição} (vetor ordenado) para justificar o descarte.
+      \item Término via medida decrescente: o tamanho da janela cai a cada iteração ---
+        e é isso que proíbe \texttt{lo = meio}.
+      \item O caso ``não encontrado'' sai \emph{provado} do invariante, de graça.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Quarto algoritmo: particionamento de Lomuto}
+% =====================================================================
+
+\begin{frame}{Por que estudar o particionamento?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[2pt]
+      Reorganizar $A[p..r]$ em torno do pivô $A[r]$: menores ou iguais à esquerda,
+      maiores à direita, pivô no meio --- devolvendo a posição final do pivô.
+      \begin{itemize}
+        \item É o coração do \textbf{quicksort}: se o particionamento está certo,
+          a recursão faz o resto.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[2pt]
+      Varrer o trecho mantendo \textbf{quatro regiões} bem delimitadas por dois
+      índices ($i$ e $j$).
+      \begin{itemize}
+        \item O invariante aqui é uma \emph{fotografia} das quatro regiões ---
+          o exemplo mais visual dos quatro algoritmos que estudamos.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Particionamento de Lomuto: o algoritmo}
+\begin{lstlisting}
+int particiona(int A[], int p, int r) {
+    int pivo = A[r];
+    int i = p - 1;
+    for (int j = p; j < r; j++) {
+        /* invariante: A[p..i] <= pivo,                  */
+        /*   A[i+1..j-1] > pivo, A[j..r-1] nao examinado */
+        if (A[j] <= pivo) {
+            i++;
+            troca(&A[i], &A[j]);
+        }
+    }
+    troca(&A[i + 1], &A[r]);
+    return i + 1;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O invariante das quatro regiões}
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={draw, minimum width=0.95cm, minimum height=0.8cm, font=\small},
+    menor/.style={cel, fill=UFSBlue!20},
+    maior/.style={cel, fill=UFSRed!20},
+    resto/.style={cel, fill=UFSLightGray},
+    piv/.style={cel, fill=UFSYellow!50}
+  ]
+    \node[menor] (a0) at (0,0)    {2};
+    \node[menor] (a1) at (0.95,0) {1};
+    \node[maior] (a2) at (1.9,0)  {8};
+    \node[maior] (a3) at (2.85,0) {7};
+    \node[maior] (a4) at (3.8,0)  {9};
+    \node[resto] (a5) at (4.75,0) {3};
+    \node[resto] (a6) at (5.7,0)  {6};
+    \node[piv]   (a7) at (6.65,0) {5};
+
+    \foreach \i/\n in {0/a0,1/a1,2/a2,3/a3,4/a4,5/a5,6/a6,7/a7}
+      \node[below=1pt of \n, font=\scriptsize, color=UFSGray] {\i};
+
+    \node[below=14pt of a1, font=\small, color=UFSBlue] {$i$};
+    \node[below=14pt of a5, font=\small, color=UFSGray] {$j$};
+    \node[above=6pt of a7, font=\small, color=UFSGray] {pivô};
+
+    \draw[decorate, decoration={brace, amplitude=4pt}, thick, UFSBlue]
+      (-0.47,0.5) -- (1.42,0.5)
+      node[midway, above=5pt, font=\scriptsize, color=UFSBlue] {$\leq 5$};
+    \draw[decorate, decoration={brace, amplitude=4pt}, thick, UFSRed]
+      (1.43,0.5) -- (4.27,0.5)
+      node[midway, above=5pt, font=\scriptsize, color=UFSRed] {$> 5$};
+    \draw[decorate, decoration={brace, amplitude=4pt}, thick, UFSGray]
+      (4.28,0.5) -- (6.17,0.5)
+      node[midway, above=5pt, font=\scriptsize, color=UFSGray] {não examinado};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Invariante (início da iteração $j$)}
+    $A[p..i] \leq \text{pivô}$ \quad e \quad $A[i+1..j-1] > \text{pivô}$ \quad e
+    \quad $A[j..r-1]$ não examinado \quad e \quad $A[r] = \text{pivô}$.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Manutenção: os dois casos da iteração}
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={draw, minimum width=0.75cm, minimum height=0.65cm, font=\scriptsize},
+    menor/.style={cel, fill=UFSBlue!20},
+    maior/.style={cel, fill=UFSRed!20},
+    resto/.style={cel, fill=UFSLightGray},
+    rot/.style={font=\small, anchor=west}
+  ]
+    % Caso 1
+    \node[rot] at (-1.0,0.9) {\textbf{Caso $A[j] > $ pivô}: só avançar $j$ --- a região vermelha cresce.};
+    \node[menor] at (0,0)    {$\leq$};
+    \node[menor] at (0.75,0) {$\leq$};
+    \node[maior] at (1.5,0)  {$>$};
+    \node[maior] at (2.25,0) {$>$};
+    \node[maior, very thick, draw=UFSRed] at (3.0,0) {$>$};
+    \node[resto] at (3.75,0) {?};
+    \node[font=\scriptsize, color=UFSGray] at (3.0,-0.6) {$j$};
+
+    % Caso 2
+    \node[rot] at (-1.0,-1.5) {\textbf{Caso $A[j] \leq$ pivô}: \texttt{i++} e trocar $A[i] \leftrightarrow A[j]$ --- a azul cresce.};
+    \node[menor] at (0,-2.3)    {$\leq$};
+    \node[menor] at (0.75,-2.3) {$\leq$};
+    \node[menor, very thick, draw=UFSBlue] at (1.5,-2.3) {$\leq$};
+    \node[maior] at (2.25,-2.3) {$>$};
+    \node[maior] at (3.0,-2.3)  {$>$};
+    \node[resto] at (3.75,-2.3) {?};
+    \node[font=\scriptsize, color=UFSGray] at (1.2,-2.95) {$i$};
+    \draw[->, thick, UFSBlue] (3.0,-2.65) to[out=-60, in=-120] (1.5,-2.65);
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item A troca move o \emph{primeiro} elemento da região vermelha para o fim dela ---
+      as duas regiões continuam homogêneas; se a vermelha está vazia ($i + 1 = j$),
+      a ``troca'' é de $A[j]$ com ele mesmo e o invariante segue valendo.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Particionamento: prova de corretude}
+  \begin{itemize}
+    \item \textbf{Inicialização} ($j = p$, $i = p - 1$): as regiões $A[p..p-1]$ e
+      $A[p..p-1]$ são vazias --- as duas cláusulas valem por vacuidade. \checkmark
+    \item \textbf{Manutenção}: os dois casos do slide anterior preservam as quatro
+      regiões. \checkmark
+    \item \textbf{Término}: com $j = r$, todo $A[p..r-1]$ está classificado:
+      $A[p..i] \leq \text{pivô}$ e $A[i+1..r-1] > \text{pivô}$.
+      A troca final põe o pivô em $A[i+1]$, entre as duas regiões ---
+      exatamente a poscondição, com retorno $i + 1$. \checkmark
+    \item \textbf{O laço termina?} É um \texttt{for} com $j$ de $p$ a $r - 1$:
+      a medida $r - j$ decresce a cada iteração. \checkmark
+    \item \textbf{Permutação:} só fazemos trocas --- nenhum elemento é criado ou
+      perdido (mesma cláusula que na ordenação por inserção).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Exemplo: rastreando $A = [3, 8, 1, 5]$ com pivô $5$}
+  \begin{center}
+  \small
+  \begin{tabular}{c c c l}
+    \toprule
+    Início de $j$ & $i$ & Vetor & Regiões $[\leq \mid > \mid ?]$ \\
+    \midrule
+    $j = 0$ & $-1$ & $[3, 8, 1 \mid 5]$ & $[\ \mid\ \mid 3, 8, 1]$ \\
+    $j = 1$ & $0$  & $[\mathbf{3}, 8, 1 \mid 5]$ & $[3 \mid\ \mid 8, 1]$ \\
+    $j = 2$ & $0$  & $[\mathbf{3}, \mathbf{8}, 1 \mid 5]$ & $[3 \mid 8 \mid 1]$ \\
+    saída ($j = 3$) & $1$ & $[\mathbf{3}, \mathbf{1}, \mathbf{8} \mid 5]$ & $[3, 1 \mid 8 \mid\ ]$ \\
+    troca final & --- & $[3, 1, \mathbf{5}, 8]$ & pivô na posição $2$ \checkmark \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{itemize}
+    \item Em $j = 2$: $A[2] = 1 \leq 5$, então $i$ vira $1$ e trocamos $A[1] \leftrightarrow A[2]$.
+    \item A troca final coloca o pivô entre as regiões: tudo à esquerda $\leq 5$,
+      tudo à direita $> 5$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Recapitulando: particionamento de Lomuto}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Invariante ``geográfico'': o vetor dividido em quatro regiões com
+        significados distintos.
+      \item Inicialização por \textbf{vacuidade}: regiões vazias satisfazem qualquer
+        propriedade.
+      \item A manutenção é uma análise de dois casos, cada um fazendo uma região crescer.
+      \item Com o particionamento provado, a corretude do quicksort segue por indução
+        no tamanho do trecho.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Invariante como ferramenta de projeto}
+% =====================================================================
+
+\begin{frame}{Invariante primeiro, código depois}
+  \begin{block}{A inversão de perspectiva}
+    Em vez de escrever o laço e \emph{depois} procurar o invariante, escolha o
+    invariante e deixe-o \textbf{ditar} o código.
+  \end{block}
+  \begin{itemize}
+    \item \textbf{Inicialização} $\rightarrow$ diz como declarar e inicializar as variáveis.
+    \item \textbf{Manutenção} $\rightarrow$ diz o que o corpo do laço \emph{precisa} fazer.
+    \item \textbf{Término $+$ poscondição} $\rightarrow$ diz qual é a condição de parada.
+  \end{itemize}
+  \begin{exampleblock}{Nos quatro algoritmos que estudamos}
+    Máximo: ``maior já visto''. \quad Inserção: ``prefixo ordenado''.\\
+    Busca binária: ``$x$ só pode estar em $[lo..hi]$''. \quad Lomuto: ``quatro regiões''.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Resumo das duas aulas}
+  \begin{center}
+  \footnotesize
+  \begin{tabular}{l l l}
+    \toprule
+    Algoritmo & Tipo de invariante & O que a prova exigiu \\
+    \midrule
+    Busca do máximo & valor acumulado & caso base não trivial (\texttt{max = A[0]}) \\
+    Ordenação por inserção & prefixo estruturado & ordem $+$ permutação; laços aninhados \\
+    Busca binária & janela condicional & precondição (ordenado) $+$ medida decrescente \\
+    Particionamento & regiões geográficas & vacuidade $+$ análise de casos \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{itemize}
+    \item O método é sempre o mesmo: \textbf{inicialização, manutenção, término} ---
+      o que muda é a criatividade para \emph{enunciar} o invariante.
+    \item Enunciar o invariante certo é a metade difícil --- e é uma habilidade que se
+      treina: o tutorial desta aula é esse treino.
+  \end{itemize}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

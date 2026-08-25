@@ -34,4 +34,13 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-03-corretude-e-invariantes-de-laco-parte-2' | relative_url }}">
+    <div class="week-num">03</div>
+    <div class="week-body">
+      <div class="week-title">Corretude de Algoritmos Iterativos e Invariantes de Laço — Parte 2</div>
+      <div class="week-desc">Invariante condicional e medida decrescente na busca binária; as quatro regiões do particionamento de Lomuto.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
 </div>
