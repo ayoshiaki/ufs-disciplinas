@@ -1,0 +1,754 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS — Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns}
+
+% Listagens — paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Metadados ---
+\title{Enumerações (\texttt{enum}) e \texttt{typedef}}
+\subtitle{Dar nome aos valores e aos tipos --- aplicado a registros}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{Agenda}
+  \tableofcontents
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10.5cm, minimum height=0.8cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)    {Declarar conjuntos de valores nomeados com \texttt{enum}};
+    \node[item] (t2) at (0,-1.15) {Usar \texttt{enum} com \texttt{switch} e como índice de vetores};
+    \node[item] (t3) at (0,-2.3)  {Criar apelidos de tipo com \texttt{typedef} --- e conhecer suas armadilhas};
+    \node[item] (t4) at (0,-3.45) {Modelar registros legíveis combinando \texttt{struct}, \texttt{enum} e \texttt{typedef}};
+    \draw[->, thick, UFSBlue] (t1)--(t2);
+    \draw[->, thick, UFSBlue] (t2)--(t3);
+    \draw[->, thick, UFSBlue] (t3)--(t4);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\section{Um programa para começar}
+
+\begin{frame}[fragile]{O problema: números que ninguém explica}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Como estava na aula passada}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+struct Aluno {
+    char nome[20];
+    int  matricula;
+    double media;
+    int  situacao;  /* 0, 1 ou 2 */
+};
+
+a.situacao = 2;
+if (a.situacao == 1) { ... }
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{As perguntas que sobram}
+\begin{itemize}
+  \item 2 significa aprovado ou reprovado?
+  \item Onde está escrito que só valem 0, 1 e 2?
+  \item Quem lê \texttt{if (a.situacao == 1)} seis meses depois entende?
+  \item E se alguém escrever \texttt{a.situacao = 9}?
+\end{itemize}
+\end{column}
+\end{columns}
+  \begin{alertblock}{Números mágicos}
+    Valores literais sem nome: compilam perfeitamente e escondem a intenção.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Um programa para começar: os tipos}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+#include <stdio.h>
+
+typedef enum { REPROVADO, RECUPERACAO, APROVADO } Situacao;
+
+typedef struct {
+    char     nome[20];
+    int      matricula;
+    double   media;
+    Situacao situacao;
+} Aluno;
+
+Situacao classifica(double media) {
+    if (media >= 7.0) return APROVADO;
+    if (media >= 5.0) return RECUPERACAO;
+    return REPROVADO;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\ldots\ e o programa principal}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, firstnumber=18]
+void imprime_situacao(Situacao s) {
+    switch (s) {
+        case APROVADO:    printf("Aprovado");    break;
+        case RECUPERACAO: printf("Recuperacao"); break;
+        case REPROVADO:   printf("Reprovado");   break;
+    }
+}
+
+int main(void) {
+    Aluno a = {"Ana Souza", 202600123, 8.75, REPROVADO};
+    a.situacao = classifica(a.media);
+    printf("%s (%d) media %.2f\n", a.nome, a.matricula, a.media);
+    printf("situacao: %d = ", a.situacao);
+    imprime_situacao(a.situacao);
+    printf("\nsizeof(Situacao) = %zu\n", sizeof(Situacao));
+    return 0;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O que este programa faz?}
+  \begin{block}{Em duplas, anotem a previsão (3--4 min) --- sem computador!}
+    \begin{enumerate}
+      \item Quais são exatamente as três linhas impressas na tela?
+      \item \texttt{printf("\%d", a.situacao)} imprime o quê? Por quê esse número?
+      \item Quantos \emph{bytes} ocupa \texttt{Situacao}? E onde está escrito isso?
+      \item A linha 27 inicializa \texttt{situacao} como \texttt{REPROVADO} e a
+        linha 28 sobrescreve. Faz diferença o valor inicial?
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Regra do jogo}
+    Escreva um número, não um ``mais ou menos''. A pergunta 2 é a porta de
+    entrada da aula: o texto \texttt{APROVADO} vira \emph{alguma coisa} antes de
+    o programa rodar.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[language={}, numbers=none, basicstyle=\ttfamily\small]
+$ gcc -Wall ficha_situacao.c -o ficha_situacao
+$ ./ficha_situacao
+Ana Souza (202600123) media 8.75
+situacao: 2 = Aprovado
+sizeof(Situacao) = 4
+\end{lstlisting}
+  \begin{block}{As perguntas que guiam o resto da aula}
+    \begin{itemize}
+      \item De onde saiu o \textbf{2}? Ninguém escreveu 2 no programa.
+      \item \texttt{Situacao} ocupa 4 bytes: então é um tipo inteiro?
+      \item \texttt{Aluno} e \texttt{Situacao} aparecem sem \texttt{struct} nem
+        \texttt{enum}. Quem permitiu?
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Enumerações}
+
+\begin{frame}{Enumeração: definição}
+  \begin{block}{Definição}
+    Uma \textbf{enumeração} (\texttt{enum}) é um tipo inteiro cujos valores
+    válidos recebem nomes no próprio código. Cada nome é uma
+    \emph{constante de enumeração} --- um valor \texttt{int} conhecido em tempo
+    de compilação.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    Você não inventa os valores: você \emph{lista} os que existem. ``Situação de
+    aluno'' tem exatamente três valores possíveis --- o \texttt{enum} escreve
+    essa lista no programa, em vez de deixá-la na sua cabeça.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Anatomia da declaração}
+\begin{lstlisting}[numbers=none, basicstyle=\ttfamily\small]
+enum Situacao { REPROVADO, RECUPERACAO, APROVADO };
+/*   ^tag      ^--------- constantes de enumeracao ---------^ */
+
+enum Situacao s;        /* declara variavel: precisa da palavra enum */
+s = APROVADO;           /* as constantes sao usadas soltas, sem tag  */
+\end{lstlisting}
+  \begin{itemize}
+    \item A \textbf{tag} (\texttt{Situacao}) nomeia o tipo; as constantes vivem
+      fora dela, direto no escopo do arquivo.
+    \item Por isso \texttt{APROVADO} se escreve sozinho --- e por isso dois
+      \texttt{enum} não podem repetir o mesmo nome de constante.
+    \item Convenção usual: constantes em \texttt{MAIUSCULAS}, tag em
+      \texttt{PascalCase}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Os valores são inteiros consecutivos a partir de zero}
+  \begin{center}
+  \begin{tikzpicture}[
+    nome/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=3.2cm, minimum height=0.85cm, font=\small\ttfamily},
+    val/.style={rectangle, draw=UFSGray, fill=UFSLightGray, rounded corners,
+      minimum width=1.2cm, minimum height=0.85cm, font=\small\ttfamily},
+    seta/.style={->, thick, UFSBlue}
+  ]
+    \node[nome] (n0) at (0,0)    {REPROVADO};
+    \node[nome] (n1) at (0,-1.15) {RECUPERACAO};
+    \node[nome] (n2) at (0,-2.3)  {APROVADO};
+    \node[val]  (v0) at (4.2,0)    {0};
+    \node[val]  (v1) at (4.2,-1.15) {1};
+    \node[val]  (v2) at (4.2,-2.3)  {2};
+    \draw[seta] (n0)--(v0);
+    \draw[seta] (n1)--(v1);
+    \draw[seta] (n2)--(v2);
+    \node[font=\scriptsize\itshape, text=UFSGray, align=center] at (7.6,-1.15)
+      {o compilador atribui\\os valores na ordem\\em que você escreveu};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Consequência prática}
+    Trocar a ordem dos nomes na declaração troca os números. Isso importa se os
+    valores forem gravados em arquivo ou trocados com outro programa.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Escolhendo os valores explicitamente}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+/* comecar em 1 */
+enum Mes { JAN = 1, FEV, MAR, ABR };
+/* JAN=1 FEV=2 MAR=3 ABR=4 */
+
+/* valores independentes */
+enum Permissao {
+    LEITURA  = 1,
+    ESCRITA  = 2,
+    EXECUCAO = 4
+};
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}
+\begin{itemize}
+  \item Após um valor explícito, os seguintes continuam a contagem ($+1$ a cada nome).
+  \item Potências de dois permitem combinar com \texttt{|}:
+    \texttt{LEITURA | ESCRITA} vale 3.
+  \item Dois nomes podem ter o mesmo valor --- é legal.
+\end{itemize}
+\end{column}
+\end{columns}
+  \begin{exampleblock}{Quando fixar valores}
+    Quando o número tem significado externo (código de erro, byte de protocolo,
+    mês). Caso contrário, deixe o compilador contar.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{enum} + \texttt{switch}: o compilador do seu lado}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+void imprime_situacao(Situacao s) {
+    switch (s) {
+        case APROVADO:  printf("Aprovado");  break;
+        case REPROVADO: printf("Reprovado"); break;
+    }   /* faltou RECUPERACAO */
+}
+\end{lstlisting}
+\begin{lstlisting}[language={}, numbers=none, basicstyle=\ttfamily\scriptsize]
+$ gcc -Wall sw.c -o sw
+sw.c:4:13: warning: enumeration value 'RECUPERACAO' not handled in switch [-Wswitch]
+\end{lstlisting}
+  \begin{block}{Por que isso é valioso}
+    Com \texttt{int situacao} o compilador nada teria a reclamar. Com
+    \texttt{enum}, ele conhece a lista inteira e cobra o caso esquecido --- o
+    erro que aparece meses depois, ao acrescentar um valor novo. Atenção: um
+    \texttt{default:} desliga esse aviso.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{enum} não é um tipo fechado}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+Situacao s = 7;              /* compila, sem aviso, e imprime 7 */
+s = APROVADO + 1;            /* 3: um valor que nao tem nome     */
+int n = APROVADO;            /* legal: enum vira int sozinho     */
+\end{lstlisting}
+  \begin{alertblock}{O que C garante --- e o que não garante}
+    C garante os \emph{nomes}; não garante que a variável só receba valores da
+    lista. Uma enumeração é documentação executável, não uma trava.
+  \end{alertblock}
+  \begin{block}{Como se proteger}
+    Valide o que vem de fora antes de atribuir --- \texttt{if (v >= REPROVADO
+    \&\& v <= APROVADO)} --- e não use aritmética para ``andar até o próximo
+    estado'' sem checar o limite.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{enum} $\times$ \texttt{\#define} $\times$ \texttt{const int}}
+  \begin{center}
+  \small
+  \begin{tabular}{lccc}
+    \toprule
+     & \texttt{\#define} & \texttt{const int} & \texttt{enum} \\
+    \midrule
+    Quem processa & pré-processador & compilador & compilador \\
+    Aparece no depurador & não & sim & sim \\
+    Agrupa valores relacionados & não & não & \textbf{sim} \\
+    Serve de \texttt{case} em \texttt{switch} & sim & não & \textbf{sim} \\
+    Tamanho de vetor (C89) & sim & não & \textbf{sim} \\
+    Aviso de \texttt{case} faltante & não & não & \textbf{sim} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Regra prática}
+    Para um conjunto fechado de valores relacionados: \texttt{enum}.
+    Para uma constante isolada (\texttt{TAM}, \texttt{PI}): \texttt{\#define}
+    ou \texttt{const}.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O truque do contador: \texttt{enum} como índice}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+typedef enum {
+    REPROVADO, RECUPERACAO, APROVADO,
+    NUM_SITUACOES        /* sentinela = 3 */
+} Situacao;
+
+int cont[NUM_SITUACOES] = {0};
+
+for (int i = 0; i < n; i++)
+    cont[turma[i].situacao]++;
+
+printf("%d aprovados\n", cont[APROVADO]);
+\end{lstlisting}
+\end{column}
+\begin{column}{0.44\textwidth}
+\begin{tikzpicture}[
+  cel/.style={rectangle, draw=UFSBlue, minimum width=1.15cm,
+    minimum height=0.8cm, font=\small\ttfamily},
+  rot/.style={font=\tiny\ttfamily, text=UFSGray, rotate=35, anchor=west}
+]
+  \node[cel] (c0) at (0,0)    {2};
+  \node[cel] (c1) at (1.15,0) {1};
+  \node[cel] (c2) at (2.3,0)  {3};
+  \node[rot] at (-0.35,0.55) {REPROVADO};
+  \node[rot] at (0.80,0.55)  {RECUPERACAO};
+  \node[rot] at (1.95,0.55)  {APROVADO};
+  \node[font=\scriptsize\ttfamily, text=UFSGray] at (0,-0.65)    {0};
+  \node[font=\scriptsize\ttfamily, text=UFSGray] at (1.15,-0.65) {1};
+  \node[font=\scriptsize\ttfamily, text=UFSGray] at (2.3,-0.65)  {2};
+  \node[font=\scriptsize\itshape, text=UFSGray, align=center] at (1.15,-1.5)
+    {o índice do vetor \emph{é}\\a própria situação};
+\end{tikzpicture}
+\end{column}
+\end{columns}
+  \begin{block}{Por que a sentinela funciona}
+    \texttt{NUM\_SITUACOES} é o próximo número da contagem: a
+    \emph{quantidade} de valores.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: enumerações}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{enum} dá nome a um conjunto fechado de valores inteiros.
+      \item Sem valores explícitos, a contagem começa em 0 e segue a ordem escrita.
+      \item Combina com \texttt{switch}: o compilador cobra os casos faltantes.
+      \item Serve de índice de vetor; a sentinela final dá o número de valores.
+      \item Não é uma trava: a variável ainda aceita qualquer inteiro.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Ainda em aberto}
+    Escrevemos \texttt{Situacao s} sem a palavra \texttt{enum} na frente. Falta
+    explicar quem autorizou --- é o próximo tópico.
+  \end{exampleblock}
+\end{frame}
+
+% =====================================================================
+\section{\texttt{typedef}}
+
+\begin{frame}[fragile]{Por que precisamos de \texttt{typedef}?}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Sem \texttt{typedef}}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+struct Aluno a;
+struct Aluno turma[40];
+enum Situacao s;
+
+enum Situacao classifica(double m);
+void relatorio(struct Aluno t[], int n);
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{Com \texttt{typedef}}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+Aluno a;
+Aluno turma[40];
+Situacao s;
+
+Situacao classifica(double m);
+void relatorio(Aluno t[], int n);
+\end{lstlisting}
+\end{column}
+\end{columns}
+  \begin{block}{O ganho não é só digitar menos}
+    \texttt{Aluno} e \texttt{Situacao} passam a ser nomes de tipo como
+    \texttt{int} ou \texttt{double}. A assinatura da função fica na linguagem do
+    problema, não na da implementação.
+  \end{block}
+\end{frame}
+
+\begin{frame}{\texttt{typedef}: definição}
+  \begin{block}{Definição}
+    \texttt{typedef} cria um \textbf{apelido} (sinônimo) para um tipo já
+    existente. Não cria tipo novo, não aloca memória, não muda nada em tempo de
+    execução --- é uma declaração para o compilador.
+  \end{block}
+  \begin{exampleblock}{A regra para ler qualquer \texttt{typedef}}
+    Escreva a declaração como se fosse uma \emph{variável} daquele tipo; ponha
+    \texttt{typedef} na frente. O nome que seria da variável vira o nome do
+    tipo.
+    \[
+      \underbrace{\texttt{unsigned long matricula;}}_{\text{variável}}
+      \;\longrightarrow\;
+      \underbrace{\texttt{typedef unsigned long Matricula;}}_{\text{tipo}}
+    \]
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{typedef} com \texttt{struct}: três formas}
+\begin{columns}[T]
+\begin{column}{0.32\textwidth}
+\textbf{1. Só a tag}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+struct Aluno {
+    char nome[20];
+    double media;
+};
+
+struct Aluno a;
+\end{lstlisting}
+\end{column}
+\begin{column}{0.32\textwidth}
+\textbf{2. Só o apelido}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+typedef struct {
+    char nome[20];
+    double media;
+} Aluno;
+
+Aluno a;
+\end{lstlisting}
+\end{column}
+\begin{column}{0.32\textwidth}
+\textbf{3. Tag + apelido}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+typedef struct Aluno {
+    char nome[20];
+    double media;
+} Aluno;
+
+Aluno a;
+struct Aluno b;
+\end{lstlisting}
+\end{column}
+\end{columns}
+  \begin{block}{As três geram o mesmo tipo em memória}
+    A forma 2 é a mais comum. A forma 3 é necessária quando o registro precisa
+    se referir a si mesmo (um campo apontando para outro registro do mesmo
+    tipo) --- caso que veremos na aula de ponteiros e listas.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{typedef} com \texttt{enum} --- e com tipos básicos}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+typedef enum {
+    REPROVADO, RECUPERACAO, APROVADO
+} Situacao;
+
+Situacao s = APROVADO;
+\end{lstlisting}
+\end{column}
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+typedef unsigned long Matricula;
+typedef double Nota;
+
+Matricula m = 202600123;
+Nota      n = 8.75;
+\end{lstlisting}
+\end{column}
+\end{columns}
+  \begin{block}{Por que apelidar um tipo básico}
+    \begin{itemize}
+      \item \textbf{Intenção:} \texttt{Nota media;} diz mais que \texttt{double media;}.
+      \item \textbf{Portabilidade:} se amanhã a matrícula precisar de mais
+        dígitos, muda-se \emph{uma} linha e o programa inteiro acompanha.
+      \item É essa a lógica de \texttt{size\_t}, \texttt{time\_t} e
+        \texttt{FILE} na biblioteca padrão.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{typedef} não cria um tipo novo}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+typedef double Nota;
+typedef double Salario;
+
+Nota    n = 8.75;
+Salario s = 3200.0;
+
+n = s;              /* compila: os dois SAO double */
+\end{lstlisting}
+  \begin{alertblock}{Apelido, não tipo distinto}
+    O compilador não distingue \texttt{Nota} de \texttt{Salario} --- ambos são
+    \texttt{double}. \texttt{typedef} organiza a leitura; não impede misturas
+    sem sentido. Já um \texttt{struct} novo \emph{é} um tipo distinto, e esses
+    nunca se misturam por acidente.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Armadilha: \texttt{typedef} de vetor}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+typedef char Nome[20];        /* Nome E um vetor de 20 chars */
+
+Nome n = "Ana Souza";         /* ok: sizeof(Nome) == 20      */
+Nome a, b;
+a = b;                        /* ERRO: vetor nao se atribui  */
+
+void registra(Nome x);        /* x chega como PONTEIRO, nao vetor */
+\end{lstlisting}
+  \begin{alertblock}{O apelido esconde a natureza do tipo}
+    Quem lê \texttt{registra(Nome x)} pensa passar 20 bytes por cópia --- mas
+    em parâmetros, vetor vira endereço.
+  \end{alertblock}
+  \begin{block}{Recomendação}
+    Use \texttt{typedef} para \texttt{struct}, \texttt{enum} e escalares; para
+    vetores, deixe o \texttt{[\,]} visível.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Convenções de nome}
+  \begin{center}
+  \small
+  \begin{tabular}{lll}
+    \toprule
+    Elemento & Convenção usual & Exemplo \\
+    \midrule
+    Apelido de tipo & \texttt{PascalCase} & \texttt{Aluno}, \texttt{Situacao} \\
+    Constante de enumeração & \texttt{MAIUSCULAS} & \texttt{APROVADO} \\
+    Tag de \texttt{struct}/\texttt{enum} & igual ao apelido & \texttt{struct Aluno} \\
+    Variável e campo & \texttt{minusculas} & \texttt{media}, \texttt{matricula} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{alertblock}{Evite o sufixo \texttt{\_t}}
+    Nomes terminados em \texttt{\_t} são reservados pelo POSIX
+    (\texttt{size\_t}, \texttt{time\_t}). Criar \texttt{aluno\_t} pode colidir
+    com uma versão futura da biblioteca. Qualquer convenção serve --- desde que
+    seja a mesma do começo ao fim do projeto.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: \texttt{typedef}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{typedef} dá um apelido a um tipo existente; não cria tipo novo.
+      \item Leia qualquer \texttt{typedef} como uma declaração de variável com
+        \texttt{typedef} na frente.
+      \item Com \texttt{struct}/\texttt{enum}, elimina a repetição da palavra-chave.
+      \item Com tipos escalares, documenta a intenção e concentra a mudança em
+        uma linha.
+      \item Com vetores, esconde comportamento --- use com parcimônia.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Registros que se explicam sozinhos}
+
+\begin{frame}[fragile]{Juntando tudo: a ficha completa}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+typedef enum { MATUTINO, VESPERTINO,
+               NOTURNO } Turno;
+
+typedef enum { REPROVADO, RECUPERACAO,
+               APROVADO, NUM_SITUACOES } Situacao;
+
+typedef struct { int dia, mes, ano; } Data;
+
+typedef struct {
+    char     nome[20];
+    int      matricula;
+    Data     nascimento;
+    double   media;
+    Situacao situacao;
+    Turno    turno;
+} Aluno;
+\end{lstlisting}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{block}{O que o tipo passou a dizer}
+  \begin{itemize}
+    \item \texttt{situacao} tem três valores --- e eles estão escritos.
+    \item \texttt{turno} idem, com outros três.
+    \item Nenhum \texttt{int} genérico sobrou valendo ``0, 1 ou 2''.
+  \end{itemize}
+\end{block}
+\begin{exampleblock}{Lembre da aula passada}
+  A ordem dos campos ainda decide o \emph{padding}: \texttt{Situacao} e
+  \texttt{Turno} ocupam 4 bytes, como \texttt{int}.
+\end{exampleblock}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Percorrendo o vetor de registros}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+int cont[NUM_SITUACOES] = {0};
+
+for (int i = 0; i < n; i++) {
+    turma[i].situacao = classifica(turma[i].media);
+    cont[turma[i].situacao]++;
+}
+
+for (Situacao s = REPROVADO; s < NUM_SITUACOES; s++) {
+    imprime_situacao(s);
+    printf(": %d aluno(s)\n", cont[s]);
+}
+\end{lstlisting}
+  \begin{block}{Duas leituras do mesmo \texttt{enum}}
+    Como \emph{valor} do campo e como \emph{índice} do contador --- o mesmo
+    inteiro visto de dois ângulos. E o \texttt{for} percorre a enumeração
+    inteira sem citar números.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: modelagem}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{struct} agrupa campos; \texttt{enum} restringe e nomeia os
+        valores de um campo; \texttt{typedef} dá nome ao conjunto.
+      \item Campos com conjunto fechado de valores pedem \texttt{enum}, não \texttt{int}.
+      \item A sentinela do \texttt{enum} dimensiona vetores de agregação.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Teste de leitura}
+    Se um colega consegue entender o que cada campo significa lendo só a
+    declaração do \texttt{struct}, a modelagem está boa.
+  \end{exampleblock}
+\end{frame}
+
+% =====================================================================
+\section{Tarefas}
+
+\begin{frame}{Altere o programa}
+  \begin{block}{Tarefa 1 --- acrescentar um valor}
+    Inclua \texttt{TRANCADO} na enumeração \texttt{Situacao}, \emph{antes} da
+    sentinela. Recompile com \texttt{-Wall} sem tocar em
+    \texttt{imprime\_situacao} e anote o que o compilador diz. Depois trate o
+    novo caso.
+  \end{block}
+  \begin{block}{Tarefa 2 --- mexer nos valores}
+    Mude a declaração para \texttt{REPROVADO = 1}. Preveja o que acontece com
+    \texttt{cont[NUM\_SITUACOES]} \emph{antes} de rodar; depois execute e
+    explique o que observou.
+  \end{block}
+  \begin{block}{Tarefa 3 --- apelidar tipos}
+    Troque \texttt{int matricula} por \texttt{Matricula matricula}, com
+    \texttt{typedef unsigned long Matricula}. Meça \texttt{sizeof(Aluno)} antes
+    e depois e explique a diferença usando o que vimos sobre alinhamento.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{exampleblock}{Relatório da turma}
+    Escreva um programa que:
+    \begin{enumerate}
+      \item declare \texttt{Aluno turma[8]} com \texttt{Situacao} e \texttt{Turno};
+      \item preencha os oito alunos no próprio código;
+      \item classifique cada aluno a partir da média, sem números mágicos;
+      \item imprima uma tabela com nome, matrícula, média, situação e turno;
+      \item imprima um histograma de asteriscos com a contagem por situação;
+      \item informe a média de cada turno, percorrendo a enumeração com um laço.
+    \end{enumerate}
+    O tutorial traz o esqueleto, os testes e as perguntas de investigação.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Resumo da aula}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=11cm, minimum height=0.75cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)    {\texttt{enum} nomeia um conjunto fechado de valores inteiros};
+    \node[item] (t2) at (0,-1.1) {Sem valores explícitos, a contagem começa em 0 na ordem escrita};
+    \node[item] (t3) at (0,-2.2) {\texttt{switch} sobre \texttt{enum} faz o compilador cobrar casos faltantes};
+    \node[item] (t4) at (0,-3.3) {\texttt{typedef} é apelido de tipo --- não cria tipo novo nem checagem};
+    \draw[->, thick, UFSBlue] (t1)--(t2);
+    \draw[->, thick, UFSBlue] (t2)--(t3);
+    \draw[->, thick, UFSBlue] (t3)--(t4);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Próxima aula}
+    Ponteiros: em vez de copiar o registro inteiro a cada chamada, passar o
+    endereço --- e o operador \texttt{->} para chegar aos campos a partir dele.
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \scriptsize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

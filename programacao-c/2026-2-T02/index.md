@@ -43,6 +43,15 @@ title: "COMP0512 — Programação C — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-c/2026-2-T02/aula-04-enumeracoes-e-typedef' | relative_url }}">
+    <div class="week-num">04</div>
+    <div class="week-body">
+      <div class="week-title">Enumerações (enum) e typedef</div>
+      <div class="week-desc">Dar nome aos valores e aos tipos: constantes de enumeração em switch e como índice, apelidos de tipo e o que cada um não garante.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge nb">1 notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'programacao-c/2026-2-T02/projeto' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📒</div>
     <div class="week-body">
