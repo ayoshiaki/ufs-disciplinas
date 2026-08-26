@@ -32,6 +32,10 @@ turma: 2026-2-T01
         <td><strong>02 · Condicionais</strong><div class="td-sub">if / elif / else</div></td>
         <td class="td-right"><a class="badge-colab" href="{{ base }}/02-condicionais.ipynb">▶ Abrir no Colab</a></td>
       </tr>
+      <tr>
+        <td><strong>04 · Condicionais na prática — Triagem de Risco</strong><div class="td-sub">Ordem de verificação quando as condições se sobrepõem</div></td>
+        <td class="td-right"><a class="badge-colab" href="{{ base }}/04-condicionais-triagem.ipynb">▶ Abrir no Colab</a></td>
+      </tr>
     </tbody>
   </table>
 </div>
@@ -63,6 +67,10 @@ turma: 2026-2-T01
       <tr>
         <td><strong>Funções</strong></td>
         <td class="td-right"><a class="badge-pdf" href="funcoes.pdf">📄 PDF</a></td>
+      </tr>
+      <tr>
+        <td><strong>Condicionais — Triagem de Risco</strong></td>
+        <td class="td-right"><a class="badge-pdf" href="condicionais_triagem/slides.pdf">📄 PDF</a></td>
       </tr>
     </tbody>
   </table>

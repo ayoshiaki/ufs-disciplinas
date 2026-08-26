@@ -42,7 +42,7 @@ title: "COMP0496 — Programação A — Turma 1 · 2026/2"
     <div class="week-body">
       <div class="week-title">Funções, Condicionais e Decomposição</div>
       <div class="week-desc">Definição de funções, controle de fluxo e decomposição top-down.</div>
-      <div class="week-badges"><span class="week-badge nb">7 notebooks</span><span class="week-badge pdf">1 PDF</span></div>
+      <div class="week-badges"><span class="week-badge nb">8 notebooks</span><span class="week-badge pdf">2 PDFs</span></div>
     </div>
   </a>
 

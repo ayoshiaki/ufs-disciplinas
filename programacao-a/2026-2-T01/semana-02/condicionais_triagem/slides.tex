@@ -1,0 +1,919 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS -- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, calc}
+
+% ----- Listagens: paleta VS Code Light+ -----
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  language=Python,
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\scriptsize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=8pt,
+  xleftmargin=16pt, framexleftmargin=16pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=3pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+  extendedchars=true,
+  literate=%
+    {á}{{\'a}}1 {à}{{\`a}}1 {ã}{{\~a}}1 {â}{{\^a}}1
+    {é}{{\'e}}1 {ê}{{\^e}}1 {í}{{\'i}}1
+    {ó}{{\'o}}1 {ô}{{\^o}}1 {õ}{{\~o}}1
+    {ú}{{\'u}}1 {ç}{{\c c}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1 {Ç}{{\c C}}1
+}
+\lstset{style=ufsStyle}
+
+% Estilo enxuto para saidas de terminal
+\lstdefinestyle{saida}{
+  language=,
+  basicstyle=\ttfamily\scriptsize\color{black},
+  numbers=none,
+  frame=single, rulecolor=\color{linecolor},
+  backgroundcolor=\color{UFSLightGray},
+  xleftmargin=0pt, framexleftmargin=0pt,
+  breaklines=true,
+}
+
+\newcommand{\code}[1]{\texttt{\small #1}}
+
+\title{Condicionais em Python}
+\subtitle{Decidindo com \texttt{if}, \texttt{elif} e \texttt{else}}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+\shorthandoff{"}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{Agenda}
+  \tableofcontents
+\end{frame}
+
+% ===================================================================
+\section{O problema da triagem}
+% ===================================================================
+
+\begin{frame}{Uma manhã no pronto-socorro}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \textbf{A situação}\\[0.2cm]
+      Chegam dezenas de pacientes por hora. Alguém precisa decidir,
+      para \emph{cada um}, quem é atendido primeiro.
+
+      \vspace{0.3cm}
+      A decisão não pode depender do humor de quem está na recepção:
+      dois pacientes com os mesmos dados têm de receber a mesma
+      classificação.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{O que o computador precisa}
+        Uma regra escrita de forma que a máquina consiga
+        \textbf{seguir}: dados de entrada, testes, uma resposta.
+      \end{block}
+      \begin{exampleblock}{Nossa ferramenta de hoje}
+        O comando \code{if} --- e os seus dois companheiros.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A regra da triagem}
+  Cada paciente tem dois dados: \textbf{pressão sistólica}
+  (real, na escala mmHg/10 --- o valor \code{14.0} representa 140~mmHg)
+  e \textbf{idade} (inteiro, em anos).
+
+  \vspace{0.25cm}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{Classificação} & \textbf{Descrição} \\
+    \midrule
+    \code{NORMAL}  & pressão e idade dentro dos limites saudáveis \\
+    \code{BAIXO}   & pressão acima de 120 mmHg, sem outros agravantes \\
+    \code{MEDIO}   & pressão acima de 140 mmHg \textbf{ou} idade acima de 60 \\
+    \code{ALTO}    & pressão acima de 140 mmHg \textbf{e} idade acima de 60 \\
+    \code{CRITICO} & pressão inferior a 90 mmHg --- emergência, qualquer idade \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.15cm}
+  \begin{alertblock}{O aviso do enunciado}
+    ``Um mesmo paciente pode se enquadrar em mais de uma descrição;
+    cabe a você determinar a \textbf{ordem correta de verificação}.''
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Os cinco pacientes desta manhã}
+  \begin{center}
+  \begin{tabular}{@{}lrrl@{}}
+    \toprule
+    \textbf{Nome} & \textbf{Pressão} & \textbf{Idade} & \textbf{Em mmHg} \\
+    \midrule
+    Antonio & 15.0 & 70 & 150 mmHg \\
+    Beatriz & 14.5 & 30 & 145 mmHg \\
+    Cesar   & 12.5 & 80 & 125 mmHg \\
+    Daniela & 11.0 & 20 & 110 mmHg \\
+    Eduardo &  8.5 & 45 &  85 mmHg \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.35cm}
+  \begin{block}{Faça agora, no papel}
+    Classifique os cinco pacientes usando a tabela do slide anterior.
+    Guarde a sua folha --- vamos comparar com o computador.
+  \end{block}
+\end{frame}
+
+\begin{frame}{O paciente que complica tudo}
+  \textbf{Antonio: 150 mmHg, 70 anos.} Confira as descrições:
+
+  \vspace{0.25cm}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Descrição} & \textbf{Serve para o Antonio?} & \textbf{Por quê} \\
+    \midrule
+    \code{BAIXO}   & sim & 150 está acima de 120 \\
+    \code{MEDIO}   & sim & 150 está acima de 140 \\
+    \code{ALTO}    & sim & 150 acima de 140 \textbf{e} 70 acima de 60 \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.25cm}
+  \begin{alertblock}{A pergunta central da aula}
+    Três descrições verdadeiras ao mesmo tempo. O computador vai
+    escolher \textbf{uma}. Quem decide qual? \\
+    Resposta: quem escreveu o código --- pela \textbf{ordem} em que
+    colocou os testes.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{O mapa das decisões}
+  \begin{center}
+  \begin{tikzpicture}[x=0.092cm, y=0.038cm, font=\tiny]
+    % regioes
+    \fill[UFSRed!70]     (80,0)  rectangle (90,90);
+    \fill[green!35!white](90,0)  rectangle (120,60);
+    \fill[UFSYellow!60]  (120,0) rectangle (140,60);
+    \fill[orange!55]     (140,0) rectangle (170,60);
+    \fill[orange!55]     (90,60) rectangle (140,90);
+    \fill[UFSRed!40]     (140,60)rectangle (170,90);
+
+    % grade
+    \draw[gray!60] (80,0) rectangle (170,90);
+    \draw[gray!60] (90,0)--(90,90);
+    \draw[gray!60] (120,0)--(120,60);
+    \draw[gray!60] (140,0)--(140,90);
+    \draw[gray!60] (90,60)--(170,60);
+
+    % rotulos das regioes
+    \node at (85,72)   {\rotatebox{90}{\textbf{CRITICO}}};
+    \node at (100,45)  {\textbf{NORMAL}};
+    \node at (130,45)  {\textbf{BAIXO}};
+    \node at (160,14)  {\textbf{MEDIO}};
+    \node at (103,70)  {\textbf{MEDIO}};
+    \node at (163,83)  {\textbf{ALTO}};
+
+    % eixos
+    \draw[-{Latex[length=2mm]},thick] (80,0) -- (176,0)
+      node[right,font=\scriptsize] {pressão (mmHg)};
+    \draw[-{Latex[length=2mm]},thick] (80,0) -- (80,98)
+      node[above,font=\scriptsize] {idade};
+    \foreach \x in {90,120,140} \node[below] at (\x,0) {\x};
+    \node[left] at (80,60) {60};
+
+    % pacientes
+    \foreach \px/\py/\nm in {150/70/Antonio, 145/30/Beatriz, 125/80/Cesar,
+                             110/20/Daniela, 85/45/Eduardo} {
+      \fill (\px,\py) circle (1.6pt);
+    }
+    \node[below right, font=\tiny] at (150,70) {Antonio};
+    \node[above right, font=\tiny] at (145,30) {Beatriz};
+    \node[above,       font=\tiny] at (125,80) {Cesar};
+    \node[above right, font=\tiny] at (110,20) {Daniela};
+    \node[above right, font=\tiny] at (85,45)  {Eduardo};
+  \end{tikzpicture}
+  \end{center}
+
+  \vspace{-0.2cm}
+  {\small Cada ponto é um paciente. Cada região, uma classificação.
+  Repare: o Antonio está no canto onde \emph{pressão alta} e
+  \emph{idade alta} se encontram.}
+\end{frame}
+
+\begin{frame}[fragile,shrink=8]{Antes de rodar: qual será a saída?}
+  \begin{columns}[T]
+    \begin{column}{0.6\textwidth}
+\begin{lstlisting}
+def risco(pressao, idade):
+    if pressao < 9.0:
+        return "CRITICO"
+    elif pressao > 14.0 and idade > 60:
+        return "ALTO"
+    elif pressao > 14.0 or idade > 60:
+        return "MEDIO"
+    elif pressao > 12.0:
+        return "BAIXO"
+    else:
+        return "NORMAL"
+
+print("Antonio:", risco(15.0, 70))
+print("Beatriz:", risco(14.5, 30))
+print("Cesar:",   risco(12.5, 80))
+print("Daniela:", risco(11.0, 20))
+print("Eduardo:", risco(8.5,  45))
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      \begin{block}{Escreva a sua previsão}
+        \code{Antonio: \rule{1.8cm}{0.4pt}}\\[0.25cm]
+        \code{Beatriz: \rule{1.8cm}{0.4pt}}\\[0.25cm]
+        \code{Cesar: \rule{1.8cm}{0.4pt}}\\[0.25cm]
+        \code{Daniela: \rule{1.8cm}{0.4pt}}\\[0.25cm]
+        \code{Eduardo: \rule{1.8cm}{0.4pt}}
+      \end{block}
+      \begin{exampleblock}{Regra do jogo}
+        {\small Escreva \textbf{antes} de rodar. Errar a previsão
+        é o momento em que se aprende mais.}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===================================================================
+\section{Como o computador decide}
+% ===================================================================
+
+\begin{frame}[fragile]{A saída real}
+  \begin{columns}[T]
+    \begin{column}{0.45\textwidth}
+      \begin{block}{O que o Python imprimiu}
+\begin{lstlisting}[style=saida]
+Antonio: ALTO
+Beatriz: MEDIO
+Cesar: MEDIO
+Daniela: NORMAL
+Eduardo: CRITICO
+\end{lstlisting}
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{exampleblock}{Compare com a sua folha}
+        \begin{itemize}
+          \item Acertou os cinco? Ótimo --- agora explique \emph{por que}
+                o Antonio é \code{ALTO} e não \code{MEDIO}.
+          \item Errou algum? Marque qual. Vamos descobrir exatamente
+                em que linha o computador decidiu.
+        \end{itemize}
+      \end{exampleblock}
+      \begin{block}{Onde mora a decisão}
+        A resposta está nas quatro palavras \code{if}, \code{elif},
+        \code{or}, \code{and} --- e na ordem delas.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=5]{Anatomia de um \texttt{if}}
+  \begin{center}
+  \begin{tikzpicture}[font=\small]
+    \node[font=\ttfamily\large] (l1) at (0,0) {if pressao < 9.0:};
+    \node[font=\ttfamily\large, anchor=west] (l2) at (0.9,-1.1)
+      {return "CRITICO"};
+
+    \draw[UFSBlue, thick, -{Latex[length=2mm]}] (-2.2,1.3) -- (-2.2,0.35);
+    \node[UFSBlue, above, font=\scriptsize] at (-2.2,1.3) {palavra-chave};
+
+    \draw[UFSRed, thick, -{Latex[length=2mm]}] (0.1,1.3) -- (0.1,0.35);
+    \node[UFSRed, above, font=\scriptsize] at (0.1,1.3) {condição (dá True ou False)};
+
+    \draw[orange!80!black, thick, -{Latex[length=2mm]}] (2.5,1.3) -- (2.45,0.35);
+    \node[orange!80!black, above, font=\scriptsize] at (2.7,1.3) {dois-pontos};
+
+    \draw[UFSBlue, thick, -{Latex[length=2mm]}] (5.6,-1.1) -- (3.7,-1.1);
+    \node[UFSBlue, right, font=\scriptsize] at (5.6,-1.1)
+      {bloco: só roda se a condição for True};
+
+    \draw[decorate, decoration={brace, amplitude=5pt}, UFSGray, thick]
+      (0.85,-1.45) -- (0.05,-1.45);
+    \node[UFSGray, below, font=\scriptsize, align=center] at (0.45,-1.7)
+      {indentação\\(4 espaços)};
+  \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.2cm}
+  \begin{alertblock}{Em Python a indentação não é enfeite}
+    Ela é que diz o que está dentro do \code{if}. Perder um espaço
+    muda o programa.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{A condição é uma pergunta de sim ou não}
+  Toda condição é uma expressão que vale \code{True} ou \code{False}.
+
+  \vspace{0.3cm}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \small
+      \begin{tabular}{@{}ll@{}}
+        \toprule
+        \textbf{Operador} & \textbf{Lê-se} \\
+        \midrule
+        \code{<}  & menor que \\
+        \code{<=} & menor ou igual a \\
+        \code{>}  & maior que \\
+        \code{>=} & maior ou igual a \\
+        \code{==} & é igual a \\
+        \code{!=} & é diferente de \\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}
+>>> pressao = 15.0
+>>> pressao < 9.0
+False
+>>> pressao > 14.0
+True
+>>> idade = 70
+>>> idade > 60
+True
+\end{lstlisting}
+      \begin{exampleblock}{Ideia-chave}
+        O \code{if} não entende ``pressão alta''. Ele só sabe
+        olhar para um \code{True} ou um \code{False}.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{==} não é \texttt{=}}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{\code{=} guarda um valor}
+\begin{lstlisting}
+idade = 70   # agora idade vale 70
+\end{lstlisting}
+      \end{block}
+      \begin{block}{\code{==} faz uma pergunta}
+\begin{lstlisting}
+idade == 70  # True
+\end{lstlisting}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{Erro que o Python recusa}
+\begin{lstlisting}
+if idade = 70:
+    print("idoso")
+\end{lstlisting}
+        \code{SyntaxError: invalid syntax}
+      \end{alertblock}
+      \begin{exampleblock}{Como não esquecer}
+        Leia em voz alta: \code{=} é ``recebe'', \code{==} é
+        ``é igual a?''.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{\texttt{elif}: ou um, ou outro, nunca dois}
+  \begin{center}
+  \begin{tikzpicture}[font=\tiny, scale=0.85, transform shape,
+    teste/.style={diamond, aspect=3.0, draw=UFSBlue, fill=UFSBlue!12,
+      inner sep=0pt, minimum width=3.1cm},
+    saida/.style={rectangle, rounded corners, draw=UFSGray,
+      fill=UFSLightGray, minimum width=1.7cm, minimum height=0.45cm}]
+
+    \node[teste] (t1) {pressão < 90?};
+    \node[teste, below=0.28cm of t1] (t2) {>140 \textbf{e} idoso?};
+    \node[teste, below=0.28cm of t2] (t3) {>140 \textbf{ou} idoso?};
+    \node[teste, below=0.28cm of t3] (t4) {pressão > 120?};
+    \node[saida, below=0.28cm of t4] (t5) {NORMAL};
+
+    \node[saida, right=2.2cm of t1] (s1) {CRITICO};
+    \node[saida, right=2.2cm of t2] (s2) {ALTO};
+    \node[saida, right=2.2cm of t3] (s3) {MEDIO};
+    \node[saida, right=2.2cm of t4] (s4) {BAIXO};
+
+    \foreach \a/\b in {t1/s1, t2/s2, t3/s3, t4/s4}
+      \draw[-{Latex[length=1.6mm]}, UFSRed, thick] (\a) -- node[above,font=\tiny]{True} (\b);
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4, t4/t5}
+      \draw[-{Latex[length=1.6mm]}, UFSBlue] (\a) -- node[right,font=\tiny]{False} (\b);
+
+    \node[right=0.3cm of s1, font=\tiny, UFSRed, align=left] {sai da função};
+  \end{tikzpicture}
+  \end{center}
+
+  \vspace{-0.1cm}
+  {\small A cascata é uma \textbf{peneira}: o paciente cai no primeiro
+  teste que der \code{True} --- os testes de baixo nem chegam a ser
+  executados.}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{else}: a rede de segurança}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}
+elif pressao > 12.0:
+    return "BAIXO"
+else:
+    return "NORMAL"
+\end{lstlisting}
+      \vspace{0.2cm}
+      O \code{else} não tem condição: ele é ``tudo aquilo que sobrou''.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Por que sempre ter um \code{else}}
+        Sem ele, um paciente que não casa com nenhum teste sai da
+        função sem classificação --- a função devolve \code{None}
+        e o programa imprime \code{Daniela: None}.
+      \end{block}
+      \begin{alertblock}{Na prova}
+        Uma saída \code{None} custa a questão inteira mesmo que toda
+        a lógica esteja certa.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Rastreando o Antonio, linha a linha}
+  \code{risco(15.0, 70)}
+  \vspace{0.2cm}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{@{}clll@{}}
+    \toprule
+    \textbf{\#} & \textbf{Teste avaliado} & \textbf{Resultado} & \textbf{O que acontece} \\
+    \midrule
+    1 & \code{15.0 < 9.0} & \code{False} & desce para o próximo \\
+    2 & \code{15.0 > 14.0 and 70 > 60} & \code{True and True} $\to$ \code{True}
+      & \textbf{retorna \code{ALTO}} \\
+    3 & \code{15.0 > 14.0 or 70 > 60} & --- & \emph{nunca é executado} \\
+    4 & \code{15.0 > 12.0} & --- & \emph{nunca é executado} \\
+    5 & \code{else} & --- & \emph{nunca é executado} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.25cm}
+  \begin{exampleblock}{A tabela de rastreio é a sua melhor ferramenta}
+    Quando o programa dá uma resposta que você não esperava, monte
+    esta tabela à mão. Ela mostra exatamente onde a decisão foi tomada.
+  \end{exampleblock}
+\end{frame}
+
+% ===================================================================
+\section{A ordem importa}
+% ===================================================================
+
+\begin{frame}[fragile]{Experimento 1: trocar \texttt{elif} por \texttt{if}}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}
+def risco(pressao, idade):
+    classificacao = "NORMAL"
+    if pressao < 9.0:
+        classificacao = "CRITICO"
+    if pressao > 14.0 and idade > 60:
+        classificacao = "ALTO"
+    if pressao > 14.0 or idade > 60:
+        classificacao = "MEDIO"
+    if pressao > 12.0:
+        classificacao = "BAIXO"
+    return classificacao
+\end{lstlisting}
+      {\small As mesmas regras, os mesmos números, a mesma ordem.}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{alertblock}{Saída}
+\begin{lstlisting}[style=saida]
+Antonio: BAIXO
+Beatriz: BAIXO
+Cesar: BAIXO
+Daniela: NORMAL
+Eduardo: CRITICO
+\end{lstlisting}
+      \end{alertblock}
+      {\small Três pacientes errados. O Antonio, que é \code{ALTO},
+      foi para a fila dos casos leves.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Por que o Antonio virou \texttt{BAIXO}}
+  Com \code{if} soltos, \textbf{todos} os testes são executados ---
+  não existe peneira. Cada acerto sobrescreve o anterior.
+
+  \vspace{0.25cm}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{@{}clll@{}}
+    \toprule
+    \textbf{\#} & \textbf{Teste} & \textbf{Resultado} & \textbf{\code{classificacao} passa a valer} \\
+    \midrule
+     & --- & --- & \code{"NORMAL"} \\
+    1 & \code{15.0 < 9.0} & \code{False} & \code{"NORMAL"} \\
+    2 & \code{>14.0 and >60} & \code{True} & \code{"ALTO"} \\
+    3 & \code{>14.0 or >60} & \code{True} & \code{"MEDIO"} \\
+    4 & \code{15.0 > 12.0} & \code{True} & \code{"BAIXO"} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.25cm}
+  \begin{block}{A lição}
+    Com \code{if} independentes, quem manda é o \textbf{último} teste
+    verdadeiro. Com \code{elif}, quem manda é o \textbf{primeiro}.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Experimento 2: manter o \texttt{elif}, trocar a ordem}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}
+def risco(pressao, idade):
+    if pressao > 12.0:
+        return "BAIXO"
+    elif pressao > 14.0 or idade > 60:
+        return "MEDIO"
+    elif pressao > 14.0 and idade > 60:
+        return "ALTO"
+    elif pressao < 9.0:
+        return "CRITICO"
+    else:
+        return "NORMAL"
+\end{lstlisting}
+      {\small A peneira está lá. Só que na ordem errada.}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{alertblock}{Saída}
+\begin{lstlisting}[style=saida]
+Antonio: BAIXO
+Beatriz: BAIXO
+Cesar: BAIXO
+Daniela: NORMAL
+Eduardo: CRITICO
+\end{lstlisting}
+      \end{alertblock}
+      \begin{block}{Repare}
+        Dois erros \textbf{diferentes} produziram a \textbf{mesma}
+        saída errada. Em ambos, o rótulo mais genérico ganhou do
+        mais específico.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=5]{As categorias se contêm umas às outras}
+  \begin{center}
+  \begin{tikzpicture}[font=\small]
+    \draw[fill=UFSYellow!25, draw=UFSGray] (0,0) ellipse (4.4cm and 1.7cm);
+    \draw[fill=orange!30, draw=UFSGray]    (0.6,0) ellipse (2.9cm and 1.2cm);
+    \draw[fill=UFSRed!35, draw=UFSGray]    (1.4,0) ellipse (1.4cm and 0.7cm);
+
+    \node at (-3.3,0) {\textbf{BAIXO}};
+    \node at (-1.1,0) {\textbf{MEDIO}};
+    \node at (1.4,0)  {\textbf{ALTO}};
+
+    \node[below, font=\scriptsize] at (0,-1.9)
+      {pacientes com \code{pressao > 14.0} e \code{idade > 60} cabem nos três conjuntos};
+  \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.1cm}
+  \begin{block}{A regra geral}
+    Quando uma condição é um \textbf{caso particular} de outra, o caso
+    particular tem de ser testado \textbf{primeiro}. Senão o teste mais
+    largo captura o paciente antes.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Do mais urgente ao mais geral}
+  \begin{center}
+  \begin{tikzpicture}[font=\small,
+    passo/.style={rectangle, rounded corners, draw=UFSBlue, font=\scriptsize,
+      fill=UFSBlue!10, minimum height=0.55cm, text width=7.2cm}]
+    \node[passo] (p1) at (0,0)    {\textbf{1. \code{CRITICO}} --- emergência: vale sozinho, ignora tudo};
+    \node[passo] (p2) at (0,-0.72) {\textbf{2. \code{ALTO}} --- dois agravantes ao mesmo tempo (\code{and})};
+    \node[passo] (p3) at (0,-1.44) {\textbf{3. \code{MEDIO}} --- um agravante qualquer (\code{or})};
+    \node[passo] (p4) at (0,-2.16) {\textbf{4. \code{BAIXO}} --- só um sinal leve};
+    \node[passo] (p5) at (0,-2.88) {\textbf{5. \code{NORMAL}} --- o que sobrou (\code{else})};
+
+    \draw[-{Latex[length=2.5mm]}, UFSRed, very thick] (-4.5,0.25) -- (-4.5,-3.15);
+    \node[rotate=90, UFSRed, font=\tiny] at (-4.8,-1.45)
+      {mais específico $\to$ mais geral};
+  \end{tikzpicture}
+  \end{center}
+
+  \vspace{0.05cm}
+  \begin{exampleblock}{Como descobrir a ordem sozinho}
+    Pergunte de cada par: ``existe paciente que satisfaz as duas?''
+    Se existir, a que descreve \emph{menos} pacientes vem antes.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink=5]{\texttt{and}, \texttt{or}, \texttt{not}}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \small
+      \begin{tabular}{@{}llll@{}}
+        \toprule
+        \textbf{A} & \textbf{B} & \code{A and B} & \code{A or B} \\
+        \midrule
+        \code{True}  & \code{True}  & \code{True}  & \code{True} \\
+        \code{True}  & \code{False} & \code{False} & \code{True} \\
+        \code{False} & \code{True}  & \code{False} & \code{True} \\
+        \code{False} & \code{False} & \code{False} & \code{False} \\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+      \vspace{0.2cm}
+      {\small \code{not True} $\to$ \code{False} \hspace{0.4cm}
+      \code{not False} $\to$ \code{True}}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{No enunciado da triagem}
+        \code{ALTO}: pressão elevada \textbf{e} paciente idoso
+        $\to$ \code{and} \\[0.25cm]
+        \code{MEDIO}: pressão elevada \textbf{ou} paciente idoso
+        $\to$ \code{or}
+      \end{block}
+      \begin{alertblock}{Armadilha frequente}
+\begin{lstlisting}
+if pressao > 14.0 and > 60:
+\end{lstlisting}
+        Não existe. Cada lado do \code{and} precisa ser uma condição
+        completa: \code{pressao > 14.0 and idade > 60}.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Cuidado com as fronteiras}
+  ``Acima de 140'' é \code{> 14.0}. Não é \code{>= 14.0}.
+  Um caractere muda a resposta.
+
+  \vspace{0.25cm}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{@{}llll@{}}
+    \toprule
+    \textbf{Pressão} & \textbf{Idade} & \textbf{Classificação} & \textbf{Por quê} \\
+    \midrule
+    \code{14.0} & \code{70} & \code{MEDIO}  & 140 \emph{não} é acima de 140; mas 70 é acima de 60 \\
+    \code{14.0} & \code{30} & \code{BAIXO}  & nenhum agravante; 140 está acima de 120 \\
+    \code{12.0} & \code{20} & \code{NORMAL} & 120 \emph{não} é acima de 120 \\
+    \code{9.0}  & \code{45} & \code{NORMAL} & 90 \emph{não} é inferior a 90 \\
+    \code{8.99} & \code{45} & \code{CRITICO}& agora sim, abaixo de 90 \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \vspace{0.25cm}
+  \begin{block}{Hábito de quem não perde ponto}
+    Antes de entregar, teste os valores que ficam \emph{exatamente} em
+    cima do limite. É lá que o erro se esconde.
+  \end{block}
+\end{frame}
+
+% ===================================================================
+\section{Sua vez}
+% ===================================================================
+
+\begin{frame}[fragile,shrink=8]{Modifique 1 --- conserte a versão quebrada}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+def risco(pressao, idade):
+    if pressao > 12.0:
+        return "BAIXO"
+    elif pressao > 14.0 or idade > 60:
+        return "MEDIO"
+    elif pressao > 14.0 and idade > 60:
+        return "ALTO"
+    elif pressao < 9.0:
+        return "CRITICO"
+    else:
+        return "NORMAL"
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{block}{Sua tarefa}
+        {\small Reordene os testes --- sem mudar nenhuma condição e
+        sem acrescentar linha --- para que a saída seja:}
+\begin{lstlisting}[style=saida, basicstyle=\ttfamily\tiny]
+Antonio: ALTO
+Beatriz: MEDIO
+Cesar: MEDIO
+Daniela: NORMAL
+Eduardo: CRITICO
+\end{lstlisting}
+      \end{block}
+      \begin{exampleblock}{Antes de rodar}
+        {\small Diga em voz alta qual linha tem de subir e por quê.}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=8]{Modifique 2 --- o limite exato}
+  \begin{block}{Cenário}
+    {\small O protocolo mudou: pressão \textbf{de} 140 mmHg
+    \textbf{para cima} (e não apenas acima de 140) já conta como
+    pressão elevada. A idade continua ``acima de 60''.}
+  \end{block}
+
+  \vspace{0.15cm}
+  \begin{block}{Sua tarefa}
+    \small
+    \begin{enumerate}
+      \item Faça a alteração no código.
+      \item \textbf{Antes de rodar}, preveja: \emph{algum} dos cinco
+            pacientes muda de classificação? Quais?
+      \item Rode e confira. Se errou a previsão, monte a tabela de
+            rastreio desse paciente.
+    \end{enumerate}
+  \end{block}
+
+  \vspace{0.15cm}
+  \begin{exampleblock}{Para pensar}
+    {\small Quantos caracteres você mudou? E quantos pacientes isso
+    afetaria num hospital com mil atendimentos por dia?}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[shrink=8]{Modifique 3 --- uma categoria nova}
+  \begin{block}{Cenário}
+    {\small A pediatria pediu uma sexta classificação:
+    \code{PEDIATRICO} --- paciente com \textbf{menos de 12 anos} e
+    pressão acima de 120 mmHg. Quem está \code{CRITICO} continua
+    \code{CRITICO}, em qualquer idade.}
+  \end{block}
+
+  \vspace{0.15cm}
+  \begin{block}{Sua tarefa}
+    \small
+    \begin{enumerate}
+      \item Em que posição da cascata o novo \code{elif} entra?
+            Justifique antes de escrever.
+      \item Implemente e teste com \code{(13.0, 8)}, \code{(11.0, 8)},
+            \code{(8.0, 5)} e \code{(13.0, 40)}.
+      \item Confira que os cinco pacientes originais não mudaram.
+    \end{enumerate}
+  \end{block}
+
+  \vspace{0.15cm}
+  \begin{alertblock}{Critério de qualidade}
+    {\small Uma alteração bem feita não quebra o que já funcionava.}
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile,shrink=6]{Crie --- o programa completo da Q1}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+      \begin{block}{O que o programa faz}
+        {\small Lê \code{N}. Para cada paciente, lê nome, pressão e
+        idade (uma por linha). Imprime \code{<nome>: <classificacao>}.}
+      \end{block}
+      \begin{alertblock}{Formato exato}
+        {\small Dois-pontos, um espaço, classificação em maiúsculas.
+        Nem um espaço a mais.}
+      \end{alertblock}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}
+def risco(pressao, idade):
+    # sua cascata de if / elif / else
+
+n = int(input())
+for _ in range(n):
+    nome = input()
+    pressao = float(input())
+    idade = int(input())
+    print(nome + ": " + risco(pressao, idade))
+\end{lstlisting}
+      \begin{exampleblock}{Atenção aos tipos}
+        {\small \code{input()} devolve texto. Pressão é \code{float},
+        idade é \code{int}. Sem a conversão, comparar texto com número
+        levanta \code{TypeError}.}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=4]{Crie --- leve a ideia para outro domínio}
+  \begin{block}{Desafio}
+    \small
+    Escreva \code{classifica\_chuva(mm, horas)} que classifica a
+    precipitação de uma cidade:
+    \begin{itemize}
+      \item \code{ENCHENTE}: mais de 100 mm em menos de 6 horas
+      \item \code{ALERTA}: mais de 100 mm (em qualquer tempo)
+            \textbf{ou} mais de 50 mm em menos de 6 horas
+      \item \code{ATENCAO}: mais de 50 mm
+      \item \code{NORMAL}: os demais casos
+    \end{itemize}
+  \end{block}
+
+  \vspace{0.15cm}
+  \begin{exampleblock}{O que se pede de verdade}
+    {\small Antes de programar, escreva no papel a \textbf{ordem} dos
+    testes e aponte qual condição é caso particular de qual. O código
+    é a parte fácil; a ordem é a parte que vale a nota.}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{O que costuma custar ponto}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{@{}p{5.6cm}p{6.4cm}@{}}
+    \toprule
+    \textbf{Erro} & \textbf{Como evitar} \\
+    \midrule
+    Testar do mais geral para o mais específico
+      & Comece pela emergência, termine no \code{else} \\
+    Usar \code{if} solto onde cabia \code{elif}
+      & Se as respostas são exclusivas, use \code{elif} \\
+    Trocar \code{>} por \code{>=} nos limites
+      & Teste os valores exatamente em cima do limite \\
+    Esquecer o \code{else}
+      & Sem ele a função devolve \code{None} \\
+    Esquecer \code{int()} / \code{float()} no \code{input()}
+      & Comparar texto com número dá \code{TypeError} \\
+    Alterar o formato da saída
+      & Copie o formato do enunciado, caractere a caractere \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Para levar para casa}
+  \begin{block}{Os quatro fatos}
+    \begin{enumerate}
+      \item Uma condição é uma expressão que vale \code{True} ou \code{False}.
+      \item \code{elif} garante que \textbf{exatamente uma} alternativa é
+            escolhida --- a primeira verdadeira.
+      \item Quando as descrições se sobrepõem, a \textbf{ordem} dos testes
+            é que define a resposta: do mais específico ao mais geral.
+      \item Os erros moram nas fronteiras. Teste os limites.
+    \end{enumerate}
+  \end{block}
+
+  \vspace{0.2cm}
+  \begin{exampleblock}{Antes da próxima aula}
+    Termine no notebook: a triagem com a categoria \code{PEDIATRICO} e
+    a função \code{classifica\_chuva}. Traga a sua tabela de rastreio de
+    um caso que você errou --- vamos discutir em sala.
+  \end{exampleblock}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \scriptsize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}
