@@ -1,0 +1,827 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS — Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit, calc,
+  backgrounds, decorations.pathreplacing, shadows, patterns}
+
+% Listagens — paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  aboveskip=3pt, belowskip=3pt,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Metadados ---
+\title{Algoritmos e Estruturas de Dados II}
+\subtitle{Força bruta e busca exaustiva}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10cm, minimum height=0.75cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)    {O que é \textbf{força bruta} --- e por que a técnica mais ingênua merece uma aula};
+    \node[item] (t2) at (0,-1.1) {Força bruta em problemas \textbf{polinomiais}: busca, ordenação, casamento, geometria};
+    \node[item] (t3) at (0,-2.2) {\textbf{Busca exaustiva}: mochila, caixeiro viajante e atribuição --- e o custo de enumerar tudo};
+    \node[item] (t4) at (0,-3.3) {Força bruta como \textbf{régua} e como \textbf{oráculo} de teste do algoritmo esperto};
+    \draw[->, thick, UFSBlue] (t1)--(t2);
+    \draw[->, thick, UFSBlue] (t2)--(t3);
+    \draw[->, thick, UFSBlue] (t3)--(t4);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Agenda}
+  \tableofcontents
+\end{frame}
+
+% =====================================================================
+\section{A técnica mais simples}
+% =====================================================================
+
+\begin{frame}{Por que começar pela técnica mais ingênua?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[2pt]
+      Diante de um problema novo, qual algoritmo escrever primeiro?
+
+      \medskip
+      A tentação é procurar de imediato a solução esperta --- e travar, ou pior,
+      escrever algo esperto e \emph{errado}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[2pt]
+      Escreva primeiro o algoritmo que segue \emph{literalmente} o enunciado.
+
+      \medskip
+      Ele quase sempre é lento, mas é rápido de escrever, fácil de provar correto
+      e vira a \textbf{referência} contra a qual o algoritmo esperto será medido.
+    \end{column}
+  \end{columns}
+  \vfill
+  \begin{center}
+    \small\itshape ``Antes de ser rápido, seja correto. Depois torne rápido sem deixar de ser correto.''
+  \end{center}
+\end{frame}
+
+\begin{frame}{Força bruta: definição}
+  \begin{block}{Definição}
+    \textbf{Força bruta} é a abordagem direta para resolver um problema, obtida
+    diretamente do \emph{enunciado} e das \emph{definições} dos conceitos envolvidos.
+    Nada de estrutura de dados sofisticada, nada de reaproveitar trabalho: faz-se
+    exatamente o que o problema pede, do jeito mais óbvio.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    ``Quer o maior elemento? Olhe todos.''\\
+    ``Quer saber se o padrão ocorre no texto? Tente todas as posições.''\\
+    ``Quer o melhor subconjunto? Examine todos os subconjuntos.''
+  \end{exampleblock}
+  \begin{itemize}
+    \item Força bruta é uma \textbf{decisão de projeto}, não um acidente: é a
+      primeira linha de base, e às vezes é a resposta final.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Quatro razões para estudar força bruta}
+  \begin{center}
+  \begin{tikzpicture}[
+    razao/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+      minimum width=5.6cm, minimum height=1.5cm, font=\small, align=left,
+      text width=5.2cm}
+  ]
+    \node[razao] (r1) at (0,0)      {\textbf{1. Aplicabilidade universal}\\ Serve para praticamente qualquer problema; muitas vezes é a \emph{única} técnica disponível.};
+    \node[razao] (r2) at (6.2,0)    {\textbf{2. Linha de base}\\ Dá um limite superior de custo: qualquer técnica melhor precisa vencer esse número.};
+    \node[razao] (r3) at (0,-2.0)   {\textbf{3. Suficiente na prática}\\ Se $n$ é pequeno ou o código roda uma vez por mês, o simples ganha do rápido.};
+    \node[razao] (r4) at (6.2,-2.0) {\textbf{4. Oráculo de teste}\\ A versão ingênua, óbvia e correta valida a versão esperta em milhares de casos.};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Força bruta $\times$ busca exaustiva}
+  \begin{center}
+  \begin{tikzpicture}[
+    cx/.style={rectangle, draw=UFSBlue, rounded corners, minimum width=6.2cm,
+      minimum height=2.6cm, align=left, text width=5.8cm, font=\small}
+  ]
+    \node[cx, fill=UFSBlue!8, minimum width=5.3cm, text width=4.9cm] (fb) at (0,0)
+      {\textbf{Força bruta}\\[3pt] Estratégia geral de projeto: resolver
+       seguindo o enunciado ao pé da letra.\\[3pt]
+       O candidato costuma ser \emph{simples}: um índice, uma posição, um par.};
+    \node[cx, fill=UFSYellow!20, minimum width=5.3cm, text width=4.9cm] (be) at (7.9,0)
+      {\textbf{Busca exaustiva}\\[3pt] Força bruta aplicada a problemas
+       \emph{combinatórios}.\\[3pt]
+       O candidato é uma \emph{estrutura}: um subconjunto, uma permutação,
+       uma atribuição --- e há exponencialmente muitos.};
+    \draw[->, very thick, UFSBlue] (fb)--(be) node[midway, above, font=\scriptsize] {caso especial};
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item Toda busca exaustiva é força bruta; nem toda força bruta é exaustiva.
+    \item A diferença prática: força bruta polinomial é \emph{lenta};
+      busca exaustiva é \emph{inviável} já para $n$ modesto.
+  \end{itemize}
+\end{frame}
+
+% =====================================================================
+\section{Força bruta em problemas polinomiais}
+% =====================================================================
+
+\begin{frame}[fragile]{Busca sequencial}
+  \textbf{Problema:} dado $A[0..n-1]$ (sem hipótese de ordenação) e um valor $x$,
+  devolver um índice $i$ com $A[i] = x$, ou $-1$.
+
+  \smallskip
+  A definição de ocorrência é ``existe $i$ com $A[i]=x$''; a força bruta testa a definição:
+
+\begin{lstlisting}
+int busca_sequencial(int A[], int n, int x) {
+    for (int i = 0; i < n; i++)
+        if (A[i] == x) return i;
+    return -1;
+}
+\end{lstlisting}
+
+  \begin{itemize}
+    \item Pior caso: $n$ comparações de chave $\Rightarrow \Theta(n)$.
+      Caso médio (busca bem-sucedida, posições equiprováveis): $(n+1)/2$.
+    \item A busca binária é $\Theta(\log n)$, mas \textbf{exige} vetor ordenado.
+      A força bruta não exige nada.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Ordenação por seleção}
+  \textbf{Definição usada:} $A[0]$ é o menor de todos, $A[1]$ o menor do que
+  sobrou, e assim por diante. O algoritmo é essa definição transcrita --- daí
+  ser força bruta (Levitin, cap.\ 3.1 \cite{levitin2012introduction}).
+
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={rectangle, draw=black!60, minimum width=0.85cm, minimum height=0.7cm, font=\small},
+    ord/.style={cel, fill=UFSBlue!25},
+    res/.style={cel, fill=UFSLightGray}
+  ]
+    \foreach \v/\i in {17/0, 20/1, 26/2} \node[ord] at (\i,0) {\v};
+    \foreach \v/\i in {89/3, 45/4, 31/5, 90/6} \node[res] at (\i,0) {\v};
+    \draw[decorate, decoration={brace, amplitude=5pt}] (-0.45,0.45) -- (2.45,0.45)
+      node[midway, above=4pt, font=\scriptsize] {ordenado e no lugar final};
+    \draw[decorate, decoration={brace, amplitude=5pt}] (2.55,0.45) -- (6.45,0.45)
+      node[midway, above=4pt, font=\scriptsize] {ainda por ordenar};
+    \node[font=\scriptsize, anchor=west] at (6.9,-0.6) {menor do resto: $31$};
+    \draw[thin, black!60] (6.85,-0.6) -- (5.35,-0.6) -- (5,-0.42);
+    \draw[->, thick, UFSRed] (5,-0.62) to[bend left=22] (3,-0.62);
+    \node[font=\scriptsize, UFSRed] at (2.2,-1.15) {troca com $A[3]$};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{itemize}
+    \item Achar ``o menor do que sobrou'' é a \textbf{busca sequencial} do slide
+      anterior em $A[i..n-1]$: o custo é a soma de $n-1$ buscas.
+    \item Invariante: $A[0..i-1]$ ordenado com os $i$ menores; $n-1$ passagens.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Ordenação por seleção: análise exata}
+  Na passagem $i$ (de $0$ a $n-2$), o laço interno faz $n-1-i$ comparações:
+  \[
+    C(n) \;=\; \sum_{i=0}^{n-2}\ \sum_{j=i+1}^{n-1} 1
+          \;=\; \sum_{i=0}^{n-2} (n-1-i)
+          \;=\; \frac{n(n-1)}{2} \;=\; \Theta(n^2).
+  \]
+  \vspace{-3mm}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{O que a fórmula diz}
+        \begin{itemize}
+          \item Não há melhor caso: $\Theta(n^2)$ \emph{sempre}, mesmo com o
+            vetor já ordenado.
+          \item Trocas: apenas $n-1$, ou seja $\Theta(n)$.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{exampleblock}{Quando isso é uma virtude}
+        Poucas trocas é bom quando \emph{mover} um registro custa caro
+        (registros grandes, memória lenta). O algoritmo ingênuo tem um nicho.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+
+  \footnotesize
+  Cada passagem guarda só quem é o mínimo e descarta as demais comparações. O
+  \emph{heapsort} faz a mesma seleção num heap, que preserva esse trabalho:
+  $\Theta(n\log n)$. Força bruta não é a estratégia; é não reaproveitar nada.
+\end{frame}
+
+\begin{frame}[fragile]{Ordenação por bolha}
+  Outra leitura literal: se dois vizinhos estão fora de ordem, troque --- e repita.
+
+\begin{lstlisting}
+void bolha(int A[], int n) {
+    for (int i = 0; i < n - 1; i++)
+        for (int j = 0; j < n - 1 - i; j++)
+            if (A[j+1] < A[j]) troca(&A[j], &A[j+1]);
+}
+\end{lstlisting}
+
+  \begin{itemize}
+    \item Comparações: $n(n-1)/2 = \Theta(n^2)$; trocas no pior caso também
+      $\Theta(n^2)$ --- pior que a seleção nesse quesito.
+    \item Uma \emph{flag} que detecta passagem sem troca leva o melhor caso a
+      $\Theta(n)$; o pior continua $\Theta(n^2)$.
+    \item Lição: refinar o ingênuo raramente muda a \emph{ordem} de crescimento.
+      Para isso é preciso mudar de \emph{técnica}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Casamento de padrões ingênuo}
+  \textbf{Problema:} dado um texto $T[0..n-1]$ e um padrão $P[0..m-1]$, achar a
+  primeira posição $i$ em que $P$ ocorre em $T$.
+
+  \medskip
+  Definição de ocorrência em $i$: $T[i+j] = P[j]$ para todo $j$. A força bruta
+  testa \emph{todos} os $n-m+1$ alinhamentos:
+
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={rectangle, draw=black!50, minimum width=0.6cm, minimum height=0.6cm, font=\small},
+    ok/.style={cel, fill=UFSBlue!20},
+    bad/.style={cel, fill=UFSRed!25}
+  ]
+    \foreach \c/\i in {N/0, O/1, B/2, O/3, D/4, Y/5, {\_}/6, N/7, O/8, T/9, I/10, C/11, E/12, D/13}
+      \node[cel] at (\i*0.62, 0) {\c};
+    \node[font=\scriptsize, anchor=east] at (-0.45,0) {$T$:};
+
+    \node[ok] at (0,-0.85) {N}; \node[ok] at (0.62,-0.85) {O}; \node[bad] at (1.24,-0.85) {T};
+    \node[font=\scriptsize, anchor=east] at (-0.45,-0.85) {$i=0$:};
+
+    \node[bad] at (0.62,-1.6) {N}; \node[cel] at (1.24,-1.6) {O}; \node[cel] at (1.86,-1.6) {T};
+    \node[font=\scriptsize, anchor=east] at (-0.45,-1.6) {$i=1$:};
+
+    \node[ok] at (4.34,-2.35) {N}; \node[ok] at (4.96,-2.35) {O}; \node[ok] at (5.58,-2.35) {T};
+    \node[font=\scriptsize, anchor=east] at (-0.45,-2.35) {$i=7$:};
+    \node[font=\scriptsize, UFSBlue, anchor=west] at (6.6,-2.35) {ocorrência!};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Casamento de padrões: código e análise}
+\begin{lstlisting}
+int casamento(const char *T, int n, const char *P, int m) {
+    for (int i = 0; i <= n - m; i++) {
+        int j = 0;
+        while (j < m && P[j] == T[i + j]) j++;
+        if (j == m) return i;          /* alinhamento i casou por inteiro */
+    }
+    return -1;
+}
+\end{lstlisting}
+
+  \begin{itemize}
+    \item Pior caso: $m(n-m+1) = \Theta(nm)$, atingido por
+      $T = \texttt{aaaa\ldots a}$ e $P = \texttt{aaab}$ --- cada alinhamento casa
+      $m-1$ letras e falha na última.
+    \item Em texto ``natural'' a falha vem na primeira letra: $\Theta(n)$ na média.
+    \item Melhorar o pior caso exige \emph{aproveitar as comparações já feitas}
+      (KMP, Boyer-Moore, Horspool).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Par de pontos mais próximo}
+  \textbf{Problema:} dados $n$ pontos no plano, achar os dois de menor distância.
+
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.85,
+        pt/.style={circle, fill=UFSBlue, inner sep=1.6pt}]
+        \node[pt] (p1) at (0.3,0.4) {};
+        \node[pt] (p2) at (1.6,1.9) {};
+        \node[pt] (p3) at (2.1,0.7) {};
+        \node[pt] (p4) at (2.4,1.0) {};
+        \node[pt] (p5) at (3.6,2.2) {};
+        \node[pt] (p6) at (3.9,0.5) {};
+        \foreach \a/\b in {p1/p2,p1/p3,p1/p4,p1/p5,p1/p6,p2/p3,p2/p4,p2/p5,p2/p6,p3/p5,p3/p6,p4/p5,p4/p6,p5/p6}
+          \draw[black!25, thin] (\a)--(\b);
+        \draw[UFSRed, very thick] (p3)--(p4);
+      \end{tikzpicture}
+      \end{center}
+      \begin{center}\scriptsize todos os $\binom{n}{2}$ pares; em vermelho, o mínimo\end{center}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \begin{itemize}
+        \item Enumeram-se $\binom{n}{2} = \dfrac{n(n-1)}{2}$ pares $\Rightarrow \Theta(n^2)$.
+        \item Detalhe de implementação: comparar $d^2$ em vez de $d$ elimina
+          todas as raízes quadradas. A ordem não muda; o relógio agradece.
+        \item Existe algoritmo $\Theta(n \log n)$ por divisão e conquista ---
+          Unidade 2.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Fecho convexo}
+  \textbf{Problema:} dados $n$ pontos no plano, achar o menor polígono convexo
+  que contém todos eles.
+
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.9,
+        pt/.style={circle, fill=UFSBlue, inner sep=1.6pt}]
+        \fill[UFSBlue!8] (0.2,0.5) -- (2.0,0.1) -- (3.8,1.2) -- (2.8,2.6) -- (0.8,2.3) -- cycle;
+        \draw[UFSBlue, thick] (0.2,0.5) -- (2.0,0.1) -- (3.8,1.2) -- (2.8,2.6) -- (0.8,2.3) -- cycle;
+        \draw[UFSRed, thick, dashed] (0.2,0.5) -- (2.8,2.6);
+        \foreach \x/\y in {0.2/0.5, 2.0/0.1, 3.8/1.2, 2.8/2.6, 0.8/2.3, 1.7/1.2, 2.4/1.6}
+          \node[pt] at (\x,\y) {};
+      \end{tikzpicture}
+      \end{center}
+      \begin{center}\scriptsize
+      tracejado: há pontos dos dois lados\\
+      contorno: as arestas aceitas
+      \end{center}
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      \begin{itemize}
+        \item \textbf{Definição usada:} $p_ip_j$ é aresta do fecho quando os
+          outros $n-2$ pontos estão todos do \emph{mesmo lado} da reta $p_ip_j$.
+        \item O lado de $p=(x,y)$ é o sinal de
+          $(x_j-x_i)(y-y_i)-(y_j-y_i)(x-x_i)$: só somas e produtos, sem
+          trigonometria.
+        \item $\binom{n}{2}$ pares $\times$ $(n-2)$ testes $\Rightarrow \Theta(n^3)$.
+        \item Graham scan e quickhull resolvem em $\Theta(n\log n)$ --- Unidade 2.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Onde está o desperdício?}
+  Em todos os exemplos, o algoritmo ingênuo \textbf{joga fora informação} que ele
+  mesmo produziu:
+
+  \smallskip
+  \begin{center}
+  \footnotesize
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Problema} & \textbf{O que é desperdiçado} & \textbf{Técnica que aproveita} \\
+    \midrule
+    Busca em vetor ordenado & a ordem já conhecida & decrementar para conquistar \\
+    Ordenação (seleção/bolha) & comparações repetidas de pares & divisão e conquista \\
+    Casamento de padrões & o prefixo que já casou & pré-processar o padrão \\
+    Par mais próximo & vizinhança geométrica & divisão e conquista \\
+    Fecho convexo & cada aresta testada isolada & ordenar e varrer (Graham) \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \begin{block}{A pergunta de projeto do curso inteiro}
+    Escreva a força bruta, olhe para ela e pergunte: \emph{qual trabalho estou
+    repetindo?} A resposta aponta a técnica a estudar.
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Busca exaustiva}
+% =====================================================================
+
+\begin{frame}{Quando o candidato deixa de ser um índice}
+  Nos exemplos anteriores, o candidato era simples: um índice, um alinhamento,
+  um par. Em muitos problemas de otimização o candidato é uma \textbf{estrutura
+  combinatória}, e o espaço cresce exponencialmente.
+
+  \begin{center}
+  \begin{tikzpicture}[
+    cx/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+      minimum width=3.3cm, minimum height=1.6cm, align=center, font=\small}
+  ]
+    \node[cx] (g) at (0,0)   {\textbf{Gerar}\\ todos os candidatos\\ do espaço de busca};
+    \node[cx] (f) at (4.5,0) {\textbf{Filtrar}\\ manter só os que\\ satisfazem as restrições};
+    \node[cx] (m) at (9,0)   {\textbf{Escolher}\\ o de melhor valor\\ da função objetivo};
+    \draw[->, very thick, UFSBlue] (g)--(f);
+    \draw[->, very thick, UFSBlue] (f)--(m);
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Busca exaustiva}
+    Gerar cada elemento do espaço de busca, testar viabilidade e guardar o
+    melhor visto até agora. A corretude é trivial --- \emph{nada} é deixado de
+    fora. O custo é que ``tudo'' pode ser $2^n$ ou $n!$.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Os três espaços de busca clássicos}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}llll@{}}
+    \toprule
+    \textbf{Estrutura} & \textbf{Quantos} & \textbf{Problema típico} & \textbf{Decisão por elemento} \\
+    \midrule
+    Subconjuntos de $n$ itens & $2^n$   & mochila 0/1        & incluir ou não incluir \\
+    Permutações de $n$ itens  & $n!$    & caixeiro viajante  & quem vem depois de quem \\
+    Atribuições $n \times n$  & $n!$    & problema da atribuição & qual tarefa para quem \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \medskip
+  \begin{itemize}
+    \item Hoje nos interessa \textbf{contar} e \textbf{avaliar} esses espaços.
+    \item \emph{Como} gerar subconjuntos e permutações sistematicamente (ordem
+      lexicográfica, códigos de Gray, Johnson-Trotter) é o assunto da próxima
+      semana.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Mochila 0/1}
+  \begin{block}{Enunciado}
+    Dados $n$ itens com pesos $w_1,\ldots,w_n$ e valores $v_1,\ldots,v_n$, e uma
+    capacidade $W$, escolher $S \subseteq \{1,\ldots,n\}$ que
+    \[
+      \text{maximize} \sum_{i \in S} v_i \quad \text{sujeito a} \quad \sum_{i \in S} w_i \le W .
+    \]
+    Cada item entra inteiro ou não entra --- daí o nome ``0/1''.
+  \end{block}
+
+  \begin{center}
+  \small
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    Item              & 1   & 2   & 3   & 4 \\
+    \midrule
+    Peso $w_i$        & 6   & 5   & 5   & 3 \\
+    Valor $v_i$       & 30  & 21  & 20  & 10 \\
+    Razão $v_i / w_i$ & 5{,}00 & 4{,}20 & 4{,}00 & 3{,}33 \\
+    \bottomrule
+  \end{tabular}
+  \qquad Capacidade $W = 10$
+  \end{center}
+\end{frame}
+
+\begin{frame}{Mochila: a árvore de decisão tem $2^n$ folhas}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.92, every node/.style={font=\scriptsize},
+    no/.style={circle, draw=UFSBlue, fill=UFSBlue!10, inner sep=1.6pt},
+    folha/.style={rectangle, draw=black!50, fill=UFSLightGray, inner sep=2pt}]
+    \node[no] (r) at (0,0) {};
+    \node[no] (a0) at (-3,-1.2) {}; \node[no] (a1) at (3,-1.2) {};
+    \node[no] (b0) at (-4.5,-2.4) {}; \node[no] (b1) at (-1.5,-2.4) {};
+    \node[no] (b2) at (1.5,-2.4) {};  \node[no] (b3) at (4.5,-2.4) {};
+    \draw[->] (r)--(a0) node[midway, above left] {item 1 fora};
+    \draw[->] (r)--(a1) node[midway, above right] {item 1 dentro};
+    \draw[->] (a0)--(b0) node[midway, left] {2 fora};
+    \draw[->] (a0)--(b1) node[midway, right] {2 dentro};
+    \draw[->] (a1)--(b2) node[midway, left] {2 fora};
+    \draw[->] (a1)--(b3) node[midway, right] {2 dentro};
+    \foreach \x in {-4.5,-1.5,1.5,4.5} \draw[dashed, black!50] (\x,-2.6)--(\x,-3.2);
+    \node[folha] at (-4.5,-3.5) {$\ldots$}; \node[folha] at (-1.5,-3.5) {$\ldots$};
+    \node[folha] at (1.5,-3.5) {$\ldots$};  \node[folha] at (4.5,-3.5) {$\ldots$};
+    \node[anchor=west, font=\small] at (5.2,-1.2) {$2^1$ nós};
+    \node[anchor=west, font=\small] at (5.2,-2.4) {$2^2$ nós};
+    \node[anchor=west, font=\small] at (5.2,-3.5) {$2^n$ folhas};
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item Cada folha é um subconjunto; cada subconjunto é um número de $n$ bits.
+      Enumerar de $0$ a $2^n - 1$ percorre o espaço inteiro.
+    \item Guarde esta árvore: em \emph{backtracking} (Unidade 3) ela reaparece ---
+      só que com ramos \textbf{podados} antes de chegar às folhas.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Mochila: todos os 16 subconjuntos}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \centering\scriptsize
+      \begin{tabular}{@{}lccl@{}}
+        \toprule
+        $S$ & peso & valor & \\
+        \midrule
+        $\varnothing$ & 0  & 0  & \\
+        $\{1\}$       & 6  & 30 & \\
+        $\{2\}$       & 5  & 21 & \\
+        $\{3\}$       & 5  & 20 & \\
+        $\{4\}$       & 3  & 10 & \\
+        $\{1,2\}$     & 11 & 51 & inviável \\
+        $\{1,3\}$     & 11 & 50 & inviável \\
+        $\{1,4\}$     & 9  & 40 & \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering\scriptsize
+      \begin{tabular}{@{}lccl@{}}
+        \toprule
+        $S$ & peso & valor & \\
+        \midrule
+        $\{2,3\}$     & 10 & \textbf{41} & \textbf{ótimo} \\
+        $\{2,4\}$     & 8  & 31 & \\
+        $\{3,4\}$     & 8  & 30 & \\
+        $\{1,2,3\}$   & 16 & 71 & inviável \\
+        $\{1,2,4\}$   & 14 & 61 & inviável \\
+        $\{1,3,4\}$   & 14 & 60 & inviável \\
+        $\{2,3,4\}$   & 13 & 51 & inviável \\
+        $\{1,2,3,4\}$ & 19 & 81 & inviável \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{itemize}
+    \item Custo: $\Theta(2^n)$ subconjuntos --- e $\Theta(n)$ para somar cada um,
+      se somarmos do zero.
+    \item Observe: o guloso por razão $v_i/w_i$ pegaria $\{1,4\}$, valor $40$.
+      O ótimo é $\{2,3\}$, valor $41$. \textbf{Guloso não é ótimo aqui.}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Caixeiro viajante (TSP)}
+  \begin{columns}[T]
+    \begin{column}{0.42\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=1.15,
+        cid/.style={circle, draw=UFSBlue, fill=UFSBlue!15, minimum size=0.72cm, font=\small},
+        peso/.style={font=\scriptsize, fill=white, inner sep=1.5pt}]
+        \node[cid] (a) at (0,2)   {$a$};
+        \node[cid] (b) at (2.4,2) {$b$};
+        \node[cid] (c) at (0,0)   {$c$};
+        \node[cid] (d) at (2.4,0) {$d$};
+        \draw (a)--(b) node[peso, midway] {2};
+        \draw (a)--(c) node[peso, midway] {5};
+        \draw (a)--(d) node[peso, pos=0.35] {7};
+        \draw (b)--(c) node[peso, pos=0.35] {8};
+        \draw (b)--(d) node[peso, midway] {3};
+        \draw (c)--(d) node[peso, midway] {1};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.58\textwidth}
+      \scriptsize
+      \begin{tabular}{@{}ll@{}}
+        \toprule
+        Rota (ciclo hamiltoniano) & Custo \\
+        \midrule
+        $a\!-\!b\!-\!c\!-\!d\!-\!a$ & $2+8+1+7 = 18$ \\
+        $a\!-\!b\!-\!d\!-\!c\!-\!a$ & $2+3+1+5 = \mathbf{11}$ \\
+        $a\!-\!c\!-\!b\!-\!d\!-\!a$ & $5+8+3+7 = 23$ \\
+        $a\!-\!c\!-\!d\!-\!b\!-\!a$ & $5+1+3+2 = \mathbf{11}$ \\
+        $a\!-\!d\!-\!b\!-\!c\!-\!a$ & $7+3+8+5 = 23$ \\
+        $a\!-\!d\!-\!c\!-\!b\!-\!a$ & $7+1+8+2 = 18$ \\
+        \bottomrule
+      \end{tabular}
+      \smallskip
+      \begin{itemize}
+        \item Fixar a cidade inicial elimina $n$ rotações: sobram $(n-1)!$.
+        \item Cada rota aparece duas vezes (ida e volta): sobram $(n-1)!/2$.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Problema da atribuição}
+  \textbf{Enunciado:} $n$ pessoas, $n$ tarefas, custo $C[i][j]$ de dar a tarefa $j$
+  à pessoa $i$. Atribuir exatamente uma tarefa a cada pessoa minimizando o custo
+  total. Um candidato é uma \textbf{permutação} $\langle j_1, \ldots, j_n\rangle$.
+
+  \begin{columns}[T]
+    \begin{column}{0.45\textwidth}
+      \begin{center}
+      \small
+      \begin{tabular}{@{}l|cccc@{}}
+        \toprule
+              & $T_1$ & $T_2$ & $T_3$ & $T_4$ \\
+        \midrule
+        $P_1$ & 9 & \textbf{2} & 7 & 8 \\
+        $P_2$ & \textbf{6} & 4 & 3 & 7 \\
+        $P_3$ & 5 & 8 & \textbf{1} & 8 \\
+        $P_4$ & 7 & 6 & 9 & \textbf{4} \\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+    \end{column}
+    \begin{column}{0.55\textwidth}
+      \begin{itemize}
+        \item $4! = 24$ permutações; a melhor é
+          $\langle 2,1,3,4 \rangle$ com custo $2+6+1+4 = 13$.
+        \item Cuidado com a armadilha gulosa: escolher o mínimo de cada linha
+          daria $2+3+1+4$, mas $T_3$ seria usada duas vezes --- inviável.
+        \item Aqui a busca exaustiva \emph{não} é o destino: o método húngaro
+          resolve em $O(n^3)$. Exponencial nem sempre é inevitável.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Quanto $n$ cabe em um segundo?}
+  Supondo generosamente $10^9$ candidatos avaliados por segundo:
+
+  \begin{center}
+  \small
+  \begin{tabular}{@{}rrrrr@{}}
+    \toprule
+    $n$ & $2^n$ (mochila) & tempo & $(n-1)!/2$ (TSP) & tempo \\
+    \midrule
+    10 & $1{,}0 \times 10^{3}$  & 1 $\mu$s   & $1{,}8 \times 10^{5}$  & 0{,}2 ms \\
+    20 & $1{,}0 \times 10^{6}$  & 1 ms       & $6{,}1 \times 10^{16}$ & 1{,}9 anos \\
+    30 & $1{,}1 \times 10^{9}$  & 1{,}1 s    & $4{,}4 \times 10^{30}$ & $10^{14}$ anos \\
+    40 & $1{,}1 \times 10^{12}$ & 18 min     & \multicolumn{2}{c}{---} \\
+    50 & $1{,}1 \times 10^{15}$ & 13 dias    & \multicolumn{2}{c}{---} \\
+    60 & $1{,}2 \times 10^{18}$ & 37 anos    & \multicolumn{2}{c}{---} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \begin{alertblock}{Hardware não resolve isto}
+    Um computador $1000\times$ mais rápido acrescenta cerca de $10$ ao $n$ viável
+    em $2^n$ --- e apenas $2$ ou $3$ ao $n$ viável em $n!$. O ganho é aditivo;
+    o custo é multiplicativo.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Então a busca exaustiva serve para quê?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{O que virá no curso}
+        \begin{itemize}
+          \item \textbf{Podar} a árvore sem perder o ótimo: backtracking e
+            \emph{branch and bound} (Unidade 3).
+          \item \textbf{Reaproveitar subproblemas}: programação dinâmica ---
+            mochila em $O(nW)$ (Unidade 2).
+          \item \textbf{Trocar ótimo por rapidez}: heurísticas e algoritmos de
+            aproximação.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{exampleblock}{O que \emph{não} virá}
+        Para mochila 0/1, TSP e outros problemas NP-difíceis, ninguém conhece
+        algoritmo polinomial --- e há boas razões para acreditar que não existe
+        (Unidade 3).
+
+        \medskip
+        Nesses casos, a busca exaustiva podada é a base de tudo o que
+        realmente se usa.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \vfill
+  \begin{center}
+    \small Instância pequena, uso ocasional, resposta exata obrigatória:
+    \textbf{use força bruta e durma tranquilo}.
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\section{Força bruta como régua e como oráculo}
+% =====================================================================
+
+\begin{frame}{A régua: cada força bruta aponta uma técnica}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}llll@{}}
+    \toprule
+    \textbf{Problema} & \textbf{Força bruta} & \textbf{Melhor conhecido} & \textbf{Técnica} \\
+    \midrule
+    Busca em vetor ordenado & $\Theta(n)$    & $\Theta(\log n)$      & decrementar e conquistar \\
+    Ordenação               & $\Theta(n^2)$  & $\Theta(n \log n)$    & divisão e conquista \\
+    Casamento de padrões    & $\Theta(nm)$   & $\Theta(n+m)$         & pré-processamento \\
+    Par mais próximo        & $\Theta(n^2)$  & $\Theta(n \log n)$    & divisão e conquista \\
+    Mochila 0/1             & $\Theta(2^n)$  & $O(nW)$ pseudopolin.  & programação dinâmica \\
+    Atribuição              & $\Theta(n!)$   & $O(n^3)$              & método húngaro \\
+    Caixeiro viajante       & $\Theta(n!)$   & $O(2^n n^2)$          & PD / \emph{branch and bound} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \medskip
+  \begin{itemize}
+    \item Esta tabela é o mapa da disciplina. Cada linha vira uma aula.
+    \item Note a última: mesmo o ``melhor conhecido'' do TSP é exponencial.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{O oráculo: testar o esperto contra o ingênuo}
+  \begin{center}
+  \begin{tikzpicture}[
+    cx/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+      minimum width=3.1cm, minimum height=0.8cm, align=center, font=\scriptsize},
+    seta/.style={->, thick, UFSBlue}
+  ]
+    \node[cx] (ger) at (0,0) {gerador de\\ instância aleatória};
+    \node[cx] (esp) at (4.8,0.65) {algoritmo esperto};
+    \node[cx] (bru) at (4.8,-0.65) {força bruta};
+    \node[cx, fill=UFSYellow!25] (cmp) at (9.4,0) {as respostas\\ coincidem?};
+    \draw[seta] (ger)--(esp);
+    \draw[seta] (ger)--(bru);
+    \draw[seta] (esp)--(cmp);
+    \draw[seta] (bru)--(cmp);
+    \draw[seta, UFSRed] (cmp.south) -- ++(0,-0.85) -| (ger.south);
+    \node[font=\scriptsize, UFSRed, fill=white, inner sep=1.5pt] at (4.7,-1.25) {não: guarde o contraexemplo};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-4pt}
+  \begin{itemize}
+    \item A força bruta é lenta, mas \emph{obviamente correta}: é o padrão-ouro.
+    \item Rode os dois com $n \le 10$ e milhares de instâncias aleatórias.
+    \item Divergência $\Rightarrow$ uma entrada concreta para depurar.
+    \item Teste mostra a presença de erro, não a ausência: não substitui a prova.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Recapitulando}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Força bruta é resolver \emph{diretamente pelo enunciado}: universal,
+        fácil de provar correta, quase sempre lenta.
+      \item Em problemas polinomiais ela custa $\Theta(n)$, $\Theta(n^2)$ ou
+        $\Theta(nm)$; o desperdício visível aponta a técnica que vem depois.
+      \item Busca exaustiva é força bruta sobre espaços combinatórios:
+        $2^n$ subconjuntos, $n!$ permutações. Inviável já para $n$ modesto ---
+        e hardware não salva.
+      \item A versão ingênua serve como \textbf{régua} de comparação e como
+        \textbf{oráculo} de teste da versão esperta.
+    \end{itemize}
+  \end{block}
+  \begin{center}
+    \small\itshape Escreva a força bruta primeiro. Depois pergunte que trabalho ela repete.
+  \end{center}
+\end{frame}
+
+\begin{frame}{Para a próxima aula}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{No tutorial}
+        \begin{itemize}
+          \item Casamento ingênuo contando comparações no pior caso.
+          \item Mochila exaustiva por máscara de bits.
+          \item TSP exaustivo e a medição do salto fatorial.
+          \item Desafio: usar a mochila exaustiva como oráculo para
+            flagrar o erro do algoritmo guloso.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{exampleblock}{A seguir}
+        \textbf{Seleção e estatística de ordem:} como achar o $k$-ésimo menor
+        elemento sem ordenar o vetor (quickselect, mediana).
+
+        \medskip
+        \textbf{Depois:} geração combinatória --- como percorrer sistematicamente
+        os $2^n$ subconjuntos e as $n!$ permutações que hoje só contamos.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \footnotesize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
