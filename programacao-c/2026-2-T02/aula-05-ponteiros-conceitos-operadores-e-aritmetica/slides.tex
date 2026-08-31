@@ -1,0 +1,784 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=1.5cm,
+    minimum height=0.8cm, font=\small\ttfamily},
+  celp/.style={rectangle, draw=UFSRed, fill=UFSRed!8, minimum width=1.5cm,
+    minimum height=0.8cm, font=\small\ttfamily},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  seta/.style={->, thick, UFSBlue},
+}
+
+% --- Metadados ---
+\title{Ponteiros em C}
+\subtitle{Conceitos, operadores e aritmética de ponteiros}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=9cm, minimum height=0.85cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)     {O que é um ponteiro e por que a memória tem endereços};
+    \node[item] (t2) at (0,-1.05) {Os operadores \texttt{\&} (endereço de) e \texttt{*} (conteúdo de)};
+    \node[item] (t3) at (0,-2.1)  {Aritmética de ponteiros e a relação entre ponteiros e vetores};
+    \node[item, draw=UFSYellow!80!black, fill=UFSYellow!20] (t4) at (0,-3.15)
+      {Extra: ponteiros que apontam para ponteiros};
+    \draw[seta] (t1)--(t2);
+    \draw[seta] (t2)--(t3);
+    \draw[seta] (t3)--(t4);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Onde isso entra na disciplina}
+    Ponteiros são a base do que vem a seguir: alocação dinâmica, listas,
+    pilhas, filas e arquivos.
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{O que é um ponteiro}
+
+\begin{frame}{Por que precisamos de ponteiros?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2mm]
+      Uma função em C recebe \textbf{cópias} dos argumentos. Como escrever
+      uma função que \emph{altera} as variáveis de quem a chamou? Como
+      devolver mais de um resultado? Como passar um vetor de um milhão de
+      elementos sem copiar um milhão de elementos?
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2mm]
+      Em vez de passar o \emph{valor}, passamos o \emph{endereço} onde o
+      valor mora. Com o endereço em mãos, a função chega até a variável
+      original e escreve nela. Esse endereço guardado em uma variável é o
+      que chamamos de \textbf{ponteiro}.
+    \end{column}
+  \end{columns}
+  \begin{exampleblock}{Você já usou um}
+    O \texttt{\&} do \texttt{scanf("\%d", \&x)} da primeira aula era
+    exatamente isso: o endereço de \texttt{x}.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{troca\_soma.c}}
+\vspace{-2mm}
+\begin{columns}[T]
+\begin{column}{0.49\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+#include <stdio.h>
+
+void troca_v1(int a, int b) {
+    int t = a;
+    a = b;
+    b = t;
+}
+void troca_v2(int *a, int *b) {
+    int t = *a;
+    *a = *b;
+    *b = t;
+}
+\end{lstlisting}
+\end{column}
+\begin{column}{0.49\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, firstnumber=14]
+int main(void) {
+    int x = 10, y = 20;
+    troca_v1(x, y);
+    printf("v1: x=%d y=%d\n", x, y);
+    troca_v2(&x, &y);
+    printf("v2: x=%d y=%d\n", x, y);
+    int v[5] = {2, 4, 6, 8, 10};
+    int *p = v;
+    printf("v0=%d *p=%d p2=%d\n",
+           v[0], *p, *(p + 2));
+    int soma = 0;
+    for (int *q = v; q < v + 5; q++)
+        soma += *q;
+    printf("soma=%d\n", soma);
+    return 0;
+}
+\end{lstlisting}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Em duplas, anotem a previsão (3--4 min) --- sem computador!}
+    \begin{enumerate}
+      \item Depois de \texttt{troca\_v1(x, y)}, quanto valem \texttt{x} e \texttt{y}?
+      \item E depois de \texttt{troca\_v2(\&x, \&y)}?
+      \item Quanto vale \texttt{*p}? E \texttt{*(p + 2)}?
+      \item Qual é o valor final de \texttt{soma}?
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Regra do jogo}
+    Escreva as quatro linhas de saída exatamente como você espera vê-las.
+    Previsão errada não é problema: é o ponto de partida da investigação.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[language={}, numbers=none, basicstyle=\ttfamily\small]
+$ gcc troca_soma.c -o troca_soma
+$ ./troca_soma
+v1: x=10 y=20
+v2: x=20 y=10
+v0=2 *p=2 p2=6
+soma=30
+\end{lstlisting}
+  \begin{itemize}
+    \item As duas funções parecem fazer a mesma coisa --- mas só uma delas trocou.
+    \item \texttt{*(p + 2)} deu 6, e não 4: por que o ``+2'' pulou dois
+      \emph{inteiros}, e não dois \emph{bytes}?
+    \item Onde sua previsão divergiu? É exatamente aí que mora a aula de hoje.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{A memória é uma fila de bytes numerados}
+  \begin{center}
+  \resizebox{0.95\textwidth}{!}{%
+  \begin{tikzpicture}[node distance=0pt]
+    \foreach \i/\val in {0/{},1/{},2/{10},3/{},4/{20},5/{},6/{},7/{}} {
+      \node[cel, minimum width=1.4cm] (c\i) at (1.4*\i,0) {\val};
+    }
+    \foreach \i/\end in {0/1000,1/1004,2/1008,3/1012,4/1016,5/1020,6/1024,7/1028} {
+      \node[rot] at (1.4*\i,-0.65) {\end};
+    }
+    \node[font=\small] at (1.4*2,0.85) {\texttt{x}};
+    \node[font=\small] at (1.4*4,0.85) {\texttt{y}};
+    \node[rot, anchor=west] at (-0.9,-1.35) {endereços (valores ilustrativos)};
+  \end{tikzpicture}}
+  \end{center}
+  \begin{block}{Ideia central}
+    Toda variável ocupa um pedaço da memória, e esse pedaço tem um
+    \textbf{endereço}: um número que identifica sua posição. Declarar
+    \texttt{int x = 10;} reserva 4 bytes e dá um nome a eles.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Definição: ponteiro}
+  \begin{block}{Definição}
+    Um \textbf{ponteiro} é uma variável cujo valor é o \emph{endereço} de
+    outra variável. Um ponteiro tem tipo: \texttt{int *p} guarda o endereço
+    de um \texttt{int}; \texttt{double *q} guarda o endereço de um
+    \texttt{double}.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    O ponteiro é o número do apartamento, não o morador. Com o número em
+    mãos, você chega ao apartamento e vê (ou troca) quem mora lá. Duas
+    pessoas com o mesmo número chegam ao mesmo apartamento --- por isso uma
+    função com o endereço consegue alterar a variável original.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Declarando ponteiros}
+\begin{lstlisting}
+int  x = 10;      /* x guarda um inteiro                       */
+int *p;           /* p guarda o endereco de um inteiro          */
+p = &x;           /* agora p aponta para x                      */
+
+double  d = 3.14;
+double *pd = &d;  /* declaracao e inicializacao juntas          */
+
+int *a, b;        /* CUIDADO: a e ponteiro, b e int comum       */
+\end{lstlisting}
+  \begin{itemize}
+    \item O \texttt{*} pertence à \emph{variável}, não ao tipo: por isso
+      \texttt{int *a, b;} declara um ponteiro e um inteiro.
+    \item O tipo do ponteiro importa: ele diz ao compilador quantos bytes ler
+      e quanto avançar na aritmética.
+    \item Todo ponteiro ocupa o mesmo tamanho (8 bytes em máquinas de 64 bits).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Recapitulando: o conceito}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Cada variável ocupa bytes da memória e tem um endereço.
+      \item Um ponteiro é uma variável que guarda um endereço.
+      \item O tipo do ponteiro descreve o que existe naquele endereço.
+      \item Passar endereços permite que uma função altere variáveis de quem
+        a chamou.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Os operadores \texorpdfstring{\texttt{\&}}{\&} e \texorpdfstring{\texttt{*}}{*}}
+
+\begin{frame}{Por que \texttt{troca\_v1} não trocou nada?}
+  \begin{center}
+  \resizebox{0.58\textwidth}{!}{%
+  \begin{tikzpicture}
+    \node[font=\small\bfseries] at (0.85,-1.5) {main};
+    \node[cel] (x) at (0,0) {10};
+    \node[cel] (y) at (1.7,0) {20};
+    \node[rot] at (0,-0.68) {x};
+    \node[rot] at (1.7,-0.68) {y};
+
+    \node[font=\small\bfseries] at (7.35,-1.5) {troca\_v1 (cópias)};
+    \node[celp] (a) at (6.5,0) {20};
+    \node[celp] (b) at (8.2,0) {10};
+    \node[rot] at (6.5,-0.68) {a};
+    \node[rot] at (8.2,-0.68) {b};
+
+    \draw[seta, dashed] (x.north) to[out=90, in=90, looseness=0.4]
+      node[midway, above, rot]{cópia de x} (a.north);
+    \draw[seta, dashed] (y.north) to[out=90, in=90, looseness=0.9]
+      node[midway, above, rot]{cópia de y} (b.north);
+  \end{tikzpicture}}
+  \end{center}
+  \begin{alertblock}{Passagem por valor}
+    Em C, argumentos são sempre copiados: a troca aconteceu nas cópias
+    \texttt{a} e \texttt{b}, e \texttt{x} e \texttt{y} nem ficaram sabendo.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Os dois operadores fundamentais}
+  \begin{center}
+  \small
+  \begin{tabular}{lll}
+    \toprule
+    Operador & Lê-se & Resultado \\
+    \midrule
+    \texttt{\&x} & ``endereço de \texttt{x}'' & o endereço onde \texttt{x} está \\
+    \texttt{*p}  & ``conteúdo apontado por \texttt{p}'' & o valor guardado naquele endereço \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{São operações inversas}
+    \begin{center}
+      \texttt{*(\&x)} $\;\equiv\;$ \texttt{x} \qquad e \qquad
+      se \texttt{p = \&x}, então \texttt{*p} $\;\equiv\;$ \texttt{x}
+    \end{center}
+  \end{block}
+  \begin{exampleblock}{Atenção ao contexto}
+    Na \emph{declaração} \texttt{int *p;} o \texttt{*} anuncia ``\texttt{p} é
+    um ponteiro''. No \emph{uso} \texttt{*p = 7;} o \texttt{*} significa
+    ``vá até lá e escreva''.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Um retrato da memória}
+  \begin{center}
+  \resizebox{0.68\textwidth}{!}{%
+  \begin{tikzpicture}
+    \node[cel, minimum width=2cm] (x) at (0,0) {10};
+    \node[rot] at (0,-0.65) {x \quad (end.\ 1008)};
+    \node[celp, minimum width=2cm] (p) at (6,0) {1008};
+    \node[rot] at (6,-0.65) {p \quad (end.\ 2000)};
+    \draw[seta] (p) to[out=150, in=30] node[above, rot]{\texttt{*p}} (x);
+    \node[font=\small, align=left, anchor=west] at (-2.2,-2.0)
+      {\texttt{int  x = 10;}\\ \texttt{int *p = \&x;}};
+    \node[font=\small, align=left, anchor=west] at (4.0,-2.0)
+      {\texttt{p}\ \ \ vale 1008\\ \texttt{*p}\ \ vale 10\\ \texttt{\&p}\ \ vale 2000};
+  \end{tikzpicture}}
+  \end{center}
+  \begin{exampleblock}{Leia sempre nesta ordem}
+    \texttt{p} é um endereço; \texttt{*p} é o valor que mora nele;
+    \texttt{\&p} é o endereço do próprio ponteiro.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Vendo os endereços com os próprios olhos}
+\begin{lstlisting}
+int  x = 10;
+int *p = &x;
+
+printf("valor de x  : %d\n",  x);    /* 10               */
+printf("endereco de x: %p\n", (void *) &x);
+printf("valor de p  : %p\n",  (void *) p);   /* igual a &x */
+printf("conteudo *p : %d\n",  *p);   /* 10               */
+
+*p = 99;                             /* escreve em x      */
+printf("agora x vale %d\n", x);      /* 99               */
+\end{lstlisting}
+  \begin{itemize}
+    \item \texttt{\%p} imprime endereços; o \texttt{(void *)} é a conversão exigida pelo padrão.
+    \item Os endereços mudam a cada execução --- o que importa é a
+      \emph{relação} entre eles, não o número.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Por que \texttt{troca\_v2} funcionou}
+  \begin{center}
+  \resizebox{0.58\textwidth}{!}{%
+  \begin{tikzpicture}
+    \node[font=\small\bfseries] at (0.85,-1.5) {main};
+    \node[cel] (x) at (0,0) {20};
+    \node[cel] (y) at (1.7,0) {10};
+    \node[rot] at (0,-0.68) {x};
+    \node[rot] at (1.7,-0.68) {y};
+
+    \node[font=\small\bfseries] at (7.35,-1.5) {troca\_v2 (endereços)};
+    \node[celp] (a) at (6.5,0) {\&x};
+    \node[celp] (b) at (8.2,0) {\&y};
+    \node[rot] at (6.5,-0.68) {a};
+    \node[rot] at (8.2,-0.68) {b};
+
+    \draw[seta] (a.north) to[out=90, in=90, looseness=0.4]
+      node[midway, above, rot]{\texttt{*a} chega em \texttt{x}} (x.north);
+    \draw[seta] (b.north) to[out=90, in=90, looseness=0.9]
+      node[midway, above, rot]{\texttt{*b} chega em \texttt{y}} (y.north);
+  \end{tikzpicture}}
+  \end{center}
+  \begin{block}{Regra prática}
+    As cópias agora são dos \emph{endereços}: \texttt{*a} e \texttt{*b}
+    alcançam \texttt{x} e \texttt{y} originais. Para alterar uma variável do
+    chamador, a função recebe \texttt{\&variavel} e usa \texttt{*parametro}.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Devolvendo mais de um resultado}
+\begin{lstlisting}
+void min_max(int v[], int n, int *pmin, int *pmax) {
+    *pmin = *pmax = v[0];
+    for (int i = 1; i < n; i++) {
+        if (v[i] < *pmin) *pmin = v[i];
+        if (v[i] > *pmax) *pmax = v[i];
+    }
+}
+
+int menor, maior;
+min_max(v, 5, &menor, &maior);   /* dois resultados de uma vez */
+\end{lstlisting}
+  \begin{itemize}
+    \item \texttt{return} devolve um valor só; ponteiros devolvem quantos você quiser.
+    \item É o mesmo mecanismo do \texttt{scanf}: ele preenche a variável cujo
+      endereço você entregou.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Armadilhas com \texttt{\&} e \texttt{*}}
+\vspace{-2mm}
+\begin{lstlisting}
+int *p;
+*p = 5;            /* ERRO: p nao aponta para lugar nenhum */
+
+int *q = NULL;     /* ponteiro nulo: "nao aponta para nada" */
+if (q != NULL)     /* sempre teste antes de usar            */
+    printf("%d\n", *q);
+
+printf("%d\n", q); /* ERRO: %d espera int, nao endereco    */
+\end{lstlisting}
+  \begin{alertblock}{Três regras de sobrevivência}
+    \begin{enumerate}
+      \item Inicialize sempre --- com \texttt{\&algo} ou com \texttt{NULL}.
+      \item Nunca faça \texttt{*p} com \texttt{p} nulo ou inválido.
+      \item Compile com \texttt{-Wall} e leia os avisos.
+    \end{enumerate}
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: os operadores}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{\&x} produz o endereço de \texttt{x}; \texttt{*p} acessa o
+        conteúdo apontado por \texttt{p}.
+      \item \texttt{*} e \texttt{\&} são inversos: \texttt{*(\&x)} é \texttt{x}.
+      \item Passar \texttt{\&x} deixa a função alterar \texttt{x} --- é assim
+        que \texttt{scanf} e \texttt{troca\_v2} funcionam.
+      \item \texttt{NULL} marca ``não aponta para nada''; teste antes de
+        desreferenciar.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Aritmética de ponteiros}
+
+\begin{frame}{Por que \texttt{*(p + 2)} deu 6, e não 4?}
+  \begin{block}{A pergunta}
+    Se \texttt{p} guarda um endereço --- um número --- então \texttt{p + 2}
+    deveria ser ``dois a mais''. Dois o quê? Dois bytes? Dois inteiros?
+  \end{block}
+  \begin{exampleblock}{Anote sua hipótese antes de virar o slide}
+    \begin{itemize}
+      \item Se \texttt{p} vale 1000 e \texttt{p} é \texttt{int *}, quanto vale \texttt{p + 2}?
+      \item E se \texttt{p} fosse \texttt{double *}?
+      \item E se fosse \texttt{char *}?
+    \end{itemize}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{A resposta: a aritmética conta elementos, não bytes}
+  \begin{center}
+  \resizebox{0.62\textwidth}{!}{%
+  \begin{tikzpicture}
+    \foreach \i/\val in {0/2,1/4,2/6,3/8,4/10} {
+      \node[cel, minimum width=1.6cm] (c\i) at (1.6*\i,0) {\val};
+      \node[rot] at (1.6*\i,-0.62) {v[\i]};
+    }
+    \foreach \i/\end in {0/1000,1/1004,2/1008,3/1012,4/1016} {
+      \node[rot] at (1.6*\i,-1.15) {\end};
+    }
+    \node[celp, minimum width=1.6cm] (p) at (0,1.9) {1000};
+    \node[rot] at (-1.1,1.9) {p};
+    \draw[seta] (p) -- (c0);
+    \draw[seta, UFSRed] (p.east) to[out=0, in=90] node[above, rot, pos=0.6]{p+2} (c2.north);
+  \end{tikzpicture}}
+  \end{center}
+  \begin{block}{Regra}
+    \begin{center}
+      \texttt{p + k} $\;=\;$ endereço de \texttt{p} $+\;k \times$ \texttt{sizeof(tipo apontado)}
+    \end{center}
+    Como \texttt{sizeof(int)} vale 4, \texttt{p + 2} avança 8 bytes: de 1000
+    para 1008, onde mora o 6.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Vetor e ponteiro: o mesmo endereço}
+\begin{lstlisting}
+int v[5] = {2, 4, 6, 8, 10};
+int *p = v;        /* o nome do vetor vale o endereco de v[0] */
+\end{lstlisting}
+  \begin{center}
+  \small
+  \begin{tabular}{llll}
+    \toprule
+    Escrita com índice & Escrita com ponteiro & Endereço & Valor \\
+    \midrule
+    \texttt{v[0]} & \texttt{*v}       & \texttt{v}     & 2 \\
+    \texttt{v[2]} & \texttt{*(v + 2)} & \texttt{v + 2} & 6 \\
+    \texttt{p[3]} & \texttt{*(p + 3)} & \texttt{p + 3} & 8 \\
+    \texttt{\&v[4]} & \texttt{v + 4}  & ---            & endereço do último \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Definição de \texttt{[\,]}}
+    Em C, \texttt{a[i]} é apenas outra forma de escrever \texttt{*(a + i)}.
+    Colchete é açúcar sintático para aritmética de ponteiros.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Percorrendo um vetor com ponteiro}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\textbf{Com índice}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+int soma = 0;
+for (int i = 0; i < 5; i++)
+    soma += v[i];
+\end{lstlisting}
+\end{column}
+\begin{column}{0.48\textwidth}
+\textbf{Com ponteiro}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+int soma = 0;
+for (int *q = v; q < v + 5; q++)
+    soma += *q;
+\end{lstlisting}
+\end{column}
+\end{columns}
+  \begin{itemize}
+    \item \texttt{q++} avança um \texttt{int} (4 bytes), não um byte.
+    \item \texttt{v + 5} é o endereço \emph{logo após} o último elemento: pode
+      ser calculado e comparado, mas nunca desreferenciado.
+    \item As duas versões produzem o mesmo \texttt{soma = 30}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{O que se pode (e o que não se pode) fazer}
+  \begin{center}
+  \footnotesize
+  \begin{tabular}{lll}
+    \toprule
+    Operação & Exemplo & Resultado \\
+    \midrule
+    ponteiro $+$ inteiro   & \texttt{p + 3}   & ponteiro 3 elementos adiante \\
+    ponteiro $-$ inteiro   & \texttt{p - 1}   & ponteiro 1 elemento atrás \\
+    incremento/decremento  & \texttt{p++}, \texttt{p--} & anda um elemento \\
+    ponteiro $-$ ponteiro  & \texttt{\&v[4] - v} & 4 (quantos elementos separam) \\
+    comparação             & \texttt{p < v + 5} & 1 ou 0 \\
+    \midrule
+    ponteiro $+$ ponteiro  & \texttt{p + q}   & \textbf{não existe} \\
+    multiplicar/dividir    & \texttt{p * 2}   & \textbf{não existe} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{alertblock}{Só faz sentido dentro do mesmo vetor}
+    Comparar ou subtrair ponteiros de vetores diferentes é comportamento
+    indefinido --- o programa pode ``funcionar'' hoje e falhar amanhã.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Exemplo: contando com a diferença de ponteiros}
+\begin{lstlisting}
+int *maior(int *v, int n) {
+    int *m = v;                    /* candidato inicial */
+    for (int *q = v + 1; q < v + n; q++)
+        if (*q > *m) m = q;
+    return m;                      /* devolve um ENDERECO */
+}
+
+int v[5] = {2, 9, 6, 8, 10};
+int *m = maior(v, 5);
+printf("maior = %d na posicao %ld\n", *m, m - v);  /* 10, posicao 4 */
+\end{lstlisting}
+  \begin{itemize}
+    \item A função devolve \emph{onde} está o maior, não só quanto ele vale.
+    \item \texttt{m - v} converte o endereço de volta em índice.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Armadilha: vetor não é ponteiro}
+\begin{lstlisting}
+int v[5];
+int *p = v;
+
+sizeof(v);   /* 20 = 5 * sizeof(int)  -- o vetor inteiro */
+sizeof(p);   /*  8 = tamanho de um endereco              */
+
+void f(int v[]) {      /* o parametro E um ponteiro:     */
+    sizeof(v);         /* 8, e nao 20!                   */
+}
+\end{lstlisting}
+  \begin{alertblock}{Consequência prática}
+    Ao passar um vetor para uma função o tamanho \textbf{se perde} --- por isso
+    toda função que recebe vetor recebe também o \texttt{n}.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: aritmética}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{p + k} avança $k \times$ \texttt{sizeof(tipo)} bytes.
+      \item \texttt{a[i]} é exatamente \texttt{*(a + i)}.
+      \item O nome do vetor vale o endereço do primeiro elemento.
+      \item Subtrair ponteiros do mesmo vetor dá a distância em elementos.
+      \item \texttt{sizeof} distingue vetor de ponteiro --- e o tamanho se
+        perde na passagem para funções.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Extra: ponteiros para ponteiros}
+
+\begin{frame}[fragile]{Extra: e se o valor guardado for um endereço?}
+\vspace{-2mm}
+\begin{lstlisting}
+int   x  = 10;
+int  *p  = &x;     /* p  guarda o endereco de x */
+int **pp = &p;     /* pp guarda o endereco de p */
+
+printf("%d\n", x);      /* 10 */
+printf("%d\n", *p);     /* 10 */
+printf("%d\n", **pp);   /* ?  */
+
+**pp = 99;
+printf("%d\n", x);      /* ?  */
+\end{lstlisting}
+  \begin{block}{Antes de executar}
+    Um ponteiro também é uma variável: ocupa memória e tem endereço
+    (\texttt{\&p}). Nada impede que outra variável guarde esse endereço.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Uma cadeia de endereços}
+  \begin{center}
+  \resizebox{0.72\textwidth}{!}{%
+  \begin{tikzpicture}[
+    celpp/.style={rectangle, draw=UFSYellow!80!black, fill=UFSYellow!20,
+      minimum width=2cm, minimum height=0.8cm, font=\small\ttfamily}
+  ]
+    \node[cel, minimum width=2cm] (x) at (0,0) {10};
+    \node[rot] at (0,-0.7) {x \quad (end.\ 1008)};
+
+    \node[celp, minimum width=2cm] (p) at (4.2,0) {1008};
+    \node[rot] at (4.2,-0.7) {p \quad (end.\ 2000)};
+
+    \node[celpp] (pp) at (8.4,0) {2000};
+    \node[rot] at (8.4,-0.7) {pp \quad (end.\ 3000)};
+
+    \draw[seta] (p) to[out=150, in=30] node[above, rot]{\texttt{*p}} (x);
+    \draw[seta] (pp) to[out=150, in=30] node[above, rot]{\texttt{*pp}} (p);
+    \draw[seta, UFSRed] (8.4,-1.15) to[out=-90, in=-90, looseness=0.5]
+      node[midway, below, rot]{\texttt{**pp} --- dois passos, chega em \texttt{x}} (0,-1.15);
+  \end{tikzpicture}}
+  \end{center}
+  \begin{exampleblock}{Cada \texttt{*} é um passo na seta}
+    \texttt{pp} vale 2000; \texttt{*pp} vale 1008 (é o próprio \texttt{p});
+    \texttt{**pp} vale 10 (é o próprio \texttt{x}). Escrever \texttt{**pp = 99}
+    altera \texttt{x}.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Lendo a declaração e o uso}
+  \begin{center}
+  \small
+  \begin{tabular}{lll}
+    \toprule
+    Expressão & Tipo & Vale \\
+    \midrule
+    \texttt{pp}   & \texttt{int **} (endereço de um \texttt{int *}) & 2000 \\
+    \texttt{*pp}  & \texttt{int *}  (endereço de um \texttt{int})   & 1008, ou seja \texttt{p} \\
+    \texttt{**pp} & \texttt{int}    (o valor final)                 & 10, ou seja \texttt{x} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{A regra é a mesma de antes, aplicada duas vezes}
+    Na \emph{declaração}, cada \texttt{*} anuncia um nível de indireção:
+    \texttt{int **pp} lê-se ``\texttt{pp} aponta para algo que aponta para
+    \texttt{int}''. No \emph{uso}, cada \texttt{*} desce um nível, até chegar
+    ao valor.
+  \end{block}
+  \begin{alertblock}{Cuidado}
+    \texttt{*pp} não é o valor de \texttt{x}: é um endereço. Só o segundo
+    \texttt{*} chega ao número.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Para que isso serve na prática}
+\vspace{-2mm}
+\begin{lstlisting}
+void aponta_maior(int *v, int n, int **saida) {
+    int *m = v;
+    for (int i = 1; i < n; i++)
+        if (v[i] > *m) m = &v[i];
+    *saida = m;            /* escreve no ponteiro do chamador */
+}
+
+int *achou = NULL;
+aponta_maior(v, 5, &achou);
+printf("%d na posicao %ld\n", *achou, achou - v);
+\end{lstlisting}
+\vspace{-2mm}
+  \begin{exampleblock}{A mesma regra, um nível acima}
+    Para alterar um \texttt{int}, a função recebe \texttt{int *}; para alterar
+    um \texttt{int *}, ela recebe \texttt{int **} --- como em
+    \texttt{main(int argc, char **argv)}.
+  \end{exampleblock}
+\end{frame}
+
+% =====================================================================
+\section{Mãos à obra}
+
+\begin{frame}{Altere o programa}
+  \begin{block}{Tarefa 1 --- dobrar sem colchetes}
+    Escreva \texttt{void dobra(int *v, int n)} que multiplica cada elemento
+    por 2 usando \textbf{apenas} \texttt{*} e aritmética de ponteiros --- sem
+    \texttt{[\,]} em nenhum lugar da função.
+  \end{block}
+  \begin{block}{Tarefa 2 --- devolver um endereço}
+    Implemente \texttt{int *maior(int *v, int n)} e imprima, no
+    \texttt{main}, o maior valor \emph{e} sua posição usando \texttt{m - v}.
+  \end{block}
+  \begin{block}{Tarefa 3 --- dois resultados}
+    Implemente \texttt{void min\_max(int *v, int n, int *pmin, int *pmax)}
+    e mostre que ela preenche as duas variáveis do \texttt{main} de uma só vez.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{block}{Inverter um vetor com dois ponteiros}
+    Escreva \texttt{void inverte(int *ini, int *fim)} que recebe o endereço do
+    primeiro elemento e o endereço \emph{logo após} o último, e inverte o
+    vetor no lugar --- trocando os extremos e caminhando para o centro, sem
+    usar índices e sem vetor auxiliar.
+  \end{block}
+  \begin{exampleblock}{Critérios}
+    \begin{itemize}
+      \item Deve funcionar para vetores de tamanho par e ímpar (teste com 5 e 6).
+      \item Reaproveite \texttt{troca\_v2} para a troca.
+      \item Chamada esperada: \texttt{inverte(v, v + n);}
+    \end{itemize}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10.5cm, minimum height=0.8cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)     {Ponteiro = variável que guarda um endereço};
+    \node[item] (t2) at (0,-0.9)  {\texttt{\&} pega o endereço; \texttt{*} chega ao conteúdo};
+    \node[item] (t3) at (0,-1.8)  {\texttt{a[i]} $\equiv$ \texttt{*(a + i)}: colchete é aritmética de ponteiros};
+    \node[item] (t4) at (0,-2.7)  {\texttt{int **pp}: cada \texttt{*} é mais um passo até o valor};
+    \node[item] (t5) at (0,-3.6)  {Próxima aula: alocação dinâmica --- memória que você mesmo pede};
+    \draw[seta] (t1)--(t2);
+    \draw[seta] (t2)--(t3);
+    \draw[seta] (t3)--(t4);
+    \draw[seta] (t4)--(t5);
+  \end{tikzpicture}
+  \end{center}
+  \begin{exampleblock}{Para casa}
+    O tutorial traz as três tarefas com testes automáticos, o desafio e o
+    extra sobre ponteiros para ponteiros.
+  \end{exampleblock}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}{Referências}
+  \begin{itemize}
+    \item KERNIGHAN, B. W.; RITCHIE, D. M. \textit{C: a linguagem de programação
+      --- padrão ANSI}. Campus, 1989. (cap.\ 5)
+    \item SCHILDT, H. \textit{C completo e total}. 3.\ ed.\ Makron Books, 1997.
+    \item TENENBAUM, A. M.; LANGSAM, Y.; AUGENSTEIN, M. J. \textit{Estruturas de
+      dados usando C}. Pearson Makron Books, 1995.
+  \end{itemize}
+  \begin{exampleblock}{Complementar}
+    BACKES, \textit{Linguagem C: completa e descomplicada};
+    FEOFILOFF, \textit{Algoritmos em linguagem C};
+    DEITEL; DEITEL, \textit{C: como programar}.
+  \end{exampleblock}
+\end{frame}
+
+\end{document}

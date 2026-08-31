@@ -52,6 +52,15 @@ title: "COMP0512 — Programação C — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-c/2026-2-T02/aula-05-ponteiros-conceitos-operadores-e-aritmetica' | relative_url }}">
+    <div class="week-num">05</div>
+    <div class="week-body">
+      <div class="week-title">Ponteiros em C: conceitos, operadores e aritmética</div>
+      <div class="week-desc">O que um ponteiro guarda, os operadores <code>&amp;</code> e <code>*</code>, funções que alteram variáveis do chamador e o caminhar sobre vetores.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge nb">1 notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'programacao-c/2026-2-T02/projeto' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📒</div>
     <div class="week-body">
