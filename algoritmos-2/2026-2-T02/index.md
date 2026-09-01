@@ -52,4 +52,14 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-05-selecao-e-estatisticas-de-ordem' | relative_url }}">
+    <div class="week-num">05</div>
+    <div class="week-body">
+      <div class="week-title">Seleção e Estatísticas de Ordem</div>
+      <div class="week-desc">Menor e segundo menor com contagem de comparações; seleção por força bruta; quickselect, mediana e o custo de cada abordagem.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
 </div>

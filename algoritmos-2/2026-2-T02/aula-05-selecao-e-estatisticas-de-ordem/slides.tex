@@ -1,0 +1,1248 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\scriptsize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+  aboveskip=3pt, belowskip=3pt,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  cel/.style={rectangle, draw=UFSBlue, fill=white, minimum width=0.85cm,
+    minimum height=0.8cm, font=\small\ttfamily},
+  celpiv/.style={cel, draw=UFSRed, fill=UFSRed!12, very thick},
+  celmen/.style={cel, fill=UFSBlue!12},
+  celmai/.style={cel, fill=UFSYellow!25},
+  celalvo/.style={cel, draw=UFSBlue, fill=UFSBlue!35, very thick},
+  celmorta/.style={cel, draw=UFSGray!50, fill=UFSLightGray, text=UFSGray!80},
+  idx/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  rot/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={-{Stealth[length=2mm]}, thick, UFSBlue},
+  cxa/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+    minimum width=9cm, minimum height=0.85cm, font=\small},
+}
+
+% --- Metadados ---
+\title{Algoritmos e Estruturas de Dados II}
+\subtitle{Seleção e estatísticas de ordem}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{Agenda}
+  \tableofcontents
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.35cm]
+    \node[cxa] (t1) {Achar o \textbf{menor} elemento --- e por que $n-1$ comparações bastam};
+    \node[cxa, below=of t1] (t2) {Achar o \textbf{segundo menor} sem pagar duas varreduras cheias};
+    \node[cxa, below=of t2] (t3) {A \textbf{mediana} e o \textbf{$k$-ésimo menor}: soluções por força bruta};
+    \node[cxa, below=of t3] (t4) {\textbf{Quickselect}: uma partição, um lado só, $O(n)$ em média};
+    \node[cxa, below=of t4] (t5) {\textbf{Mediana das medianas}: $O(n)$ garantido no pior caso};
+    \draw[seta] (t1)--(t2);
+    \draw[seta] (t2)--(t3);
+    \draw[seta] (t3)--(t4);
+    \draw[seta] (t4)--(t5);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\section{O problema da seleção}
+
+\begin{frame}{Por que precisamos selecionar?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema}
+
+      \medskip
+      Muitas perguntas não pedem \emph{todos} os elementos em ordem --- pedem
+      \textbf{um} elemento numa posição específica:
+      \begin{itemize}
+        \item Qual o \textbf{salário mediano} desta empresa?
+        \item Qual a \textbf{latência do percentil 99} do servidor?
+        \item Quais são os \textbf{10 maiores} arquivos do disco?
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução}
+
+      \medskip
+      Ordenar o vetor inteiro responde a todas elas --- e custa $O(n\log n)$.
+
+      \medskip
+      Mas ordenar produz $n$ respostas quando queremos \textbf{uma}: pagamos
+      caro por informação que vamos jogar fora.
+
+      \begin{block}{Pergunta da aula}
+        Dá para achar o $k$-ésimo menor em tempo \textbf{linear}?
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Estatística de ordem: definição}
+  \begin{block}{Definição}
+    Seja $A[0..n-1]$ um vetor com $n$ elementos de um conjunto totalmente
+    ordenado. A \textbf{$k$-ésima estatística de ordem} de $A$ é o elemento que
+    ocuparia a posição $k$ se $A$ fosse ordenado de forma não-decrescente,
+    para $1 \le k \le n$.
+  \end{block}
+
+  \begin{exampleblock}{Intuição}
+    Imagine todo mundo enfileirado do menor para o maior. A $k$-ésima
+    estatística de ordem é simplesmente \emph{quem está na $k$-ésima posição
+    da fila}. O problema da \textbf{seleção} é descobrir esse elemento
+    \textbf{sem precisar formar a fila inteira}.
+  \end{exampleblock}
+
+  \begin{itemize}
+    \item $k = 1$: o \textbf{mínimo}. \qquad $k = n$: o \textbf{máximo}.
+    \item $k = \lfloor (n+1)/2 \rfloor$: a \textbf{mediana inferior}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Onde mora cada estatística de ordem}
+  \begin{center}
+  \begin{tikzpicture}[x=0.95cm]
+    % vetor original
+    \node[rot, anchor=east] at (-0.6,0) {$A$ (como está):};
+    \foreach \v [count=\i from 0] in {31,8,17,4,25,12,20,6,29} {
+      \node[cel] (a\i) at (\i,0) {\v};
+    }
+    % vetor ordenado
+    \node[rot, anchor=east] at (-0.6,-2) {$A$ (se ordenado):};
+    \foreach \v [count=\i from 0] in {4,6,8,12,17,20,25,29,31} {
+      \node[cel] (b\i) at (\i,-2) {\v};
+    }
+    \foreach \i in {0,...,8} {
+      \pgfmathtruncatemacro{\kk}{\i+1}
+      \node[idx] at (\i,-2.75) {$k=\kk$};
+    }
+    \node[celalvo] at (0,-2) {4};
+    \node[celalvo] at (4,-2) {17};
+    \node[celalvo] at (8,-2) {31};
+
+    \draw[seta, UFSGray] (4,-0.55) -- (4,-1.45);
+
+    \node[rot, anchor=north] at (0,-3.2) {mínimo};
+    \node[rot, anchor=north] at (4,-3.2) {mediana};
+    \node[rot, anchor=north] at (8,-3.2) {máximo};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{center}
+    \small A resposta \textbf{não depende} de ordenar: a $5^{\underline{a}}$
+    estatística de ordem de $A$ é $17$, esteja $A$ ordenado ou não.
+  \end{center}
+\end{frame}
+
+\begin{frame}{Um detalhe sobre a mediana}
+  \begin{block}{Quando $n$ é ímpar}
+    Há um elemento exatamente no meio: a mediana é a estatística de ordem
+    $k = (n+1)/2$. Para $n = 9$, $k = 5$.
+  \end{block}
+
+  \begin{block}{Quando $n$ é par}
+    Há \emph{duas} candidatas: a \textbf{mediana inferior}
+    ($k = n/2$) e a \textbf{mediana superior} ($k = n/2 + 1$).
+    A estatística costuma definir a mediana como a média das duas; em
+    algoritmos, adotamos a \textbf{inferior}, com
+    $k = \lfloor (n+1)/2 \rfloor$.
+  \end{block}
+
+  \begin{exampleblock}{Por que isso importa}
+    Um algoritmo de seleção resolve \emph{qualquer} $k$. A mediana é apenas o
+    caso $k \approx n/2$ --- e, como veremos, é justamente o caso que quebra as
+    soluções ingênuas.
+  \end{exampleblock}
+\end{frame}
+
+\section{O caso mais simples: o menor}
+
+\begin{frame}{Achar o menor: a ideia}
+  \begin{center}
+  \begin{tikzpicture}[x=0.95cm]
+    \foreach \v [count=\i from 0] in {31,8,17,4,25,12,20,6,29} {
+      \node[cel] (a\i) at (\i,0) {\v};
+    }
+    \foreach \i in {0,...,8} { \node[idx] at (\i,0.65) {\i}; }
+
+    % candidato ao longo da varredura
+    \node[rot, anchor=east] at (-0.6,-1.3) {\texttt{menor} depois de ver $A[i]$:};
+    \foreach \v [count=\i from 0] in {31,8,8,4,4,4,4,4,4} {
+      \node[celmen] at (\i,-1.3) {\v};
+    }
+    \draw[seta, UFSGray] (0,-0.55) -- (0,-0.85);
+    \draw[decorate, decoration={brace, amplitude=5pt}, UFSGray]
+      (8.5,-1.9) -- (-0.5,-1.9)
+      node[midway, below=6pt, rot] {uma única varredura da esquerda para a direita};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Invariante}
+    Antes de examinar $A[i]$, a variável \texttt{menor} guarda o mínimo de
+    $A[0..i-1]$. Ao final do laço, $i = n$ e \texttt{menor} guarda o mínimo de
+    $A[0..n-1]$.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Achar o menor: o código}
+\begin{lstlisting}
+/* Devolve o indice do menor elemento de A[0..n-1]. */
+int indice_do_menor(const int A[], int n) {
+    int menor = 0;                 /* candidato: A[0] */
+    for (int i = 1; i < n; i++)    /* n-1 iteracoes  */
+        if (A[i] < A[menor])       /* 1 comparacao   */
+            menor = i;
+    return menor;
+}
+\end{lstlisting}
+
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \textbf{Custo:} exatamente $n-1$ comparações entre elementos, em
+      \emph{qualquer} entrada. Tempo $\Theta(n)$, espaço $O(1)$.
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \textbf{Pergunta:} dá para fazer com menos de $n-1$ comparações?
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[shrink=20]{$n-1$ comparações é o mínimo possível}
+  \begin{block}{Argumento do torneio}
+    Pense em cada comparação como uma \emph{partida} entre dois elementos: o
+    menor vence. Para declarar um campeão, todos os outros $n-1$ elementos
+    precisam ter \textbf{perdido pelo menos uma partida} --- caso contrário, um
+    elemento nunca comparado poderia ser menor que o campeão anunciado.
+  \end{block}
+
+  \begin{block}{Consequência}
+    Cada comparação produz \textbf{no máximo um novo perdedor}. Logo são
+    necessárias pelo menos $n-1$ comparações, e o algoritmo anterior é
+    \textbf{ótimo}.
+  \end{block}
+
+  \begin{exampleblock}{Guarde esta imagem}
+    A metáfora do torneio parece só um truque de prova --- mas é ela que vai
+    resolver o \textbf{segundo menor} no próximo slide.
+  \end{exampleblock}
+\end{frame}
+
+\section{O segundo menor}
+
+\begin{frame}{Segundo menor: a tentativa óbvia}
+  \begin{block}{Ideia}
+    Ache o menor ($n-1$ comparações), risque-o do vetor, e ache o menor de
+    novo entre os $n-1$ restantes ($n-2$ comparações).
+  \end{block}
+
+  \begin{center}
+  \begin{tikzpicture}[x=0.95cm]
+    \node[rot, anchor=east] at (-0.6,0) {1\textsuperscript{a} passada:};
+    \foreach \v [count=\i from 0] in {31,8,17,4,25,12,20,6,29} {
+      \node[cel] at (\i,0) {\v};
+    }
+    \node[celalvo] at (3,0) {4};
+    \node[rot, anchor=west] at (8.7,0) {$n-1 = 8$ comparações};
+
+    \node[rot, anchor=east] at (-0.6,-1.2) {2\textsuperscript{a} passada:};
+    \foreach \v [count=\i from 0] in {31,8,17,25,12,20,6,29} {
+      \pgfmathtruncatemacro{\p}{\i<3 ? \i : \i+1}
+      \node[cel] at (\p,-1.2) {\v};
+    }
+    \node[celmorta] at (3,-1.2) {--};
+    \node[celalvo] at (7,-1.2) {6};
+    \node[rot, anchor=west] at (8.7,-1.2) {$n-2 = 7$ comparações};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Custo}
+    $(n-1) + (n-2) = 2n - 3$ comparações. É $\Theta(n)$ --- correto, mas
+    \textbf{quase duas varreduras completas}. Jogamos fora tudo o que a
+    primeira passada tinha aprendido.
+  \end{block}
+\end{frame}
+
+\begin{frame}[shrink=20]{Segundo menor: o que a primeira passada já sabia}
+  \begin{block}{Observação-chave}
+    O segundo menor só pode ter perdido \textbf{diretamente para o menor}.
+    Se ele tivesse perdido para qualquer outro elemento $y$, teríamos
+    $y < \text{segundo menor}$ com $y \ne \text{menor}$ --- e $y$ seria o
+    segundo menor, contradição.
+  \end{block}
+
+  \begin{block}{Estratégia}
+    Organize as comparações como um \textbf{torneio eliminatório}. O campeão
+    (o menor) enfrentou apenas $\lceil \log_2 n \rceil$ adversários. Basta
+    achar o menor \textbf{entre esses adversários} --- e não entre todos os
+    $n-1$ perdedores.
+  \end{block}
+
+  \[
+    \underbrace{(n-1)}_{\text{montar o torneio}} \;+\;
+    \underbrace{\lceil \log_2 n \rceil - 1}_{\text{menor entre os que perderam para o campeão}}
+    \;=\; n + \lceil \log_2 n \rceil - 2
+  \]
+\end{frame}
+
+\begin{frame}[shrink=20]{Segundo menor: o torneio}
+  \begin{center}
+  \begin{tikzpicture}[x=1.35cm, y=0.95cm,
+      n/.style={circle, draw=UFSBlue, fill=white, minimum size=0.62cm,
+                font=\scriptsize\ttfamily, inner sep=0pt},
+      adv/.style={n, draw=UFSRed, fill=UFSRed!12, very thick}]
+    % folhas
+    \foreach \v [count=\i from 0] in {31,8,17,4,25,12,20,6} {
+      \node[n] (f\i) at (\i,0) {\v};
+    }
+    \node[adv] (f2) at (2,0) {17};      % perdeu para o 4 na 1a rodada
+    % nivel 1
+    \node[adv] (s0) at (0.5,1.1) {8};   % perdeu para o 4 na 2a rodada
+    \node[n]   (s1) at (2.5,1.1) {4};
+    \node[n]   (s2) at (4.5,1.1) {12};
+    \node[n]   (s3) at (6.5,1.1) {6};
+    % nivel 2
+    \node[n]   (q0) at (1.5,2.2) {4};
+    \node[adv] (q1) at (5.5,2.2) {6};   % perdeu para o 4 na final
+    % campeao
+    \node[n, draw=UFSBlue, fill=UFSBlue!30, very thick] (c) at (3.5,3.3) {4};
+
+    \foreach \a/\b in {f0/s0,f1/s0,f2/s1,f3/s1,f4/s2,f5/s2,f6/s3,f7/s3,
+                       s0/q0,s1/q0,s2/q1,s3/q1,q0/c,q1/c}
+      \draw[UFSGray] (\a)--(\b);
+
+    \node[rot, anchor=west, text=UFSRed, align=left] at (7.3,1.6)
+      {os 3 que perderam\\\emph{direto} para o 4};
+    \node[rot, anchor=west] at (4.1,3.3) {campeão = menor};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Leitura da figura}
+    O campeão $4$ venceu $17$, depois $8$, depois $6$: são
+    $\lceil \log_2 8 \rceil = 3$ adversários. O segundo menor é o menor deles
+    --- $6$ --- por apenas $2$ comparações extras, contra as $7$ da segunda
+    passada ingênua.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: menor e segundo menor}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item O mínimo custa exatamente $n-1$ comparações, e isso é ótimo.
+      \item O segundo menor sai por $2n-3$ com força bruta, mas por
+            $n + \lceil \log_2 n \rceil - 2$ se reaproveitarmos as comparações
+            já feitas.
+      \item A lição não é a fórmula: é que \textbf{a estrutura das comparações
+            já feitas carrega informação}. Descartá-la é o que torna a força
+            bruta cara.
+    \end{itemize}
+  \end{block}
+
+  \begin{exampleblock}{E agora?}
+    Para $k = 3$, $k = 4$, \dots\ o truque do torneio vai ficando complicado.
+    Precisamos de uma ideia que funcione para \textbf{qualquer $k$} --- em
+    especial para $k \approx n/2$, a mediana.
+  \end{exampleblock}
+\end{frame}
+
+\section{Mediana e $k$-ésimo menor por força bruta}
+
+\begin{frame}{Força bruta 1: seleção repetida}
+  \textbf{Ideia:} repita $k$ vezes --- ache o menor entre os que sobraram e
+  risque-o. É o \emph{selection sort} interrompido na $k$-ésima rodada.
+
+  \begin{center}
+  \begin{tikzpicture}[x=0.95cm, y=0.85cm]
+    \foreach \r/\lbl in {0/{rodada 1}, 1/{rodada 2}, 2/{rodada 3}} {
+      \node[rot, anchor=east] at (-0.6,-1.15*\r) {\lbl};
+    }
+    \foreach \v [count=\i from 0] in {31,8,17,4,25,12,20,6,29} \node[cel] at (\i,0) {\v};
+    \node[celalvo] at (3,0) {4};
+
+    \foreach \v [count=\i from 0] in {31,8,17,4,25,12,20,6,29} \node[cel] at (\i,-1.15) {\v};
+    \node[celmorta] at (3,-1.15) {--};
+    \node[celalvo] at (7,-1.15) {6};
+
+    \foreach \v [count=\i from 0] in {31,8,17,4,25,12,20,6,29} \node[cel] at (\i,-2.3) {\v};
+    \node[celmorta] at (3,-2.3) {--};
+    \node[celmorta] at (7,-2.3) {--};
+    \node[celalvo] at (1,-2.3) {8};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Custo}
+    $\sum_{j=0}^{k-1}(n-j-1) = \Theta(kn)$ comparações.
+    Ótimo para $k$ pequeno e constante ($k=1$, $k=2$, $k=3$);
+    \textbf{$\Theta(n^2)$ para a mediana}, onde $k = n/2$.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Força bruta 2: contar quem é menor}
+  \textbf{Ideia:} $x$ é a $k$-ésima estatística de ordem se exatamente $k-1$
+  elementos são menores que ele. Então, para cada $x$, conte.
+
+\begin{lstlisting}
+/* k-esimo menor (1-indexado) por contagem. Assume elementos distintos. */
+int selecao_forca_bruta(const int A[], int n, int k) {
+    for (int i = 0; i < n; i++) {
+        int menores = 0;
+        for (int j = 0; j < n; j++)   /* varredura interna: O(n) */
+            if (A[j] < A[i]) menores++;
+        if (menores == k - 1)         /* A[i] tem k-1 abaixo dele */
+            return A[i];
+    }
+    return -1;                        /* k fora da faixa [1, n] */
+}
+\end{lstlisting}
+
+  \textbf{Custo:} $\Theta(n^2)$ para \emph{qualquer} $k$ --- inclusive $k=1$,
+  onde já sabíamos fazer em $\Theta(n)$. E quebra com elementos repetidos.
+\end{frame}
+
+\begin{frame}{Força bruta 3: ordenar e indexar}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \textbf{Ideia}
+
+      Ordene $A$ e devolva $A[k-1]$.
+
+      \medskip
+      \textbf{Custo:} $\Theta(n \log n)$ --- melhor que $\Theta(n^2)$, e
+      responde a \emph{todos} os $k$ de uma vez.
+
+      \medskip
+      \textbf{Quando usar:} se você vai fazer muitas consultas sobre o mesmo
+      vetor, ordenar uma vez e indexar é a escolha certa.
+
+      \medskip
+      \textbf{O incômodo:} para \textbf{uma} consulta, ordenar decide a posição
+      relativa de \emph{todos} os pares. Nós queríamos saber a posição de um
+      elemento só.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.62cm]
+        \foreach \v [count=\i from 0] in {31,8,17,4,25,12,20,6,29}
+          \node[cel, minimum width=0.58cm, font=\tiny\ttfamily] at (\i,0) {\v};
+        \draw[seta] (4,-0.55) -- (4,-1.15) node[midway, right, rot] {$O(n\log n)$};
+        \foreach \v [count=\i from 0] in {4,6,8,12,17,20,25,29,31}
+          \node[cel, minimum width=0.58cm, font=\tiny\ttfamily] at (\i,-1.7) {\v};
+        \node[celalvo, minimum width=0.58cm, font=\tiny\ttfamily] at (4,-1.7) {17};
+        \node[rot] at (4,-2.5) {devolve $A[k-1]$};
+        \node[rot, text=UFSRed, align=center] at (4,-3.4)
+          {as outras 8 posições\\ foram trabalho desperdiçado};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Onde estamos}
+  \begin{center}
+  \small
+  \begin{tabular}{lccc}
+    \toprule
+    \textbf{Abordagem} & \textbf{$k=1$} & \textbf{$k$ constante} & \textbf{mediana ($k \approx n/2$)}\\
+    \midrule
+    Varredura do mínimo      & $\Theta(n)$ & ---          & ---\\
+    Torneio (2º menor)       & ---         & $\Theta(n)$  & ---\\
+    Seleção repetida         & $\Theta(n)$ & $\Theta(n)$  & $\Theta(n^2)$\\
+    Contagem                 & $\Theta(n^2)$ & $\Theta(n^2)$ & $\Theta(n^2)$\\
+    Ordenar e indexar        & $\Theta(n\log n)$ & $\Theta(n\log n)$ & $\Theta(n\log n)$\\
+    \midrule
+    \textbf{Meta desta aula} & \multicolumn{3}{c}{\textbf{$\Theta(n)$ para todo $k$}}\\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \begin{block}{A pista}
+    Ordenar é caro porque resolve o problema \emph{todo}. Mas o
+    \emph{quicksort} já sabe fazer algo mais barato e muito útil: uma
+    \textbf{partição} coloca \emph{um} elemento na sua posição final e separa o
+    resto em ``menores'' e ``maiores''. Talvez uma partição já diga onde está o
+    $k$-ésimo.
+  \end{block}
+\end{frame}
+
+\section{Quickselect}
+
+\begin{frame}[shrink=20]{A ferramenta emprestada do quicksort: a partição}
+  \textbf{O que uma partição faz:} escolhe um \textbf{pivô} $p$ e rearranja
+  $A[e..d]$ de modo que $p$ termine numa posição $q$, com todos os elementos
+  $\le p$ à esquerda e todos os $> p$ à direita.
+
+  \begin{center}
+  \begin{tikzpicture}[x=0.95cm]
+    \node[rot, anchor=east] at (-0.6,0) {antes:};
+    \foreach \v [count=\i from 0] in {31,8,17,4,25,12,20,6,29} \node[cel] at (\i,0) {\v};
+    \node[celpiv] at (8,0) {29};
+    \node[rot, anchor=west, text=UFSRed] at (8.7,0) {pivô};
+
+    \draw[seta, UFSGray] (4,-0.6)--(4,-1.1);
+
+    \node[rot, anchor=east] at (-0.6,-1.7) {depois:};
+    \foreach \v [count=\i from 0] in {8,17,4,25,12,20,6} \node[celmen] at (\i,-1.7) {\v};
+    \node[celpiv] at (7,-1.7) {29};
+    \node[celmai] at (8,-1.7) {31};
+    \node[idx] at (7,-2.45) {$q=7$};
+    \draw[decorate, decoration={brace, amplitude=4pt}, UFSBlue]
+      (6.45,-2.35) -- (-0.45,-2.35) node[midway, below=5pt, rot] {todos $\le 29$};
+    \draw[decorate, decoration={brace, amplitude=4pt}, UFSYellow!70!black]
+      (8.45,-2.35) -- (7.55,-2.35) node[midway, below=5pt, rot] {$>29$};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Custo}
+    Uma passada: $\Theta(d-e+1)$ --- \textbf{linear no tamanho do trecho}.
+    Nenhuma recursão ainda.
+  \end{block}
+\end{frame}
+
+\begin{frame}{O insight que resolve tudo}
+  \begin{block}{Depois de particionar, $q$ não é um índice qualquer}
+    O pivô está na sua \textbf{posição final}: há exatamente $q$ elementos
+    $\le$ a ele à esquerda, logo o pivô é a \textbf{$(q+1)$-ésima estatística
+    de ordem} de $A[0..n-1]$ (índices a partir de $0$).
+  \end{block}
+
+  Queremos a $k$-ésima. Compare $k$ com $q+1$:
+
+  \begin{center}
+  \small
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Se\dots} & \textbf{então\dots}\\
+    \midrule
+    $k = q+1$ & achamos! O pivô \emph{é} a resposta. Pare.\\
+    $k < q+1$ & a resposta está à \textbf{esquerda}: busque a $k$-ésima em $A[e..q-1]$.\\
+    $k > q+1$ & a resposta está à \textbf{direita}: busque a $(k-q-1)$-ésima em $A[q+1..d]$.\\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \textbf{Quicksort vs.\ quickselect:} o quicksort recursa nos \textbf{dois}
+  lados; o quickselect \textbf{descarta um deles}. É a única diferença --- e é
+  ela que troca $O(n\log n)$ por $O(n)$.
+\end{frame}
+
+\begin{frame}{Por que o índice muda ao ir para a direita}
+  \begin{center}
+  \begin{tikzpicture}[x=0.95cm]
+    \foreach \v [count=\i from 0] in {8,17,4,25,12,20,6} \node[celmen] at (\i,0) {\v};
+    \node[celpiv] at (7,0) {29};
+    \node[celmai] at (8,0) {31};
+    \foreach \i in {0,...,8} { \node[idx] at (\i,0.65) {\i}; }
+    \draw[decorate, decoration={brace, amplitude=5pt}, UFSBlue]
+      (7.45,-0.6) -- (-0.45,-0.6)
+      node[midway, below=6pt, rot] {$q+1 = 8$ elementos ficaram para trás};
+    \node[rot, anchor=west, align=left] at (9.0,0)
+      {procurar a $k$-ésima\\ globalmente $\equiv$\\ procurar a $(k-8)$-ésima aqui};
+    \draw[seta, UFSRed] (8.9,-0.15) -- (8.4,-0.15);
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Regra}
+    O subvetor da direita não começa mais no início do vetor. Tudo o que ficou
+    à esquerda (inclusive o pivô) \textbf{já é menor} que qualquer coisa lá
+    dentro, então esses $q+1$ elementos precisam ser \textbf{descontados} do
+    posto procurado: $k \leftarrow k - (q+1)$.
+  \end{block}
+
+  \textbf{Erro clássico:} esquecer o desconto e recursar à direita ainda
+  procurando a $k$-ésima. O programa não trava --- devolve silenciosamente o
+  elemento errado.
+\end{frame}
+
+\begin{frame}[fragile,shrink=20]{A partição de Lomuto em C}
+\begin{lstlisting}
+static void troca(int *a, int *b) { int t = *a; *a = *b; *b = t; }
+
+/* Particiona A[e..d] usando A[d] como pivo.
+   Devolve q tal que A[e..q-1] <= A[q] < A[q+1..d]. */
+int particiona(int A[], int e, int d) {
+    int pivo = A[d];
+    int i = e - 1;                 /* fim da regiao dos "<= pivo" */
+    for (int j = e; j < d; j++)
+        if (A[j] <= pivo) {
+            i++;
+            troca(&A[i], &A[j]);
+        }
+    troca(&A[i + 1], &A[d]);       /* pivo vai para sua posicao final */
+    return i + 1;
+}
+\end{lstlisting}
+
+  \textbf{Invariante do laço:}
+  $A[e..i] \le \text{pivô}$ \; e \; $A[i+1..j-1] > \text{pivô}$.
+  Ao sair, basta trocar o pivô com $A[i+1]$.
+\end{frame}
+
+\begin{frame}[fragile,shrink=20]{Quickselect: a versão recursiva}
+\begin{lstlisting}
+/* Devolve a k-esima estatistica de ordem (1-indexada) de A[e..d].
+   ATENCAO: reordena A. Pre-condicao: 1 <= k <= d - e + 1. */
+int quickselect(int A[], int e, int d, int k) {
+    if (e == d)                            /* um elemento: e ele */
+        return A[e];
+
+    int q = particiona(A, e, d);
+    int posto = q - e + 1;                 /* posto do pivo dentro de A[e..d] */
+
+    if (k == posto)
+        return A[q];                       /* achou */
+    else if (k < posto)
+        return quickselect(A, e, q - 1, k);            /* so a esquerda */
+    else
+        return quickselect(A, q + 1, d, k - posto);    /* so a direita */
+}
+\end{lstlisting}
+
+  \begin{center}
+    \small Compare com o quicksort: ele chamaria as \emph{duas} recursões,
+    sem o \texttt{if}.
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Quickselect: a versão iterativa}
+\begin{lstlisting}
+/* Mesma semantica, sem recursao: a chamada e' de cauda, vira laco. */
+int quickselect_iter(int A[], int n, int k) {
+    int e = 0, d = n - 1;
+    while (e < d) {
+        int q = particiona(A, e, d);
+        int posto = q - e + 1;
+        if (k == posto)  return A[q];
+        if (k < posto)   d = q - 1;        /* fica so com a esquerda */
+        else           { k -= posto;       /* desconta o que ficou para tras */
+                         e = q + 1; }      /* fica so com a direita  */
+    }
+    return A[e];
+}
+\end{lstlisting}
+
+  \textbf{Vantagem:} espaço auxiliar $O(1)$, sem pilha. A recursão do
+  quickselect é sempre \textbf{de cauda} --- uma só chamada, e é a última coisa
+  que se faz --- então virar laço é mecânico.
+\end{frame}
+
+\begin{frame}{Exemplo: a mediana de um vetor de 9 elementos}
+  \begin{block}{Instância}
+    $A = [31, 8, 17, 4, 25, 12, 20, 6, 29]$, com $n = 9$.
+    Queremos a mediana: $k = 5$.
+  \end{block}
+
+  \begin{center}
+  \begin{tikzpicture}[x=0.95cm]
+    \node[rot, anchor=east] at (-0.6,0) {início:};
+    \foreach \v [count=\i from 0] in {31,8,17,4,25,12,20,6,29} \node[cel] at (\i,0) {\v};
+    \node[celpiv] at (8,0) {29};
+    \foreach \i in {0,...,8} { \node[idx] at (\i,0.65) {\i}; }
+    \node[rot, anchor=west, text=UFSRed] at (8.7,0) {pivô $= A[d] = 29$};
+    \node[rot, anchor=west] at (8.7,-0.55) {$e=0$, \; $d=8$, \; $k=5$};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Convenção da figura}
+    \begin{tabular}{ll}
+      \tikz\node[cel, minimum width=0.6cm, minimum height=0.5cm]{}; \; região ainda em jogo
+      & \tikz\node[celpiv, minimum width=0.6cm, minimum height=0.5cm]{}; \; pivô da rodada\\[2pt]
+      \tikz\node[celmorta, minimum width=0.6cm, minimum height=0.5cm]{}; \; descartada
+      & \tikz\node[celalvo, minimum width=0.6cm, minimum height=0.5cm]{}; \; resposta\\
+    \end{tabular}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Passo 1: particionar com pivô $29$}
+  \begin{center}
+  \begin{tikzpicture}[x=0.95cm]
+    \node[rot, anchor=east] at (-0.6,0) {antes:};
+    \foreach \v [count=\i from 0] in {31,8,17,4,25,12,20,6,29} \node[cel] at (\i,0) {\v};
+    \node[celpiv] at (8,0) {29};
+
+    \draw[seta, UFSGray] (4,-0.6)--(4,-1.2) node[midway, right, rot] {8 comparações};
+
+    \node[rot, anchor=east] at (-0.6,-1.8) {depois:};
+    \foreach \v [count=\i from 0] in {8,17,4,25,12,20,6} \node[cel] at (\i,-1.8) {\v};
+    \node[celpiv] at (7,-1.8) {29};
+    \node[cel] at (8,-1.8) {31};
+    \foreach \i in {0,...,8} { \node[idx] at (\i,-2.5) {\i}; }
+    \node[rot, anchor=west] at (8.7,-1.8) {$q = 7$};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Decisão}
+    Posto do pivô em $A[0..8]$: $q - e + 1 = 7 - 0 + 1 = \mathbf{8}$.
+    Como $k = 5 < 8$, a mediana está \textbf{à esquerda}.
+    Novo trecho: $A[0..6]$, com $k = 5$ inalterado.
+    \textbf{Descartamos 2 dos 9 elementos.}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Passo 2: particionar $A[0..6]$ com pivô $6$}
+  \begin{center}
+  \begin{tikzpicture}[x=0.95cm]
+    \node[rot, anchor=east] at (-0.6,0) {antes:};
+    \foreach \v [count=\i from 0] in {8,17,4,25,12,20,6} \node[cel] at (\i,0) {\v};
+    \node[celpiv] at (6,0) {6};
+    \node[celmorta] at (7,0) {29};
+    \node[celmorta] at (8,0) {31};
+
+    \draw[seta, UFSGray] (4,-0.6)--(4,-1.2) node[midway, right, rot] {6 comparações};
+
+    \node[rot, anchor=east] at (-0.6,-1.8) {depois:};
+    \node[cel] at (0,-1.8) {4};
+    \node[celpiv] at (1,-1.8) {6};
+    \foreach \v [count=\i from 2] in {8,25,12,20,17} \node[cel] at (\i,-1.8) {\v};
+    \node[celmorta] at (7,-1.8) {29};
+    \node[celmorta] at (8,-1.8) {31};
+    \foreach \i in {0,...,8} { \node[idx] at (\i,-2.5) {\i}; }
+    \node[rot, anchor=west] at (8.7,-1.8) {$q = 1$};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Decisão}
+    Posto do pivô em $A[0..6]$: $q - e + 1 = 1 - 0 + 1 = \mathbf{2}$.
+    Como $k = 5 > 2$, a mediana está \textbf{à direita}.
+    Novo trecho: $A[2..6]$, e o posto vira $k \leftarrow 5 - 2 = \mathbf{3}$.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Passo 3: particionar $A[2..6]$ com pivô $17$}
+  \begin{center}
+  \begin{tikzpicture}[x=0.95cm]
+    \node[rot, anchor=east] at (-0.6,0) {antes:};
+    \node[celmorta] at (0,0) {4};
+    \node[celmorta] at (1,0) {6};
+    \foreach \v [count=\i from 2] in {8,25,12,20} \node[cel] at (\i,0) {\v};
+    \node[celpiv] at (6,0) {17};
+    \node[celmorta] at (7,0) {29};
+    \node[celmorta] at (8,0) {31};
+
+    \draw[seta, UFSGray] (4,-0.6)--(4,-1.2) node[midway, right, rot] {4 comparações};
+
+    \node[rot, anchor=east] at (-0.6,-1.8) {depois:};
+    \node[celmorta] at (0,-1.8) {4};
+    \node[celmorta] at (1,-1.8) {6};
+    \node[cel] at (2,-1.8) {8};
+    \node[cel] at (3,-1.8) {12};
+    \node[celalvo] at (4,-1.8) {17};
+    \node[cel] at (5,-1.8) {20};
+    \node[cel] at (6,-1.8) {25};
+    \node[celmorta] at (7,-1.8) {29};
+    \node[celmorta] at (8,-1.8) {31};
+    \foreach \i in {0,...,8} { \node[idx] at (\i,-2.5) {\i}; }
+    \node[rot, anchor=west] at (8.7,-1.8) {$q = 4$};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Decisão}
+    Posto do pivô em $A[2..6]$: $q - e + 1 = 4 - 2 + 1 = \mathbf{3}$.
+    Como $k = 3 = 3$, \textbf{achamos}: a mediana é $A[4] = 17$.
+  \end{block}
+\end{frame}
+
+\begin{frame}[shrink=20]{Exemplo: o balanço}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que o quickselect gastou}
+      \begin{itemize}
+        \item Passo 1: $8$ comparações (trecho de $9$)
+        \item Passo 2: $6$ comparações (trecho de $7$)
+        \item Passo 3: $4$ comparações (trecho de $5$)
+      \end{itemize}
+      \medskip
+      \textbf{Total: $18$ comparações.}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que as forças brutas gastariam}
+      \begin{itemize}
+        \item Contagem: $n^2 = 81$
+        \item Seleção repetida: $8{+}7{+}6{+}5{+}4 = 30$
+        \item Ordenar: $\approx n\log_2 n \approx 29$
+      \end{itemize}
+    \end{column}
+  \end{columns}
+
+  \begin{block}{Repare no padrão}
+    Os trechos encolheram: $9 \to 7 \to 5$. Cada partição custa proporcional ao
+    trecho \emph{atual}, e o trecho só diminui --- a conta total é uma
+    \textbf{soma decrescente}, e é daí que vai sair o $O(n)$.
+    Mas $9 \to 7 \to 5$ está longe de ``metade a cada passo'': a análise
+    precisará lidar com partições ruins.
+  \end{block}
+\end{frame}
+
+\section{Análise do quickselect}
+
+\begin{frame}[shrink=20]{Caso ótimo: a intuição da série geométrica}
+  Se todo pivô caísse exatamente no meio, cada partição cortaria o trecho pela
+  metade e o trabalho total seria:
+
+  \begin{center}
+  \begin{tikzpicture}[y=0.42cm]
+    \foreach \w/\r/\lbl in {8/0/{$n$}, 4/1/{$n/2$}, 2/2/{$n/4$}, 1/3/{$n/8$}} {
+      \fill[UFSBlue!25, draw=UFSBlue] (0,-\r) rectangle (\w,-\r+0.45);
+      \node[rot, anchor=west] at (\w+0.15,-\r+0.22) {\lbl};
+    }
+    \node[rot, anchor=west] at (0.35,-4+0.22) {$\cdots$};
+    \node[rot, anchor=east, align=right] at (-0.3,-1.8) {custo de cada\\ partição};
+  \end{tikzpicture}
+  \end{center}
+
+  \[
+    n + \frac{n}{2} + \frac{n}{4} + \frac{n}{8} + \cdots
+    \;<\; n \sum_{i=0}^{\infty} \frac{1}{2^i} \;=\; 2n \;=\; O(n).
+  \]
+
+  \begin{block}{O ponto essencial}
+    O quicksort tem $\log n$ \emph{níveis} de trabalho $\Theta(n)$ cada; o
+    quickselect tem \emph{um} caminho, cujo trabalho \textbf{encolhe
+    geometricamente}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Mas o pivô nunca cai exatamente no meio}
+  \begin{block}{Chamando um pivô de ``bom''}
+    Diga que o pivô é \textbf{bom} se ele cai na \textbf{metade central} do
+    trecho, isto é, se seu posto está entre $n/4$ e $3n/4$. Nesse caso,
+    qualquer que seja o lado escolhido, o trecho restante tem no máximo
+    $3n/4$ elementos.
+  \end{block}
+
+  \begin{center}
+  \begin{tikzpicture}[x=1.15cm]
+    \fill[UFSLightGray] (0,0) rectangle (8,0.7);
+    \fill[UFSBlue!25] (2,0) rectangle (6,0.7);
+    \draw[UFSGray] (0,0) rectangle (8,0.7);
+    \draw[UFSBlue, thick] (2,0) -- (2,0.7);
+    \draw[UFSBlue, thick] (6,0) -- (6,0.7);
+    \node[rot] at (1,0.35) {ruim};
+    \node[rot] at (4,0.35) {\textbf{pivô bom} (probabilidade $1/2$)};
+    \node[rot] at (7,0.35) {ruim};
+    \node[idx, anchor=north] at (0,-0.05) {posto $1$};
+    \node[idx, anchor=north] at (2,-0.05) {$n/4$};
+    \node[idx, anchor=north] at (6,-0.05) {$3n/4$};
+    \node[idx, anchor=north] at (8,-0.05) {$n$};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Com pivô aleatório}
+    Metade dos pivôs possíveis é boa, então esperamos sortear um pivô bom a
+    cada $2$ tentativas. Cada tentativa custa $O(n)$, então o custo esperado
+    até \emph{conseguir} encolher para $3n/4$ é $O(n)$.
+  \end{block}
+\end{frame}
+
+\begin{frame}{A recorrência do caso médio}
+  \begin{block}{Recorrência}
+    Absorvendo na constante o custo esperado de chegar a um pivô bom:
+    \[ T(n) \;\le\; T\!\left(\tfrac{3n}{4}\right) + cn, \qquad T(1) = c. \]
+  \end{block}
+
+  \begin{block}{Prova por substituição}
+    \textbf{Hipótese:} $T(m) \le 4cm$ para todo $m < n$. \quad \textbf{Passo:}
+    \[
+      T(n) \;\le\; T\!\left(\tfrac{3n}{4}\right) + cn
+            \;\le\; 4c \cdot \tfrac{3n}{4} + cn
+            \;=\; 4cn. \qquad \blacksquare
+    \]
+    A hipótese se sustenta, logo $T(n) = O(n)$.
+  \end{block}
+
+  \textbf{Confira pelo teorema mestre:} $a = 1$, $b = 4/3$, $n^{\log_b a} = 1$ e
+  $f(n) = \Theta(n)$ --- \textbf{caso 3}, $f$ domina, logo $T(n) = \Theta(n)$.
+\end{frame}
+
+\begin{frame}{O pior caso continua sendo $\Theta(n^2)$}
+  \begin{block}{Quando dá errado}
+    Se todo pivô for o maior (ou o menor) elemento do trecho, a partição
+    descarta \textbf{um único} elemento por rodada:
+    \[
+      T(n) = T(n-1) + cn = cn + c(n-1) + \cdots + c
+           = c\,\frac{n(n+1)}{2} = \Theta(n^2).
+    \]
+  \end{block}
+
+  \begin{center}
+  \begin{tikzpicture}[y=0.26cm, x=0.09cm]
+    \foreach \r in {0,1,2,3} {
+      \pgfmathsetmacro{\w}{40-3*\r}
+      \fill[UFSRed!25, draw=UFSRed] (0,-\r) rectangle (\w,-\r+0.7);
+    }
+    \node[rot, anchor=west] at (42,-1.5) {nenhuma metade é descartada: encolhe de $1$ em $1$};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Como isso acontece na prática}
+    Com a partição de Lomuto usando \texttt{A[d]} como pivô, basta o vetor
+    chegar \textbf{já ordenado} e pedirmos $k = 1$. E vetores quase ordenados
+    são \emph{comuns} em dados reais.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{A defesa barata: pivô aleatório}
+\begin{lstlisting}
+#include <stdlib.h>
+
+/* Sorteia o pivo em [e, d] e o joga para a posicao d antes de particionar. */
+int particiona_aleatorio(int A[], int e, int d) {
+    int r = e + rand() % (d - e + 1);
+    troca(&A[r], &A[d]);
+    return particiona(A, e, d);
+}
+\end{lstlisting}
+
+  \begin{block}{O que muda}
+    O pior caso $\Theta(n^2)$ \textbf{continua existindo}, mas deixa de depender
+    da \emph{entrada} e passa a depender dos sorteios --- nenhum adversário
+    consegue forjar um vetor ruim, porque não conhece os sorteios.
+    O custo esperado passa a ser $O(n)$ para \textbf{toda} entrada.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: quickselect}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Uma partição já revela a estatística de ordem \emph{exata} do pivô.
+      \item Comparando $k$ com o posto do pivô, sabemos qual lado descartar ---
+            e ao ir para a direita, descontamos $q+1$ de $k$.
+      \item Caso médio $\Theta(n)$: o trabalho encolhe geometricamente,
+            $T(n) \le T(3n/4) + cn$.
+      \item Pior caso $\Theta(n^2)$; pivô aleatório o torna improvável, mas não
+            impossível.
+    \end{itemize}
+  \end{block}
+
+  \begin{exampleblock}{A pergunta que sobra}
+    E se eu \emph{precisar} de uma garantia? Sistemas de tempo real e provas de
+    complexidade não aceitam ``provavelmente rápido''.
+    Dá para \textbf{escolher} um pivô comprovadamente bom, sem sorteio?
+  \end{exampleblock}
+\end{frame}
+
+\section{Mediana das medianas}
+
+\begin{frame}[shrink=20]{Por que precisamos de um pivô garantido}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema}
+
+      O quickselect é $O(n)$ \emph{em média}, mas ninguém proíbe uma execução
+      $\Theta(n^2)$. Inaceitável quando:
+      \begin{itemize}
+        \item há prazo rígido (tempo real, controle);
+        \item ele é sub-rotina de uma prova de complexidade --- ``$O(n)$
+              esperado'' não fecha o argumento;
+        \item as entradas são adversariais.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução}
+
+      \medskip
+      O sorteio dá um pivô bom \emph{com alta probabilidade}.
+      Queremos um pivô bom \textbf{com certeza}.
+
+      \medskip
+      \begin{block}{A ideia audaciosa}
+        Um pivô bom é aproximadamente a mediana. Então vamos
+        \textbf{calcular uma aproximação da mediana} --- usando o próprio
+        algoritmo de seleção, recursivamente.
+      \end{block}
+    \end{column}
+  \end{columns}
+
+  \begin{center}
+    \small Algoritmo de Blum, Floyd, Pratt, Rivest e Tarjan (1973) --- o
+    ``BFPRT'', ou \textbf{mediana das medianas}.
+  \end{center}
+\end{frame}
+
+\begin{frame}[shrink=20]{O algoritmo mediana das medianas}
+  \begin{block}{Como escolher o pivô de $A[e..d]$ com $n$ elementos}
+    \begin{enumerate}
+      \item Divida os $n$ elementos em $\lceil n/5 \rceil$ \textbf{grupos de 5}
+            (o último pode ser menor).
+      \item Ordene cada grupo e pegue sua \textbf{mediana}. Cada grupo tem
+            tamanho fixo $5$, então isso custa $O(1)$ por grupo, $O(n)$ no total.
+      \item Chame o \textbf{próprio algoritmo de seleção}, recursivamente,
+            para achar a mediana $x$ dessas $\lceil n/5 \rceil$ medianas.
+      \item Use $x$ como pivô e siga o quickselect normalmente.
+    \end{enumerate}
+  \end{block}
+
+  \begin{exampleblock}{Por que 5?}
+    Precisamos que a soma das frações das duas recursões seja $< 1$.
+    Com grupos de $5$: $\tfrac{1}{5} + \tfrac{7}{10} = \tfrac{9}{10} < 1$ ---
+    funciona. Com grupos de $3$: $\tfrac{1}{3} + \tfrac{2}{3} = 1$ --- não
+    funciona. Grupos de $7$ também funcionam, mas $5$ dá a melhor constante.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[shrink=20]{Por que a mediana das medianas é um pivô bom}
+  \begin{center}
+  \begin{tikzpicture}[x=1.05cm, y=0.72cm,
+      e/.style={circle, draw=UFSGray, fill=white, minimum size=0.42cm, inner sep=0pt}]
+    % zonas garantidas
+    \fill[UFSBlue!18, rounded corners=2pt] (-0.35,0.35) rectangle (3.35,-2.35);
+    \fill[UFSYellow!30, rounded corners=2pt] (2.65,-1.65) rectangle (6.35,-4.35);
+    % grade 5x7 (colunas = grupos, ordenadas de cima para baixo)
+    \foreach \c in {0,...,6}
+      \foreach \r in {0,...,4}
+        \node[e] at (\c,-\r) {};
+    % linha das medianas
+    \foreach \c in {0,...,6}
+      \node[e, draw=UFSBlue, fill=UFSBlue!30, very thick] at (\c,-2) {};
+    % mediana das medianas
+    \node[e, draw=UFSRed, fill=UFSRed!35, very thick, minimum size=0.5cm,
+          font=\tiny] (x) at (3,-2) {$x$};
+
+    % setas de ordenacao
+    \draw[seta, UFSGray] (-0.85,0.1) -- (-0.85,-4.1);
+    \draw[seta, UFSGray] (-0.35,-5.0) -- (6.35,-5.0)
+      node[midway, below, rot, align=center]
+      {grupos dispostos por ordem crescente de mediana\\
+       (e cada grupo ordenado de cima para baixo)};
+
+    \node[rot, text=UFSBlue, anchor=east, align=right] at (-1.15,-1) {ao menos\\ $3n/10$ são\\ $\le x$};
+    \node[rot, text=UFSYellow!60!black, anchor=west, align=left] at (7.0,-3) {ao menos\\ $3n/10$ são\\ $\ge x$};
+  \end{tikzpicture}
+  \end{center}
+
+  \begin{block}{Leitura da figura}
+    Cada grupo à \emph{esquerda} de $x$ tem mediana $\le x$; nesses grupos, os
+    $3$ elementos do topo são $\le$ à sua mediana, logo $\le x$. São
+    $3 \cdot \lceil n/10 \rceil$ elementos. Simetricamente à direita.
+  \end{block}
+\end{frame}
+
+\begin{frame}{A consequência: nenhum lado passa de $7n/10$}
+  \begin{block}{Limite}
+    Ao menos $3n/10 - 6$ elementos são $\le x$ (o ``$-6$'' absorve
+    arredondamentos e o grupo incompleto). Logo o lado que \textbf{sobrevive}
+    tem no máximo
+    $n - \left(\frac{3n}{10} - 6\right) = \frac{7n}{10} + 6$ elementos.
+  \end{block}
+
+  \begin{block}{Recorrência}
+    \[
+      T(n) \;\le\;
+      \underbrace{T\!\left(\left\lceil \tfrac{n}{5} \right\rceil\right)}_{\text{achar a mediana das medianas}}
+      \;+\;
+      \underbrace{T\!\left(\tfrac{7n}{10} + 6\right)}_{\text{continuar a seleção}}
+      \;+\;
+      \underbrace{O(n)}_{\text{formar grupos e particionar}}
+    \]
+  \end{block}
+
+  \begin{exampleblock}{Atenção}
+    \textbf{São duas recursões} e ainda assim o resultado é linear. O teorema
+    mestre não se aplica --- os subproblemas têm tamanhos diferentes.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Prova de que a recorrência é linear}
+  \begin{block}{Método da substituição}
+    \textbf{Hipótese:} $T(m) \le am$ para todo $m < n$, com $a$ a escolher.
+
+    \medskip
+    \textbf{Passo} (ignorando os termos constantes por simplicidade):
+    \[
+      T(n) \;\le\; a\,\frac{n}{5} + a\,\frac{7n}{10} + cn
+            \;=\; \frac{9an}{10} + cn
+            \;=\; an - \left(\frac{an}{10} - cn\right).
+    \]
+    Basta que $\frac{an}{10} - cn \ge 0$, isto é, $a \ge 10c$. Com essa
+    escolha, $T(n) \le an$ e portanto $T(n) = O(n)$. \hfill $\blacksquare$
+  \end{block}
+
+  \begin{center}
+    \small A ``folga'' $\tfrac{1}{10}$ que sobra de $1 - \tfrac{9}{10}$ é
+    exatamente o que paga o trabalho linear de cada nível.
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile,shrink=20]{Mediana das medianas em C}
+\begin{lstlisting}
+int selecao(int A[], int e, int d, int k);  /* declaracao antecipada */
+/* Escolhe um pivo bom para A[e..d] e devolve seu indice. */
+int pivo_mediana_das_medianas(int A[], int e, int d) {
+    int n = d - e + 1;
+    if (n <= 5) { insertion_sort(A, e, d); return e + n / 2; }
+
+    int g = 0;                                  /* quantos grupos ja' processei */
+    for (int i = e; i <= d; i += 5) {
+        int fim = (i + 4 < d) ? i + 4 : d;
+        insertion_sort(A, i, fim);              /* grupo de <= 5: O(1) */
+        int mediana = i + (fim - i) / 2;
+        troca(&A[e + g], &A[mediana]);          /* junta as medianas em A[e..] */
+        g++;
+    }
+    /* mediana das g medianas, que agora ocupam A[e .. e+g-1] */
+    selecao(A, e, e + g - 1, (g + 1) / 2);
+    return e + (g - 1) / 2;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile,shrink=20]{O algoritmo de seleção linear completo}
+\begin{lstlisting}
+/* Particiona A[e..d] em torno do elemento que esta' em A[p]. */
+int particiona_em(int A[], int e, int d, int p) {
+    troca(&A[p], &A[d]);
+    return particiona(A, e, d);
+}
+
+/* k-esima estatistica de ordem de A[e..d]: O(n) no PIOR caso. */
+int selecao(int A[], int e, int d, int k) {
+    if (e == d) return A[e];
+
+    int p = pivo_mediana_das_medianas(A, e, d);   /* T(n/5) */
+    int q = particiona_em(A, e, d, p);            /* O(n)   */
+    int posto = q - e + 1;
+
+    if (k == posto)     return A[q];
+    else if (k < posto) return selecao(A, e, q - 1, k);         /* <= 7n/10 */
+    else                return selecao(A, q + 1, d, k - posto); /* <= 7n/10 */
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Na prática: qual usar?}
+  \begin{center}
+  \small
+  \begin{tabular}{lccl}
+    \toprule
+    \textbf{Algoritmo} & \textbf{Médio} & \textbf{Pior} & \textbf{Comentário}\\
+    \midrule
+    Ordenar e indexar & $n\log n$ & $n\log n$ & vale a pena se houver muitas consultas\\
+    Quickselect (pivô fixo) & $n$ & $n^2$ & quebra em vetor ordenado\\
+    Quickselect aleatório & $n$ & $n^2$ & \textbf{a escolha padrão na prática}\\
+    Mediana das medianas & $n$ & $n$ & garantia; constante grande\\
+    \emph{Introselect} & $n$ & $n$ & híbrido: o que a \texttt{libstdc++} usa\\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+
+  \begin{block}{A constante importa}
+    A mediana das medianas é linear, mas a constante escondida no $O(n)$ é
+    grande. Para $n$ típico, o quickselect aleatório costuma ser
+    \textbf{várias vezes mais rápido}.
+  \end{block}
+
+  \textbf{Introselect:} rode o quickselect aleatório e \textbf{conte as
+  rodadas}; passando de $c\log n$ rodadas, troque para a mediana das medianas.
+\end{frame}
+
+\section*{Fechamento}
+
+\begin{frame}{Recapitulação da aula}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.28cm]
+    \node[cxa, minimum width=11cm] (a) {\textbf{Menor:} uma varredura, $n-1$ comparações --- e isso é ótimo};
+    \node[cxa, minimum width=11cm, below=of a] (b) {\textbf{2º menor:} reaproveitar o torneio, $n + \lceil\log n\rceil - 2$};
+    \node[cxa, minimum width=11cm, below=of b] (c) {\textbf{$k$-ésimo, força bruta:} $\Theta(kn)$, $\Theta(n^2)$ ou $\Theta(n\log n)$};
+    \node[cxa, minimum width=11cm, below=of c, fill=UFSYellow!25] (d) {\textbf{Quickselect:} uma partição, um lado só --- $\Theta(n)$ médio, $\Theta(n^2)$ pior};
+    \node[cxa, minimum width=11cm, below=of d, fill=UFSBlue!25] (e) {\textbf{Mediana das medianas:} pivô garantido --- $\Theta(n)$ no pior caso};
+    \draw[seta] (a)--(b); \draw[seta] (b)--(c); \draw[seta] (c)--(d); \draw[seta] (d)--(e);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{A ideia que atravessa a aula}
+  \begin{block}{Não resolva mais do que foi perguntado}
+    Ordenar responde a $n$ perguntas quando fizemos $1$. Toda a economia do
+    quickselect vem de \textbf{jogar fora metade do problema} a cada passo, em
+    vez de resolvê-lo.
+  \end{block}
+
+  \begin{block}{Redução do problema (\emph{decrease and conquer})}
+    Repare no contraste com dividir e conquistar:
+    \begin{itemize}
+      \item \textbf{Quicksort} divide e resolve os \textbf{dois} subproblemas
+            $\Rightarrow$ $\log n$ níveis de trabalho $\Theta(n)$
+            $\Rightarrow$ $\Theta(n\log n)$.
+      \item \textbf{Quickselect} divide e resolve \textbf{um} subproblema
+            $\Rightarrow$ soma geométrica $\Rightarrow$ $\Theta(n)$.
+    \end{itemize}
+    O mesmo contraste separa a busca binária ($\Theta(\log n)$) de um percurso
+    completo da árvore.
+  \end{block}
+\end{frame}
+
+\begin{frame}[shrink=20]{Para praticar}
+  \begin{enumerate}
+    \item Adapte o \texttt{quickselect} para devolver o $k$-ésimo
+          \textbf{maior} sem inverter o vetor nem trocar o comparador.
+    \item O \texttt{selecao\_forca\_bruta} por contagem quebra com elementos
+          repetidos. Conserte-o e explique por que o quickselect \emph{não}
+          sofre do mesmo problema.
+    \item Mostre uma entrada de tamanho $n$ que force o
+          \texttt{quickselect} (pivô $=$ \texttt{A[d]}) a fazer
+          $\Theta(n^2)$ comparações para $k = n$.
+    \item Escreva \texttt{k\_menores(A, n, k)} que devolve os $k$ menores
+          elementos (em qualquer ordem) em tempo $O(n)$ para $k$ fixo.
+          \emph{Dica: uma chamada ao quickselect resolve.}
+    \item Prove que grupos de $3$ \emph{não} produzem um algoritmo linear:
+          escreva a recorrência e mostre onde a prova por substituição falha.
+    \item Implemente o \emph{introselect} e meça, para $n = 10^6$, quantas
+          vezes o gatilho da mediana das medianas é acionado.
+  \end{enumerate}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

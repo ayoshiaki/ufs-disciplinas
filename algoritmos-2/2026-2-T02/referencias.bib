@@ -90,7 +90,6 @@
   doi     = {10.1145/366622.366644}
 }
 
-
 % --- Força bruta e busca exaustiva ---
 % Referência clássica sobre os limites da busca exaustiva: NP-completude
 @book{garey1979computers,
@@ -112,4 +111,50 @@
   number  = {1},
   pages   = {196--210},
   doi     = {10.1137/0110015}
+}
+
+@article{blum1973time,
+  author  = {Blum, Manuel and Floyd, Robert W. and Pratt, Vaughan and
+             Rivest, Ronald L. and Tarjan, Robert E.},
+  title   = {Time Bounds for Selection},
+  journal = {Journal of Computer and System Sciences},
+  year    = {1973},
+  volume  = {7},
+  number  = {4},
+  pages   = {448--461},
+  doi     = {10.1016/S0022-0000(73)80033-9},
+  note    = {Artigo original da mediana das medianas: seleção em $O(n)$ no pior caso}
+}
+
+@article{hoare1961find,
+  author  = {Hoare, C. A. R.},
+  title   = {Algorithm 65: {FIND}},
+  journal = {Communications of the ACM},
+  year    = {1961},
+  volume  = {4},
+  number  = {7},
+  pages   = {321--322},
+  doi     = {10.1145/366622.366647},
+  note    = {O quickselect, publicado por Hoare no mesmo ano do quicksort}
+}
+
+@book{knuth1998sorting,
+  author    = {Knuth, Donald E.},
+  title     = {The Art of Computer Programming, Volume 3: Sorting and Searching},
+  year      = {1998},
+  publisher = {Addison-Wesley},
+  edition   = {2},
+  note      = {Seção 5.3.3: seleção mínima em número de comparações},
+  isbn      = {978-0-201-89685-5}
+}
+
+@article{musser1997introspective,
+  author  = {Musser, David R.},
+  title   = {Introspective Sorting and Selection Algorithms},
+  journal = {Software: Practice and Experience},
+  year    = {1997},
+  volume  = {27},
+  number  = {8},
+  pages   = {983--993},
+  note    = {O introselect: híbrido entre quickselect e mediana das medianas}
 }
