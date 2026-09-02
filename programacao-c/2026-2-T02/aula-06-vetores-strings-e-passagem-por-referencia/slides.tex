@@ -1,0 +1,718 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=1.1cm,
+    minimum height=0.8cm, font=\small\ttfamily},
+  celp/.style={rectangle, draw=UFSRed, fill=UFSRed!8, minimum width=1.1cm,
+    minimum height=0.8cm, font=\small\ttfamily},
+  celv/.style={rectangle, draw=UFSGray, fill=black!5, minimum width=1.1cm,
+    minimum height=0.8cm, font=\small\ttfamily},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  seta/.style={->, thick, UFSBlue},
+  setar/.style={->, thick, UFSRed},
+}
+
+% --- Metadados ---
+\title{Vetores, strings e passagem por referência}
+\subtitle{O que uma função recebe quando você entrega um vetor}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=9.5cm, minimum height=0.8cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)     {Por que o tamanho de um vetor se perde dentro de uma função};
+    \node[item] (t2) at (0,-1.0)  {Strings: vetores de \texttt{char} que terminam em \texttt{\textbackslash 0}};
+    \node[item] (t3) at (0,-2.0)  {Passagem por valor $\times$ por referência (e o papel do \texttt{const})};
+    \draw[seta] (t1)--(t2);
+    \draw[seta] (t2)--(t3);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{De onde partimos}
+    Você já sabe que \texttt{\&} devolve um endereço e \texttt{*} devolve o
+    conteúdo. Hoje esses dois operadores explicam o comportamento de vetores,
+    strings e parâmetros de função.
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Vetores em funções}
+% ==================================================================
+
+\begin{frame}{Por que precisamos falar de vetores em funções?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O problema}\\[0.3em]
+      Uma função que processa um vetor precisa saber \emph{onde} ele começa e
+      \emph{quantos} elementos tem.
+
+      \medskip
+      Mas \texttt{sizeof} --- que funciona tão bem em \texttt{main} --- devolve
+      a resposta errada dentro da função.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{A pista}\\[0.3em]
+      Um vetor não é copiado quando você o passa para uma função. O que a
+      função recebe é bem menor do que você imagina.
+
+      \medskip
+      Descobrir o que ela recebe explica, de uma vez, vetores, strings e
+      passagem por referência.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{agenda.c} (1/3)}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+#include <stdio.h>
+#define MAX_CONTATOS 4
+#define MAX_NOME     20
+
+void medir(int idades[], int n) {
+    printf("A: sizeof dentro da funcao = %zu | n = %d\n", sizeof(idades), n);
+}
+
+void envelhecer(int idades[], int n) {
+    for (int i = 0; i < n; i++)
+        idades[i] = idades[i] + 1;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{agenda.c} (2/3): as duas funções de string}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+int meu_tamanho(const char *s) {
+    int n = 0;
+    while (s[n] != '\0')
+        n++;
+    return n;
+}
+
+void maiusculas(char *s) {
+    for (int i = 0; s[i] != '\0'; i++)
+        if (s[i] >= 'a' && s[i] <= 'z')
+            s[i] = s[i] - 'a' + 'A';
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{agenda.c} (3/3): dois resultados de uma vez}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+void estatisticas(int idades[], int n, int *soma, int *maior) {
+    *soma  = 0;
+    *maior = idades[0];
+    for (int i = 0; i < n; i++) {
+        *soma = *soma + idades[i];
+        if (idades[i] > *maior)
+            *maior = idades[i];
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{agenda.c}: a \texttt{main}}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+int main(void) {
+    char nomes[MAX_CONTATOS][MAX_NOME] = {"ana", "bruno", "carla", "daniel"};
+    int idades[MAX_CONTATOS] = {21, 19, 23, 20};
+    int soma, maior;
+    printf("A: sizeof em main = %zu\n", sizeof(idades));
+    medir(idades, MAX_CONTATOS);
+    envelhecer(idades, MAX_CONTATOS);
+    printf("B: idades = %d %d %d %d\n", idades[0], idades[1], idades[2], idades[3]);
+    printf("C: sizeof(nomes[1]) = %zu | meu_tamanho = %d\n",
+           sizeof(nomes[1]), meu_tamanho(nomes[1]));
+    maiusculas(nomes[1]);
+    printf("D: nomes[1] = %s\n", nomes[1]);
+    estatisticas(idades, MAX_CONTATOS, &soma, &maior);
+    printf("E: soma = %d | maior = %d\n", soma, maior);
+    return 0;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{alertblock}{Antes de compilar: escreva sua previsão no papel}
+    \begin{enumerate}
+      \item Na linha \textbf{A}, os dois \texttt{sizeof} dão o mesmo número?
+      \item Na linha \textbf{B}, as idades mudaram? \texttt{envelhecer} recebeu
+            \texttt{idades} sem nenhum \texttt{\&}.
+      \item Na linha \textbf{C}, \texttt{sizeof(nomes[1])} e
+            \texttt{meu\_tamanho(nomes[1])} dão o mesmo número?
+      \item Na linha \textbf{D}, \texttt{nomes[1]} virou maiúsculo de verdade?
+      \item Na linha \textbf{E}, por que \texttt{soma} e \texttt{maior}
+            precisaram de \texttt{\&} e \texttt{nomes[1]} não precisou?
+    \end{enumerate}
+  \end{alertblock}
+  \begin{center}\small
+    Anote as cinco respostas. Elas são o roteiro do resto da aula.
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[numbers=none, language=bash]
+$ gcc -Wall agenda.c -o agenda && ./agenda
+\end{lstlisting}
+\begin{lstlisting}[numbers=none, language={}]
+A: sizeof em main = 16
+A: sizeof dentro da funcao = 8 | n = 4
+B: idades = 22 20 24 21
+C: sizeof(nomes[1]) = 20 | meu_tamanho = 5
+D: nomes[1] = BRUNO
+E: soma = 87 | maior = 24
+\end{lstlisting}
+  \begin{block}{Marque o que surpreendeu}
+    \texttt{16} contra \texttt{8}; \texttt{20} contra \texttt{5}; e um vetor
+    alterado por uma função sem \texttt{\&} nenhum.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Por que \texttt{sizeof} deu 16 fora e 8 dentro?}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{block}{Os números}
+        \begin{itemize}
+          \item Em \texttt{main}: $4 \times 4 = 16$ bytes --- o vetor inteiro.
+          \item Em \texttt{medir}: \texttt{8} bytes.
+        \end{itemize}
+      \end{block}
+      \begin{alertblock}{8 bytes é o tamanho de quê?}
+        Do \emph{endereço} --- o mesmo tamanho de qualquer ponteiro nesta
+        máquina.
+      \end{alertblock}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{block}{O próprio compilador avisou}
+        \scriptsize\ttfamily
+        warning: sizeof on array function parameter will return size of
+        `int *' instead of `int[]'
+      \end{block}
+      \small Leia os avisos do \texttt{-Wall}: aqui ele descreve exatamente o
+      que aconteceu.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: o vetor ``decai'' em ponteiro}
+  \begin{center}
+  \begin{tikzpicture}
+    \foreach \i/\v in {0/21, 1/19, 2/23, 3/20} {
+      \node[cel] (a\i) at (\i*1.15, 0) {\v};
+    }
+    \node[rot, align=center] at (1.7,-0.75) {\texttt{idades} em \texttt{main}\\16 bytes};
+    \node[celp, minimum width=2.4cm] (p) at (8.0,0) {0x7ffd\ldots};
+    \node[rot, align=center] at (8.0,-0.75) {\texttt{idades} em \texttt{medir}\\8 bytes (um \texttt{int *})};
+    \draw[setar] (p.north) to[out=150, in=30]
+      node[midway, above, font=\scriptsize] {guarda o endereço do 1\textsuperscript{o} elemento}
+      (a0.north);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Regra}
+    Ao ser passado para uma função, o nome do vetor vira o \textbf{endereço do
+    primeiro elemento}. A função recebe um ponteiro --- nunca uma cópia do vetor.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Três declarações, um mesmo parâmetro}
+\begin{lstlisting}[numbers=none]
+void envelhecer(int idades[], int n)   /* o que escrevemos */
+void envelhecer(int idades[4], int n)  /* o 4 e' ignorado pelo compilador */
+void envelhecer(int *idades, int n)    /* o que o compilador entende */
+\end{lstlisting}
+  \begin{block}{Consequências práticas}
+    \begin{itemize}
+      \item As três formas são \textbf{idênticas} para o compilador.
+      \item Por isso o parâmetro \texttt{n} não é opcional: sem ele a função
+            não tem como descobrir o tamanho.
+      \item \texttt{idades[i]} dentro da função é apenas outra escrita para
+            \texttt{*(idades + i)}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Por que \texttt{envelhecer} alterou o vetor de \texttt{main}?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Não há mistério}
+        A função recebeu o endereço do vetor. Escrever em \texttt{idades[i]} é
+        escrever \emph{naquele} endereço --- ou seja, na memória de
+        \texttt{main}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{exampleblock}{A assimetria de C}
+        \begin{itemize}
+          \item \texttt{int x} --- a função recebe uma cópia; alterações se perdem.
+          \item \texttt{int v[]} --- a função recebe um endereço; alterações
+                permanecem.
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \begin{alertblock}{Cuidado}
+    Toda função que recebe um vetor pode modificá-lo, mesmo sem você querer.
+    Mais adiante veremos como o \texttt{const} declara essa intenção.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Armadilha: contar elementos dentro da função}
+\begin{lstlisting}[numbers=none]
+void errado(int v[]) {
+    int n = sizeof(v) / sizeof(v[0]);   /* 8 / 4 = 2. Sempre errado! */
+    for (int i = 0; i < n; i++) ...
+}
+
+void certo(int v[], int n) {            /* quem chama informa o tamanho */
+    for (int i = 0; i < n; i++) ...
+}
+\end{lstlisting}
+  \begin{block}{Onde a conta \texttt{sizeof(v)/sizeof(v[0])} funciona}
+    Só no escopo em que o vetor foi \textbf{declarado} --- tipicamente em
+    \texttt{main}. Calcule lá e passe o resultado adiante.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: vetores em funções}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item O nome de um vetor, ao ser passado, vira o endereço do primeiro
+            elemento (decaimento).
+      \item \texttt{int v[]}, \texttt{int v[4]} e \texttt{int *v} são o mesmo
+            parâmetro.
+      \item O tamanho não viaja junto: passe-o como um parâmetro extra.
+      \item Quem recebe um vetor pode alterar o original --- e isso é útil, não
+            um defeito.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Strings}
+% ==================================================================
+
+\begin{frame}{Por que \texttt{sizeof} deu 20 e \texttt{meu\_tamanho} deu 5?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Os dois números}
+        \begin{itemize}
+          \item \texttt{sizeof(nomes[1])} $=$ \texttt{20}: a \textbf{capacidade}
+                reservada na declaração.
+          \item \texttt{meu\_tamanho(nomes[1])} $=$ \texttt{5}: o
+                \textbf{conteúdo} atual, \texttt{"bruno"}.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{alertblock}{A pergunta}
+        Se \texttt{meu\_tamanho} só recebeu um endereço, como ela soube onde a
+        palavra termina?
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \begin{center}\small
+    A resposta é uma convenção --- e é a única coisa que faz strings
+    funcionarem em C.
+  \end{center}
+\end{frame}
+
+\begin{frame}{Definição: string em C}
+  \begin{block}{Definição}
+    Uma \textbf{string} é um vetor de \texttt{char} cujo fim é marcado pelo
+    caractere \texttt{'\textbackslash 0'} (o byte de valor zero, chamado
+    \emph{terminador nulo}).
+  \end{block}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0pt]
+    \foreach \i/\c in {0/b, 1/r, 2/u, 3/n, 4/o} {
+      \node[cel] (c\i) at (\i*1.1, 0) {'\c'};
+    }
+    \node[celp] (t) at (5.5, 0) {'\textbackslash 0'};
+    \foreach \i in {6, 7} {
+      \node[celv] at (\i*1.1, 0) {?};
+    }
+    \node[rot, text=UFSRed] at (5.5,-0.75) {fim da string};
+    \node[rot] at (7.15,-0.75) {lixo: ninguém olha};
+    \draw[decorate, decoration={brace, amplitude=4pt}, UFSGray]
+      (-0.55,0.5) -- (4.4,0.5) node[midway, above=3pt, font=\scriptsize] {5 caracteres};
+  \end{tikzpicture}
+  \end{center}
+  \begin{exampleblock}{Intuição}
+    O vetor tem 20 posições; a string ocupa 6 delas (5 letras $+$ o terminador).
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Como \texttt{meu\_tamanho} encontra o fim}
+\begin{lstlisting}[numbers=none, basicstyle=\ttfamily\scriptsize]
+int meu_tamanho(const char *s) {
+    int n = 0;
+    while (s[n] != '\0')   /* anda ate' encontrar o terminador */
+        n++;
+    return n;              /* nao conta o '\0' */
+}
+\end{lstlisting}
+  \begin{block}{Por que isso basta}
+    O ponteiro diz onde a string \emph{começa}; o \texttt{'\textbackslash 0'}
+    diz onde ela \emph{acaba} --- mesma estratégia de \texttt{strlen} e de
+    \texttt{printf("\%s", s)}. Sem o terminador, a função lê memória que não é
+    dela até achar um zero por acidente.
+  \end{block}
+\end{frame}
+
+\begin{frame}{\texttt{nomes} é uma matriz de \texttt{char}}
+  \begin{center}
+  \resizebox{0.68\textwidth}{!}{%
+  \begin{tikzpicture}
+    \foreach \r/\pal/\len in {0/ana/3, 1/bruno/5, 2/carla/5, 3/daniel/6} {
+      \node[rot, anchor=east] at (-0.7, -\r*0.9) {nomes[\r]};
+    }
+    % linha 0: ana
+    \foreach \i/\c in {0/a, 1/n, 2/a} { \node[cel] at (\i*0.85, 0) {\c}; }
+    \node[celp] at (2.55, 0) {\textbackslash 0};
+    \foreach \i in {4,5,6} { \node[celv] at (\i*0.85, 0) {?}; }
+    % linha 1: bruno
+    \foreach \i/\c in {0/b, 1/r, 2/u, 3/n, 4/o} { \node[cel] at (\i*0.85, -0.9) {\c}; }
+    \node[celp] at (4.25, -0.9) {\textbackslash 0};
+    \foreach \i in {6} { \node[celv] at (\i*0.85, -0.9) {?}; }
+    % linha 2: carla
+    \foreach \i/\c in {0/c, 1/a, 2/r, 3/l, 4/a} { \node[cel] at (\i*0.85, -1.8) {\c}; }
+    \node[celp] at (4.25, -1.8) {\textbackslash 0};
+    \foreach \i in {6} { \node[celv] at (\i*0.85, -1.8) {?}; }
+    % linha 3: daniel
+    \foreach \i/\c in {0/d, 1/a, 2/n, 3/i, 4/e, 5/l} { \node[cel] at (\i*0.85, -2.7) {\c}; }
+    \node[celp] at (5.1, -2.7) {\textbackslash 0};
+    \node[rot, anchor=west] at (6.0, -1.35) {\ldots\ até 20 colunas por linha};
+  \end{tikzpicture}}
+  \end{center}
+  \begin{block}{Lendo a declaração}
+    \texttt{char nomes[4][20]} $=$ 4 strings de até 19 caracteres $+$
+    terminador. \texttt{nomes[1]} é a linha inteira --- e, ao ser passada,
+    decai em \texttt{char *}.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Vetor de \texttt{char} $\times$ literal de string}
+\begin{lstlisting}[numbers=none]
+char  a[20] = "ana";   /* copia as letras para 20 bytes SEUS: pode alterar */
+char *b     = "ana";   /* aponta para um literal na memoria so' de leitura */
+
+a[0] = 'A';            /* ok  -> "Ana"                                     */
+b[0] = 'A';            /* ERRO em execucao: segmentation fault             */
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Regra prática}
+        Vai modificar? Declare como vetor.
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Só vai ler?}
+        \texttt{const char *b = "ana";} --- aí o erro aparece na
+        \emph{compilação}, não na execução.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{As funções de \texttt{<string.h>}}
+  \begin{center}\small
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Função} & \textbf{O que faz} & \textbf{Cuidado} \\
+    \midrule
+    \texttt{strlen(s)}      & conta até o \texttt{'\textbackslash 0'}  & não conta o terminador \\
+    \texttt{strcpy(d, o)}   & copia \texttt{o} para \texttt{d}         & \texttt{d} precisa ter espaço \\
+    \texttt{strcmp(a, b)}   & compara                                  & devolve \texttt{0} se iguais \\
+    \texttt{strcat(d, o)}   & concatena \texttt{o} no fim de \texttt{d} & espaço para os dois \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\begin{lstlisting}[numbers=none]
+if (strcmp(nomes[i], "bruno") == 0)   /* == 0 significa IGUAIS */
+    printf("achei\n");
+\end{lstlisting}
+  \begin{alertblock}{Nunca use \texttt{==} entre strings}
+    \texttt{nomes[i] == "bruno"} compara \textbf{endereços}, não conteúdo --- e
+    dá falso quase sempre.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: strings}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item String é vetor de \texttt{char} terminado em
+            \texttt{'\textbackslash 0'}; a marca é o que define o fim.
+      \item \texttt{sizeof} dá a capacidade declarada; \texttt{strlen} dá o
+            conteúdo atual.
+      \item Passar uma string é passar um \texttt{char *} --- portanto quem
+            recebe pode alterar o original.
+      \item Literais (\texttt{char *s = "..."}) não podem ser modificados;
+            comparação se faz com \texttt{strcmp}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Passagem por valor e por referência}
+% ==================================================================
+
+\begin{frame}{Por que \texttt{estatisticas} precisou de \texttt{\&} e \texttt{maiusculas} não?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{exampleblock}{A chamada com \texttt{\&}}
+        \texttt{estatisticas(idades, 4, \&soma, \&maior);}\\[0.3em]
+        \small \texttt{soma} e \texttt{maior} são \texttt{int} --- variáveis
+        comuns. Sem \texttt{\&}, a função receberia cópias.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{exampleblock}{A chamada sem \texttt{\&}}
+        \texttt{maiusculas(nomes[1]);}\\[0.3em]
+        \small \texttt{nomes[1]} é um vetor --- \textbf{já} decai em endereço.
+        Um \texttt{\&} a mais seria endereço de endereço.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \begin{alertblock}{A regra por trás das duas}
+    C só tem \textbf{um} mecanismo de passagem. Descobrir qual é dissolve a
+    aparente exceção.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{A resposta: C passa tudo por valor}
+  \begin{center}
+  \resizebox{0.88\textwidth}{!}{%
+  \begin{tikzpicture}
+    \node[font=\small\bfseries] at (1.4, 1.0) {Passagem por valor};
+    \node[cel, minimum width=1.6cm] (x) at (0,0.2) {1};
+    \node[rot] at (0,-0.45) {x (main)};
+    \node[cel, minimum width=1.6cm] (xc) at (2.8,0.2) {1};
+    \node[rot] at (2.8,-0.45) {cópia (função)};
+    \draw[seta] (x)--(xc) node[midway, above, font=\scriptsize] {copia};
+    \node[font=\scriptsize, text=UFSRed] at (1.4,-1.0) {alterar a cópia não muda o original};
+    \node[font=\small\bfseries] at (9.0, 1.0) {Passagem do endereço};
+    \node[cel, minimum width=1.6cm] (y) at (7.4,0.2) {?};
+    \node[rot] at (7.4,-0.45) {soma (main)};
+    \node[celp, minimum width=2.0cm] (yp) at (10.6,0.2) {0x7ffd\ldots};
+    \node[rot] at (10.6,-0.45) {soma (função)};
+    \draw[setar] (yp) to[out=150, in=30] (y);
+    \node[font=\scriptsize, text=UFSBlue] at (9.0,-1.0) {\texttt{*soma = 87} escreve na memória de main};
+  \end{tikzpicture}}
+  \end{center}
+  \begin{block}{A regra única}
+    A função sempre recebe uma \textbf{cópia do argumento}. Quando o argumento é
+    um endereço, a cópia aponta para o mesmo lugar --- e é assim que C simula a
+    ``passagem por referência''.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Parâmetros de saída: devolvendo dois resultados}
+\begin{lstlisting}[numbers=none]
+void estatisticas(int v[], int n, int *soma, int *maior);
+/*                 entradas         <-- saidas: escrevemos via *  */
+
+int soma, maior;
+estatisticas(idades, 4, &soma, &maior);   /* & converte em endereco */
+printf("E: soma = %d | maior = %d\n", soma, maior);
+\end{lstlisting}
+  \begin{block}{Convenção que você vai reencontrar sempre}
+    \texttt{return} devolve \textbf{um} valor. Para devolver vários --- ou para
+    separar resultado de código de erro --- C usa ponteiros como
+    \emph{parâmetros de saída}.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{const}: o contrato de quem só lê}
+\begin{lstlisting}[numbers=none]
+int  meu_tamanho(const char *s);   /* prometo nao alterar a string */
+void maiusculas(char *s);          /* aviso que vou alterar        */
+
+/* dentro de meu_tamanho: */
+s[0] = 'X';   /* erro de COMPILACAO: assignment of read-only location */
+\end{lstlisting}
+  \begin{block}{Por que usar}
+    \begin{itemize}
+      \item A assinatura documenta a intenção: quem lê a declaração já sabe se
+            seu dado corre risco.
+      \item O compilador vira seu revisor: quebra do contrato não chega a virar
+            bug em execução.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Guia rápido: o que passar e como}
+  \begin{center}\small
+  \begin{tabular}{@{}llp{5.2cm}@{}}
+    \toprule
+    \textbf{Quero que a função\ldots} & \textbf{Parâmetro} & \textbf{Exemplo} \\
+    \midrule
+    só leia um número            & \texttt{int x}          & \texttt{soma(int a, int b)} \\
+    altere um número             & \texttt{int *x}         & \texttt{estatisticas(\ldots, int *soma)} \\
+    só leia um vetor/string      & \texttt{const T *v, int n} & \texttt{meu\_tamanho(const char *s)} \\
+    altere um vetor/string       & \texttt{T *v, int n}    & \texttt{envelhecer(int v[], int n)} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Regra de bolso}
+    Vetores e strings você passa ``de graça'' (só o endereço viaja). Tipos
+    simples exigem \texttt{\&} explícito quando devem ser alterados.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Armadilha: devolver o endereço de uma variável local}
+\begin{lstlisting}[numbers=none]
+char *saudacao_errada(void) {
+    char msg[20] = "ola";
+    return msg;          /* msg morre no return: endereco invalido */
+}
+
+void saudacao_certa(char *destino, int cap) {
+    if (cap > 3) strcpy(destino, "ola");   /* quem chama fornece o espaco */
+}
+\end{lstlisting}
+  \begin{alertblock}{Padrão de C}
+    Quem chama é dono da memória; a função apenas preenche. Por isso tantas
+    funções recebem um destino \textbf{e} a capacidade dele.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: passagem de parâmetros}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item C só passa por valor; ``por referência'' é passar uma cópia do
+            endereço.
+      \item Tipos simples que devem mudar exigem \texttt{\&} na chamada e
+            \texttt{*} no uso.
+      \item Vetores e strings já chegam como endereço --- alterá-los é o
+            comportamento padrão.
+      \item \texttt{const} documenta e faz o compilador cobrar a promessa de
+            não alterar.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \begin{block}{Tarefa 1}
+    Escreva \texttt{void minusculas(char *s)}, a inversa de \texttt{maiusculas},
+    e aplique-a a \texttt{nomes[3]}. Imprima o resultado.
+  \end{block}
+  \begin{block}{Tarefa 2}
+    Acrescente \texttt{void media(const int v[], int n, float *m)} e imprima a
+    média das idades com uma casa decimal. Por que \texttt{const} cabe aqui e
+    não em \texttt{envelhecer}?
+  \end{block}
+  \begin{block}{Tarefa 3}
+    Escreva \texttt{int busca(char nomes[][MAX\_NOME], int n, const char *alvo)}
+    devolvendo o índice do contato ou \texttt{-1}. Use \texttt{strcmp}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{alertblock}{Agenda ordenada}
+    Escreva \texttt{void ordena\_nomes(char nomes[][MAX\_NOME], int idades[], int n)}
+    que ordene os contatos em ordem alfabética \textbf{mantendo cada idade junto
+    do seu nome}.
+  \end{alertblock}
+  \begin{block}{Requisitos}
+    \begin{itemize}
+      \item Compare nomes com \texttt{strcmp} e troque strings com
+            \texttt{strcpy} e um vetor auxiliar.
+      \item Toda troca de nome deve vir acompanhada da troca da idade.
+      \item A função não devolve nada: o efeito é nos vetores de \texttt{main}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{As cinco respostas}
+        \begin{enumerate}\small
+          \item \texttt{16} $\times$ \texttt{8}: o vetor decai em ponteiro.
+          \item Sim: a função escreveu na memória de \texttt{main}.
+          \item \texttt{20} $\times$ \texttt{5}: capacidade $\times$ conteúdo.
+          \item Sim: \texttt{char *} aponta para o original.
+          \item Vetores já são endereços; \texttt{int} precisa de \texttt{\&}.
+        \end{enumerate}
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Próxima aula}
+        Se o vetor precisa existir com tamanho decidido em execução, quem
+        reserva essa memória? Entra \texttt{malloc} --- e o ponteiro deixa de
+        apontar para algo que já existe.
+      \end{block}
+      \begin{exampleblock}{Para praticar}
+        Tutorial da aula: tarefas 1--3 e o desafio, com testes automáticos.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \scriptsize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
