@@ -62,4 +62,15 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-06-geracao-combinatoria-lexicografica' | relative_url }}">
+    <div class="week-num">06</div>
+    <div class="week-body">
+      <div class="week-title">Geração Combinatória em ordem lexicográfica</div>
+      <div class="week-desc">Subconjuntos e permutações em ordem lexicográfica</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
+
+
 </div>

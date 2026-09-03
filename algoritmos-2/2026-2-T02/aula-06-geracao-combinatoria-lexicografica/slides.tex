@@ -1,0 +1,752 @@
+% -*- coding: utf-8 -*-
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, patterns, chains}
+
+% ---------- estilo de codigo ----------
+\definecolor{codegreen}{rgb}{0,0.5,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.96,0.96,0.93}
+
+\lstdefinestyle{estiloC}{
+  language=C,
+  backgroundcolor=\color{backcolour},
+  commentstyle=\color{codegreen},
+  keywordstyle=\color{magenta},
+  numberstyle=\tiny\color{codegray},
+  stringstyle=\color{codepurple},
+  basicstyle=\ttfamily\scriptsize,
+  breaklines=true,
+  keepspaces=true,
+  numbers=left,
+  numbersep=5pt,
+  showstringspaces=false,
+  tabsize=2,
+  frame=single,
+  rulecolor=\color{gray},
+  extendedchars=true,
+  literate={é}{{\'e}}1 {ê}{{\^e}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {ç}{{\c{c}}}1
+           {í}{{\'i}}1 {ó}{{\'o}}1 {õ}{{\~o}}1 {ú}{{\'u}}1 {â}{{\^a}}1
+}
+\lstdefinestyle{estiloCmini}{style=estiloC, basicstyle=\ttfamily\tiny}
+\lstset{style=estiloC}
+
+% ---------- atalhos ----------
+\newcommand{\lex}{\prec_{\text{lex}}}
+% linha de referencia bibliografica ao pe do frame
+\newcommand{\fonte}[1]{%
+  \par\vspace{1pt}%
+  {\tiny\color{gray!30!black}\textbf{Onde aparece:} #1\par}}
+\definecolor{ufsazul}{RGB}{0,64,128}
+\definecolor{ufsverde}{RGB}{0,120,80}
+
+\title{Geração Combinatória}
+\subtitle{Subconjuntos e permutações em ordem lexicográfica}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof. Dr. André Yoshiaki Kashiwabara}
+\institute{Algoritmos e Estruturas de Dados II --- DCOMP/UFS}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+% =====================================================================
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=ufsazul, fill=ufsazul!8, rounded corners,
+      minimum width=8.4cm, minimum height=0.62cm, font=\small},
+    seta/.style={-{Latex[length=2mm]}, thick, ufsazul}
+  ]
+    \node[item] (t1) at (0, 0.0)  {1. Ordem lexicográfica e o tamanho do espaço de busca};
+    \node[item] (t2) at (0,-0.95) {2. Subconjuntos: vetor característico e máscara de bits};
+    \node[item] (t3) at (0,-1.90) {3. Subconjuntos por \textit{backtracking} em ordem lex};
+    \node[item] (t4) at (0,-2.85) {4. Permutações por \textit{backtracking} em ordem lex};
+    \node[item] (t5) at (0,-3.80) {5. Próxima permutação em $O(n)$ e análise de custo};
+    \draw[seta] (t1)--(t2);
+    \draw[seta] (t2)--(t3);
+    \draw[seta] (t3)--(t4);
+    \draw[seta] (t4)--(t5);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\section{Ordem lexicográfica e espaço de busca}
+
+\begin{frame}{Por que gerar todas as configurações?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema}\\[2pt]
+      Muitos problemas não têm algoritmo eficiente conhecido. A alternativa
+      é \emph{examinar todas as configurações candidatas}:
+      \begin{itemize}
+        \item subconjuntos: soma de subconjunto, mochila exata, cobertura;
+        \item permutações: caixeiro viajante.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução}\\[2pt]
+      Um \emph{gerador} que percorre o espaço de busca:
+      \begin{itemize}
+        \item sem repetir nenhuma configuração;
+        \item sem esquecer nenhuma;
+        \item em uma ordem \emph{previsível} --- a ordem lexicográfica.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Ordem lexicográfica: definição}
+  \begin{block}{Definição}
+    Sejam $a = (a_1,\dots,a_p)$ e $b = (b_1,\dots,b_q)$ sequências sobre um
+    conjunto ordenado. Dizemos que $a \lex b$ quando:
+    \begin{itemize}
+      \item existe $i \le \min(p,q)$ com $a_j = b_j$ para todo $j < i$ e $a_i < b_i$; \textbf{ou}
+      \item $p < q$ e $a$ é prefixo de $b$.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    É a ordem do dicionário: compara-se posição a posição e, na primeira
+    diferença, decide-se. Quem acaba antes e é prefixo do outro vem primeiro.
+  \end{exampleblock}
+  \fonte{Knuth \cite{knuth2011taocp4a}, seç.~7.2.1 (ordens de geração);
+    Kreher \& Stinson \cite{kreher1999combinatorial}, cap.~2.}
+\end{frame}
+
+\begin{frame}{Ordem lexicográfica: exemplos}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \textbf{Comparações}
+      \begin{itemize}
+        \item $(1,3) \lex (2)$ \quad pois $1 < 2$
+        \item $(1,2) \lex (1,3)$ \quad primeira diferença na 2\textsuperscript{a} posição
+        \item $(1) \lex (1,2)$ \quad prefixo vem antes
+        \item $(2,3) \lex (3)$ \quad pois $2 < 3$
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Os 8 subconjuntos de $\{1,2,3\}$ em ordem lex}
+      \begin{center}\small
+        $\emptyset \prec \{1\} \prec \{1,2\} \prec \{1,2,3\} \prec$\\
+        $\{1,3\} \prec \{2\} \prec \{2,3\} \prec \{3\}$
+      \end{center}
+      \textbf{As 6 permutações de $\{1,2,3\}$ em ordem lex}
+      \begin{center}\small
+        $123 \prec 132 \prec 213 \prec 231 \prec 312 \prec 321$
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O tamanho do espaço de busca}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \centering
+      \begin{tabular}{@{}rrr@{}}
+        \toprule
+        $n$ & $2^n$ & $n!$ \\
+        \midrule
+        5  & $32$        & $120$ \\
+        10 & $1\,024$    & $3{,}6 \times 10^{6}$ \\
+        15 & $32\,768$   & $1{,}3 \times 10^{12}$ \\
+        20 & $1{,}0 \times 10^{6}$ & $2{,}4 \times 10^{18}$ \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{alertblock}{Consequência prática}
+        Subconjuntos são viáveis até $n \approx 25$--$30$;
+        permutações, até $n \approx 11$--$13$.
+      \end{alertblock}
+      Qualquer trabalho \emph{extra} por configuração multiplica um número
+      já enorme: o gerador precisa ser econômico.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al. \cite{cormen2012algoritmos}, Apêndice~C.1 (contagem: permutações e
+    combinações); Knuth \cite{knuth2011taocp4a}, seç.~7.2.1.}
+\end{frame}
+
+\begin{frame}{Recapitulando: ordem lexicográfica}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Enumeração exaustiva é a estratégia-base para problemas sem algoritmo eficiente.
+      \item A ordem lexicográfica compara sequências posição a posição; prefixo vem antes.
+      \item Gerar em ordem lex dá saída determinística, fácil de conferir e de comparar.
+      \item $2^n$ subconjuntos e $n!$ permutações limitam severamente o $n$ tratável.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Subconjuntos: vetor característico}
+
+\begin{frame}{Por que representar subconjuntos por bits?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema}\\[2pt]
+      Um subconjunto é um objeto de tamanho variável. Como percorrer
+      \emph{todos} eles sem estrutura de dados complicada?
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução}\\[2pt]
+      Cada subconjunto vira um vetor de $n$ bits --- e portanto um inteiro
+      entre $0$ e $2^n - 1$. Enumerar subconjuntos vira \emph{contar}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Vetor característico}
+  \begin{block}{Definição}
+    Para $S \subseteq \{1,\dots,n\}$, o vetor característico é
+    $c(S) = (c_1,\dots,c_n)$ com $c_i = 1$ se $i \in S$ e $c_i = 0$ caso contrário.
+    A correspondência $S \leftrightarrow c(S)$ é uma bijeção entre os
+    $2^n$ subconjuntos e os $2^n$ vetores binários de tamanho $n$.
+  \end{block}
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={draw=ufsazul, minimum width=1.0cm, minimum height=0.6cm, font=\small},
+    rot/.style={font=\scriptsize, text=gray}
+  ]
+    \node[cel, fill=ufsazul!25] (c1) at (1.0,0) {1};
+    \node[cel]                  (c2) at (2.0,0) {0};
+    \node[cel, fill=ufsazul!25] (c3) at (3.0,0) {1};
+    \node[cel, fill=ufsazul!25] (c4) at (4.0,0) {1};
+    \node[cel]                  (c5) at (5.0,0) {0};
+    \foreach \i in {1,2,3,4,5} {
+      \node[rot] at (\i*1.0, 0.55) {$c_{\i}$};
+      \node[rot] at (\i*1.0,-0.55) {\i};
+    }
+    \node[anchor=west, font=\small] at (5.8,0) {$\;\Longleftrightarrow\; S=\{1,3,4\}$};
+    \node[anchor=west, font=\small] at (5.8,-0.7) {$\;\Longleftrightarrow\; 10110_2 = 22$};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Enumerando por contagem binária}
+\begin{lstlisting}[style=estiloC]
+/* Percorre os 2^n subconjuntos de {1, ..., n}.
+   Bit mais significativo (posicao n-1) representa o elemento 1. */
+void subconjuntos_mascara(int n)
+{
+    for (unsigned m = 0; m < (1u << n); m++) {
+        printf("{");
+        for (int i = 1; i <= n; i++)
+            if (m & (1u << (n - i)))   /* elemento i pertence a S? */
+                printf(" %d", i);
+        printf(" }\n");
+    }
+}
+\end{lstlisting}
+  \begin{itemize}
+    \item Custo: $\Theta(n \cdot 2^n)$ --- $n$ testes de bit por subconjunto.
+    \item Espaço adicional: $O(1)$. Limite prático: $n \le 31$ com \texttt{unsigned}.
+  \end{itemize}
+  \fonte{Knuth \cite{knuth2011taocp4a}, seç.~7.2.1.1 (geração de todas as $n$-uplas);
+    Kreher \& Stinson \cite{kreher1999combinatorial}, seç.~2.2 (subsets).}
+\end{frame}
+
+\begin{frame}{Cuidado: duas ordens diferentes}
+  \begin{columns}[T]
+    \begin{column}{0.47\textwidth}
+      \textbf{Contagem binária} ($m = 0,1,\dots,7$)
+      \begin{center}\small
+      \begin{tabular}{@{}cl@{}}
+        \toprule
+        $m$ & $S$ \\
+        \midrule
+        000 & $\emptyset$ \\
+        001 & $\{3\}$ \\
+        010 & $\{2\}$ \\
+        011 & $\{2,3\}$ \\
+        100 & $\{1\}$ \\
+        101 & $\{1,3\}$ \\
+        110 & $\{1,2\}$ \\
+        111 & $\{1,2,3\}$ \\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \textbf{Ordem lex dos \emph{elementos}}
+      \begin{center}\small
+      $\emptyset,\ \{1\},\ \{1,2\},\ \{1,2,3\},$\\
+      $\{1,3\},\ \{2\},\ \{2,3\},\ \{3\}$
+      \end{center}
+      \begin{alertblock}{Observação}
+        A contagem binária é lex sobre os \emph{vetores de bits}, não sobre as
+        \emph{listas crescentes de elementos}. Para obter a segunda ordem
+        usamos \textit{backtracking}.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Recapitulando: vetor característico}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Subconjunto $\leftrightarrow$ vetor de $n$ bits $\leftrightarrow$ inteiro em $[0, 2^n)$.
+      \item Enumerar todos os subconjuntos é contar de $0$ a $2^n-1$: código curto, $O(1)$ de espaço.
+      \item Custo $\Theta(n \cdot 2^n)$; cabe em \texttt{unsigned} até $n = 31$.
+      \item A ordem produzida é lex \emph{nos bits} --- diferente da ordem lex \emph{nos elementos}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Subconjuntos por backtracking}
+
+\begin{frame}{Por que backtracking para subconjuntos?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema}\\[2pt]
+      Queremos a ordem lex sobre as listas crescentes de elementos --- e
+      queremos poder \emph{podar} ramos inteiros quando o prefixo já é inviável
+      (soma estourou, restrição violada). A máscara de bits não permite isso.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução}\\[2pt]
+      Construir o subconjunto incrementalmente: em cada nível, escolher o
+      \emph{próximo} elemento entre os maiores que o último escolhido, em ordem
+      crescente. Visitar o nó ao chegar nele.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A árvore de enumeração}
+  \begin{center}
+  \begin{tikzpicture}[
+    level distance=1.25cm,
+    no/.style={draw=ufsazul, fill=ufsazul!8, rounded corners, inner sep=3pt, font=\small},
+    level 1/.style={sibling distance=4.2cm},
+    level 2/.style={sibling distance=2.0cm},
+    level 3/.style={sibling distance=1.8cm},
+    edge from parent/.style={draw=ufsazul, -{Latex[length=1.6mm]}}
+  ]
+    \node[no] {$\emptyset$}
+      child { node[no] {$\{1\}$}
+        child { node[no] {$\{1,2\}$}
+          child { node[no] {$\{1,2,3\}$} } }
+        child { node[no] {$\{1,3\}$} } }
+      child { node[no] {$\{2\}$}
+        child { node[no] {$\{2,3\}$} } }
+      child { node[no] {$\{3\}$} };
+  \end{tikzpicture}
+  \end{center}
+  \begin{center}\small
+    Percurso em pré-ordem, filhos da esquerda para a direita $\Rightarrow$ ordem lexicográfica.
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Algoritmo em C}
+\begin{lstlisting}[style=estiloCmini]
+int n;            /* universo {1, ..., n}  */
+int sol[MAXN];    /* prefixo em construcao */
+int k;            /* tamanho do prefixo    */
+
+void subconjuntos(int inicio)
+{
+    visita(sol, k);                      /* 1. visita o no atual */
+    for (int i = inicio; i <= n; i++) {  /* 2. filhos em ordem crescente */
+        sol[k++] = i;                    /*    escolhe i */
+        subconjuntos(i + 1);             /*    so elementos maiores que i */
+        k--;                             /*    desfaz a escolha */
+    }
+}
+/* chamada inicial: k = 0; subconjuntos(1); */
+\end{lstlisting}
+  \begin{itemize}
+    \item \texttt{inicio = i + 1} garante subconjunto \emph{crescente} e sem repetição.
+    \item Profundidade máxima da recursão: $n$; espaço $O(n)$.
+  \end{itemize}
+  \fonte{Skiena \cite{skiena2020algorithm}, seç.~9.2.1;
+    Kreher \& Stinson \cite{kreher1999combinatorial}, cap.~4;
+    Ziviani \cite{ziviani2011projeto}, seç.~2.3.}
+\end{frame}
+
+\begin{frame}{Por que a saída sai em ordem lex?}
+  \begin{block}{Argumento}
+    Em cada nó, o prefixo já fixado é comum a toda a subárvore. Os filhos são
+    gerados com valores $i$ \emph{crescentes}, logo a subárvore do filho $i$ contém
+    apenas sequências menores (lex) que as da subárvore do filho $i+1$.
+    Como o nó é visitado \emph{antes} dos filhos, o prefixo aparece antes de suas
+    extensões --- exatamente a segunda cláusula da definição de $\lex$.
+  \end{block}
+  \begin{exampleblock}{Exemplo: $n = 3$}
+    Saída: $\emptyset,\ \{1\},\ \{1,2\},\ \{1,2,3\},\ \{1,3\},\ \{2\},\ \{2,3\},\ \{3\}$.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Onde a poda entra}
+  \begin{block}{Soma de subconjunto}
+    Queremos os $S$ com $\sum_{i \in S} w_i = A$, com todos os $w_i > 0$.
+  \end{block}
+\begin{lstlisting}[style=estiloCmini]
+void busca(int inicio, int soma)
+{
+    if (soma == A) visita(sol, k);
+    if (soma >= A) return;               /* poda: pesos positivos */
+    for (int i = inicio; i <= n; i++) {
+        sol[k++] = i;
+        busca(i + 1, soma + w[i]);
+        k--;
+    }
+}
+\end{lstlisting}
+  \begin{itemize}
+    \item Uma linha corta subárvores inteiras --- impossível na enumeração por máscara.
+    \item A ordem de visita dos ramos sobreviventes continua lexicográfica.
+  \end{itemize}
+  \fonte{Skiena \cite{skiena2020algorithm}, seç.~9.3 (\textit{search pruning});
+    Kreher \& Stinson \cite{kreher1999combinatorial}, seç.~4.6;
+    Cormen et al. \cite{cormen2012algoritmos}, seç.~35.5.}
+\end{frame}
+
+\begin{frame}{Recapitulando: subconjuntos por backtracking}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Escolher o próximo elemento sempre \emph{maior} que o último evita repetições.
+      \item Pré-ordem com filhos crescentes $\Rightarrow$ ordem lexicográfica dos elementos.
+      \item Espaço $O(n)$; tempo $\Theta(n \cdot 2^n)$ no pior caso, muito menos com poda.
+      \item A poda é a vantagem decisiva sobre a máscara de bits.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Permutações por backtracking}
+
+\begin{frame}{Por que permutações são diferentes}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema}\\[2pt]
+      Em um subconjunto, cada elemento entra ou não. Em uma permutação, todos
+      entram --- o que muda é a \emph{posição}. Precisamos saber quais valores
+      ainda estão disponíveis.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução}\\[2pt]
+      Preencher as posições $0,1,\dots,n-1$ e, em cada posição, testar os
+      valores livres em ordem crescente, marcando-os em um vetor
+      \texttt{usado[]}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A árvore de permutações de $\{1,2,3\}$}
+  \begin{center}
+  \begin{tikzpicture}[
+    level distance=1.1cm,
+    no/.style={draw=ufsverde, fill=ufsverde!8, rounded corners, inner sep=3pt, font=\small},
+    fo/.style={draw=ufsverde, fill=ufsverde!25, rounded corners, inner sep=3pt, font=\small},
+    level 1/.style={sibling distance=3.8cm},
+    level 2/.style={sibling distance=1.9cm},
+    level 3/.style={sibling distance=1.9cm},
+    edge from parent/.style={draw=ufsverde, -{Latex[length=1.6mm]}}
+  ]
+    \node[no] {$\;$}
+      child { node[no] {1}
+        child { node[no] {12} child { node[fo] {123} } }
+        child { node[no] {13} child { node[fo] {132} } } }
+      child { node[no] {2}
+        child { node[no] {21} child { node[fo] {213} } }
+        child { node[no] {23} child { node[fo] {231} } } }
+      child { node[no] {3}
+        child { node[no] {31} child { node[fo] {312} } }
+        child { node[no] {32} child { node[fo] {321} } } };
+  \end{tikzpicture}
+  \end{center}
+  \begin{center}\small
+    Só as folhas são visitadas: $n!$ folhas, todas na profundidade $n$.
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Algoritmo em C}
+\begin{lstlisting}[style=estiloCmini]
+int n;
+int sol[MAXN];           /* permutacao parcial          */
+int usado[MAXN + 1];     /* usado[v] = 1 se v ja esta em sol */
+
+void permutacoes(int pos)
+{
+    if (pos == n) { visita(sol, n); return; }   /* folha */
+    for (int v = 1; v <= n; v++) {              /* valores em ordem crescente */
+        if (usado[v]) continue;
+        usado[v] = 1;  sol[pos] = v;
+        permutacoes(pos + 1);
+        usado[v] = 0;                           /* desfaz */
+    }
+}
+/* chamada inicial: memset(usado, 0, sizeof usado); permutacoes(0); */
+\end{lstlisting}
+  \begin{itemize}
+    \item Testar $v$ em ordem crescente em cada posição $\Rightarrow$ folhas em ordem lex.
+    \item Tempo $\Theta(n \cdot n!)$; espaço $O(n)$.
+  \end{itemize}
+  \fonte{Skiena \cite{skiena2020algorithm}, seç.~9.2.2 (\textit{constructing all permutations});
+    Kreher \& Stinson \cite{kreher1999combinatorial}, seç.~2.4; Ziviani \cite{ziviani2011projeto}, seç.~2.3.}
+\end{frame}
+
+\begin{frame}[fragile]{Contraste: geração por trocas}
+\begin{lstlisting}[style=estiloCmini]
+void permuta_troca(int v[], int pos, int n)   /* NAO gera em ordem lex */
+{
+    if (pos == n) { visita(v, n); return; }
+    for (int i = pos; i < n; i++) {
+        troca(&v[pos], &v[i]);
+        permuta_troca(v, pos + 1, n);
+        troca(&v[pos], &v[i]);
+    }
+}
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Saída para $123$}\\
+      $123,\ 132,\ 213,\ 231,\ 321,\ 312$
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      Dispensa \texttt{usado[]} e é mais rápida por constante, mas a troca
+      \emph{desordena} o sufixo. Use-a quando a ordem não importa.
+    \end{column}
+  \end{columns}
+  \fonte{Sedgewick \cite{sedgewick1977permutation} (levantamento dos métodos por troca);
+    Knuth \cite{knuth2011taocp4a}, seç.~7.2.1.2, Algoritmo~P (\textit{plain changes}).}
+\end{frame}
+
+\begin{frame}{Recapitulando: permutações por backtracking}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Preencher posição a posição, testando valores livres em ordem crescente.
+      \item \texttt{usado[]} custa $O(n)$ de espaço e mantém a ordem lexicográfica.
+      \item Apenas folhas são visitadas: $n!$ saídas, custo $\Theta(n \cdot n!)$.
+      \item A variante por trocas é mais enxuta, mas não respeita a ordem lex.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Próxima permutação e análise de custo}
+
+\begin{frame}{Por que um sucessor iterativo?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema}\\[2pt]
+      A recursão obriga a percorrer tudo de uma vez. Às vezes queremos
+      \emph{avançar uma permutação por vez}: dentro de um laço, retomando de
+      onde parou, sem pilha de recursão.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução}\\[2pt]
+      Dado um arranjo, calcular \emph{in loco} a menor permutação
+      estritamente maior que ele --- o sucessor lexicográfico, em $O(n)$.
+      É o que faz \texttt{std::next\_permutation}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Os quatro passos}
+  \begin{center}
+  \begin{tikzpicture}[
+    cel/.style={draw=ufsazul, minimum width=0.7cm, minimum height=0.55cm, font=\small},
+    piv/.style={cel, fill=orange!35},
+    suc/.style={cel, fill=ufsverde!30},
+    suf/.style={cel, fill=ufsazul!12},
+    rot/.style={font=\scriptsize, anchor=west}
+  ]
+    % linha 1
+    \node[cel] at (0,0) {1}; \node[piv] at (0.7,0) {3};
+    \node[suf] at (1.4,0) {5}; \node[suc] at (2.1,0) {4}; \node[suf] at (2.8,0) {2};
+    \node[rot] at (3.4,0) {1. sufixo decrescente $(5,4,2)$; pivô $=3$ (último $v_i < v_{i+1}$)};
+    % linha 2
+    \node[cel] at (0,-0.85) {1}; \node[piv] at (0.7,-0.85) {3};
+    \node[suf] at (1.4,-0.85) {5}; \node[suc] at (2.1,-0.85) {4}; \node[suf] at (2.8,-0.85) {2};
+    \node[rot] at (3.4,-0.85) {2. mais à direita maior que o pivô: $4$};
+    % linha 3
+    \node[cel] at (0,-1.7) {1}; \node[suc] at (0.7,-1.7) {4};
+    \node[suf] at (1.4,-1.7) {5}; \node[piv] at (2.1,-1.7) {3}; \node[suf] at (2.8,-1.7) {2};
+    \node[rot] at (3.4,-1.7) {3. troca pivô com ele: $1\,4\,5\,3\,2$};
+    % linha 4
+    \node[cel] at (0,-2.55) {1}; \node[suc] at (0.7,-2.55) {4};
+    \node[suf] at (1.4,-2.55) {2}; \node[suf] at (2.1,-2.55) {3}; \node[suf] at (2.8,-2.55) {5};
+    \node[rot] at (3.4,-2.55) {4. inverte o sufixo: $1\,4\,2\,3\,5$ é o sucessor};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Implementação em C}
+\begin{lstlisting}[style=estiloCmini]
+static void troca(int *a, int *b) { int t = *a; *a = *b; *b = t; }
+
+static void inverte(int v[], int i, int j)
+{
+    while (i < j) { troca(&v[i], &v[j]); i++; j--; }
+}
+
+int proxima_permutacao(int v[], int n)     /* 1 se avancou, 0 se era a ultima */
+{
+    int i = n - 2;
+    while (i >= 0 && v[i] >= v[i + 1]) i--;      /* 1. pivo */
+    if (i < 0) return 0;                         /* sufixo e todo decrescente */
+    int j = n - 1;
+    while (v[j] <= v[i]) j--;                    /* 2. sucessor do pivo */
+    troca(&v[i], &v[j]);                         /* 3. troca */
+    inverte(v, i + 1, n - 1);                    /* 4. inverte o sufixo */
+    return 1;
+}
+\end{lstlisting}
+  \fonte{Knuth \cite{knuth2011taocp4a}, seç.~7.2.1.2, Algoritmo~L
+    (\textit{lexicographic permutation generation});
+    Kreher \& Stinson \cite{kreher1999combinatorial}, seç.~2.4 (sucessor lex). É a mesma rotina do
+    \texttt{std::next\_permutation} da biblioteca padrão do C++.}
+\end{frame}
+
+\begin{frame}[fragile]{Uso e corretude}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=estiloC]
+int v[] = {1, 2, 3, 4};
+do {
+    visita(v, 4);
+} while (proxima_permutacao(v, 4));
+\end{lstlisting}
+      Comece \emph{ordenado} para obter todas as $n!$ permutações.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Por que é o sucessor}
+        O sufixo à direita do pivô é decrescente: já é o maior arranjo daqueles
+        valores, logo nada muda ali. Aumentar o pivô o mínimo possível e deixar
+        o sufixo \emph{crescente} dá a menor permutação acima da atual.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Análise de custo}
+  \begin{center}
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    Método & Saídas & Tempo total & Espaço extra \\
+    \midrule
+    Máscara de bits            & $2^n$ & $\Theta(n \cdot 2^n)$ & $O(1)$ \\
+    Subconjuntos (backtracking)& $2^n$ & $\Theta(n \cdot 2^n)$ & $O(n)$ \\
+    Permutações (backtracking) & $n!$  & $\Theta(n \cdot n!)$  & $O(n)$ \\
+    \texttt{proxima\_permutacao} & $n!$ & $\Theta(n!)$ & $O(1)$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Custo amortizado do sucessor}
+    Uma chamada custa $O(n)$ no pior caso, mas o pivô está na última posição em
+    metade dos casos, na penúltima em $1/6$, e assim por diante. O custo médio é
+    $\sum_{k \ge 1} k/k! = e \approx 2{,}7$ comparações: \textbf{$O(1)$ amortizado}.
+  \end{block}
+  \fonte{Knuth \cite{knuth2011taocp4a}, seç.~7.2.1.2 (análise do Algoritmo~L);
+    Sedgewick \cite{sedgewick1977permutation} (comparação empírica dos geradores).}
+\end{frame}
+
+\begin{frame}{Recapitulando: sucessor lexicográfico}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item O sucessor lex se calcula in loco em quatro passos: pivô, troca, inversão.
+      \item Custo $O(n)$ por chamada e $O(1)$ amortizado; espaço extra $O(1)$.
+      \item Permite laço iterativo, sem recursão e sem armazenar permutações.
+      \item O gerador recursivo continua preferível quando há poda a fazer.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{Fechamento: qual gerador usar?}
+  \begin{center}
+  \begin{tikzpicture}[
+    no/.style={draw=ufsazul, fill=ufsazul!8, rounded corners, font=\scriptsize,
+      text width=3.1cm, align=center, minimum height=1.0cm},
+    seta/.style={-{Latex[length=2mm]}, thick, ufsazul}
+  ]
+    \node[no] (q) at (0,0) {Preciso podar ramos inviáveis?};
+    \node[no] (bt) at (4.6,0.9) {\textbf{Backtracking}\\ ordem lex + poda};
+    \node[no] (it) at (4.6,-0.9) {\textbf{Iterativo}\\ máscara ou próxima permutação};
+    \draw[seta] (q) -- node[above, font=\tiny, sloped] {sim} (bt);
+    \draw[seta] (q) -- node[below, font=\tiny, sloped] {não} (it);
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}
+    \item Ordem lex é a mesma nos dois caminhos --- muda o custo e a flexibilidade.
+    \item Sempre estime $2^n$ ou $n!$ \emph{antes} de rodar.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Para praticar}
+  \begin{enumerate}
+    \item Escreva \texttt{proximo\_subconjunto} que, dado um vetor crescente, produz o próximo subconjunto em ordem lex.
+    \item Adapte o gerador de subconjuntos para produzir só os de tamanho $k$, mantendo a ordem lex.
+    \item Resolva soma de subconjunto com poda e conte quantos nós a poda eliminou.
+    \item Meça o tempo de \texttt{proxima\_permutacao} para $n = 8,9,10$ e confirme o fator $n$ entre medições consecutivas.
+  \end{enumerate}
+  \begin{center}
+    Tutorial guiado: \texttt{tutorial/tutorial.ipynb}
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\begin{frame}{Onde cada algoritmo aparece na literatura}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{@{}p{4.0cm}p{7.2cm}@{}}
+    \toprule
+    \textbf{Algoritmo da aula} & \textbf{Referência e local} \\
+    \midrule
+    Máscara de bits &
+      Knuth \cite{knuth2011taocp4a}, seç.~7.2.1.1;
+      Kreher \& Stinson \cite{kreher1999combinatorial}, seç.~2.2 \\
+    Subconjuntos por backtracking &
+      Skiena \cite{skiena2020algorithm}, seç.~9.2.1;
+      Ziviani \cite{ziviani2011projeto}, seç.~2.3 \\
+    Subconjuntos de tamanho $k$ &
+      Kreher \& Stinson \cite{kreher1999combinatorial}, seç.~2.3;
+      Knuth \cite{knuth2011taocp4a}, seç.~7.2.1.3 \\
+    Poda (soma de subconjunto) &
+      Skiena \cite{skiena2020algorithm}, seç.~9.3;
+      Kreher \& Stinson \cite{kreher1999combinatorial}, seç.~4.6;
+      Cormen et al. \cite{cormen2012algoritmos}, seç.~35.5 \\
+    Permutações por backtracking &
+      Skiena \cite{skiena2020algorithm}, seç.~9.2.2;
+      Kreher \& Stinson \cite{kreher1999combinatorial}, seç.~2.4 \\
+    Permutações por trocas &
+      Sedgewick \cite{sedgewick1977permutation};
+      Knuth \cite{knuth2011taocp4a}, seç.~7.2.1.2 (Algoritmo~P) \\
+    \texttt{proxima\_permutacao} &
+      Knuth \cite{knuth2011taocp4a}, seç.~7.2.1.2 (Algoritmo~L);
+      Kreher \& Stinson \cite{kreher1999combinatorial}, seç.~2.4 \\
+    Contagem ($2^n$ e $n!$) &
+      Cormen et al. \cite{cormen2012algoritmos}, Apêndice~C.1 \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \fonte{O sucessor lexicográfico (Algoritmo~L) é atribuído por Knuth a
+    Narayana Pandita, na Índia do século~XIV.}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \footnotesize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

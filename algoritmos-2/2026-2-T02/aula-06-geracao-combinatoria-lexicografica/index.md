@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "Aula 06 — Geração Combinatória"
+title: "Aula 05 — Seleção e Estatísticas de Ordem"
 disciplina: algoritmos-2
 turma: 2026-2-T02
 data: 2026-09-01
@@ -13,18 +13,18 @@ data: 2026-09-01
   <span class="breadcrumb-sep">›</span>
   <a href="{{ 'algoritmos-2/2026-2-T02' | relative_url }}">Turma 2 · 2026/2</a>
   <span class="breadcrumb-sep">›</span>
-  <span>Aula 06</span>
+  <span>Aula 05</span>
 </nav>
 
-<h1 class="page-title">Aula 06 — Geração Combinatória</h1>
-<p class="page-subtitle">Geração combinatória — subconjuntos e permutações em ordem lexicográfica</p>
+<h1 class="page-title">Aula 05 — Seleção e Estatísticas de Ordem</h1>
+<p class="page-subtitle">Do menor ao k-ésimo menor: força bruta, quickselect e o custo de encontrar a mediana</p>
 
 <div class="table-card">
   <div class="table-card-header">📄 Slides</div>
   <table>
     <tbody>
       <tr>
-        <td><strong>Geração combinatória — subconjuntos e permutações em ordem lexicográfica</strong></td>
+        <td><strong>Seleção e estatísticas de ordem</strong></td>
         <td class="td-right"><a class="badge-pdf" href="slides.pdf">📄 PDF</a></td>
       </tr>
     </tbody>
@@ -36,7 +36,7 @@ data: 2026-09-01
   <table>
     <tbody>
       <tr>
-        <td><strong>Notebook: Geração combinatória — subconjuntos e permutações em ordem lexicográfica</strong></td>
+        <td><strong>Notebook: menor e segundo menor, seleção por força bruta e quickselect em C — implementar, medir e quebrar</strong></td>
         <td class="td-right"><a class="badge-pdf" href="https://colab.research.google.com/github/ayoshiaki/ufs-disciplinas/blob/main/algoritmos-2/2026-2-T02/aula-06-geracao-combinatoria-lexicografica/tutorial/tutorial.ipynb" target="_blank" rel="noopener">🚀 Abrir no Colab</a></td>
       </tr>
     </tbody>
