@@ -36,7 +36,7 @@ data: 2026-09-01
   <table>
     <tbody>
       <tr>
-        <td><strong>Notebook: menor e segundo menor, seleção por força bruta e quickselect em C — implementar, medir e quebrar</strong></td>
+        <td><strong>Notebook:Geração combinatória em ordem lexicográfica </strong></td>
         <td class="td-right"><a class="badge-pdf" href="https://colab.research.google.com/github/ayoshiaki/ufs-disciplinas/blob/main/algoritmos-2/2026-2-T02/aula-06-geracao-combinatoria-lexicografica/tutorial/tutorial.ipynb" target="_blank" rel="noopener">🚀 Abrir no Colab</a></td>
       </tr>
     </tbody>
