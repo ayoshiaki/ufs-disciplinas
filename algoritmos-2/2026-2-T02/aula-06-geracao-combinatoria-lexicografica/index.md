@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "Aula 05 — Seleção e Estatísticas de Ordem"
+title: "Aula 06 — Geração Combinatória e Lexicográfica"
 disciplina: algoritmos-2
 turma: 2026-2-T02
 data: 2026-09-01
@@ -24,7 +24,7 @@ data: 2026-09-01
   <table>
     <tbody>
       <tr>
-        <td><strong>Seleção e estatísticas de ordem</strong></td>
+        <td><strong>Geração Combinatória e Lexicográfica</strong></td>
         <td class="td-right"><a class="badge-pdf" href="slides.pdf">📄 PDF</a></td>
       </tr>
     </tbody>
