@@ -16,8 +16,8 @@ data: 2026-09-01
   <span>Aula 05</span>
 </nav>
 
-<h1 class="page-title">Aula 05 — Seleção e Estatísticas de Ordem</h1>
-<p class="page-subtitle">Do menor ao k-ésimo menor: força bruta, quickselect e o custo de encontrar a mediana</p>
+<h1 class="page-title">Aula 06 — Geração Combinatória em ordem lexicográfica</h1>
+<p class="page-subtitle">Subconjuntos e permutações em ordem lexicográfica</p>
 
 <div class="table-card">
   <div class="table-card-header">📄 Slides</div>
