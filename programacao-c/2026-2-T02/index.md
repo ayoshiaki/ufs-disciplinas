@@ -70,6 +70,15 @@ title: "COMP0512 — Programação C — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-c/2026-2-T02/aula-07-alocacao-dinamica-de-memoria' | relative_url }}">
+    <div class="week-num">07</div>
+    <div class="week-body">
+      <div class="week-title">Alocação dinâmica de memória</div>
+      <div class="week-desc">Quando o tamanho só se sabe rodando: <code>malloc</code>, <code>calloc</code>, <code>realloc</code>, <code>free</code> e as quatro falhas clássicas.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge nb">1 notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'programacao-c/2026-2-T02/projeto' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📒</div>
     <div class="week-body">

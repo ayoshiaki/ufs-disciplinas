@@ -1,0 +1,767 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=1.1cm,
+    minimum height=0.75cm, font=\small\ttfamily},
+  celp/.style={rectangle, draw=UFSRed, fill=UFSRed!8, minimum width=1.1cm,
+    minimum height=0.75cm, font=\small\ttfamily},
+  celv/.style={rectangle, draw=UFSGray, fill=black!5, minimum width=1.1cm,
+    minimum height=0.75cm, font=\small\ttfamily},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={->, thick, UFSBlue},
+  setar/.style={->, thick, UFSRed},
+  caixa/.style={rectangle, draw=UFSGray, rounded corners, fill=black!3,
+    font=\scriptsize, align=center, inner sep=4pt},
+}
+
+% --- Metadados ---
+\title{Alocação dinâmica de memória}
+\subtitle{Quando o tamanho só se sabe rodando: \texttt{malloc}, \texttt{calloc}, \texttt{realloc} e \texttt{free}}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10cm, minimum height=0.75cm, font=\small}
+  ]
+    \node[item] (t1) at (0,0)     {Por que \texttt{MAX\_CONTATOS} é uma decisão que você não deveria tomar};
+    \node[item] (t2) at (0,-0.95) {\texttt{malloc} e \texttt{free}: pedir um bloco e devolvê-lo};
+    \node[item] (t3) at (0,-1.90) {\texttt{calloc}: o mesmo pedido, com garantia de zeros};
+    \node[item] (t4) at (0,-2.85) {\texttt{realloc}: mudar de ideia sobre o tamanho};
+    \node[item] (t5) at (0,-3.80) {As quatro falhas clássicas --- e como o compilador as denuncia};
+    \draw[seta] (t1)--(t2);
+    \draw[seta] (t2)--(t3);
+    \draw[seta] (t3)--(t4);
+    \draw[seta] (t4)--(t5);
+  \end{tikzpicture}
+  \end{center}
+  \begin{center}
+  \small Hoje o ponteiro deixa de apontar para o vetor de outra pessoa:
+  ele aponta para memória que \emph{você} pediu.
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{Por que alocar em tempo de execução}
+% ==================================================================
+
+\begin{frame}{O problema com \texttt{MAX\_CONTATOS}}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que fizemos até agora}\\[0.3em]
+      \texttt{char nomes[4][20];}
+
+      \medskip
+      O tamanho é decidido por você, ao escrever o programa. O compilador
+      reserva o espaço antes de o programa rodar.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Os dois modos de errar}\\[0.3em]
+      \textcolor{UFSRed}{Pequeno demais:} chega o 5º contato e não há para
+      onde ir.
+
+      \medskip
+      \textcolor{UFSRed}{Grande demais:} \texttt{nomes[10000][20]} reserva
+      200~KB para guardar três nomes.
+
+      \medskip
+      Quem sabe o tamanho certo é o \emph{usuário}, enquanto o programa roda.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Onde a memória do seu programa vive}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0pt]
+    \node[caixa, minimum width=4.4cm, minimum height=1.5cm, fill=UFSBlue!8,
+          draw=UFSBlue] (pilha)
+      {\textbf{Pilha (automática)}\\[2pt]
+       \texttt{int x;} \quad \texttt{char nome[20];}\\[2pt]
+       nasce e morre com a função\\
+       tamanho fixo, decidido na compilação};
+    \node[caixa, minimum width=4.4cm, minimum height=1.5cm, fill=UFSRed!8,
+          draw=UFSRed, right=1.6cm of pilha] (heap)
+      {\textbf{Heap (dinâmica)}\\[2pt]
+       \texttt{malloc}, \texttt{calloc}, \texttt{realloc}\\[2pt]
+       vive até \emph{você} chamar \texttt{free}\\
+       tamanho decidido rodando};
+    \draw[seta] (pilha) -- node[above, leg] {um ponteiro} node[below, leg] {liga os dois} (heap);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{A regra que muda tudo}
+    Na pilha, quem cria também destrói: a função termina, o espaço some.
+    Na heap, o espaço permanece até você devolvê-lo --- e permanece
+    \emph{mesmo} que você perca o ponteiro para ele.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{agenda.c} (1/4)}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+#include <stdio.h>
+#include <stdlib.h>   /* malloc, calloc, realloc, free */
+#include <string.h>
+
+int main(void) {
+    /* o que vem dentro de um bloco recem-alocado? */
+    int *sujo = malloc(4 * sizeof(int));
+    for (int i = 0; i < 4; i++)
+        sujo[i] = 777;
+    free(sujo);
+    int *a = malloc(4 * sizeof(int));
+    int *b = calloc(4, sizeof(int));
+    printf("A: malloc -> %d %d %d %d\n", a[0], a[1], a[2], a[3]);
+    printf("B: calloc -> %d %d %d %d\n", b[0], b[1], b[2], b[3]);
+    free(a);
+    free(b);
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{agenda.c} (2/4): uma agenda sem \texttt{MAX\_CONTATOS}}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, firstnumber=18]
+    int capacidade = 2, n = 0;
+    char **nomes  = malloc(capacidade * sizeof(char *));
+    int   *idades = malloc(capacidade * sizeof(int));
+    if (nomes == NULL || idades == NULL) {
+        printf("sem memoria\n");
+        return 1;
+    }
+
+    const char *entrada[] = {"ana", "bruno", "carla",
+                             "davi", "elis"};
+    int idade[] = {23, 19, 31, 24, 28};
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{agenda.c} (3/4): o que fazer quando enche}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, firstnumber=30]
+    for (int i = 0; i < 5; i++) {
+        if (n == capacidade) {
+            int nova = capacidade * 2;
+            char **n2 = realloc(nomes,  nova * sizeof(char *));
+            int   *i2 = realloc(idades, nova * sizeof(int));
+            if (n2 == NULL || i2 == NULL) { return 1; }
+            printf("C: cheia com %d -> cresce para %d | nomes: %s\n",
+                   capacidade, nova,
+                   (n2 == nomes) ? "mesmo bloco" : "bloco NOVO");
+            nomes = n2;  idades = i2;  capacidade = nova;
+        }
+        nomes[n] = malloc(strlen(entrada[i]) + 1);
+        strcpy(nomes[n], entrada[i]);
+        idades[n] = idade[i];
+        n++;
+    }
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{agenda.c} (4/4): mostrar e devolver}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, firstnumber=47]
+    printf("D: %d contatos guardados em capacidade %d\n",
+           n, capacidade);
+    for (int i = 0; i < n; i++)
+        printf("   %-6s %3d\n", nomes[i], idades[i]);
+    printf("E: sizeof(nomes) = %zu | strlen(nomes[1]) + 1 = %zu\n",
+           sizeof(nomes), strlen(nomes[1]) + 1);
+
+    for (int i = 0; i < n; i++)
+        free(nomes[i]);
+    free(nomes);
+    free(idades);
+    return 0;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item Na linha \textbf{A}, o que sai de um bloco de \texttt{malloc} que
+        ninguém preencheu ainda?
+      \item Na linha \textbf{B}, o que muda por ter usado \texttt{calloc}?
+      \item Quantas vezes a linha \textbf{C} aparece, se a capacidade começa em
+        2 e chegam 5 contatos?
+      \item Na linha \textbf{C}, o vetor continua no \emph{mesmo bloco} ou vai
+        para um \emph{bloco novo}?
+      \item Na linha \textbf{E}, quanto vale \texttt{sizeof(nomes)}, sendo
+        \texttt{nomes} uma agenda de 8 posições?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none, language=bash]
+$ gcc -Wall -Wextra agenda.c -o agenda
+$ ./agenda
+A: malloc -> 0 0 0 0
+B: calloc -> 0 0 0 0
+C: cheia com 2 -> cresce para 4 | nomes: bloco NOVO
+C: cheia com 4 -> cresce para 8 | nomes: bloco NOVO
+D: 5 contatos guardados em capacidade 8
+   ana     23
+   bruno   19
+   carla   31
+   davi    24
+   elis    28
+E: sizeof(nomes) = 8 | strlen(nomes[1]) + 1 = 6
+\end{lstlisting}
+\end{frame}
+
+% ==================================================================
+\section{\texttt{malloc} e \texttt{free}}
+% ==================================================================
+
+\begin{frame}{Definição: \texttt{malloc}}
+  \begin{block}{\texttt{void *malloc(size\_t n);}}
+    Pede ao sistema um bloco de \textbf{n bytes} contíguos na heap e devolve o
+    endereço do primeiro byte --- ou \texttt{NULL} se não houver memória.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \texttt{malloc} não sabe o que você vai guardar: ele conta \emph{bytes},
+    não elementos. Por isso o pedido quase sempre tem a forma
+    \texttt{quantidade * sizeof(tipo)}.
+
+    \medskip
+    \texttt{int *v = malloc(100 * sizeof(int));} \quad --- 100 inteiros
+
+    \texttt{int *v = malloc(100);} \quad --- 100 \emph{bytes}: 25 inteiros
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Anatomia de uma alocação}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cel, minimum width=2.2cm] (p) at (0,0) {0x16f\ldots};
+    \node[leg, above=2pt of p] {\texttt{int *v} --- na pilha};
+    \node[leg, below=2pt of p] {8 bytes: só um endereço};
+
+    \node[cel] (c0) at (4.2,0) {?};
+    \node[cel, right=0pt of c0] (c1) {?};
+    \node[cel, right=0pt of c1] (c2) {?};
+    \node[cel, right=0pt of c2] (c3) {?};
+    \node[leg, above=2pt of c1.north east] {bloco de \texttt{4 * sizeof(int)} = 16 bytes --- na heap};
+    \node[rot, below=2pt of c0] {v[0]};
+    \node[rot, below=2pt of c1] {v[1]};
+    \node[rot, below=2pt of c2] {v[2]};
+    \node[rot, below=2pt of c3] {v[3]};
+    \draw[seta] (p) -- (c0);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Duas coisas separadas}
+    O ponteiro é uma variável comum, na pilha, que morre com a função.
+    O bloco é outra coisa, na heap, que \textbf{não} morre com a função.
+    Perder o ponteiro não apaga o bloco --- só torna impossível devolvê-lo.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O contrato: sempre verifique o \texttt{NULL}}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+int *v = malloc(n * sizeof(int));
+if (v == NULL) {              /* o pedido pode falhar */
+    printf("sem memoria\n");
+    return 1;
+}
+/* daqui para baixo, v e' um vetor de n inteiros */
+\end{lstlisting}
+  \begin{alertblock}{Por que isso importa}
+    Se \texttt{malloc} falha e você não testa, \texttt{v[0] = 3} escreve no
+    endereço 0: o programa morre com \emph{segmentation fault} em um lugar que
+    nada tem a ver com a causa.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{O ciclo de vida de um bloco}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.9cm]
+    \node[caixa, fill=UFSBlue!10, draw=UFSBlue, minimum width=2.6cm] (a) {\textbf{alocar}\\ \texttt{malloc} / \texttt{calloc}};
+    \node[caixa, right=of a, minimum width=2.6cm] (t) {\textbf{testar}\\ \texttt{if (p == NULL)}};
+    \node[caixa, right=of t, minimum width=2.6cm] (u) {\textbf{usar}\\ \texttt{p[i] = \ldots}};
+    \node[caixa, right=of u, fill=UFSRed!10, draw=UFSRed, minimum width=2.6cm] (f) {\textbf{liberar}\\ \texttt{free(p)}};
+    \draw[seta] (a)--(t);  \draw[seta] (t)--(u);  \draw[seta] (u)--(f);
+    \draw[setar, dashed] (f.south) .. controls +(0,-0.8) and +(0,-0.8) .. (u.south)
+      node[midway, below, leg] {depois do \texttt{free}, \texttt{p} não serve mais};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Um \texttt{free} para cada \texttt{malloc}}
+    Cada chamada bem-sucedida de \texttt{malloc}, \texttt{calloc} ou
+    \texttt{realloc} corresponde a exatamente uma chamada de \texttt{free}.
+    Nem zero, nem duas.
+  \end{block}
+\end{frame}
+
+\begin{frame}{O que \texttt{free} faz --- e o que não faz}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Faz}
+      \begin{itemize}
+        \item devolve o bloco ao sistema, que pode reaproveitá-lo no próximo
+          \texttt{malloc};
+        \item aceita \texttt{free(NULL)} sem reclamar.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Não faz}
+      \begin{itemize}
+        \item não altera o ponteiro: \texttt{p} continua com o mesmo endereço,
+          agora inválido;
+        \item não apaga o conteúdo: os bytes antigos podem continuar lá;
+        \item não avisa você se esquecer de chamá-lo.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \begin{exampleblock}{Hábito barato}
+    \texttt{free(p); p = NULL;} --- um ponteiro nulo falha alto e cedo;
+    um ponteiro pendurado falha baixo e tarde.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: \texttt{malloc} e \texttt{free}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{malloc(n * sizeof(tipo))} devolve o endereço de um bloco de
+        bytes na heap, ou \texttt{NULL};
+      \item o ponteiro vive na pilha; o bloco vive na heap e sobrevive à função;
+      \item testar o \texttt{NULL} é parte da alocação, não um extra;
+      \item \texttt{free} devolve o bloco, mas não mexe no seu ponteiro.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{\texttt{calloc}}
+% ==================================================================
+
+\begin{frame}{Por que a linha A imprimiu \texttt{0 0 0 0}?}
+  \begin{block}{O que o programa fez}
+    Preencheu um bloco com \texttt{777}, liberou o bloco e pediu outro do mesmo
+    tamanho --- que, muito provavelmente, é o mesmo bloco de volta.
+  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \textbf{A resposta depende da máquina:}
+      \begin{itemize}
+        \item nesta aqui: \texttt{0 0 0 0}
+        \item em muitos Linux: \texttt{777 777 777 777}
+        \item com \texttt{MallocScribble=1}: \texttt{-1431655766}
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Três respostas para o mesmo código.}
+
+      \medskip
+      Isso não é um detalhe de implementação curioso: é a definição de
+      \emph{valor indeterminado}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A regra: zero por sorte não é zero por garantia}
+  \begin{alertblock}{O conteúdo de um bloco de \texttt{malloc} é indeterminado}
+    Ler \texttt{v[i]} antes de escrever nele é comportamento indefinido. Se hoje
+    saiu zero, foi coincidência: o sistema entregou uma página limpa ou um bloco
+    que por acaso estava zerado. Amanhã, com outra entrada, sai outra coisa.
+  \end{alertblock}
+  \begin{exampleblock}{Consequência prática}
+    Um contador que começa em \texttt{v[i]++} sem inicialização passa nos seus
+    testes e falha na máquina do professor. É exatamente o tipo de bug que só
+    aparece longe de quem o escreveu.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Definição: \texttt{calloc}}
+  \begin{block}{\texttt{void *calloc(size\_t quantidade, size\_t tamanho);}}
+    Aloca espaço para \texttt{quantidade} elementos de \texttt{tamanho} bytes
+    cada e \textbf{preenche tudo com zeros} antes de devolver o endereço.
+  \end{block}
+  \begin{center}
+  \small
+  \begin{tabular}{lll}
+    \toprule
+     & \texttt{malloc} & \texttt{calloc} \\
+    \midrule
+    argumentos      & 1: total de bytes            & 2: quantidade e tamanho \\
+    conteúdo        & indeterminado                & todos os bytes em zero \\
+    custo           & só reserva                   & reserva e limpa \\
+    \texttt{n * sz} transborda & silenciosamente   & detectado, devolve \texttt{NULL} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Quando usar cada um}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+/* vou preencher tudo agora mesmo: zerar seria trabalho jogado fora */
+int *copia = malloc(n * sizeof(int));
+for (int i = 0; i < n; i++) copia[i] = origem[i];
+
+/* vou acumular: preciso comecar do zero */
+int *contagem = calloc(256, sizeof(int));
+for (int i = 0; texto[i] != '\0'; i++) contagem[(unsigned char) texto[i]]++;
+\end{lstlisting}
+  \begin{exampleblock}{Regra de bolso}
+    Se a primeira coisa que você faria é um laço escrevendo zeros, use
+    \texttt{calloc}. Se a primeira coisa é um laço escrevendo os valores de
+    verdade, use \texttt{malloc}.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: \texttt{calloc}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{malloc} entrega bytes com conteúdo indeterminado --- zeros
+        observados são coincidência, não contrato;
+      \item \texttt{calloc(q, t)} entrega \texttt{q * t} bytes zerados e ainda
+        protege contra o transbordo da multiplicação;
+      \item zerar custa tempo: escolha pelo que você vai fazer com o bloco, não
+        por hábito.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{\texttt{realloc}}
+% ==================================================================
+
+\begin{frame}{Por que a agenda mudou de bloco duas vezes?}
+  \begin{block}{A saída}
+    \texttt{C: cheia com 2 -> cresce para 4 | nomes: bloco NOVO}\\
+    \texttt{C: cheia com 4 -> cresce para 8 | nomes: bloco NOVO}
+  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{A pergunta}\\[0.3em]
+      Se o bloco é novo, o que aconteceu com os nomes que já estavam lá?
+
+      E com o bloco antigo?
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{A pista}\\[0.3em]
+      Os cinco contatos aparecem certos no final. Ninguém copiou nada
+      explicitamente no seu código.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Definição: \texttt{realloc}}
+  \begin{block}{\texttt{void *realloc(void *p, size\_t novos\_bytes);}}
+    Redimensiona o bloco apontado por \texttt{p} para \texttt{novos\_bytes} e
+    devolve o endereço do bloco resultante --- que pode ser o mesmo ou
+    \textbf{outro}. O conteúdo antigo é preservado até o menor dos dois tamanhos.
+  \end{block}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cel] (a0) at (0,0) {ana};
+    \node[cel, right=0pt of a0] (a1) {bruno};
+    \node[leg, above=2pt of a0.north east] {bloco antigo (2 posições)};
+
+    \node[cel] (b0) at (5.2,0) {ana};
+    \node[cel, right=0pt of b0] (b1) {bruno};
+    \node[celv, right=0pt of b1] (b2) {?};
+    \node[celv, right=0pt of b2] (b3) {?};
+    \node[leg, above=2pt of b1.north east] {bloco novo (4 posições)};
+
+    \draw[seta] (a1.east) -- node[above, leg] {copia} node[below, leg] {e libera o antigo} (b0.west);
+  \end{tikzpicture}
+  \end{center}
+  \begin{center}\small
+  O espaço acrescentado \textbf{não} é zerado: é indeterminado, como no \texttt{malloc}.
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{O padrão do ponteiro temporário}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+/* ERRADO: se realloc falhar, devolve NULL e o endereco
+   do bloco antigo -- que continua alocado -- se perde. */
+v = realloc(v, nova * sizeof(int));
+
+/* CERTO: so' troca v depois de saber que deu certo. */
+int *tmp = realloc(v, nova * sizeof(int));
+if (tmp == NULL) { /* v ainda vale: da' para se recuperar */ }
+v = tmp;
+\end{lstlisting}
+  \begin{alertblock}{Duas coisas de uma vez}
+    A versão errada vaza memória \emph{e} destrói a única cópia do ponteiro para
+    os dados que você ainda tinha. Foi por isso que \texttt{agenda.c} usou
+    \texttt{n2} e \texttt{i2}.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Armadilha: o ponteiro antigo fica pendurado}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+int *v = malloc(2 * sizeof(int));
+v[0] = 10;
+int *w = realloc(v, 100 * sizeof(int));
+printf("w[0] = %d\n", w[0]);   /* 10: o conteudo veio junto */
+printf("v[0] = %d\n", v[0]);   /* v pode ja' ter sido liberado */
+\end{lstlisting}
+  \begin{alertblock}{O que o AddressSanitizer diz da última linha}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none, language=]
+ERROR: AddressSanitizer: heap-use-after-free on address 0x6020000000f0
+    #0 in main rtrap.c:8
+\end{lstlisting}
+    Depois de um \texttt{realloc} bem-sucedido, existe \emph{um} ponteiro
+    válido: o que ele devolveu.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Os três papéis de \texttt{realloc}}
+  \begin{center}
+  \small
+  \begin{tabular}{lll}
+    \toprule
+    Chamada & Efeito & Equivale a \\
+    \midrule
+    \texttt{realloc(NULL, n)} & aloca do zero              & \texttt{malloc(n)} \\
+    \texttt{realloc(p, maior)} & cresce, copiando o conteúdo & --- \\
+    \texttt{realloc(p, menor)} & encolhe, descartando o fim  & --- \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{exampleblock}{Por que dobrar a capacidade, e não somar 1?}
+    Crescer de 1 em 1 até $n$ pode copiar da ordem de $n^2$ elementos.
+    Dobrando, o total copiado fica da ordem de $n$: cada elemento é movido, em
+    média, um número constante de vezes. Por isso a agenda foi 2, 4, 8.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: \texttt{realloc}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{realloc} pode devolver um endereço diferente --- e
+        frequentemente devolve;
+      \item ele copia o conteúdo antigo e libera o bloco antigo por você;
+      \item o espaço novo não vem zerado;
+      \item receba o resultado em um ponteiro temporário e só então substitua o
+        original;
+      \item depois da troca, o ponteiro antigo está morto.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Armadilhas e diagnóstico}
+% ==================================================================
+
+\begin{frame}{As quatro falhas clássicas}
+  \begin{center}
+  \small
+  \begin{tabular}{lll}
+    \toprule
+    Falha & O que é & Sintoma típico \\
+    \midrule
+    Vazamento          & alocar e nunca liberar        & programa incha com o tempo \\
+    Ponteiro pendurado & usar depois do \texttt{free}  & lixo ou \emph{segfault} aleatório \\
+    \texttt{free} duplo & liberar duas vezes           & aborta em \texttt{free}, sem pista \\
+    Estouro do bloco   & escrever além do tamanho      & corrompe o vizinho \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{alertblock}{O que as quatro têm em comum}
+    Nenhuma delas falha onde foi cometida. O programa quebra depois, em outro
+    lugar, com uma mensagem que aponta para código inocente.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Vazamento: a agenda que esquece os nomes}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+void carrega_agenda(void) {
+    char **nomes = malloc(5 * sizeof(char *));
+    for (int i = 0; i < 5; i++) {
+        nomes[i] = malloc(strlen(entrada[i]) + 1);
+        strcpy(nomes[i], entrada[i]);
+    }
+    free(nomes);   /* liberou o vetor, nao os cinco nomes */
+}
+\end{lstlisting}
+  \begin{alertblock}{Um \texttt{free} não basta}
+    \texttt{nomes} guarda cinco endereços. Liberar \texttt{nomes} devolve as
+    40 bytes dos \emph{ponteiros} e torna os cinco blocos de texto
+    inalcançáveis. Libere de dentro para fora: primeiro cada
+    \texttt{nomes[i]}, depois \texttt{nomes}.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Ferramenta 1: o detector de vazamentos}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none, language=bash]
+# macOS
+$ MallocStackLogging=1 leaks -atExit -- ./vaza
+Process 3103: 5 leaks for 80 total leaked bytes.
+STACK OF 5 INSTANCES OF 'ROOT LEAK: <malloc in carrega_agenda>':
+      1 (16 bytes) ROOT LEAK: <malloc in carrega_agenda 0xc8100c000>
+
+# Linux
+$ gcc -g -fsanitize=address vaza.c -o vaza && ./vaza
+$ valgrind --leak-check=full ./vaza
+\end{lstlisting}
+  \begin{center}\small
+  A ferramenta aponta a \emph{função onde o bloco foi alocado} --- e é isso que
+  transforma um vazamento em um conserto de duas linhas.
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Ferramenta 2: o AddressSanitizer}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none, language=bash]
+$ gcc -Wall -g -fsanitize=address uaf.c -o uaf && ./uaf
+ERROR: AddressSanitizer: heap-use-after-free on address 0x6020000000f0
+READ of size 2 at 0x6020000000f0 thread T0
+    #0 in main uaf.c:8
+0x6020000000f0 is located 0 bytes inside of 6-byte region
+freed by thread T0 here:
+    #0 in free
+    #1 in main uaf.c:7
+\end{lstlisting}
+  \begin{block}{Leia a mensagem inteira}
+    Ela diz três coisas: \emph{o que} (uso após liberação), \emph{onde} (linha
+    8) e \emph{por causa de quem} (o \texttt{free} da linha 7). Um
+    \emph{segfault} comum diria apenas ``o programa morreu''.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Higiene: cinco hábitos que evitam as quatro falhas}
+  \begin{block}{Checklist}
+    \begin{enumerate}
+      \item pedir \texttt{quantidade * sizeof(tipo)}, nunca um número solto;
+      \item testar \texttt{NULL} logo depois de alocar;
+      \item receber \texttt{realloc} em um ponteiro temporário;
+      \item liberar de dentro para fora, e uma vez só;
+      \item \texttt{p = NULL} depois do \texttt{free}, e compilar com
+        \texttt{-Wall -g -fsanitize=address} enquanto desenvolve.
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: armadilhas}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item as falhas de memória não quebram o programa onde foram cometidas;
+      \item vazar é perder o endereço, não perder os dados --- o bloco continua
+        ocupado;
+      \item quem alocou em camadas libera em camadas;
+      \item as ferramentas transformam ``às vezes dá erro'' em ``linha 8, por
+        causa da linha 7''.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \begin{block}{Tarefa 1}
+    Troque a capacidade inicial de 2 para 1 e o fator de crescimento de
+    $\times 2$ para $+1$. Quantas vezes a linha \textbf{C} passa a aparecer?
+    Explique o número.
+  \end{block}
+  \begin{block}{Tarefa 2}
+    Troque o \texttt{malloc} de \texttt{idades} por \texttt{calloc} e imprima
+    \texttt{idades[7]} logo depois de alocar, antes de preencher. O que muda em
+    relação ao \texttt{malloc}?
+  \end{block}
+  \begin{block}{Tarefa 3}
+    Comente o laço que libera \texttt{nomes[i]} e rode o detector de vazamentos.
+    Quantos blocos ele acusa? Por que esse número?
+  \end{block}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{block}{Uma agenda que também remove}
+    Escreva \texttt{remover(char **nomes, int *idades, int n, const char *quem)}
+    que apaga um contato e devolve a nova quantidade.
+
+    \medskip
+    Requisitos:
+    \begin{itemize}
+      \item libere o nome removido antes de perder o endereço dele;
+      \item feche o buraco deslocando os contatos seguintes;
+      \item se a agenda ficar com menos de um quarto da capacidade, encolha o
+        vetor pela metade com \texttt{realloc};
+      \item o programa deve terminar sem vazamentos e sem erros do sanitizer.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      O tamanho das suas estruturas deixou de ser uma decisão de quem escreve o
+      programa e passou a ser uma decisão de quem o executa.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O preço}\\[0.3em]
+      Você ganhou o controle do tempo de vida da memória --- e junto com ele a
+      obrigação de devolvê-la, exatamente uma vez, no lugar certo.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \item \texttt{malloc}: bytes, sem garantia de conteúdo, pode falhar;
+      \item \texttt{calloc}: bytes zerados, dois argumentos;
+      \item \texttt{realloc}: novo tamanho, endereço possivelmente novo;
+      \item \texttt{free}: uma vez, de dentro para fora.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
