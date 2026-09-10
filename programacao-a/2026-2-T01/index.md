@@ -127,4 +127,13 @@ title: "COMP0496 — Programação A — Turma 1 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-a/2026-2-T01/semana-12' | relative_url }}">
+    <div class="week-num">12</div>
+    <div class="week-body">
+      <div class="week-title">Testes Automatizados com pytest</div>
+      <div class="week-desc">Suíte com <code>assert</code>, parametrização, fixtures e integração contínua.</div>
+      <div class="week-badges"><span class="week-badge nb">1 notebook</span><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
 </div>

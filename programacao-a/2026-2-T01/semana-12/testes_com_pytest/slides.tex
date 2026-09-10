@@ -1,0 +1,783 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS — Universidade Federal de Sergipe
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb,graphicx,booktabs,xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows,arrows.meta,positioning,matrix,fit,calc,
+  backgrounds,decorations.pathreplacing,shadows,patterns}
+
+% Listagens — paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  language=Python,
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\scriptsize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=8pt,
+  xleftmargin=16pt, framexleftmargin=16pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=3pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle}
+
+% Estilo para saída de terminal (sem realce de palavras-chave Python)
+\lstdefinestyle{terminal}{
+  language={},
+  basicstyle=\ttfamily\scriptsize\color{black},
+  keywordstyle=\color{black},
+  numbers=none,
+  backgroundcolor=\color{UFSLightGray!30},
+  frame=single, rulecolor=\color{linecolor},
+}
+
+% Estilo para YAML (arquivos de workflow do GitHub Actions)
+\lstdefinestyle{yaml}{
+  language={},
+  basicstyle=\ttfamily\scriptsize\color{black},
+  morekeywords={name,on,push,jobs,testes,runs,steps,uses,with,run},
+  keywordstyle=\color{kwcolor}\bfseries,
+  morecomment=[l]{\#},
+  commentstyle=\color{cmtcolor}\itshape,
+  morestring=[b]",
+  stringstyle=\color{strcolor},
+  numbers=none,
+  frame=single, rulecolor=\color{linecolor},
+  showstringspaces=false, columns=fullflexible, upquote=true,
+}
+
+\title{Testes Automatizados com pytest}
+\subtitle{Do \texttt{assert} solto à suíte que protege o seu código}
+\author{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP --- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O caminho de hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue!60, fill=UFSBlue!10, rounded corners,
+      minimum width=9.5cm, minimum height=0.75cm, font=\small},
+    arrow/.style={->, thick, UFSBlue}
+  ]
+    \node[item] (t1) at (0, 2.5)  {Escrever um teste: arquivo, função, \texttt{assert}};
+    \node[item] (t2) at (0, 1.5)  {Rodar e \emph{ler} o relatório de falha};
+    \node[item] (t3) at (0, 0.5)  {Um teste, muitos casos: \texttt{@parametrize}};
+    \node[item] (t4) at (0,-0.5)  {Preparar o cenário uma vez só: \emph{fixtures}};
+    \node[item] (t5) at (0,-1.5)  {Organizar a suíte: \texttt{conftest.py} e marcadores};
+    \node[item] (t6) at (0,-2.5)  {Rodar a suíte no GitHub a cada \texttt{push}};
+    \draw[arrow] (t1) -- (t2);
+    \draw[arrow] (t2) -- (t3);
+    \draw[arrow] (t3) -- (t4);
+    \draw[arrow] (t4) -- (t5);
+    \draw[arrow] (t5) -- (t6);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\part{Fundamentos}
+% =====================================================================
+\section{Por que automatizar testes}
+
+\begin{frame}{Como você testa hoje?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[0.4em]
+      Você roda a célula, olha o resultado, acha que está certo
+      e segue em frente. Na próxima mudança, refaz tudo ---
+      ou pior, \emph{não} refaz.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Solução:}\\[0.4em]
+      Escrever a verificação \textbf{como código}. Ela fica no
+      repositório, roda em um segundo e avisa quando
+      algo que funcionava parou de funcionar.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O que ganhamos ao escrever o teste}
+  \begin{center}
+  \begin{tikzpicture}[
+    box/.style={rectangle, rounded corners, draw, minimum width=4.1cm,
+                minimum height=2.3cm, align=center, font=\small}
+  ]
+    \node[box, fill=UFSRed!15]    (a) at (-4.4, 0)
+      {\textbf{Teste manual}\\[0.3em]
+       Some quando você fecha\\ o notebook.\\
+       Custa tempo toda vez.};
+    \node[box, fill=UFSYellow!30] (b) at ( 0, 0)
+      {\textbf{Teste automatizado}\\[0.3em]
+       Fica no repositório.\\
+       Roda em um comando.\\
+       Repete sem cansar.};
+    \node[box, fill=UFSBlue!15]   (c) at ( 4.4, 0)
+      {\textbf{Suíte}\\[0.3em]
+       Rede de segurança para\\ refatorar sem medo.\\
+       Documenta o contrato.};
+    \draw[->, thick, UFSBlue] (a) -- (b);
+    \draw[->, thick, UFSBlue] (b) -- (c);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Teste automatizado: definição}
+  \begin{block}{Definição}
+    Um \textbf{teste automatizado} é um trecho de código que executa
+    outro trecho de código com entradas conhecidas e \emph{verifica}
+    se a saída é a esperada --- falhando de forma ruidosa quando não é.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    O teste é uma \emph{pergunta com resposta já conhecida}. Se o
+    programa responde diferente, ou o programa mudou ou a sua
+    expectativa estava errada. Nos dois casos você quer saber agora,
+    não em produção.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{pytest em uma frase}
+  \begin{block}{O que é}
+    \texttt{pytest} é um framework que \textbf{encontra} os seus testes,
+    \textbf{executa} todos eles e \textbf{relata} quais passaram e quais
+    falharam --- com um diagnóstico legível de cada falha.
+  \end{block}
+  \begin{exampleblock}{Por que ele e não \texttt{unittest}}
+    Teste é função comum, verificação é o \texttt{assert} do Python.
+    Sem classes obrigatórias, sem \texttt{assertEqual}, sem herança.
+    Menos cerimônia significa mais testes escritos de fato.
+  \end{exampleblock}
+\end{frame}
+
+% =====================================================================
+\section{Anatomia de um teste}
+
+\begin{frame}[fragile]{O código que vamos testar}
+\begin{lstlisting}[caption={notas.py}]
+def media(notas):
+    """Media aritmetica de uma lista nao vazia de notas."""
+    return sum(notas) / len(notas)
+
+def aprovado(nota, minimo=6.0):
+    """True se a nota alcanca a media minima de aprovacao."""
+    return nota >= minimo
+\end{lstlisting}
+  \small Duas funções simples, sem estado, sem entrada do usuário ---
+  o cenário mais fácil possível para começar a testar.
+\end{frame}
+
+\begin{frame}[fragile]{O teste correspondente}
+\begin{lstlisting}[caption={test\_notas.py}]
+from notas import media, aprovado
+
+def test_media_de_tres_notas():
+    assert media([6.0, 7.0, 8.0]) == 7.0
+
+def test_aprovado_com_nota_na_media():
+    assert aprovado(6.0) is True
+
+def test_reprovado_abaixo_da_media():
+    assert aprovado(5.9) is False
+\end{lstlisting}
+  \small Três coisas apenas: importar, chamar, \texttt{assert}.
+\end{frame}
+
+\begin{frame}{As três convenções que fazem tudo funcionar}
+  \begin{center}
+  \begin{tikzpicture}[
+    node distance=0.45cm,
+    dir/.style={rectangle, draw=UFSBlue!60, fill=UFSBlue!10, rounded corners,
+      minimum width=3.6cm, minimum height=0.7cm, font=\small\ttfamily},
+    lbl/.style={font=\scriptsize, text=UFSGray, align=left}
+  ]
+    \node[dir] (d)                 {projeto/};
+    \node[dir, below=of d, xshift=0.8cm]  (f) {test\_notas.py};
+    \node[dir, below=of f, xshift=0.8cm]  (t) {def test\_media(...)};
+    \draw[->, thick, UFSBlue] (d.south west) |- (f.west);
+    \draw[->, thick, UFSBlue] (f.south west) |- (t.west);
+    \node[lbl, right=1.0cm of d] {1. o \texttt{pytest} varre o diretório};
+    \node[lbl, right=1.0cm of f] {2. abre arquivos \texttt{test\_*.py}};
+    \node[lbl, right=1.0cm of t] {3. executa funções \texttt{test\_*}};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.3em}
+  \small Nenhum registro, nenhuma lista de testes para manter:
+  o nome \emph{é} a inscrição.
+\end{frame}
+
+\begin{frame}[fragile]{Rodando a suíte}
+\begin{lstlisting}[style=terminal]
+$ pytest
+collected 3 items
+test_notas.py ...                                    [100%]
+============== 3 passed in 0.01s ==============
+\end{lstlisting}
+  \vspace{0.3em}
+  \begin{center}
+  \small
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Comando} & \textbf{Efeito} \\
+    \midrule
+    \texttt{pytest}                    & roda tudo que encontrar \\
+    \texttt{pytest -v}                 & mostra o nome de cada teste \\
+    \texttt{pytest -q}                 & saída curta \\
+    \texttt{pytest -k media}           & só testes cujo nome casa com \texttt{media} \\
+    \texttt{pytest test\_notas.py::test\_media} & um teste específico \\
+    \texttt{pytest -x}                 & para na primeira falha \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Quando falha: leia o relatório}
+\begin{lstlisting}[style=terminal]
+=================== FAILURES ===================
+_______ test_media_de_tres_notas _______
+
+    def test_media_de_tres_notas():
+>       assert media([6.0, 7.0, 8.0]) == 7.0
+E       assert 21.0 == 7.0
+E        +  where 21.0 = media([6.0, 7.0, 8.0])
+
+test_notas.py:4: AssertionError
+============ 1 failed in 0.01s ============
+\end{lstlisting}
+  \small A linha \texttt{E} mostra os \emph{valores reais}: a função devolveu
+  \texttt{21.0}. Esqueceram de dividir pelo tamanho.
+\end{frame}
+
+\begin{frame}{Por que o \texttt{assert} puro basta}
+  \begin{block}{Introspecção de asserção}
+    O \texttt{pytest} reescreve o \texttt{assert} antes de executá-lo para
+    guardar os valores intermediários. Quando falha, ele reconstrói a
+    expressão mostrando o que cada parte valia.
+  \end{block}
+  \begin{exampleblock}{Consequência prática}
+    Você não precisa de \texttt{assertEqual}, \texttt{assertTrue},
+    \texttt{assertAlmostEqual}. Escreva a condição em Python normal ---
+    o diagnóstico vem de graça.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{A forma de todo teste: Arrange--Act--Assert}
+  \begin{center}
+  \begin{tikzpicture}[
+    box/.style={rectangle, rounded corners, draw, minimum width=3.9cm,
+                minimum height=2.2cm, align=center, font=\small}
+  ]
+    \node[box, fill=UFSBlue!12]   (a) at (-4.2, 0)
+      {\textbf{Arrange}\\[0.3em] Prepare os dados\\ e o estado inicial.};
+    \node[box, fill=UFSYellow!30] (b) at ( 0, 0)
+      {\textbf{Act}\\[0.3em] Chame \emph{uma} vez\\ o que está sob teste.};
+    \node[box, fill=UFSBlue!12]   (c) at ( 4.2, 0)
+      {\textbf{Assert}\\[0.3em] Compare o resultado\\ com o esperado.};
+    \draw[->, thick, UFSBlue] (a) -- (b);
+    \draw[->, thick, UFSBlue] (b) -- (c);
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.2em}
+  \small Se o seu teste tem dois \emph{Act}, provavelmente são dois testes.
+\end{frame}
+
+\begin{frame}[fragile]{Arrange--Act--Assert no código}
+\begin{lstlisting}
+def test_media_ignora_ordem_das_notas():
+    notas_ordenadas = [5.0, 7.0, 9.0]   # Arrange
+    notas_embaralhadas = [9.0, 5.0, 7.0]
+
+    resultado_a = media(notas_ordenadas)   # Act
+    resultado_b = media(notas_embaralhadas)
+
+    assert resultado_a == resultado_b      # Assert
+\end{lstlisting}
+  \small As três fases separadas por linhas em branco: dá para ler o
+  teste sem entender a implementação.
+\end{frame}
+
+\begin{frame}{O nome do teste é documentação}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Nomes fracos}
+      \begin{itemize}
+        \item \texttt{test\_1}
+        \item \texttt{test\_media}
+        \item \texttt{test\_funciona}
+      \end{itemize}
+      \small Quando falham, você ainda precisa abrir o código.
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \textbf{Nomes que dizem o comportamento}
+      \begin{itemize}
+        \item \texttt{test\_media\_de\_lista\_vazia\_falha}
+        \item \texttt{test\_aprovado\_na\_nota\_exata}
+        \item \texttt{test\_conceito\_A\_a\_partir\_de\_9}
+      \end{itemize}
+      \small O relatório de falha vira uma frase.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Testando o erro esperado}
+\begin{lstlisting}
+import pytest
+from notas import media
+
+def test_media_de_lista_vazia_levanta_erro():
+    with pytest.raises(ZeroDivisionError):
+        media([])
+\end{lstlisting}
+  \begin{block}{O que este teste diz}
+    Lançar exceção não é acidente: é \emph{parte do contrato}. O teste
+    registra que lista vazia deve falhar --- e falharia se alguém
+    resolvesse devolver \texttt{0} silenciosamente.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Comparando números de ponto flutuante}
+\begin{lstlisting}
+def test_media_com_dizima():
+    assert media([1.0, 2.0]) == 1.5          # exato: ok
+
+def test_media_de_tres_notas_quebradas():
+    # 0.1 + 0.2 + 0.3 nao da exatamente 0.6 em binario
+    assert media([0.1, 0.2, 0.3]) == pytest.approx(0.2)
+\end{lstlisting}
+  \small \texttt{pytest.approx} compara com tolerância relativa. Use sempre
+  que o resultado passar por divisão ou soma de floats.
+\end{frame}
+
+\begin{frame}{Recapitulando: fundamentos}
+  \begin{block}{O que já conseguimos fazer}
+    \begin{itemize}
+      \item Escrever \texttt{test\_*.py} com funções \texttt{test\_*} e \texttt{assert}
+      \item Rodar a suíte e selecionar testes com \texttt{-v}, \texttt{-k}, \texttt{::}
+      \item Ler o relatório de falha e descobrir o valor real
+      \item Separar Arrange, Act e Assert
+      \item Testar exceções com \texttt{pytest.raises} e floats com \texttt{pytest.approx}
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\part{Um teste, muitos casos}
+% =====================================================================
+\section{Parametrização}
+
+\begin{frame}[fragile]{O problema: testes copiados e colados}
+\begin{lstlisting}
+def test_conceito_A(): assert conceito(9.5) == "A"
+def test_conceito_B(): assert conceito(8.0) == "B"
+def test_conceito_C(): assert conceito(6.5) == "C"
+def test_conceito_D(): assert conceito(4.0) == "D"
+\end{lstlisting}
+  \small Quatro testes idênticos em estrutura. Se a função mudar de nome,
+  são quatro edições. E o quinto caso ninguém lembra de acrescentar.
+\end{frame}
+
+\begin{frame}[fragile]{A solução: \texttt{@pytest.mark.parametrize}}
+\begin{lstlisting}
+@pytest.mark.parametrize("nota, esperado", [
+    (9.5, "A"),
+    (8.0, "B"),
+    (6.5, "C"),
+    (4.0, "D"),
+])
+def test_conceito_por_faixa(nota, esperado):
+    assert conceito(nota) == esperado
+\end{lstlisting}
+  \small Uma função, quatro execuções independentes. Acrescentar um caso
+  é acrescentar uma linha na tabela.
+\end{frame}
+
+\begin{frame}[fragile]{Cada caso continua sendo um teste}
+\begin{lstlisting}[style=terminal]
+$ pytest -v
+test_notas.py::test_conceito_por_faixa[9.5-A] PASSED
+test_notas.py::test_conceito_por_faixa[8.0-B] PASSED
+test_notas.py::test_conceito_por_faixa[6.5-C] FAILED
+test_notas.py::test_conceito_por_faixa[4.0-D] PASSED
+\end{lstlisting}
+  \begin{block}{Por que isso importa}
+    O caso que falhou não interrompe os outros, e aparece
+    identificado no relatório. Com um \texttt{for} dentro de um único
+    teste, você perderia essa informação na primeira falha.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Nomeando os casos com \texttt{ids}}
+\begin{lstlisting}
+@pytest.mark.parametrize("nota, esperado", [
+    (10.0, True),
+    (6.0,  True),
+    (5.99, False),
+], ids=["nota-maxima", "exatamente-na-media", "logo-abaixo"])
+def test_aprovacao_nas_fronteiras(nota, esperado):
+    assert aprovado(nota) is esperado
+\end{lstlisting}
+  \small Escolha os casos nas \textbf{fronteiras}: o valor exato do limite,
+  logo abaixo, logo acima. É lá que os bugs moram.
+\end{frame}
+
+\begin{frame}{Recapitulando: parametrização}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Uma tabela de casos substitui testes copiados
+      \item Cada linha vira um teste independente no relatório
+      \item \texttt{ids} dão nome legível a cada caso
+      \item Priorize valores de fronteira e casos degenerados
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\part{Preparando o cenário}
+% =====================================================================
+\section{Fixtures}
+
+\begin{frame}[fragile]{O problema: o mesmo Arrange em todo teste}
+\begin{lstlisting}
+def test_media_da_turma():
+    turma = Turma("COMP0496")
+    turma.matricular("Ana", [8.0, 9.0])
+    turma.matricular("Bruno", [6.0, 5.0])
+    assert turma.media_geral() == 7.0
+
+def test_aprovados_da_turma():
+    turma = Turma("COMP0496")          # de novo
+    turma.matricular("Ana", [8.0, 9.0])
+    turma.matricular("Bruno", [6.0, 5.0])
+    assert turma.aprovados() == ["Ana"]
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{A solução: uma \emph{fixture}}
+\begin{lstlisting}
+@pytest.fixture
+def turma_com_dois_alunos():
+    turma = Turma("COMP0496")
+    turma.matricular("Ana", [8.0, 9.0])
+    turma.matricular("Bruno", [6.0, 5.0])
+    return turma
+
+def test_media_da_turma(turma_com_dois_alunos):
+    assert turma_com_dois_alunos.media_geral() == 7.0
+
+def test_aprovados_da_turma(turma_com_dois_alunos):
+    assert turma_com_dois_alunos.aprovados() == ["Ana"]
+\end{lstlisting}
+  \small O parâmetro do teste tem o \emph{nome} da fixture --- é assim que
+  o \texttt{pytest} sabe o que injetar.
+\end{frame}
+
+\begin{frame}{Fixture: definição}
+  \begin{block}{Definição}
+    Uma \textbf{fixture} é uma função decorada com
+    \texttt{@pytest.fixture} que produz um recurso pronto para o teste.
+    O \texttt{pytest} a executa sob demanda e entrega o valor ao teste
+    que a pede pelo nome.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    É o \emph{Arrange} extraído para um lugar só, com nome. Assim como
+    extrair uma função elimina código repetido, extrair uma fixture
+    elimina preparação repetida.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Limpeza depois do teste: \texttt{yield}}
+\begin{lstlisting}
+@pytest.fixture
+def arquivo_de_notas(tmp_path):
+    caminho = tmp_path / "notas.csv"
+    caminho.write_text("Ana,8.0\nBruno,5.0\n")
+    yield caminho          # o teste roda aqui
+    caminho.unlink()       # limpeza, mesmo se o teste falhar
+\end{lstlisting}
+  \begin{center}
+  \begin{tikzpicture}[
+    box/.style={rectangle, rounded corners, draw, minimum width=3.1cm,
+                minimum height=0.8cm, align=center, font=\scriptsize}
+  ]
+    \node[box, fill=UFSBlue!12]   (s) at (-3.6, 0) {antes do \texttt{yield}\\ (setup)};
+    \node[box, fill=UFSYellow!30] (t) at ( 0, 0)   {o teste executa};
+    \node[box, fill=UFSBlue!12]   (d) at ( 3.6, 0) {depois do \texttt{yield}\\ (teardown)};
+    \draw[->, thick, UFSBlue] (s) -- (t);
+    \draw[->, thick, UFSBlue] (t) -- (d);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Escopo: quantas vezes a fixture roda}
+  \begin{center}
+  \small
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Escopo} & \textbf{Executa} & \textbf{Use quando} \\
+    \midrule
+    \texttt{function} (padrão) & uma vez por teste  & o teste modifica o recurso \\
+    \texttt{class}             & uma vez por classe & testes agrupados compartilham \\
+    \texttt{module}            & uma vez por arquivo & preparo caro e só de leitura \\
+    \texttt{session}           & uma vez por execução & conexão, servidor, dado fixo \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \vspace{0.5em}
+  \begin{alertblock}{Cuidado}
+    Escopo largo com recurso mutável cria dependência entre testes:
+    um teste passa ou falha dependendo de quem rodou antes. Na dúvida,
+    fique no padrão.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Fixtures que já vêm prontas}
+  \begin{center}
+  \small
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Fixture} & \textbf{Entrega} \\
+    \midrule
+    \texttt{tmp\_path}    & um diretório temporário exclusivo do teste \\
+    \texttt{capsys}       & o que o código escreveu em \texttt{stdout}/\texttt{stderr} \\
+    \texttt{monkeypatch}  & troca temporária de atributos, funções e variáveis \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \vspace{0.6em}
+  \small Basta pedir pelo nome no parâmetro do teste. Não precisa
+  importar nem declarar nada.
+\end{frame}
+
+\begin{frame}[fragile]{Testando quem imprime na tela}
+\begin{lstlisting}
+def boletim(nome, media):
+    print(f"{nome}: {media:.1f}")
+
+def test_boletim_formata_com_uma_casa(capsys):
+    boletim("Ana", 8.456)
+    saida = capsys.readouterr().out
+    assert saida == "Ana: 8.5\n"
+\end{lstlisting}
+  \small Funções que só imprimem são difíceis de testar --- por isso
+  preferimos funções que \emph{retornam}. Quando a impressão é o
+  comportamento, \texttt{capsys} resolve.
+\end{frame}
+
+\begin{frame}[fragile]{Compartilhando fixtures: \texttt{conftest.py}}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[
+        node distance=0.35cm,
+        f/.style={rectangle, draw=UFSBlue!60, fill=UFSBlue!10, rounded corners,
+          minimum width=3.3cm, minimum height=0.6cm, font=\scriptsize\ttfamily}
+      ]
+        \node[f] (c)                            {conftest.py};
+        \node[f, below=of c, xshift=0.5cm] (a)  {test\_notas.py};
+        \node[f, below=of a]               (b)  {test\_turma.py};
+        \draw[->, thick, UFSBlue] (c.south west) |- (a.west);
+        \draw[->, thick, UFSBlue] (c.south west) |- (b.west);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \small
+      Fixtures definidas em \texttt{conftest.py} ficam disponíveis para
+      todos os testes daquele diretório e dos subdiretórios ---
+      \textbf{sem import}.
+      \\[0.5em]
+      É o lugar certo para o cenário que mais de um arquivo de teste
+      precisa.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\section{Organizando a suíte}
+
+\begin{frame}[fragile]{Marcadores: pular e prever falhas}
+\begin{lstlisting}
+@pytest.mark.skip(reason="funcionalidade ainda nao implementada")
+def test_exporta_boletim_em_pdf():
+    ...
+
+@pytest.mark.skipif(sys.version_info < (3, 10),
+                    reason="usa match/case")
+def test_classifica_com_match():
+    ...
+
+@pytest.mark.xfail(reason="bug conhecido #42")
+def test_media_de_lista_gigante():
+    ...
+\end{lstlisting}
+  \small Sempre com \texttt{reason}: um teste pulado sem justificativa
+  é um teste esquecido.
+\end{frame}
+
+\begin{frame}{Um bom teste}
+  \begin{block}{Características}
+    \begin{itemize}
+      \item \textbf{Rápido} --- se demora, ninguém roda
+      \item \textbf{Independente} --- passa sozinho e em qualquer ordem
+      \item \textbf{Determinístico} --- mesma entrada, mesmo resultado, sempre
+      \item \textbf{Focado} --- verifica um comportamento; o nome diz qual
+      \item \textbf{Legível} --- dá para entender sem abrir a implementação
+    \end{itemize}
+  \end{block}
+  \begin{alertblock}{Não teste}
+    Detalhes internos que você quer poder mudar, nem a biblioteca padrão.
+    Teste o \emph{contrato}, não a implementação.
+  \end{alertblock}
+\end{frame}
+
+% =====================================================================
+\section{Integração contínua}
+
+\begin{frame}{O teste que ninguém rodou}
+  \begin{center}
+  \begin{tikzpicture}[
+    etapa/.style={rectangle, draw=UFSBlue!60, fill=UFSBlue!10, rounded corners,
+      minimum width=2.2cm, minimum height=1.3cm, text width=2.0cm,
+      align=center, font=\scriptsize},
+    arrow/.style={->, thick, UFSBlue}
+  ]
+    \node[etapa] (p) at (0,0)    {você faz \texttt{git push}};
+    \node[etapa] (c) at (2.5,0)  {o GitHub clona o repositório em uma máquina limpa};
+    \node[etapa] (i) at (5.0,0)  {instala o Python e as dependências};
+    \node[etapa] (t) at (7.5,0)  {roda \texttt{pytest}};
+    \node[etapa] (r) at (10.0,0) {\checkmark\ ou $\times$ ao lado do commit};
+    \draw[arrow] (p) -- (c);
+    \draw[arrow] (c) -- (i);
+    \draw[arrow] (i) -- (t);
+    \draw[arrow] (t) -- (r);
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.6em}
+  \small A suíte só protege quem a executa --- e a hora de esquecer é
+  justamente a da pressa. No servidor ela roda sempre, em uma máquina
+  onde existe apenas o que você declarou: a biblioteca instalada há seis
+  meses e nunca anotada vira uma falha vermelha, não uma surpresa na
+  véspera da entrega.
+\end{frame}
+
+\begin{frame}[fragile]{O arquivo do \emph{workflow}}
+\begin{lstlisting}[style=yaml]
+# .github/workflows/testes.yml
+name: testes
+on: [push]
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest
+      - run: pytest -q
+\end{lstlisting}
+  \vspace{-0.5em}
+  \small \texttt{on} diz \emph{quando} rodar; \texttt{runs-on}, em que máquina;
+  \texttt{uses} traz uma ação pronta; \texttt{run} é um comando de terminal.
+  O caminho é a inscrição: todo \texttt{.yml} em \texttt{.github/workflows/}
+  já é um \emph{workflow}.
+\end{frame}
+
+\begin{frame}[fragile]{O que aparece no GitHub}
+\begin{lstlisting}[style=terminal]
+Run pytest -q
+collected 12 items
+test_notas.py ............                           [100%]
+================== 12 passed in 0.06s ==================
+\end{lstlisting}
+  \vspace{0.2em}
+  \begin{itemize}
+    \item \small Um \checkmark\ (ou $\times$) ao lado do commit --- na lista de
+      commits e dentro do \emph{pull request}
+    \item \small A aba \textbf{Actions} guarda o log completo de cada execução
+    \item \small Quando quebra, o GitHub avisa por e-mail quem fez o \texttt{push}
+  \end{itemize}
+  \small O log traz o mesmo relatório do pytest que você já sabe ler: o teste
+  que falhou, a linha e o valor real.
+\end{frame}
+
+\begin{frame}{Três convenções, de novo}
+  \begin{center}
+  \begin{tikzpicture}[
+    dir/.style={rectangle, draw=UFSBlue!60, fill=UFSBlue!10, rounded corners,
+      minimum width=4.8cm, minimum height=0.75cm, font=\small\ttfamily},
+    lbl/.style={font=\scriptsize, text=UFSGray, align=left}
+  ]
+    \node[dir] (a) at (0, 1.0)  {.github/workflows/*.yml};
+    \node[dir] (b) at (0, 0.0)  {on: [push]};
+    \node[dir] (c) at (0,-1.0)  {run: pytest};
+    \node[lbl, right=0.8cm of a] {1. onde o arquivo mora};
+    \node[lbl, right=0.8cm of b] {2. quando a suíte roda};
+    \node[lbl, right=0.8cm of c] {3. o que ela executa};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{0.4em}
+  \small Com isso, o verde deixa de ser algo que alguém lembra de conferir:
+  passa a ser um fato registrado em cada commit, e o projeto pode exigi-lo
+  antes de aceitar qualquer contribuição.
+\end{frame}
+
+\begin{frame}{O que levamos da aula}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue!60, fill=UFSBlue!10, rounded corners,
+      minimum width=10.5cm, minimum height=0.7cm, font=\small}
+  ]
+    \node[item] at (0, 2.0)  {\texttt{test\_*.py} + \texttt{def test\_*} + \texttt{assert} --- e o pytest acha sozinho};
+    \node[item] at (0, 1.15) {Leia o relatório de falha: ele mostra o valor real};
+    \node[item] at (0, 0.3)  {\texttt{@parametrize} para a tabela de casos, com foco nas fronteiras};
+    \node[item] at (0,-0.55) {\emph{Fixtures} para o Arrange repetido, \texttt{conftest.py} para compartilhar};
+    \node[item] at (0,-1.4)  {Um \emph{workflow} curto roda a suíte no GitHub a cada \texttt{push}};
+    \node[item] at (0,-2.25) {Suíte verde é permissão para refatorar};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Para praticar}
+  \begin{block}{No tutorial (notebook)}
+    \begin{itemize}
+      \item Prever o resultado de um teste antes de rodá-lo
+      \item Diagnosticar uma falha lendo apenas o relatório
+      \item Converter quatro testes repetidos em um \texttt{@parametrize}
+      \item Extrair uma fixture e usá-la em dois testes
+      \item Escrever a sua própria suíte para um módulo novo
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \scriptsize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}
