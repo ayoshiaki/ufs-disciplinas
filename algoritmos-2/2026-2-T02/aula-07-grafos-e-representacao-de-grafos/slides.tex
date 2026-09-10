@@ -1,0 +1,906 @@
+% -*- coding: utf-8 -*-
+% Aula: Grafos e representação de grafos
+% Baseada em: Paulo Feofiloff, "Algoritmos para Grafos (em linguagem C)",
+% IME-USP, https://www.ime.usp.br/~pf/algoritmos_para_grafos/
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, chains, shapes.geometric}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados nos diagramas de grafos ----
+\tikzset{
+  vtx/.style={circle, draw=blue!70, fill=blue!10, minimum size=6mm,
+              inner sep=0pt, font=\scriptsize},
+  vtxhl/.style={circle, draw=orange!80!black, fill=orange!25, minimum size=6mm,
+                inner sep=0pt, font=\scriptsize},
+  arc/.style={-{Stealth[length=2mm]}, thick, blue!60!black},
+  arcgray/.style={-{Stealth[length=2mm]}, thick, gray!60},
+  edg/.style={thick, blue!60!black},
+  cell/.style={draw=gray!60, minimum size=4.2mm, inner sep=0pt, font=\tiny},
+  lnode/.style={draw=blue!60, fill=blue!8, minimum height=4.5mm,
+                minimum width=4.5mm, inner sep=1pt, font=\tiny},
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=4.6cm, minimum height=0.55cm, font=\scriptsize}
+}
+
+\title{Grafos e representação de grafos}
+\subtitle{Algoritmos e Estruturas de Dados 2}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+% =====================================================================
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.18cm]
+    \node[box] (t1) at (0,0)     {1. O que é um grafo: definições básicas};
+    \node[box] (t2) at (0,-0.78) {2. Leques, graus e contagem de arcos};
+    \node[box] (t3) at (0,-1.56) {3. Grafos não-dirigidos e subgrafos};
+    \node[box] (t4) at (0,-2.34) {4. Matriz de adjacências (em C)};
+    \node[box] (t5) at (0,-3.12) {5. Listas de adjacência (em C)};
+    \node[box] (t6) at (0,-3.90) {6. Qual representação escolher?};
+    \draw[arc] (t1)--(t2);
+    \draw[arc] (t2)--(t3);
+    \draw[arc] (t3)--(t4);
+    \draw[arc] (t4)--(t5);
+    \draw[arc] (t5)--(t6);
+  \end{tikzpicture}
+  \end{center}
+  \vfill
+  {\scriptsize Material baseado em Feofiloff, \emph{Algoritmos para Grafos (em linguagem C)}, IME-USP.}
+\end{frame}
+
+% =====================================================================
+\section{Definições básicas}
+
+\begin{frame}{Por que precisamos de grafos?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema}
+
+      \medskip
+      {\small
+      Muitos problemas são sobre \emph{objetos} e \emph{ligações} entre eles:
+      \begin{itemize}\scriptsize
+        \item páginas da Web e os \emph{links} entre elas;
+        \item cidades e estradas;
+        \item tarefas e suas dependências;
+        \item pessoas e amizades.
+      \end{itemize}
+      Precisamos de um único modelo para todos eles.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução}
+
+      \medskip
+      {\small
+      O \textbf{grafo}: um modelo combinatório mínimo --- um conjunto de
+      \emph{vértices} e um conjunto de \emph{arcos}.
+
+      \medskip
+      Resolvido o problema no grafo, a solução vale para todas as aplicações
+      que ele modela.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Grafo: definição}
+  \begin{block}{Definição}
+    {\small Um \textbf{grafo} é um par de conjuntos: um conjunto de
+    \textbf{vértices} e um conjunto de \textbf{arcos}. Cada \textbf{arco} é um
+    \emph{par ordenado} de vértices: o primeiro é a \textbf{ponta inicial} e o
+    segundo é a \textbf{ponta final}. O arco de ponta inicial $v$ e ponta final
+    $w$ é denotado por $v$\texttt{-}$w$.}
+  \end{block}
+  \begin{exampleblock}{Intuição e convenções deste curso}
+    {\small
+    \begin{itemize}\scriptsize
+      \item Arcos são \emph{dirigidos}: $v$\texttt{-}$w$ sai de $v$ e entra em $w$.
+      \item A presença de $v$\texttt{-}$w$ é independente da presença de $w$\texttt{-}$v$.
+      \item \textbf{Não há laços}: a ponta final é sempre diferente da inicial.
+      \item \textbf{Não há arcos paralelos}: arcos são \emph{meros pares} de vértices,
+            logo dois arcos distintos não podem ter as mesmas pontas.
+    \end{itemize}}
+  \end{exampleblock}
+  {\scriptsize ``Grafo dirigido'' (ou \emph{digrafo}) é sinônimo; o adjetivo é redundante aqui.}
+\end{frame}
+
+\begin{frame}{Um grafo concreto}
+  {\small Grafo sobre os vértices $0..5$ com o conjunto de arcos}
+  \begin{center}\ttfamily\small 0-1\quad 0-5\quad 1-0\quad 1-5\quad 2-4\quad 3-1\quad 5-3\end{center}
+  \begin{center}
+  \begin{tikzpicture}[scale=1.0]
+    \node[vtx] (v0) at (0,1.4)  {0};
+    \node[vtx] (v1) at (2.2,1.4){1};
+    \node[vtx] (v2) at (4.4,1.4){2};
+    \node[vtx] (v3) at (0,0)    {3};
+    \node[vtx] (v5) at (2.2,0)  {5};
+    \node[vtx] (v4) at (4.4,0)  {4};
+    \draw[arc] (v0) to[bend left=18]  (v1);
+    \draw[arc] (v1) to[bend left=18]  (v0);
+    \draw[arc] (v0) -- (v5);
+    \draw[arc] (v1) -- (v5);
+    \draw[arc] (v2) -- (v4);
+    \draw[arc] (v3) -- (v1);
+    \draw[arc] (v5) -- (v3);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize $0$\texttt{-}$1$ e $1$\texttt{-}$0$ são \textbf{antiparalelos}: a ponta inicial de um é a ponta final do outro.
+  Note que $4$ não tem nenhum arco saindo dele.}
+\end{frame}
+
+\begin{frame}{Vizinhança, adjacência e tamanho}
+  \begin{block}{Definição}
+    {\small Um vértice $w$ é \textbf{vizinho} de $v$ (ou \textbf{adjacente} a $v$)
+    se $v$\texttt{-}$w$ é um arco do grafo.
+
+    O \textbf{tamanho} de um grafo com $V$ vértices e $A$ arcos é a soma $V+A$.}
+  \end{block}
+  \begin{alertblock}{Cuidado}
+    {\small A relação de vizinhança \textbf{não é simétrica}: $w$ pode ser
+    vizinho de $v$ sem que $v$ seja vizinho de $w$.}
+  \end{alertblock}
+  {\small No grafo anterior: os vizinhos de $0$ são $1$ e $5$; o vizinho de $3$ é $1$;
+  o vértice $4$ não tem vizinho algum. Ali $V=6$, $A=7$ e o tamanho é $13$.}
+\end{frame}
+
+\begin{frame}{Exemplo: a Web é um grafo}
+  \begin{exampleblock}{Exemplo}
+    {\small A estrutura da rede WWW pode ser representada por um grafo: os
+    \textbf{vértices} são as páginas HTML e os \textbf{arcos} são os \emph{links}
+    que apontam de uma página para outra. Navegar na rede é pular de um vértice
+    a outro seguindo os arcos.}
+  \end{exampleblock}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.9]
+    \node[vtx] (a) at (0,0.9)   {A};
+    \node[vtx] (b) at (2.0,1.5) {B};
+    \node[vtx] (c) at (2.0,0.2) {C};
+    \node[vtx] (d) at (4.0,0.9) {D};
+    \draw[arc] (a) -- (b);
+    \draw[arc] (a) -- (c);
+    \draw[arc] (b) -- (d);
+    \draw[arc] (c) -- (d);
+    \draw[arc] (d) to[bend left=35] (a);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize A direção importa: A aponta para B, mas B não aponta para A.
+  É exatamente isso que a definição de arco como \emph{par ordenado} captura.}
+\end{frame}
+
+\begin{frame}{Recapitulando: definições básicas}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\small
+      \item Grafo $=$ conjunto de vértices $+$ conjunto de arcos (pares ordenados).
+      \item Notação $v$\texttt{-}$w$: sai de $v$, entra em $w$.
+      \item $w$ é vizinho (adjacente) de $v$ se $v$\texttt{-}$w$ é arco; relação não simétrica.
+      \item Sem laços e sem arcos paralelos, por convenção deste curso.
+      \item $V$ vértices, $A$ arcos, tamanho $V+A$.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Leques e graus}
+
+\begin{frame}{Por que precisamos de graus?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema}
+
+      \medskip
+      {\small Como medir a ``importância local'' de um vértice? Como saber
+      quantos arcos um grafo pode ter, e portanto quanta memória vamos gastar
+      para guardá-lo?}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução}
+
+      \medskip
+      {\small Contar os arcos que saem e que entram em cada vértice: os
+      \textbf{graus}. Com eles obtemos limites sobre $A$ e classificamos grafos
+      em \emph{densos} e \emph{esparsos}.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Leques e graus: definição}
+  \begin{block}{Definição}
+    {\small
+    O \textbf{leque de saída} (\emph{fan-out}) de um vértice é o conjunto de
+    todos os arcos que saem dele; o \textbf{leque de entrada} (\emph{fan-in}) é
+    o conjunto dos arcos que entram nele.
+
+    \smallskip
+    O \textbf{grau de saída} (\emph{outdegree}) é o tamanho do leque de saída;
+    o \textbf{grau de entrada} (\emph{indegree}) é o tamanho do leque de entrada.}
+  \end{block}
+  \begin{exampleblock}{Vértices com nome próprio}
+    {\small
+    \begin{itemize}\scriptsize
+      \item \textbf{fonte} (\emph{source}): grau de entrada nulo;
+      \item \textbf{sorvedouro} (\emph{sink}): grau de saída nulo;
+      \item \textbf{isolado}: graus de entrada e de saída ambos nulos.
+    \end{itemize}}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Leques, visualmente}
+  \begin{center}
+  \begin{tikzpicture}[scale=1.0]
+    \node[vtxhl] (v) at (2.4,0.8) {$v$};
+    \node[vtx] (a) at (0,1.6) {a};
+    \node[vtx] (b) at (0,0.0) {b};
+    \node[vtx] (c) at (4.8,1.9) {c};
+    \node[vtx] (d) at (4.8,0.8) {d};
+    \node[vtx] (e) at (4.8,-0.3) {e};
+    \draw[arc] (a) -- (v);
+    \draw[arc] (b) -- (v);
+    \draw[arc] (v) -- (c);
+    \draw[arc] (v) -- (d);
+    \draw[arc] (v) -- (e);
+    \node[font=\scriptsize, gray!70!black] at (0.5,-0.9) {leque de entrada: 2 arcos};
+    \node[font=\scriptsize, gray!70!black] at (4.6,-1.1) {leque de saída: 3 arcos};
+  \end{tikzpicture}
+  \end{center}
+  {\small Aqui o grau de entrada de $v$ é $2$ e o grau de saída é $3$.
+  Se o leque de entrada fosse vazio, $v$ seria uma \textbf{fonte};
+  se o leque de saída fosse vazio, um \textbf{sorvedouro}.}
+\end{frame}
+
+\begin{frame}{Quantos arcos um grafo pode ter?}
+  \begin{block}{Propriedade}
+    {\small A soma dos graus de \emph{saída} de todos os vértices é igual ao
+    número de arcos do grafo. O mesmo vale para a soma dos graus de
+    \emph{entrada}.}
+  \end{block}
+  \begin{alertblock}{Consequência}
+    {\small Um grafo com $V$ vértices tem no máximo $V(V-1)$ arcos ---
+    um pouco menos que $V^2$.}
+  \end{alertblock}
+  {\small
+  \begin{itemize}\small
+    \item Um grafo é \textbf{completo} se todo par ordenado de vértices
+          distintos é um arco: tem exatamente $V(V-1)$ arcos.
+    \item Um \textbf{torneio} tem, para cada par $v\,w$ de vértices distintos,
+          exatamente um dentre $v$\texttt{-}$w$ e $w$\texttt{-}$v$:
+          tem $\tfrac{1}{2}V(V-1)$ arcos.
+  \end{itemize}}
+\end{frame}
+
+\begin{frame}{Densos e esparsos}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      {\small
+      \textbf{Denso}: $A$ é da mesma ordem que $V^2$
+      (digamos $V^2/2$, $V^2/10$, \dots). O tamanho é proporcional a $V^2$.
+
+      \medskip
+      \textbf{Esparso}: $A$ é da mesma ordem que $V$
+      (digamos $10V$, $V/2$, \dots). O tamanho é proporcional a $V$.
+
+      \medskip
+      {\scriptsize Estas definições se aplicam a \emph{famílias infinitas} de
+      grafos, não a um grafo individual.}}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.75]
+        \draw[->] (0,0) -- (4.3,0) node[right,font=\tiny] {$V$};
+        \draw[->] (0,0) -- (0,3.2) node[above,font=\tiny] {$A$};
+        \draw[thick,red!70!black,domain=0:1.75,smooth,variable=\x]
+          plot ({\x*2.28},{\x*\x});
+        \node[red!70!black,font=\tiny,right] at (3.6,2.6) {denso $\sim V^2$};
+        \draw[thick,blue!70!black] (0,0) -- (4.0,0.85);
+        \node[blue!70!black,font=\tiny,right] at (3.0,0.45) {esparso $\sim V$};
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize A diferença decide qual estrutura de dados vale a pena.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Recapitulando: leques e graus}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\small
+      \item Leque de saída/entrada; graus de saída (\emph{outdegree}) e de entrada (\emph{indegree}).
+      \item Fonte, sorvedouro e vértice isolado.
+      \item Soma dos graus de saída $=$ soma dos graus de entrada $= A$.
+      \item No máximo $V(V-1)$ arcos; completo tem $V(V-1)$, torneio tem $\tfrac{1}{2}V(V-1)$.
+      \item Denso ($A \sim V^2$) versus esparso ($A \sim V$).
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Grafos não-dirigidos e subgrafos}
+
+\begin{frame}{Por que precisamos de grafos não-dirigidos?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema}
+
+      \medskip
+      {\small Amizade, estradas de mão dupla e cabos de rede são relações
+      \emph{simétricas}. Modelá-las com arcos dirigidos obriga a lembrar sempre
+      de inserir os dois sentidos.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução}
+
+      \medskip
+      {\small Tratar cada par de arcos antiparalelos como uma entidade nova ---
+      a \textbf{aresta}. O grafo continua sendo o mesmo objeto; muda apenas
+      como falamos dele.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Grafo não-dirigido: definição}
+  \begin{block}{Definição}
+    {\small Um grafo é \textbf{não-dirigido} se cada um de seus arcos é
+    antiparalelo a algum outro arco: para todo arco $v$\texttt{-}$w$, o grafo
+    também tem o arco $w$\texttt{-}$v$.
+
+    \smallskip
+    Cada par de arcos antiparalelos é uma \textbf{aresta} (\emph{edge}).
+    Se $E$ é o número de arestas e $A$ o de arcos, então $E = A/2$.}
+  \end{block}
+  \begin{exampleblock}{Vocabulário}
+    {\small Uma aresta $v$\texttt{-}$w$ \textbf{liga} $v$ e $w$, e
+    \textbf{incide} em $v$ e em $w$. O \textbf{leque} de $v$ é o conjunto de
+    arestas que incidem em $v$; o \textbf{grau} de $v$ é o número dessas
+    arestas. A soma dos graus vale $2E$.}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Um grafo não-dirigido}
+  {\small O conjunto de \emph{arcos}}
+  \begin{center}\ttfamily\scriptsize
+    0-1 0-2 0-5 1-2 2-3 2-4 3-4 3-5\quad
+    1-0 2-0 5-0 2-1 3-2 4-2 4-3 5-3
+  \end{center}
+  {\small define um grafo não-dirigido, cujo conjunto de \emph{arestas} é
+  \texttt{0-1 0-2 0-5 1-2 2-3 2-4 3-4 3-5} ($A=16$, $E=8$).}
+  \begin{center}
+  \begin{tikzpicture}[scale=1.0]
+    \node[vtx] (v0) at (0,1.3)   {0};
+    \node[vtx] (v1) at (1.6,2.1) {1};
+    \node[vtx] (v2) at (3.0,1.3) {2};
+    \node[vtx] (v3) at (4.4,0.6) {3};
+    \node[vtx] (v4) at (3.0,-0.2){4};
+    \node[vtx] (v5) at (1.4,0.0) {5};
+    \draw[edg] (v0)--(v1); \draw[edg] (v0)--(v2); \draw[edg] (v0)--(v5);
+    \draw[edg] (v1)--(v2); \draw[edg] (v2)--(v3); \draw[edg] (v2)--(v4);
+    \draw[edg] (v3)--(v4); \draw[edg] (v3)--(v5);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize A adjacência aqui é simétrica; o grau de $2$ é $4$ e o de $1$ é $2$.}
+\end{frame}
+
+\begin{frame}{Subgrafos}
+  \begin{block}{Definição}
+    {\small Um grafo $H$ é \textbf{subgrafo} de um grafo $G$ (notação
+    $H \subseteq G$) se todo vértice de $H$ é vértice de $G$ e todo arco de $H$
+    é arco de $G$.}
+  \end{block}
+  {\small
+  \begin{itemize}\small
+    \item \textbf{gerador} (\emph{spanning}): contém \emph{todos} os vértices de $G$;
+    \item \textbf{induzido}: todo arco de $G$ com ambas as pontas em $H$ também é arco de $H$;
+    \item \textbf{próprio}: diferente de $G$ (notação $H \subset G$).
+  \end{itemize}
+
+  \smallskip
+  Dado um conjunto $X$ de vértices, $G[X]$ é o subgrafo induzido por $X$.
+  Se $a$ é um arco, $G-a$ é o subgrafo obtido removendo $a$.}
+\end{frame}
+
+\begin{frame}{Exemplo: subgrafo induzido}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.95]
+    \begin{scope}
+      \node[font=\scriptsize] at (1.6,2.6) {$G$};
+      \node[vtx] (a0) at (0,1.3)   {0};
+      \node[vtx] (a1) at (1.6,2.1) {1};
+      \node[vtx] (a2) at (3.0,1.3) {2};
+      \node[vtx] (a3) at (4.0,0.3) {3};
+      \node[vtx] (a4) at (2.6,-0.4){4};
+      \node[vtx] (a5) at (1.0,-0.2){5};
+      \draw[edg] (a0)--(a1); \draw[edg] (a0)--(a2); \draw[edg] (a0)--(a5);
+      \draw[edg] (a1)--(a2); \draw[edg] (a2)--(a3); \draw[edg] (a2)--(a4);
+      \draw[edg] (a3)--(a4); \draw[edg] (a3)--(a5);
+    \end{scope}
+    \begin{scope}[xshift=6.0cm]
+      \node[font=\scriptsize] at (1.6,2.6) {$G[\{0,1,2,4\}]$};
+      \node[vtxhl] (b0) at (0,1.3)   {0};
+      \node[vtxhl] (b1) at (1.6,2.1) {1};
+      \node[vtxhl] (b2) at (3.0,1.3) {2};
+      \node[vtxhl] (b4) at (2.6,-0.4){4};
+      \draw[edg] (b0)--(b1); \draw[edg] (b0)--(b2);
+      \draw[edg] (b1)--(b2); \draw[edg] (b2)--(b4);
+    \end{scope}
+  \end{tikzpicture}
+  \end{center}
+  {\small O subgrafo induzido por $X=\{0,1,2,4\}$ mantém \emph{todas} as arestas
+  de $G$ com as duas pontas em $X$ --- nem uma a mais, nem uma a menos.}
+\end{frame}
+
+\begin{frame}{Recapitulando: não-dirigidos e subgrafos}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\small
+      \item Não-dirigido: todo arco tem seu antiparalelo; cada par é uma \textbf{aresta}.
+      \item $E = A/2$; soma dos graus $= 2E$.
+      \item Subgrafo $H \subseteq G$; gerador, induzido, próprio.
+      \item $G[X]$: subgrafo induzido por um conjunto $X$ de vértices.
+      \item Um subgrafo de um grafo não-dirigido pode \emph{não} ser não-dirigido.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Matriz de adjacências}
+
+\begin{frame}[fragile]{Por que precisamos de uma estrutura de dados?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema}
+
+      \medskip
+      {\small A definição matemática de grafo não diz \emph{nada} sobre como
+      guardá-lo na memória. Sem uma representação concreta não há algoritmo,
+      não há programa em C, não há análise de consumo de tempo.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução}
+
+      \medskip
+      {\small Duas representações clássicas. Antes delas, uma convenção:
+
+      \smallskip
+      \lstinline|#define vertex int|
+
+      \smallskip
+      Os vértices são sempre $0\;1\;2\;\ldots\;V-1$.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Matriz de adjacências: definição}
+  \begin{block}{Definição}
+    {\small A \textbf{matriz de adjacências} de um grafo é uma matriz booleana
+    com linhas e colunas indexadas pelos vértices:
+    \[
+      \texttt{adj[v][w]} =
+      \begin{cases}
+        1 & \text{se } v\text{\texttt{-}}w \text{ é um arco},\\
+        0 & \text{caso contrário.}
+      \end{cases}
+    \]}
+  \end{block}
+  \begin{exampleblock}{Leitura da matriz}
+    {\small A \emph{linha} $v$ representa o leque de \textbf{saída} de $v$;
+    a \emph{coluna} $w$ representa o leque de \textbf{entrada} de $w$.
+    Como não há laços, a diagonal é toda nula. Se o grafo é não-dirigido,
+    a matriz é \emph{simétrica}: \texttt{adj[v][w] $\equiv$ adj[w][v]}.}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{A matriz do nosso exemplo}
+  {\small Arcos \ttfamily 0-1 0-5 1-0 1-5 2-4 3-1 5-3\rmfamily :}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.95]
+    \begin{scope}
+      \node[vtx] (v0) at (0,1.4)  {0};
+      \node[vtx] (v1) at (1.7,1.4){1};
+      \node[vtx] (v2) at (3.4,1.4){2};
+      \node[vtx] (v3) at (0,0)    {3};
+      \node[vtx] (v5) at (1.7,0)  {5};
+      \node[vtx] (v4) at (3.4,0)  {4};
+      \draw[arc] (v0) to[bend left=18] (v1);
+      \draw[arc] (v1) to[bend left=18] (v0);
+      \draw[arc] (v0) -- (v5); \draw[arc] (v1) -- (v5);
+      \draw[arc] (v2) -- (v4); \draw[arc] (v3) -- (v1);
+      \draw[arc] (v5) -- (v3);
+    \end{scope}
+    \begin{scope}[xshift=5.4cm, yshift=-0.3cm]
+      \foreach \j/\lab in {0/0,1/1,2/2,3/3,4/4,5/5}
+        \node[font=\tiny,gray!60!black] at (\j*0.46+0.46,2.05) {\lab};
+      \foreach \i/\lab in {0/0,1/1,2/2,3/3,4/4,5/5}
+        \node[font=\tiny,gray!60!black] at (0,1.75-\i*0.46) {\lab};
+      \foreach \i/\row in {0/{0,1,0,0,0,1}, 1/{1,0,0,0,0,1}, 2/{0,0,0,0,1,0},
+                           3/{0,1,0,0,0,0}, 4/{0,0,0,0,0,0}, 5/{0,0,0,1,0,0}} {
+        \foreach \val [count=\j from 0] in \row {
+          \node[cell, fill={\ifnum\val=1 orange!30\else white\fi}]
+            at (\j*0.46+0.46,1.75-\i*0.46) {\val};
+        }
+      }
+    \end{scope}
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize A linha $4$ é toda nula: $4$ é um \textbf{sorvedouro}.
+  A coluna $2$ é toda nula: $2$ é uma \textbf{fonte}.}
+\end{frame}
+
+\begin{frame}[fragile]{Matriz: a estrutura em C}
+\begin{lstlisting}
+/* REPRESENTACAO POR MATRIZ DE ADJACENCIAS:
+   O campo adj e um ponteiro para a matriz de adjacencias do grafo.
+   O campo V contem o numero de vertices e A o numero de arcos. */
+struct graph {
+   int V;
+   int A;
+   int **adj;
+};
+
+/* Um Graph e um ponteiro para um graph. */
+typedef struct graph *Graph;
+\end{lstlisting}
+  {\small O grafo carrega consigo $V$ e $A$: assim, perguntar quantos vértices
+  ou quantos arcos o grafo tem custa tempo constante.}
+\end{frame}
+
+\begin{frame}[fragile]{Matriz: construção do grafo}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* Constroi um grafo com vertices 0 1 .. V-1 e nenhum arco. */
+Graph GRAPHinit( int V) {
+   Graph G = malloc( sizeof *G);
+   G->V = V;
+   G->A = 0;
+   G->adj = MATRIXint( V, V, 0);
+   return G;
+}
+
+/* Aloca matriz com linhas 0..r-1 e colunas 0..c-1, tudo com valor val. */
+static int **MATRIXint( int r, int c, int val) {
+   int **m = malloc( r * sizeof (int *));
+   for (vertex i = 0; i < r; ++i)
+      m[i] = malloc( c * sizeof (int));
+   for (vertex i = 0; i < r; ++i)
+      for (vertex j = 0; j < c; ++j)
+         m[i][j] = val;
+   return m;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Matriz: inserção e remoção de arcos}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* Insere um arco v-w no grafo G. Supoe v e w distintos, positivos
+   e menores que G->V. Se o arco ja existe, nao faz nada. */
+void GRAPHinsertArc( Graph G, vertex v, vertex w) {
+   if (G->adj[v][w] == 0) {
+      G->adj[v][w] = 1;
+      G->A++;
+   }
+}
+
+/* Remove do grafo G o arco v-w. Se o arco nao existe, nao faz nada. */
+void GRAPHremoveArc( Graph G, vertex v, vertex w) {
+   if (G->adj[v][w] == 1) {
+      G->adj[v][w] = 0;
+      G->A--;
+   }
+}
+\end{lstlisting}
+  {\small Ambas consomem tempo \textbf{constante}: um acesso à matriz decide tudo.}
+\end{frame}
+
+\begin{frame}[fragile]{Matriz: listando os vizinhos}
+\begin{lstlisting}
+/* Imprime, para cada vertice v do grafo G, em uma linha,
+   todos os vertices adjacentes a v. */
+void GRAPHshow( Graph G) {
+   for (vertex v = 0; v < G->V; ++v) {
+      printf( "%2d:", v);
+      for (vertex w = 0; w < G->V; ++w)
+         if (G->adj[v][w] == 1)
+            printf( " %2d", w);
+      printf( "\n");
+   }
+}
+\end{lstlisting}
+  \begin{alertblock}{Custo}
+    {\scriptsize Percorrer os vizinhos de \emph{um} vértice custa tempo
+    proporcional a $V$, mesmo que ele tenha um único vizinho:
+    \texttt{GRAPHshow()} custa $V^2$.}
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: matriz de adjacências}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\small
+      \item \texttt{adj[v][w]} $\in \{0,1\}$; linha $=$ leque de saída, coluna $=$ leque de entrada.
+      \item Diagonal nula (sem laços); matriz simétrica se o grafo é não-dirigido.
+      \item Espaço proporcional a $V^2$ --- \emph{proporcional ao tamanho} apenas se o grafo é denso.
+      \item Testar se $v$\texttt{-}$w$ é arco, inserir e remover: tempo constante.
+      \item Percorrer os vizinhos de um vértice: tempo proporcional a $V$.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Listas de adjacência}
+
+\begin{frame}{Por que precisamos de listas de adjacência?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema}
+
+      \medskip
+      {\small Um grafo esparso com $V = 10^6$ vértices e $A = 5 \cdot 10^6$ arcos
+      exigiria $10^{12}$ células de matriz --- quase todas iguais a zero.
+      Impossível na prática.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução}
+
+      \medskip
+      {\small Guardar, para cada vértice, apenas a lista dos vizinhos que ele
+      realmente tem. O espaço passa a ser proporcional ao \textbf{tamanho}
+      $V+A$ do grafo.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Listas de adjacência: definição}
+  \begin{block}{Definição}
+    {\small O \textbf{vetor de listas de adjacência} de um grafo tem uma lista
+    encadeada associada a cada vértice. A lista associada a $v$ contém todos os
+    vizinhos de $v$; portanto, ela representa o \textbf{leque de saída} de $v$.}
+  \end{block}
+  \begin{exampleblock}{Exemplo}
+    {\small Para os arcos \texttt{0-1 0-5 1-0 1-5 2-4 3-1 5-3}:}
+    \begin{center}\ttfamily\scriptsize
+      0: 5 1 \quad\quad 1: 5 0 \quad\quad 2: 4 \quad\quad
+      3: 1 \quad\quad 4: \quad\quad 5: 3
+    \end{center}
+    {\scriptsize A \emph{ordem} dentro de cada lista depende da ordem de
+    inserção --- ela não faz parte da definição do grafo.}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{O vetor de listas, visualmente}
+  \begin{center}
+  \begin{tikzpicture}[scale=1.0]
+    \foreach \i/\lab in {0/0,1/1,2/2,3/3,4/4,5/5} {
+      \node[lnode, fill=blue!18] (a\i) at (0,-\i*0.62) {\lab};
+    }
+    \node[font=\tiny, gray!60!black, above] at (0,0.42) {\texttt{adj}};
+    % linha 0: 5 -> 1
+    \node[lnode] (n01) at (1.5,0)      {5};  \node[lnode] (n02) at (2.7,0)      {1};
+    \node[lnode] (n11) at (1.5,-0.62)  {5};  \node[lnode] (n12) at (2.7,-0.62)  {0};
+    \node[lnode] (n21) at (1.5,-1.24)  {4};
+    \node[lnode] (n31) at (1.5,-1.86)  {1};
+    \node[font=\tiny] (n41) at (1.5,-2.48) {\texttt{NULL}};
+    \node[lnode] (n51) at (1.5,-3.10)  {3};
+    \foreach \i/\dst in {0/n01, 1/n11, 2/n21, 3/n31, 4/n41, 5/n51}
+      \draw[arcgray] (a\i) -- (\dst);
+    \draw[arcgray] (n01) -- (n02);
+    \draw[arcgray] (n11) -- (n12);
+    \node[font=\tiny] at (3.9,0)     {\texttt{NULL}};
+    \node[font=\tiny] at (3.9,-0.62) {\texttt{NULL}};
+    \node[font=\tiny] at (2.7,-1.24) {\texttt{NULL}};
+    \node[font=\tiny] at (2.7,-1.86) {\texttt{NULL}};
+    \node[font=\tiny] at (2.7,-3.10) {\texttt{NULL}};
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize O vetor tem $V$ posições; somando todos os nós das listas temos
+  exatamente $A$ nós. Daí o espaço proporcional a $V+A$.}
+\end{frame}
+
+\begin{frame}[fragile]{Listas: as estruturas em C}
+\begin{lstlisting}
+/* Cada no da lista corresponde a um arco: contem um vizinho w de v
+   e o endereco do no seguinte. Um link e um ponteiro para um node. */
+typedef struct node *link;
+struct node {
+   vertex w;
+   link next;
+};
+
+/* O campo adj e um ponteiro para o vetor de listas de adjacencia. */
+struct graph {
+   int V;
+   int A;
+   link *adj;
+};
+typedef struct graph *Graph;
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Listas: construção do grafo}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* Recebe um vertice w e o endereco next de um no e devolve o endereco
+   a de um novo no tal que a->w == w e a->next == next. */
+static link NEWnode( vertex w, link next) {
+   link a = malloc( sizeof (struct node));
+   a->w = w;
+   a->next = next;
+   return a;
+}
+
+/* Constroi um grafo com vertices 0 1 .. V-1 e nenhum arco. */
+Graph GRAPHinit( int V) {
+   Graph G = malloc( sizeof *G);
+   G->V = V;
+   G->A = 0;
+   G->adj = malloc( V * sizeof (link));
+   for (vertex v = 0; v < V; ++v)
+      G->adj[v] = NULL;
+   return G;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Listas: inserção de arco}
+\begin{lstlisting}
+/* Insere um arco v-w no grafo G. Supoe v e w distintos, positivos
+   e menores que G->V. Se o grafo ja tem o arco v-w, nao faz nada. */
+void GRAPHinsertArc( Graph G, vertex v, vertex w) {
+   for (link a = G->adj[v]; a != NULL; a = a->next)
+      if (a->w == w) return;
+   G->adj[v] = NEWnode( w, G->adj[v]);
+   G->A++;
+}
+\end{lstlisting}
+  \begin{alertblock}{Custo}
+    {\small A função consome muito tempo (no pior caso, tempo proporcional ao
+    \emph{número de arcos}), pois percorre a lista para verificar se o arco a
+    inserir já existe. O novo nó entra sempre no \emph{início} da lista --- por
+    isso a ordem observada no exemplo é o inverso da ordem de inserção.}
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Recapitulando: listas de adjacência}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\small
+      \item Vetor de $V$ listas encadeadas; a lista de $v$ é o leque de saída de $v$.
+      \item \lstinline|struct node| guarda o vizinho \texttt{w} e o ponteiro \texttt{next}.
+      \item Espaço proporcional a $V+A$, ou seja, ao \textbf{tamanho} do grafo.
+      \item Percorrer os vizinhos de $v$ custa tempo proporcional ao grau de saída de $v$.
+      \item \texttt{GRAPHinsertArc()} é cara porque evita arcos repetidos.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section{Qual representação escolher?}
+
+\begin{frame}{Matriz {\small versus} listas}
+  \begin{center}
+  {\small
+  \begin{tabular}{lll}
+    \toprule
+    & \textbf{Matriz de adjacências} & \textbf{Listas de adjacência} \\
+    \midrule
+    Espaço                        & proporcional a $V^2$ & proporcional a $V+A$ \\
+    ``$v$\texttt{-}$w$ é arco?''  & tempo constante      & proporcional ao grau de saída de $v$ \\
+    Percorrer vizinhos de $v$     & proporcional a $V$   & proporcional ao grau de saída de $v$ \\
+    Inserir arco                  & tempo constante      & proporcional ao número de arcos \\
+    Grafos densos                 & apropriada           & sem vantagem \\
+    Grafos esparsos               & desperdiça memória   & econômica \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  \medskip
+  {\small Não existe representação universalmente melhor: a escolha depende da
+  densidade do grafo e das operações que o \emph{seu} algoritmo executa com mais
+  frequência.}
+\end{frame}
+
+\begin{frame}{Entrada de dados: dois formatos de arquivo}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      {\small \textbf{Arquivo de arcos}}\\
+      {\scriptsize Linha 1: $V$. Linha 2: $A$. Depois, $A$ linhas com dois
+      inteiros em $0..V-1$.}
+      \begin{center}\ttfamily\scriptsize
+      \begin{tabular}{l}
+        7 \\ 6 \\ 0 1 \\ 0 5 \\ 1 0 \\ 1 5 \\ 2 4 \\ 3 1 \\
+      \end{tabular}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\small \textbf{Arquivo de adjacências}}\\
+      {\scriptsize Linha 1: $V$. Depois, $V$ linhas: a que começa com $v$ lista
+      todos os vizinhos de $v$.}
+      \begin{center}\ttfamily\scriptsize
+      \begin{tabular}{l}
+        7 \\ 0\ \ \ 1 6 \\ 1\ \ \ 0 6 3 \\ 2\ \ \ 4 \\ 3\ \ \ 1 \\ 4\ \ \ 2 \\ 5 \\ 6\ \ \ 0 1 \\
+      \end{tabular}
+      \end{center}
+    \end{column}
+  \end{columns}
+  {\scriptsize Em ambos os casos a leitura se faz com \texttt{GRAPHinit()} seguido de
+  chamadas a \texttt{GRAPHinsertArc()}.}
+\end{frame}
+
+\begin{frame}{Para praticar}
+  \begin{block}{Exercícios sugeridos (Feofiloff)}
+    {\small
+    \begin{enumerate}\small
+      \item Escreva \texttt{GRAPHindeg()} e \texttt{GRAPHoutdeg()} nas duas representações.
+      \item Calcule o vetor booleano \texttt{isSink[]} que identifica os sorvedouros.
+      \item Decida se dois vértices são adjacentes; quanto tempo isso consome em cada representação?
+      \item Escreva \texttt{GRAPHremoveArc()} para listas de adjacência.
+      \item Escreva funções que convertam uma representação na outra.
+      \item Escreva \texttt{UGRAPHinsertEdge()} e \texttt{UGRAPHdegrees()} para grafos não-dirigidos.
+    \end{enumerate}}
+  \end{block}
+  {\scriptsize O tutorial em Jupyter que acompanha esta aula traz esqueletos em C
+  para os itens 1, 4 e 5.}
+\end{frame}
+
+\begin{frame}{Recapitulando a aula}
+  \begin{block}{As cinco ideias centrais}
+    \begin{itemize}\small
+      \item Grafo é um par (vértices, arcos); arco é par \emph{ordenado} $v$\texttt{-}$w$.
+      \item Graus resumem a estrutura local; $\sum \text{grau de saída} = A \le V(V-1)$.
+      \item Grafos não-dirigidos: pares antiparalelos vistos como arestas, $E = A/2$.
+      \item Matriz de adjacências: espaço $V^2$, adjacência em tempo constante.
+      \item Listas de adjacência: espaço $V+A$, percurso de vizinhos proporcional ao grau.
+    \end{itemize}
+  \end{block}
+  {\small \textbf{Próxima aula:} caminhos, ciclos e busca em profundidade (DFS) ---
+  os primeiros algoritmos que \emph{usam} estas representações.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \scriptsize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

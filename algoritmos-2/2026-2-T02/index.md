@@ -73,4 +73,13 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
 
 
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-07-grafos-e-representacao-de-grafos' | relative_url }}">
+    <div class="week-num">07</div>
+    <div class="week-body">
+      <div class="week-title">Grafos e representação de grafos</div>
+      <div class="week-desc">Vértices, arcos, graus e leques; grafos não-dirigidos e subgrafos; matriz de adjacências e listas de adjacência, com o custo de cada representação.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
 </div>
