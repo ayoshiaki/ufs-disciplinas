@@ -3,7 +3,7 @@ layout: default
 title: "Aula 07 — Grafos e representação de grafos"
 disciplina: algoritmos-2
 turma: 2026-2-T02
-data: 2026-09-03
+data: 2026-09-08
 ---
 
 <nav class="breadcrumb">

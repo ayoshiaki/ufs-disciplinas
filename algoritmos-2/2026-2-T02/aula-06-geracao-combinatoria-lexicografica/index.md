@@ -3,7 +3,7 @@ layout: default
 title: "Aula 06 — Geração Combinatória e Lexicográfica"
 disciplina: algoritmos-2
 turma: 2026-2-T02
-data: 2026-09-01
+data: 2026-09-03
 ---
 
 <nav class="breadcrumb">
@@ -13,7 +13,7 @@ data: 2026-09-01
   <span class="breadcrumb-sep">›</span>
   <a href="{{ 'algoritmos-2/2026-2-T02' | relative_url }}">Turma 2 · 2026/2</a>
   <span class="breadcrumb-sep">›</span>
-  <span>Aula 05</span>
+  <span>Aula 06</span>
 </nav>
 
 <h1 class="page-title">Aula 06 — Geração Combinatória em ordem lexicográfica</h1>
