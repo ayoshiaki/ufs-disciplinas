@@ -1,0 +1,868 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=1.1cm,
+    minimum height=0.75cm, font=\small\ttfamily},
+  celp/.style={rectangle, draw=UFSRed, fill=UFSRed!8, minimum width=1.1cm,
+    minimum height=0.75cm, font=\small\ttfamily},
+  celv/.style={rectangle, draw=UFSGray, fill=black!5, minimum width=1.1cm,
+    minimum height=0.75cm, font=\small\ttfamily},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={->, thick, UFSBlue},
+  setar/.style={->, thick, UFSRed},
+  caixa/.style={rectangle, draw=UFSGray, rounded corners, fill=black!3,
+    font=\scriptsize, align=center, inner sep=4pt},
+}
+
+% --- Metadados ---
+\title{Alocação dinâmica de vetores e matrizes}
+\subtitle{Duas dimensões, dois caminhos: o vetor de ponteiros e o bloco único}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10cm, minimum height=0.72cm, font=\small}
+  ]
+    \node[item] (t1) at (0, 0)    {Um vetor dinâmico é um ponteiro \emph{mais} um tamanho};
+    \node[item] (t2) at (0,-0.95) {Matriz como vetor de ponteiros: \texttt{double **m}, \texttt{m[i][j]}};
+    \node[item] (t3) at (0,-1.90) {Matriz como bloco único: um \texttt{malloc}, índice \texttt{i*nc + j}};
+    \node[item] (t4) at (0,-2.85) {Escolher entre as duas: contiguidade, custo, sintaxe};
+    \node[item] (t5) at (0,-3.80) {Os erros que o compilador não pega};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{O problema com \texttt{double notas[50][4]}}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que a declaração fixa}\\[0.3em]
+      \texttt{double notas[50][4];}
+
+      \medskip
+      Fixa \emph{duas} coisas antes de o programa rodar: quantos alunos cabem e
+      quantas avaliações cada um tem.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Os dois modos de errar --- agora ao quadrado}\\[0.3em]
+      \textcolor{UFSRed}{Pequeno demais:} a turma tem 51 alunos, ou a
+      disciplina passou a ter 5 provas.
+
+      \medskip
+      \textcolor{UFSRed}{Grande demais:} \texttt{notas[1000][20]} reserva
+      160~KB para guardar 12 notas.
+    \end{column}
+  \end{columns}
+  \begin{block}{A pergunta de hoje}
+    Na agenda, um \texttt{malloc} resolveu uma dimensão. E quando são duas?
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{O programa de hoje}
+% ==================================================================
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{notas.c} (1/4)}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+double **cria_matriz(int nl, int nc)
+{
+    double **m = malloc(nl * sizeof(double *));
+    if (m == NULL)
+        return NULL;
+    for (int i = 0; i < nl; i++) {
+        m[i] = malloc(nc * sizeof(double));
+        if (m[i] == NULL) {                 /* falhou no meio do caminho */
+            for (int k = 0; k < i; k++)
+                free(m[k]);
+            free(m);
+            return NULL;
+        }
+    }
+    return m;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{notas.c} (2/4): devolver e calcular}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, firstnumber=23]
+void libera_matriz(double **m, int nl)
+{
+    for (int i = 0; i < nl; i++)
+        free(m[i]);
+    free(m);
+}
+
+void medias_por_aluno(double **notas, int nl, int nc, double *saida)
+{
+    for (int i = 0; i < nl; i++) {
+        double soma = 0.0;
+        for (int j = 0; j < nc; j++)
+            soma += notas[i][j];
+        saida[i] = soma / nc;
+    }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{notas.c} (3/4): uma turma sem tamanho fixo}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, firstnumber=40]
+int main(void)
+{
+    int nalunos = 3, navaliacoes = 4;       /* viriam de um scanf */
+    double valores[] = { 8.0, 7.5,  6.0, 9.0,
+                         5.5, 6.0,  7.0, 4.5,
+                         9.5, 10.0, 8.5, 9.0 };
+
+    double **notas  = cria_matriz(nalunos, navaliacoes);
+    double  *medias = malloc(nalunos * sizeof(double));
+    if (notas == NULL || medias == NULL) {
+        fprintf(stderr, "memoria insuficiente\n");
+        return 1;
+    }
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{notas.c} (4/4): preencher, medir e devolver}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, firstnumber=54]
+    for (int i = 0; i < nalunos; i++)
+        for (int j = 0; j < navaliacoes; j++)
+            notas[i][j] = valores[i * navaliacoes + j];
+
+    medias_por_aluno(notas, nalunos, navaliacoes, medias);
+    for (int i = 0; i < nalunos; i++)
+        printf("A: aluno %d -> media %.2f\n", i, medias[i]);
+
+    for (int i = 0; i < nalunos; i++) {
+        printf("B: linha %d comeca em %p", i, (void *) notas[i]);
+        if (i > 0)
+            printf("  (%ld bytes depois da linha %d)",
+                   (long) ((uintptr_t) notas[i] - (uintptr_t) notas[i - 1]), i - 1);
+        printf("\n");
+    }
+    printf("C: uma linha ocupa %zu bytes\n", navaliacoes * sizeof(double));
+    printf("D: sizeof(notas) = %zu\n", sizeof(notas));
+    free(medias);
+    libera_matriz(notas, nalunos);
+    return 0;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item Quantas chamadas a \texttt{malloc} acontecem até a matriz ficar
+        pronta, com 3 alunos e 4 avaliações?
+      \item Na linha \textbf{A}, qual é a média do aluno 0?
+      \item Na linha \textbf{B}, as três linhas saem encostadas umas nas
+        outras na memória?
+      \item Na linha \textbf{D}, quanto vale \texttt{sizeof(notas)} --- e por
+        que não é $3 \times 4 \times 8$?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none, language=bash]
+$ gcc -Wall -Wextra notas.c -o notas
+$ ./notas
+A: aluno 0 -> media 7.62
+A: aluno 1 -> media 5.75
+A: aluno 2 -> media 9.25
+B: linha 0 comeca em 0x600000b21200
+B: linha 1 comeca em 0x600000b21220  (32 bytes depois da linha 0)
+B: linha 2 comeca em 0x600000b21240  (32 bytes depois da linha 1)
+C: uma linha ocupa 32 bytes
+D: sizeof(notas) = 8
+\end{lstlisting}
+  \begin{block}{}
+    \small Os endereços mudam a cada execução --- compare as
+    \emph{diferenças}, não os números.
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Uma dimensão: o vetor dinâmico}
+% ==================================================================
+
+\begin{frame}{Um vetor dinâmico é um ponteiro \emph{mais} um número}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0pt]
+    \node[celp, minimum width=1.9cm] (p) {medias};
+    \node[cel, right=1.6cm of p] (c0) {7.62};
+    \node[cel, right=0pt of c0] (c1) {5.75};
+    \node[cel, right=0pt of c1] (c2) {9.25};
+    \node[rot, below=2pt of c0] {[0]};
+    \node[rot, below=2pt of c1] {[1]};
+    \node[rot, below=2pt of c2] {[2]};
+    \draw[setar] (p.east) -- (c0.west);
+    \node[leg, above=2pt of c1] {um bloco de \texttt{3 * sizeof(double)} bytes};
+    \node[leg, below=12pt of p] {\texttt{sizeof(medias)} = 8};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{O que o ponteiro guarda --- e o que ele não guarda}
+    Guarda o endereço da primeira casa. Não guarda quantas casas existem:
+    \texttt{sizeof} devolve o tamanho do \emph{ponteiro}, não o do bloco.
+    Por isso \texttt{nalunos} viaja junto com \texttt{medias} em toda função
+    que o recebe.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Duas dimensões, dois caminhos}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Vetor de ponteiros}\\[0.3em]
+      \texttt{double **m;}
+
+      \medskip
+      Um bloco de ponteiros; cada ponteiro aponta para uma linha alocada
+      separadamente.
+
+      \medskip
+      $1 + nl$ chamadas a \texttt{malloc}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Bloco único}\\[0.3em]
+      \texttt{double *m;}
+
+      \medskip
+      Um bloco só, com as $nl \times nc$ casas em sequência; você calcula onde
+      cada linha começa.
+
+      \medskip
+      1 chamada a \texttt{malloc}.
+    \end{column}
+  \end{columns}
+  \begin{block}{As duas guardam a mesma matriz}
+    A diferença não está no que elas representam, e sim em \emph{como a
+    memória é pedida} --- e isso muda o custo, a sintaxe e o modo de liberar.
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Matriz como vetor de ponteiros}
+% ==================================================================
+
+\begin{frame}{Definição: \texttt{double **}}
+  \begin{block}{\texttt{double **m;}}
+    \texttt{m} aponta para um bloco de \textbf{ponteiros}. Cada \texttt{m[i]}
+    é um \texttt{double *} que aponta para um bloco de \texttt{nc}
+    \texttt{double}s --- a linha $i$.
+  \end{block}
+  \begin{exampleblock}{\texttt{m[i][j]} são dois saltos}
+    Primeiro o computador lê \texttt{m[i]} (um endereço guardado no bloco de
+    ponteiros); depois vai até esse endereço e lê a casa \texttt{j}. Dois
+    acessos à memória para chegar a um número.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{O desenho da \texttt{double **}}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0pt]
+    \node[celp, minimum width=1.4cm] (m) at (0,-0.75) {m};
+
+    \node[celp, minimum width=1.3cm, minimum height=0.75cm] (p0) at (2.4, 0)     {m[0]};
+    \node[celp, minimum width=1.3cm, minimum height=0.75cm] (p1) at (2.4,-0.75)  {m[1]};
+    \node[celp, minimum width=1.3cm, minimum height=0.75cm] (p2) at (2.4,-1.5)   {m[2]};
+    \node[leg, above=3pt of p0] {um bloco de ponteiros};
+
+    \foreach \r/\y/\x in {0/0/5.4, 1/-0.75/5.9, 2/-1.5/5.1} {
+      \node[cel, minimum width=0.8cm, minimum height=0.55cm] (a\r) at (\x,\y) {};
+      \node[cel, minimum width=0.8cm, minimum height=0.55cm, right=0pt of a\r] (b\r) {};
+      \node[cel, minimum width=0.8cm, minimum height=0.55cm, right=0pt of b\r] (c\r) {};
+      \node[cel, minimum width=0.8cm, minimum height=0.55cm, right=0pt of c\r] (d\r) {};
+    }
+    \node[leg, above=3pt of d0, anchor=south east] {três linhas, três \texttt{malloc}};
+
+    \draw[setar] (m.east) -- (p1.west);
+    \draw[seta] (p0.east) -- (a0.west);
+    \draw[seta] (p1.east) -- (a1.west);
+    \draw[seta] (p2.east) -- (a2.west);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small As três casas de ponteiros são vizinhas --- vieram de um
+    \texttt{malloc} só. As linhas, não: cada uma veio do seu próprio pedido e
+    caiu onde o alocador quis.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Alocar em dois níveis}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+double **m = malloc(nl * sizeof(double *));   /* 1: os ponteiros */
+for (int i = 0; i < nl; i++)
+    m[i] = malloc(nc * sizeof(double));       /* 2: cada linha    */
+\end{lstlisting}
+  \begin{block}{Duas contas diferentes}
+    O primeiro \texttt{malloc} conta \texttt{sizeof(double *)} --- ponteiros,
+    8 bytes cada. O segundo conta \texttt{sizeof(double)} --- números, também 8
+    bytes aqui, mas por coincidência. Com \texttt{char} a diferença aparece:
+    \texttt{sizeof(char *)} é 8 e \texttt{sizeof(char)} é 1.
+  \end{block}
+  \begin{exampleblock}{}
+    \small Uma matriz $3 \times 4$ custa $1 + 3 = 4$ chamadas a \texttt{malloc}
+    --- e, depois, 4 chamadas a \texttt{free}.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{E se a linha 2 falhar?}
+  \begin{block}{A situação}
+    O bloco de ponteiros foi alocado. As linhas 0 e 1 também. Aí o
+    \texttt{malloc} da linha 2 devolve \texttt{NULL}.
+  \end{block}
+  \begin{exampleblock}{A pergunta}
+    O que \texttt{cria\_matriz} deve fazer antes de devolver \texttt{NULL}
+    para quem a chamou?
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Desfazer exatamente o que já foi feito}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+m[i] = malloc(nc * sizeof(double));
+if (m[i] == NULL) {
+    for (int k = 0; k < i; k++)   /* as linhas que ja deram certo */
+        free(m[k]);
+    free(m);                      /* e o bloco de ponteiros       */
+    return NULL;
+}
+\end{lstlisting}
+  \begin{block}{Por que \texttt{k < i} e não \texttt{k <= i}}
+    A linha \texttt{i} nunca chegou a existir: \texttt{m[i]} é \texttt{NULL}.
+    As anteriores existem e ficariam perdidas --- ninguém mais tem o endereço
+    delas depois que a função devolve \texttt{NULL}.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Liberar é percorrer o caminho de volta}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+void libera_matriz(double **m, int nl)
+{
+    for (int i = 0; i < nl; i++)
+        free(m[i]);      /* primeiro as linhas...  */
+    free(m);             /* ...depois os ponteiros */
+}
+\end{lstlisting}
+  \begin{block}{A ordem não é estilo, é necessidade}
+    Os endereços das linhas moram \emph{dentro} do bloco de ponteiros. Se você
+    liberar \texttt{m} primeiro, para ler \texttt{m[i]} depois você terá de ler
+    memória que já devolveu --- e os endereços das linhas se perdem junto.
+  \end{block}
+\end{frame}
+
+\begin{frame}{As linhas ficam encostadas na memória?}
+  \begin{block}{O que a linha \textbf{B} mostrou}
+    Cada linha ocupa 32 bytes, e as três saíram exatamente 32 bytes uma da
+    outra: encostadas, como se fossem um bloco só.
+  \end{block}
+  \begin{exampleblock}{A pergunta}
+    Isso é uma garantia da linguagem, ou foi o que aconteceu \emph{nesta}
+    execução? Como você faria um experimento para decidir?
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Basta alguém pedir memória no meio do laço}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+for (int i = 0; i < nl; i++) {
+    m[i] = malloc(nc * sizeof(double));       /* uma linha...        */
+    intruso[i] = malloc(nc * sizeof(double)); /* ...e outro pedido   */
+}
+\end{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none, language=bash]
+uma linha ocupa 32 bytes
+linha 0 em 0x600000f4d200
+linha 1 em 0x600000f4d240  (64 bytes depois da anterior)
+linha 2 em 0x600000f4d280  (64 bytes depois da anterior)
+\end{lstlisting}
+  \begin{block}{}
+    \small Quem decide onde cada bloco cai é o alocador, não você. Com
+    \texttt{double **}, contiguidade entre linhas é sorte --- nunca contrato.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Um bônus: linhas de tamanhos diferentes}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+int quantas[] = { 2, 4, 3 };          /* avaliacoes de cada aluno */
+for (int i = 0; i < nl; i++)
+    notas[i] = malloc(quantas[i] * sizeof(double));
+\end{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none, language=bash]
+aluno 0: 2 notas, media 5.50
+aluno 1: 4 notas, media 7.50
+aluno 2: 3 notas, media 8.00
+\end{lstlisting}
+  \begin{block}{Matriz irregular}
+    Como cada linha tem seu próprio \texttt{malloc}, cada uma pode ter seu
+    próprio tamanho. Em troca, o vetor \texttt{quantas} passa a viajar junto:
+    sem ele, ninguém sabe onde cada linha termina.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: vetor de ponteiros}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{double **m}: um bloco de ponteiros mais \texttt{nl} blocos
+        de linha, $1 + nl$ chamadas a \texttt{malloc};
+      \item \texttt{m[i][j]} custa dois acessos: ler o ponteiro, depois ler o
+        número;
+      \item falha no meio do laço exige desfazer o que já deu certo;
+      \item liberar é de dentro para fora: linhas antes do bloco de ponteiros;
+      \item linhas vizinhas na memória são coincidência; linhas de tamanhos
+        diferentes são de graça.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Matriz como bloco único}
+% ==================================================================
+
+\begin{frame}{Definição: a matriz esticada em um bloco só}
+  \begin{block}{\texttt{double *m = malloc(nl * nc * sizeof(double));}}
+    Um único bloco com todas as $nl \times nc$ casas em sequência. As linhas
+    são guardadas uma depois da outra, da linha 0 à linha $nl-1$.
+  \end{block}
+  \begin{exampleblock}{O endereço da casa $(i,j)$}
+    Pular $i$ linhas inteiras custa $i \times nc$ casas; dentro da linha,
+    andar mais $j$:
+    \[ \texttt{m[i * nc + j]} \]
+    Repare que \texttt{nc} aparece na conta e \texttt{nl} não --- por isso
+    \texttt{nc} é o número que precisa viajar junto com o ponteiro.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{A matriz vista como uma fita}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0pt]
+    \foreach \i/\lv in {0/10, 1/24, 2/38} {
+      \foreach \j in {0,1,2,3} {
+        \node[cel, draw=UFSBlue, fill=UFSBlue!\lv, minimum width=0.8cm,
+              minimum height=0.55cm, font=\tiny\ttfamily]
+          at (\j*0.8, -\i*0.55) {(\i,\j)};
+      }
+    }
+    \node[leg] at (-1.5,-0.55) {matriz};
+
+    \foreach \i/\lv in {0/10, 1/24, 2/38} {
+      \foreach \j in {0,1,2,3} {
+        \pgfmathtruncatemacro{\k}{\i*4+\j}
+        \node[cel, draw=UFSBlue, fill=UFSBlue!\lv, minimum width=0.64cm,
+              minimum height=0.55cm, font=\tiny\ttfamily] (f\k)
+          at (\k*0.64 - 0.32, -2.4) {\k};
+      }
+    }
+    \node[leg] at (-1.5,-2.4) {bloco};
+
+    \draw[decorate, decoration={brace, amplitude=5pt, mirror}, UFSBlue]
+      ([yshift=-3pt]f0.south west) -- ([yshift=-3pt]f3.south east)
+      node[midway, below=7pt, leg] {linha 0};
+    \draw[decorate, decoration={brace, amplitude=5pt, mirror}, UFSBlue]
+      ([yshift=-3pt]f4.south west) -- ([yshift=-3pt]f7.south east)
+      node[midway, below=7pt, leg] {linha 1};
+    \draw[decorate, decoration={brace, amplitude=5pt, mirror}, UFSBlue]
+      ([yshift=-3pt]f8.south west) -- ([yshift=-3pt]f11.south east)
+      node[midway, below=7pt, leg] {linha 2};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small A casa $(1,2)$ da matriz é a casa $1 \times 4 + 2 = 6$ do bloco.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{A mesma turma, um \texttt{malloc} só}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+double *notas = malloc((size_t) nl * nc * sizeof(double));
+
+for (int i = 0; i < nl; i++)
+    for (int j = 0; j < nc; j++)
+        notas[i * nc + j] = valores[i * nc + j];
+...
+free(notas);                      /* um free so */
+\end{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none, language=bash]
+linha 0 comeca em 0x600002dec0c0  (0 bytes depois do inicio)
+linha 1 comeca em 0x600002dec0e0  (32 bytes depois do inicio)
+linha 2 comeca em 0x600002dec100  (64 bytes depois do inicio)
+\end{lstlisting}
+  \begin{block}{}
+    \small Agora as distâncias são exatas e previsíveis --- e continuarão
+    iguais em qualquer execução, em qualquer máquina.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O \texttt{(size\_t)} não é decoração}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+malloc(nl * nc * sizeof(double));            /* nl * nc em int   */
+malloc((size_t) nl * nc * sizeof(double));   /* nl * nc em size_t */
+\end{lstlisting}
+  \begin{block}{Onde a primeira linha quebra}
+    Com \texttt{nl = nc = 50000}, o produto \texttt{nl * nc} é calculado em
+    \texttt{int} e estoura: $2{,}5 \times 10^9$ não cabe. O resultado vira um
+    número negativo, que ao virar \texttt{size\_t} vira um pedido gigantesco --
+    ou pequeno demais, e o programa escreve fora do bloco.
+  \end{block}
+  \begin{exampleblock}{}
+    \small Regra: converta \emph{o primeiro} fator para \texttt{size\_t} e
+    deixe os outros seguirem.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Passar a matriz para uma função}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+void f(double **m, int nl, int nc);   /* vetor de ponteiros */
+void g(double  *m, int nl, int nc);   /* bloco unico        */
+void h(double m[][4], int nl);        /* nc fixo na compilacao */
+\end{lstlisting}
+  \begin{block}{Por que \texttt{h} quase nunca serve}
+    Para escrever \texttt{m[i][j]}, o compilador precisa saber \texttt{nc}.
+    Em \texttt{h} ele sabe porque você escreveu \texttt{4} --- e aí a função só
+    funciona para matrizes de 4 colunas, que é justamente o que queríamos
+    evitar.
+  \end{block}
+  \begin{exampleblock}{}
+    \small Em \texttt{g}, quem calcula é você: \texttt{m[i * nc + j]}. O preço
+    da liberdade é escrever a conta.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Recapitulando: bloco único}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item um \texttt{malloc} e um \texttt{free}, sem laço e sem rollback;
+      \item \texttt{m[i * nc + j]}: um acesso à memória, não dois;
+      \item as linhas são contíguas por construção, não por sorte;
+      \item \texttt{nc} viaja junto com o ponteiro em toda função;
+      \item \texttt{(size\_t)} no primeiro fator evita o estouro de
+        \texttt{int} em matrizes grandes.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Escolher entre as duas}
+% ==================================================================
+
+\begin{frame}{Lado a lado}
+  \begin{center}
+  \footnotesize
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    & \textbf{\texttt{double **m}} & \textbf{\texttt{double *m}} \\
+    \midrule
+    Chamadas a \texttt{malloc} & $1 + nl$            & 1 \\
+    Chamadas a \texttt{free}   & $1 + nl$            & 1 \\
+    Acesso                     & \texttt{m[i][j]}    & \texttt{m[i*nc+j]} \\
+    Custo do acesso            & dois saltos         & um salto \\
+    Linhas contíguas           & não garantido       & sempre \\
+    Falha parcial              & precisa desfazer    & não existe \\
+    Linha nova                 & \texttt{realloc} nos ponteiros & \texttt{realloc} no bloco \\
+    Coluna nova                & \texttt{realloc} em cada linha & remanejar tudo \\
+    Linhas irregulares         & de graça            & inviável \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{}
+    \small Nenhuma das duas é a certa. A pergunta é o que a sua matriz vai
+    sofrer depois de criada.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Qual usar}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Prefira \texttt{double **}}\\[0.3em]
+      quando as linhas têm tamanhos diferentes, quando você precisa trocar
+      linhas de lugar (basta trocar dois ponteiros) ou quando a legibilidade de
+      \texttt{m[i][j]} pesa mais que tudo.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Prefira o bloco único}\\[0.3em]
+      quando a matriz é grande e percorrida inteira, quando ela vai para uma
+      biblioteca que espera memória contígua, ou quando o custo de alocar e
+      liberar importa.
+    \end{column}
+  \end{columns}
+  \begin{block}{Por que a contiguidade importa}
+    A memória é lida em pedaços: ao buscar um número, o computador traz os
+    vizinhos junto. Num bloco único, percorrer \texttt{m[i][j]} na ordem
+    \texttt{j} crescente aproveita esses vizinhos. Em linhas espalhadas, cada
+    linha começa uma busca nova.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Chegou um aluno depois da matriz pronta}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+double **tmp = realloc(m, (nl + 1) * sizeof(double *));
+if (tmp == NULL) { /* m continua valido */ return 1; }
+m = tmp;
+
+m[nl] = malloc(nc * sizeof(double));   /* a linha nova, a parte */
+if (m[nl] == NULL) { return 1; }
+nl++;
+\end{lstlisting}
+  \begin{block}{Duas etapas, duas chances de falhar}
+    O \texttt{realloc} pode mudar o bloco de ponteiros de lugar --- daí o
+    ponteiro temporário. As linhas antigas \emph{não} se movem: quem se move
+    é a lista de endereços.
+  \end{block}
+  \begin{exampleblock}{}
+    \small No bloco único, basta um \texttt{realloc}: os dados antigos ficam
+    nos mesmos índices.
+  \end{exampleblock}
+\end{frame}
+
+% ==================================================================
+\section{Os erros que o compilador não pega}
+% ==================================================================
+
+\begin{frame}{Três erros que compilam sem um aviso sequer}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0pt]
+    \node[caixa, minimum width=10.5cm, fill=UFSRed!8, draw=UFSRed] (e1)
+      {\textbf{1. Liberar na ordem errada} --- \texttt{free(m)} antes das linhas};
+    \node[caixa, minimum width=10.5cm, fill=UFSRed!8, draw=UFSRed,
+          below=0.35cm of e1] (e2)
+      {\textbf{2. Trocar o índice} --- \texttt{m[j*nl+i]} no lugar de \texttt{m[i*nc+j]}};
+    \node[caixa, minimum width=10.5cm, fill=UFSRed!8, draw=UFSRed,
+          below=0.35cm of e2] (e3)
+      {\textbf{3. Andar com o ponteiro} --- e perder o começo do bloco};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small Dois deles o sanitizer acusa na hora. Um não --- e é o mais
+    perigoso.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Erro 1: liberar de fora para dentro}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+free(m);                      /* o bloco de ponteiros se foi... */
+for (int i = 0; i < nl; i++)
+    free(m[i]);               /* ...e agora m[i] le memoria liberada */
+\end{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none, language=bash]
+==96988==ERROR: AddressSanitizer: heap-use-after-free on address 0x603000001b40
+READ of size 8 at 0x603000001b40 thread T0
+    #0 0x000104958885 in main ordem.c:14
+freed by thread T0 here:
+    #1 0x000104958842 in main ordem.c:12
+SUMMARY: AddressSanitizer: heap-use-after-free ordem.c:14 in main
+\end{lstlisting}
+  \begin{block}{}
+    \small Leia a mensagem inteira: ela diz \emph{o que} aconteceu, \emph{onde}
+    o programa leu (linha 14) e \emph{onde} aquela memória tinha sido liberada
+    (linha 12).
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Erro 2: o índice trocado --- o silencioso}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+m[i * nc + j] = 10 * i + j;   /* guardou certo */
+...
+printf("%5.0f", m[j * nl + i]);   /* leu errado  */
+\end{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none, language=bash]
+    0    3   12   21          esperado:   0   1   2   3
+    1   10   13   22                     10  11  12  13
+    2   11   20   23                     20  21  22  23
+\end{lstlisting}
+  \begin{block}{Por que nenhuma ferramenta reclama}
+    Para qualquer \texttt{i} e \texttt{j} válidos, \texttt{j*nl+i} também cai
+    \emph{dentro} do bloco: o maior valor possível é $nl \times nc - 1$. Não há
+    acesso inválido --- só números no lugar errado. Quem detecta é você,
+    conferindo a saída.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Erro 3: o ponteiro que andou}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+for (int i = 0; i < n; i++) {
+    *v = i;      /* escreve na posicao atual... */
+    v++;         /* ...e anda uma casa          */
+}
+free(v);         /* v nao aponta mais para o inicio do bloco */
+\end{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none, language=bash]
+==97042==ERROR: AddressSanitizer: attempting free on address which was not
+malloc()-ed: 0x603000001b60 in thread T0
+    #1 0x00010024a837 in main perdeu.c:15
+0x603000001b60 is located 0 bytes after 32-byte region [...]
+\end{lstlisting}
+  \begin{block}{}
+    \small \texttt{free} exige \emph{o} endereço devolvido pelo \texttt{malloc}
+    --- nem um byte antes, nem um depois. Se precisar caminhar, caminhe com uma
+    cópia e guarde o original.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{As duas ferramentas}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none, language=bash]
+$ gcc -Wall -Wextra -g -fsanitize=address prog.c -o prog && ./prog
+$ valgrind --leak-check=full ./prog
+\end{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none, language=bash]
+==97015==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x603000001b90
+WRITE of size 8 at 0x603000001b90 thread T0
+    #0 0x0001040dc8d8 in main estouro.c:14
+0x603000001b90 is located 0 bytes after 32-byte region
+\end{lstlisting}
+  \begin{block}{O que este achou}
+    Um laço \texttt{for (j = 0; j <= nc; j++)} escrevendo uma casa além do fim
+    da linha. Com \texttt{double **}, cada linha tem seu próprio fim --- e o
+    sanitizer conhece todos eles.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: armadilhas}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item libere de dentro para fora: linhas, depois o bloco de ponteiros;
+      \item \texttt{i*nc+j} trocado não estoura nada --- só devolve a matriz
+        transposta, em silêncio;
+      \item \texttt{free} só aceita o endereço exato que o \texttt{malloc}
+        devolveu;
+      \item \texttt{-fsanitize=address} custa um recompilar e devolve o arquivo
+        e a linha;
+      \item o que o sanitizer não vê, só a conferência da saída pega.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \begin{block}{Tarefa 1}
+    Acrescente \texttt{medias\_por\_avaliacao} --- a média da coluna $j$,
+    sobre todos os alunos. Repare em qual dos dois laços fica por fora e
+    explique por que essa versão lê a memória "pulando".
+  \end{block}
+  \begin{block}{Tarefa 2}
+    Faça \texttt{nalunos} e \texttt{navaliacoes} virem de um \texttt{scanf} e
+    as notas virem do teclado. Teste com $1 \times 1$ e com $0$ alunos: o
+    programa sobrevive aos dois?
+  \end{block}
+  \begin{block}{Tarefa 3}
+    Reescreva \texttt{notas.c} inteiro na forma de bloco único. Compare as duas
+    versões: quantas linhas mudaram, quantos \texttt{free} sobraram?
+  \end{block}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{block}{A turma que muda de tamanho}
+    Escreva \texttt{adicionar\_aluno(double ***notas, int *nl, int nc)} que
+    acrescenta uma linha zerada à matriz e atualiza \texttt{nl}.
+
+    \medskip
+    Requisitos:
+    \begin{itemize}
+      \item use \texttt{realloc} no bloco de ponteiros com o padrão do ponteiro
+        temporário --- se falhar, a matriz antiga deve continuar utilizável;
+      \item aloque a linha nova com \texttt{calloc}, e desfaça o
+        \texttt{realloc} se ela falhar;
+      \item escreva \texttt{remover\_aluno} também, liberando a linha certa e
+        fechando o buraco;
+      \item o programa deve terminar sem vazamentos e sem erros do sanitizer.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      Na aula passada, o tamanho passou a ser decidido rodando. Hoje, as
+      \emph{duas} dimensões passaram --- e apareceu uma escolha de projeto que
+      não existia.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{A escolha}\\[0.3em]
+      Vetor de ponteiros ou bloco único não é questão de gosto: é decidir se
+      você quer a sintaxe \texttt{m[i][j]} ou o controle sobre onde os números
+      ficam.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \item ponteiro sozinho não guarda tamanho --- \texttt{nl} e \texttt{nc}
+        viajam junto;
+      \item \texttt{double **}: $1+nl$ blocos, linhas independentes, liberar de
+        dentro para fora;
+      \item bloco único: um \texttt{malloc}, \texttt{i*nc+j}, contiguidade
+        garantida;
+      \item o erro mais caro é o que não trava o programa.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

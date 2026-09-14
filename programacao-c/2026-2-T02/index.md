@@ -79,6 +79,15 @@ title: "COMP0512 — Programação C — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-c/2026-2-T02/aula-08-alocacao-dinamica-de-vetores-e-matrizes' | relative_url }}">
+    <div class="week-num">08</div>
+    <div class="week-body">
+      <div class="week-title">Alocação dinâmica de vetores e matrizes</div>
+      <div class="week-desc">Duas formas de alocar uma matriz: vetor de ponteiros (<code>double **</code>) e bloco único com índice <code>i*nc+j</code> — contiguidade, custo e os erros silenciosos.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge nb">1 notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'programacao-c/2026-2-T02/projeto' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📒</div>
     <div class="week-body">
