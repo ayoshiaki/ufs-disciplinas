@@ -1,0 +1,635 @@
+% -*- coding: utf-8 -*-
+% Aula: Busca em profundidade (DFS)
+% Baseada em: Paulo Feofiloff, "Algoritmos para Grafos (em linguagem C)",
+% IME-USP, https://www.ime.usp.br/~pf/algoritmos_para_grafos/
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, chains, shapes.geometric}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados nos diagramas de grafos ----
+\tikzset{
+  vtx/.style={circle, draw=blue!70, fill=blue!10, minimum size=5.5mm,
+              inner sep=0pt, font=\scriptsize},
+  vtxhl/.style={circle, draw=orange!80!black, fill=orange!25, minimum size=5.5mm,
+                inner sep=0pt, font=\scriptsize},
+  vtxdone/.style={circle, draw=green!50!black, fill=green!15, minimum size=5.5mm,
+                  inner sep=0pt, font=\scriptsize},
+  arc/.style={-{Stealth[length=2mm]}, thick, blue!60!black},
+  arcgray/.style={-{Stealth[length=2mm]}, thick, gray!50},
+  arctree/.style={-{Stealth[length=2mm]}, very thick, orange!80!black},
+  edg/.style={thick, blue!60!black},
+  cell/.style={draw=gray!60, minimum size=4.2mm, inner sep=0pt, font=\tiny},
+  lnode/.style={draw=blue!60, fill=blue!8, minimum height=4.5mm,
+                minimum width=4.5mm, inner sep=1pt, font=\tiny},
+  stk/.style={draw=gray!70, fill=gray!10, minimum width=6mm,
+              minimum height=4mm, inner sep=1pt, font=\tiny},
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=4.6cm, minimum height=0.55cm, font=\scriptsize}
+}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\title{Busca em profundidade}
+\subtitle{Algoritmos e Estruturas de Dados 2}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+% =====================================================================
+\section{Do modelo ao algoritmo}
+
+\begin{frame}{Onde paramos}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Já temos o modelo}
+
+      \medskip
+      {\small
+      \begin{itemize}\scriptsize
+        \item grafo = vértices $+$ arcos;
+        \item matriz de adjacências: espaço $V^2$, adjacência em tempo constante;
+        \item listas de adjacência: espaço $V+A$, percurso de vizinhos
+              proporcional ao grau.
+      \end{itemize}
+      Sabemos \emph{guardar} um grafo.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Falta o algoritmo}
+
+      \medskip
+      {\small
+      Nenhuma das duas representações responde, sozinha, a perguntas como:
+      \begin{itemize}\scriptsize
+        \item existe caminho de $v$ até $w$?
+        \item quais vértices são alcançáveis a partir de $s$?
+        \item o grafo tem ciclo? em quantos pedaços ele se divide?
+      \end{itemize}
+      Todas exigem \emph{percorrer} o grafo.}
+    \end{column}
+  \end{columns}
+  \fonte{representações de grafos em \cite{feofiloff2020algoritmos}, cap.\
+  \emph{Estruturas de dados para grafos}, e \cite{cormen2009introduction}, §22.1.}
+\end{frame}
+
+\begin{frame}{Caminhos e alcançabilidade}
+  \begin{block}{Definições}
+    {\small Um \textbf{caminho} de $v$ a $w$ é uma sequência de vértices
+    $v = u_0, u_1, \ldots, u_k = w$ em que $u_{i}$\texttt{-}$u_{i+1}$ é arco do
+    grafo para todo $i$. Dizemos que $w$ é \textbf{alcançável} a partir de $v$
+    se existe tal caminho.}
+  \end{block}
+  \begin{exampleblock}{Por que isso é difícil por inspeção}
+    {\small O número de sequências de vértices cresce exponencialmente com $V$.
+    Precisamos de um percurso que visite cada vértice \emph{no máximo uma vez} ---
+    e que, mesmo assim, não deixe nenhum vértice alcançável de fora.}
+  \end{exampleblock}
+  \fonte{caminhos, passeios e conexidade em \cite{feofiloff2011teoriagrafos}
+  (em português) e \cite{cormen2009introduction}, apêndice~B.4.}
+\end{frame}
+
+\begin{frame}{O grafo desta aula}
+  {\small O mesmo da aula anterior: vértices $0..5$ e o conjunto de arcos}
+  \begin{center}\ttfamily\small 0-1\quad 0-5\quad 1-0\quad 1-5\quad 2-4\quad 3-1\quad 5-3\end{center}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.9]
+    \node[vtx] (v0) at (0,1.3)  {0};
+    \node[vtx] (v1) at (2.0,1.3){1};
+    \node[vtx] (v2) at (4.0,1.3){2};
+    \node[vtx] (v3) at (0,0)    {3};
+    \node[vtx] (v5) at (2.0,0)  {5};
+    \node[vtx] (v4) at (4.0,0)  {4};
+    \draw[arc] (v0) to[bend left=18]  (v1);
+    \draw[arc] (v1) to[bend left=18]  (v0);
+    \draw[arc] (v0) -- (v5);
+    \draw[arc] (v1) -- (v5);
+    \draw[arc] (v2) -- (v4);
+    \draw[arc] (v3) -- (v1);
+    \draw[arc] (v5) -- (v3);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize \textbf{Convenção da aula:} os vizinhos de um vértice são sempre
+  examinados em ordem crescente. Isso torna o percurso \emph{determinístico} e
+  as simulações reproduzíveis.}
+  \fonte{grafo-exemplo e convenções de código de \cite{feofiloff2020algoritmos}.}
+\end{frame}
+
+% =====================================================================
+\section{A ideia da busca em profundidade}
+
+\begin{frame}{A regra do labirinto}
+  \begin{block}{Busca em profundidade, em uma frase}
+    {\small Ao chegar a um vértice ainda não visitado, \textbf{marque-o} e siga
+    imediatamente por um arco que leve a um vértice ainda não marcado; quando não
+    houver nenhum, \textbf{volte} ao vértice de onde você veio e continue de lá.}
+  \end{block}
+  \medskip
+  {\small
+  \begin{itemize}\small
+    \item ``Profundidade'' é a prioridade: avançar sempre que possível, recuar só
+          quando não há saída nova.
+    \item A marcação é o que impede voltar a andar em círculos --- o fio que
+          Teseu desenrola no labirinto.
+    \item A recursão da linguagem C já implementa o ``volte ao vértice de onde
+          você veio'': é a pilha de chamadas.
+  \end{itemize}}
+  \fonte{a ideia da busca em profundidade em \cite{feofiloff2020algoritmos},
+  cap.\ \emph{Busca em profundidade}; \cite{sedgewick2011algorithms}, §4.1;
+  \cite{levitin2012introduction}, §3.5.}
+\end{frame}
+
+\begin{frame}{Por que a busca termina --- e por que não perde nada}
+  \begin{block}{Terminação}
+    {\small Um vértice é marcado no máximo uma vez, e só examinamos os arcos que
+    saem de um vértice no momento em que ele é marcado. Logo cada arco é examinado
+    no máximo uma vez: o processo é finito.}
+  \end{block}
+  \begin{block}{Corretude (alcançabilidade)}
+    {\small Ao final da busca iniciada em $s$, um vértice está marcado
+    \emph{se e somente se} é alcançável a partir de $s$.}
+  \end{block}
+  {\scriptsize \emph{Esboço}: todo vértice marcado foi atingido por uma sequência
+  de arcos a partir de $s$, logo é alcançável. Reciprocamente, se algum vértice
+  alcançável ficasse desmarcado, haveria no caminho de $s$ até ele um primeiro
+  arco $v$\texttt{-}$w$ com $v$ marcado e $w$ desmarcado --- impossível, pois ao
+  marcar $v$ examinamos todos os seus vizinhos.}
+  \fonte{prova formal (teorema do caminho branco) em
+  \cite{cormen2009introduction}, §22.3; a DFS como ferramenta de tempo linear
+  nasce em \cite{tarjan1972depth}.}
+\end{frame}
+
+\begin{frame}[fragile]{DFS recursiva sobre a matriz de adjacências}
+\begin{lstlisting}
+static int cnt;
+static int pre[maxV];   /* pre[v] = ordem de visita de v; -1 = nao visitado */
+
+/* Visita todos os vertices ainda nao visitados que sao alcancaveis a
+   partir de v. Supoe que G e representado por matriz de adjacencias. */
+static void dfsR( Graph G, vertex v) {
+   pre[v] = cnt++;                       /* marca v */
+   for (vertex w = 0; w < G->V; ++w)     /* examina os vizinhos de v */
+      if (G->adj[v][w] != 0)
+         if (pre[w] == -1)               /* w ainda nao visitado */
+            dfsR( G, w);                 /* avanca */
+}                                        /* fim: volta ao chamador */
+\end{lstlisting}
+  {\scriptsize O vetor \texttt{pre[]} faz dois papéis ao mesmo tempo: diz
+  \emph{se} o vértice já foi visitado e \emph{quando} isso aconteceu.}
+  \fonte{código-fonte e variantes em \cite{feofiloff2020algoritmos};
+  implementação em C em \cite{sedgewick2002algorithms}, cap.~18.}
+\end{frame}
+
+\begin{frame}[fragile]{DFS recursiva sobre listas de adjacência}
+\begin{lstlisting}
+static void dfsR( Graph G, vertex v) {
+   pre[v] = cnt++;
+   for (link a = G->adj[v]; a != NULL; a = a->next) {
+      vertex w = a->w;
+      if (pre[w] == -1)
+         dfsR( G, w);
+   }
+}
+\end{lstlisting}
+  \begin{exampleblock}{A diferença que importa}
+    {\scriptsize O corpo do algoritmo é o mesmo; muda apenas \emph{como} se enumeram
+    os vizinhos: na matriz, sempre $V$ testes; nas listas, tantos passos quanto o
+    grau de saída. Como \texttt{GRAPHinsertArc()} insere no \emph{início} da lista,
+    os vizinhos saem na ordem inversa à de inserção e a busca a partir de 0 visita
+    \texttt{0, 5, 3, 1}.}
+  \end{exampleblock}
+  \fonte{\cite{feofiloff2020algoritmos}; \cite{sedgewick2011algorithms}, §4.1.}
+\end{frame}
+
+% =====================================================================
+\section{Simulando a busca}
+
+\begin{frame}{Passo a passo a partir de 0 --- primeira metade}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.74, every node/.style={transform shape}]
+    \foreach \dx/\tit/\marcados in {0/{\texttt{dfsR(0)}}/{0}, 5.0/{\texttt{dfsR(1)}}/{0,1}, 10.0/{\texttt{dfsR(5)}}/{0,1,5}} {
+      \begin{scope}[xshift=\dx cm]
+        \draw[gray!30, rounded corners] (-0.7,-0.7) rectangle (4.3,2.0);
+        \node at (1.8,1.65) {\small \tit};
+        \node[vtx] (a0) at (0,1.0)  {0};
+        \node[vtx] (a1) at (1.8,1.0){1};
+        \node[vtx] (a2) at (3.6,1.0){2};
+        \node[vtx] (a3) at (0,0)    {3};
+        \node[vtx] (a5) at (1.8,0)  {5};
+        \node[vtx] (a4) at (3.6,0)  {4};
+        \draw[arcgray] (a0) to[bend left=18] (a1);
+        \draw[arcgray] (a1) to[bend left=18] (a0);
+        \draw[arcgray] (a0) -- (a5);
+        \draw[arcgray] (a1) -- (a5);
+        \draw[arcgray] (a2) -- (a4);
+        \draw[arcgray] (a3) -- (a1);
+        \draw[arcgray] (a5) -- (a3);
+        \foreach \m in \marcados { \node[vtxhl] at (a\m) {\m}; }
+      \end{scope}
+    }
+    \draw[arctree] ([xshift=5.0cm]0,1.0) -- ([xshift=5.0cm]1.8,1.0);
+    \draw[arctree] ([xshift=10.0cm]0,1.0) -- ([xshift=10.0cm]1.8,1.0);
+    \draw[arctree] ([xshift=10.0cm]1.8,1.0) -- ([xshift=10.0cm]1.8,0);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize Em \texttt{dfsR(1)} o primeiro vizinho é 0, já marcado: nada
+  acontece. O segundo é 5, que ainda não foi visitado --- a busca avança.
+  Laranja $=$ marcado; laranja grosso $=$ arco por onde a busca avançou.}
+  \fonte{simulações passo a passo equivalentes em
+  \cite{feofiloff2020algoritmos} e \cite{sedgewick2002algorithms}, cap.~18.}
+\end{frame}
+
+\begin{frame}{Passo a passo a partir de 0 --- segunda metade}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.74, every node/.style={transform shape}]
+    \foreach \dx/\tit/\marcados in {0/{\texttt{dfsR(3)}}/{0,1,5,3}, 5.0/{volta a \texttt{dfsR(5)}}/{0,1,5,3}, 10.0/{fim de \texttt{dfsR(0)}}/{0,1,5,3}} {
+      \begin{scope}[xshift=\dx cm]
+        \draw[gray!30, rounded corners] (-0.7,-0.7) rectangle (4.3,2.0);
+        \node at (1.8,1.65) {\small \tit};
+        \node[vtx] (b0) at (0,1.0)  {0};
+        \node[vtx] (b1) at (1.8,1.0){1};
+        \node[vtx] (b2) at (3.6,1.0){2};
+        \node[vtx] (b3) at (0,0)    {3};
+        \node[vtx] (b5) at (1.8,0)  {5};
+        \node[vtx] (b4) at (3.6,0)  {4};
+        \draw[arcgray] (b0) to[bend left=18] (b1);
+        \draw[arcgray] (b1) to[bend left=18] (b0);
+        \draw[arcgray] (b0) -- (b5);
+        \draw[arcgray] (b1) -- (b5);
+        \draw[arcgray] (b2) -- (b4);
+        \draw[arcgray] (b3) -- (b1);
+        \draw[arcgray] (b5) -- (b3);
+        \foreach \m in \marcados { \node[vtxhl] at (b\m) {\m}; }
+        \draw[arctree] (0,1.0) -- (1.8,1.0);
+        \draw[arctree] (1.8,1.0) -- (1.8,0);
+        \draw[arctree] (1.8,0) -- (0,0);
+      \end{scope}
+    }
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize O único vizinho de 3 é 1, já marcado: a busca recua até 0, cujo
+  segundo vizinho (5) também já está marcado. \textbf{Resultado:} os vértices
+  alcançáveis a partir de 0 são $\{0,1,5,3\}$; \textbf{2 e 4 não são alcançáveis}.}
+  \fonte{alcançabilidade e busca a partir de uma raiz em
+  \cite{feofiloff2020algoritmos}; \cite{cormen2009introduction}, §22.3.}
+\end{frame}
+
+\begin{frame}{A ordem de visita: o vetor \texttt{pre[]}}
+  \begin{center}
+  {\small
+  \begin{tabular}{lcccccc}
+    \toprule
+    vértice $v$   & 0 & 1 & 2 & 3 & 4 & 5 \\
+    \midrule
+    \texttt{pre[v]} & 0 & 1 & $-1$ & 3 & $-1$ & 2 \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  \medskip
+  {\small
+  \begin{itemize}\small
+    \item A ordem $0, 1, 5, 3$ em que os vértices receberam número é a
+          \textbf{ordem de pré-ordem} (ou \emph{ordem de descoberta}).
+    \item Ela é atribuída na \emph{entrada} da chamada recursiva, antes de
+          examinar os vizinhos.
+    \item Os vértices que permanecem com $-1$ são exatamente os
+          \emph{não alcançáveis} a partir da raiz da busca.
+  \end{itemize}}
+  \fonte{pré-ordem e carimbos de tempo (\emph{timestamps} $d[v]$ e $f[v]$) em
+  \cite{cormen2009introduction}, §22.3; numeração \texttt{pre[]} em
+  \cite{feofiloff2020algoritmos}.}
+\end{frame}
+
+% =====================================================================
+\section{Varredura completa e floresta DFS}
+
+\begin{frame}[fragile]{Uma busca não basta: a varredura}
+\begin{lstlisting}
+/* Visita TODOS os vertices do grafo, em uma ou mais buscas. */
+void GRAPHdfs( Graph G) {
+   cnt = 0;
+   for (vertex v = 0; v < G->V; ++v)
+      pre[v] = -1;
+   for (vertex v = 0; v < G->V; ++v)
+      if (pre[v] == -1)      /* v ainda nao alcancado por busca anterior */
+         dfsR( G, v);        /* comeca uma nova busca com raiz v */
+}
+\end{lstlisting}
+  {\scriptsize Cada iteração do segundo laço que dispara \texttt{dfsR()} inicia
+  uma \textbf{nova busca}, com uma nova \textbf{raiz}. No nosso grafo há duas:
+  o vértice 0 e o vértice 2.}
+  \fonte{a varredura completa (\texttt{DFS}) em \cite{cormen2009introduction},
+  §22.3, e em \cite{feofiloff2020algoritmos}.}
+\end{frame}
+
+\begin{frame}{A floresta DFS}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.78, every node/.style={transform shape}]
+        \node[vtxhl] (t0) at (0,2.1)   {0};
+        \node[vtxhl] (t1) at (0,1.2)   {1};
+        \node[vtxhl] (t5) at (0,0.3)   {5};
+        \node[vtxhl] (t3) at (0,-0.6)  {3};
+        \draw[arctree] (t0) -- (t1);
+        \draw[arctree] (t1) -- (t5);
+        \draw[arctree] (t5) -- (t3);
+        \node[vtxhl] (t2) at (2.4,2.1) {2};
+        \node[vtxhl] (t4) at (2.4,1.2) {4};
+        \draw[arctree] (t2) -- (t4);
+        \node[font=\tiny] at (0.9,2.1)  {pre $=0$};
+        \node[font=\tiny] at (0.9,1.2)  {1};
+        \node[font=\tiny] at (0.9,0.3)  {2};
+        \node[font=\tiny] at (0.9,-0.6) {3};
+        \node[font=\tiny] at (3.3,2.1)  {4};
+        \node[font=\tiny] at (3.3,1.2)  {5};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      {\small
+      Os arcos por onde a busca \emph{avançou} formam uma floresta:
+      \begin{itemize}\scriptsize
+        \item cada árvore tem por raiz um vértice em que o laço de
+              \texttt{GRAPHdfs()} disparou uma busca;
+        \item os demais arcos do grafo (como 1\texttt{-}0 e 3\texttt{-}1)
+              \emph{não} entram na floresta --- eles levam a vértices já marcados;
+        \item a floresta tem $V$ vértices e $V - (\text{número de raízes})$ arcos.
+      \end{itemize}
+      \textbf{Na próxima aula} classificaremos justamente os arcos que ficaram
+      de fora.}
+    \end{column}
+  \end{columns}
+  \fonte{floresta DFS e classificação de arcos em
+  \cite{cormen2009introduction}, §22.3; \cite{sedgewick2002algorithms},
+  cap.~18; origem em \cite{tarjan1972depth}.}
+\end{frame}
+
+% =====================================================================
+\section{A versão iterativa}
+
+\begin{frame}[fragile]{DFS com pilha explícita}
+\begin{lstlisting}
+void GRAPHdfsPilha( Graph G, vertex s) {
+   for (vertex v = 0; v < G->V; ++v) pre[v] = -1;   cnt = 0;
+   STACKinit( G->V * G->V);            /* pilha de vertices */
+   STACKpush( s);
+   while (!STACKempty()) {
+      vertex v = STACKpop();
+      if (pre[v] != -1) continue;      /* ja visitado por outro caminho */
+      pre[v] = cnt++;
+      for (vertex w = 0; w < G->V; ++w)
+         if (G->adj[v][w] != 0 && pre[w] == -1)
+            STACKpush( w);
+   }
+}
+\end{lstlisting}
+  {\scriptsize A pilha substitui a pilha de chamadas. O teste \texttt{pre[v] != -1}
+  após o \texttt{pop} é necessário: um vértice pode ser empilhado várias vezes.}
+  \fonte{pilha explícita: \cite{sedgewick2002algorithms}, cap.~18; \cite{ziviani2011projeto}, §7.3.}
+\end{frame}
+
+\begin{frame}{Mesma busca, outra ordem}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      {\small \textbf{Recursiva, a partir de 0}}
+
+      \medskip
+      {\scriptsize Ordem de visita: \texttt{0, 1, 5, 3}
+
+      \medskip
+      Os vizinhos são examinados em ordem crescente e cada avanço acontece
+      \emph{antes} de o vizinho seguinte ser considerado.}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      {\small \textbf{Iterativa, a partir de 0}}
+
+      \medskip
+      {\scriptsize Ordem de visita: \texttt{0, 5, 3, 1}
+
+      \medskip
+      Empilhamos 1 e depois 5; o \texttt{pop} devolve \emph{o último}, isto é,
+      5. O 1 fica esperando no fundo da pilha.}
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{exampleblock}{O que \emph{não} muda}
+    {\small O conjunto de vértices visitados é o mesmo: $\{0,1,5,3\}$. A busca em
+    profundidade não define uma ordem única --- ela depende da representação e da
+    implementação. O que ela garante é \emph{quais} vértices são alcançados.}
+  \end{exampleblock}
+  \fonte{comparação entre as ordens recursiva e com pilha em
+  \cite{sedgewick2002algorithms}, cap.~18, e \cite{sedgewick2011algorithms}, §4.1.}
+\end{frame}
+
+% =====================================================================
+\section{Custo}
+
+\begin{frame}{Quanto custa a busca}
+  \begin{center}
+  {\small
+  \begin{tabular}{lll}
+    \toprule
+    & \textbf{Matriz de adjacências} & \textbf{Listas de adjacência} \\
+    \midrule
+    Marcar todos os vértices        & $\Theta(V)$   & $\Theta(V)$ \\
+    Examinar os vizinhos de $v$     & $\Theta(V)$   & $\Theta(\text{grau de saída de } v)$ \\
+    \textbf{Total da varredura}     & $\Theta(V^2)$ & $\Theta(V + A)$ \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  \medskip
+  {\small
+  \begin{itemize}\small
+    \item Com listas o total sai da soma $\sum_v \text{grau de saída}(v) = A$:
+          cada arco é examinado exatamente uma vez.
+    \item Em grafos esparsos ($A \ll V^2$) a diferença é enorme --- e é por isso
+          que quase todo algoritmo de grafos deste curso pressupõe listas.
+    \item O espaço extra é $\Theta(V)$ nos dois casos: os vetores
+          \texttt{pre[]} e \texttt{pai[]}, mais a pilha de recursão.
+  \end{itemize}}
+  \fonte{análise $\Theta(V+A)$ por agregação em \cite{cormen2009introduction},
+  §22.3; discussão de esparsidade em \cite{levitin2012introduction}, §3.5, e
+  \cite{feofiloff2020algoritmos}.}
+\end{frame}
+
+% =====================================================================
+\section{Aplicação: recuperar um caminho}
+
+\begin{frame}[fragile]{Guardando de onde viemos}
+\begin{lstlisting}
+static int pai[maxV];   /* pai[w] = vertice de onde a busca chegou a w */
+
+static void dfsR( Graph G, vertex v) {
+   pre[v] = cnt++;
+   for (vertex w = 0; w < G->V; ++w)
+      if (G->adj[v][w] != 0 && pre[w] == -1) {
+         pai[w] = v;                  /* registra o arco de arvore v-w */
+         dfsR( G, w);
+      }
+}
+\end{lstlisting}
+  {\scriptsize O vetor \texttt{pai[]} é a floresta DFS armazenada em um vetor:
+  \texttt{pai[v] == v} identifica as raízes. Custa $\Theta(V)$ de espaço e nada
+  de tempo adicional.}
+  \fonte{vetor de pais em \cite{feofiloff2020algoritmos}; equivalentes
+  $\pi[v]$ em \cite{cormen2009introduction}, §22.3, e \texttt{edgeTo[]} em
+  \cite{sedgewick2011algorithms}, §4.1.}
+\end{frame}
+
+\begin{frame}{De \texttt{pai[]} ao caminho}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      {\small \textbf{O vetor, após a busca em 0}}
+      \begin{center}\scriptsize
+      \begin{tabular}{lcccc}
+        \toprule
+        $v$        & 1 & 5 & 3 \\
+        \texttt{pai[v]} & 0 & 1 & 5 \\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+      \medskip
+      {\scriptsize Para achar o caminho de 0 a 3, siga \texttt{pai[]} a partir de
+      3 até a raiz e inverta: $3 \to 5 \to 1 \to 0$, logo o caminho é
+      \texttt{0, 1, 5, 3}.}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Atenção}
+        {\scriptsize O caminho obtido é \emph{um} caminho, não necessariamente o
+        mais curto: a busca em profundidade encontrou \texttt{0,1,5,3}, mas
+        \texttt{0,5,3} também é caminho e é mais curto. Caminhos mínimos em
+        número de arcos são tarefa da busca em \textbf{largura}.}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{recuperação de caminhos (\texttt{pathTo()}) em
+  \cite{sedgewick2011algorithms}, §4.1; caminhos mínimos por busca em largura
+  em \cite{cormen2009introduction}, §22.2.}
+\end{frame}
+
+% =====================================================================
+\section{Fechamento}
+
+\begin{frame}{Para praticar}
+  \begin{block}{Exercícios}
+    {\small
+    \begin{enumerate}\small
+      \item Escreva \texttt{GRAPHreach(G, s)} que devolve o número de vértices
+            alcançáveis a partir de $s$.
+      \item Adapte \texttt{dfsR()} para listas e compare a ordem de visita com a
+            da matriz.
+      \item Implemente a versão iterativa com pilha e verifique a ordem
+            \texttt{0, 5, 3, 1}.
+      \item Escreva \texttt{GRAPHpath(G, s, t)} que imprime um caminho de $s$ a
+            $t$, ou avisa que não existe.
+      \item Quantas raízes tem a floresta DFS de um grafo sem arcos? E de um
+            grafo em que todo vértice alcança todos os outros?
+    \end{enumerate}}
+  \end{block}
+  {\scriptsize O tutorial em Jupyter traz esqueletos em C para os itens 1, 3 e 4.}
+  \fonte{mais exercícios em \cite{feofiloff2020algoritmos} e \cite{ziviani2011projeto}, §7.3.}
+\end{frame}
+
+\begin{frame}{Recapitulando a aula}
+  \begin{block}{As cinco ideias centrais}
+    \begin{itemize}\small
+      \item Percorrer é o que transforma a representação em resposta: caminhos,
+            alcançabilidade, ciclos.
+      \item A regra da DFS: marque, avance enquanto puder, recue quando não puder.
+      \item \texttt{pre[]} marca \emph{e} numera; \texttt{GRAPHdfs()} varre o
+            grafo todo, gerando uma \textbf{floresta}.
+      \item Custo $\Theta(V+A)$ com listas, $\Theta(V^2)$ com matriz.
+      \item \texttt{pai[]} guarda a floresta em um vetor e devolve um caminho ---
+            não necessariamente o mais curto.
+    \end{itemize}
+  \end{block}
+  {\small \textbf{Próxima aula:} os arcos que ficaram fora da floresta ---
+  pós-ordem, classificação de arcos, detecção de ciclos e componentes.}
+\end{frame}
+
+\begin{frame}{Roteiro de leitura}
+  \begin{center}
+  {\scriptsize
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Conceito} & \textbf{Onde ler} \\
+    \midrule
+    Representações e o grafo-exemplo    & \cite{feofiloff2020algoritmos}; \cite{cormen2009introduction}, §22.1 \\
+    Caminhos, alcançabilidade           & \cite{feofiloff2011teoriagrafos}; \cite{cormen2009introduction}, ap.~B.4 \\
+    A ideia da DFS                      & \cite{feofiloff2020algoritmos}; \cite{levitin2012introduction}, §3.5 \\
+    Código em C (matriz e listas)       & \cite{feofiloff2020algoritmos}; \cite{sedgewick2002algorithms}, cap.~18 \\
+    Corretude e pré-ordem               & \cite{cormen2009introduction}, §22.3 \\
+    Varredura e floresta DFS            & \cite{cormen2009introduction}, §22.3; \cite{tarjan1972depth} \\
+    Versão iterativa com pilha          & \cite{sedgewick2002algorithms}, cap.~18; \cite{ziviani2011projeto}, §7.3 \\
+    Custo $\Theta(V+A)$                 & \cite{cormen2009introduction}, §22.3; \cite{levitin2012introduction}, §3.5 \\
+    Caminho a partir de \texttt{pai[]}  & \cite{sedgewick2011algorithms}, §4.1 \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  {\scriptsize Leitura mínima da aula: \cite{feofiloff2020algoritmos}, capítulo
+  \emph{Busca em profundidade}. Os demais textos servem para aprofundar cada
+  ponto.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \scriptsize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
