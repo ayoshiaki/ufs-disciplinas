@@ -1,0 +1,545 @@
+\documentclass[11pt,a4paper]{article}
+
+\newcommand{\cabecalhodireita}{Lista de Exercícios}
+\input{preambulo.tex}
+
+\begin{document}
+
+\capa{Lista de Exercícios --- Fundamentos, Ponteiros e Memória Dinâmica}
+     {Conteúdo trabalhado até aqui: fundamentos de C, tipos e TADs, \cd{struct},
+      \cd{enum}/\cd{typedef}, ponteiros, vetores e strings, alocação dinâmica de
+      memória, vetores e matrizes dinâmicos.}
+
+\section{Parte I --- Fundamentos, tipos e abstração}
+
+\exercicio{Rastreio de laços e divisão inteira.}
+Considere o programa abaixo.
+
+\begin{lstlisting}
+#include <stdio.h>
+
+int main(void) {
+    int n = 5;
+    int soma = 0;
+
+    for (int i = 1; i <= n; i++) {
+        if (i % 2 == 0) continue;
+        soma += i;
+    }
+
+    int total = 0;
+    for (int i = 0; i < n; i++)
+        for (int j = i; j < n; j++)
+            total++;
+
+    printf("A: %d\n", soma);
+    printf("B: %d\n", total);
+    printf("C: %d\n", soma / 2);
+    printf("D: %.2f\n", soma / 2.0);
+    return 0;
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Escreva as quatro linhas impressas.
+  \item Quantas vezes o corpo do laço interno (\cd{total++}) executa? Dê a conta,
+        não só o número.
+  \item As linhas \textbf{C} e \textbf{D} calculam a mesma divisão e imprimem
+        valores diferentes. Explique por quê, citando o tipo de cada operando.
+\end{enumerate}
+
+\exercicio{Conversões e limites dos tipos.}
+Considere o trecho abaixo.
+
+\begin{lstlisting}
+char   c = 'A';
+int    i = c + 1;
+double d = 7 / 2;
+double e = 7 / 2.0;
+int    f = 3.9;
+short  s = 32767;
+s = s + 1;
+
+printf("%c %d %.1f %.1f %d %d\n", c, i, d, e, f, s);
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Escreva a linha impressa.
+  \item Por que \cd{c + 1} pode ser somado a um inteiro, se \cd{c} é um caractere?
+  \item Explique, em uma frase, o valor de \cd{f}: a conversão arredonda ou trunca?
+  \item O valor de \cd{s} depende do compilador ou é garantido pela linguagem?
+        Justifique e diga como você reescreveria a declaração de \cd{s} para que o
+        programa suportasse o valor $32768$.
+\end{enumerate}
+
+\exercicio{Tipo, estrutura de dados e TAD: separar o \emph{quê} do \emph{como}.}
+Uma \emph{fila de atendimento} de um laboratório guarda, em ordem de chegada, o
+nome e a matrícula dos alunos que pediram ajuda. Sobre ela, o resto do programa
+precisa poder: criar uma fila vazia, colocar um aluno no fim, retirar o primeiro,
+saber quantos estão esperando e saber se está vazia.
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Escreva o arquivo de interface \cd{fila.h} \textbf{apenas com} a definição
+        dos tipos necessários e os \emph{protótipos} das cinco operações. Não
+        escreva nenhum corpo de função.
+  \item Descreva, em duas ou três frases, uma implementação possível (o \emph{como}):
+        que estrutura de dados você usaria por trás e quais campos ela teria.
+  \item Aponte um detalhe da sua implementação que o usuário do TAD \textbf{não}
+        precisa conhecer, e explique o que se ganha ao escondê-lo.
+\end{enumerate}
+
+\exercicio{Funções sobre um vetor de notas.}
+Escreva, em C, as três funções abaixo. Nenhuma delas deve imprimir nada.
+
+\begin{lstlisting}
+double media(const double v[], int n);
+double maior(const double v[], int n);
+int    conta_acima(const double v[], int n, double limite);
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Implemente as três.
+  \item Escreva uma \cd{main} que declare \cd{double notas[] = \{7.5, 4.0, 9.25, 6.0, 3.5\};},
+        chame as três funções e imprima a média com duas casas decimais, o maior
+        valor e quantas notas são maiores ou iguais a $6{,}0$.
+  \item Por que o parâmetro é declarado \cd{const double v[]} e não \cd{double v[]}?
+        O que o \cd{const} promete a quem chama a função?
+  \item O que acontece se alguém chamar \cd{media(notas, 0)}? Altere a sua
+        implementação para que esse caso não produza uma operação inválida.
+\end{enumerate}
+
+\section{Parte II --- Registros, enumerações e apelidos de tipo}
+
+\exercicio{Mapa de bytes e reordenação de um registro.}
+Considere a declaração abaixo, adotando os tamanhos \cd{char}~=~1, \cd{short}~=~2,
+\cd{int}~=~4, \cd{float}~=~4, \cd{double}~=~8 e ponteiro~=~8 bytes, com alinhamento
+igual ao tamanho do tipo.
+
+\begin{lstlisting}
+struct Registro {
+    char   sigla;
+    double valor;
+    int    codigo;
+    char   nome[6];
+    short  ano;
+};
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Some, campo a campo, o tamanho declarado. Quantos bytes dá?
+  \item Desenhe o mapa de bytes do registro: uma faixa de 0 até \cd{sizeof(struct Registro)-1},
+        marcando onde começa cada campo e onde há \emph{padding}.
+  \item Diga o valor de \cd{sizeof(struct Registro)} e de \cd{offsetof(struct Registro, ano)}.
+  \item Quantos bytes de \emph{padding} existem no total, e quais são as duas regras
+        do compilador que os produziram?
+\end{enumerate}
+
+\emph{Ainda sobre a mesma \cd{struct Registro}:}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt,start=5]
+  \item Reescreva a declaração reordenando os campos de modo a obter o menor
+        \cd{sizeof} possível, sem remover nenhum campo.
+  \item Diga o novo \cd{sizeof} e quantos bytes você economizou.
+  \item Existe alguma ordenação que chegue a exatamente 21 bytes? Justifique.
+  \item Cite uma situação, das discutidas em aula, em que essa economia importa de
+        verdade --- e uma em que não vale a pena reordenar.
+\end{enumerate}
+
+\exercicio{Registros em funções e vetor de registros.}
+Considere o tipo abaixo.
+
+\begin{lstlisting}
+typedef struct {
+    char   nome[40];
+    int    matricula;
+    double nota;
+} Aluno;
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Escreva \cd{void aplicar\_bonus(Aluno a, double b)} que soma \cd{b} à nota, e
+        \cd{void aplicar\_bonus\_ref(Aluno *a, double b)} que faz o mesmo por ponteiro.
+        Mostre as duas chamadas a partir de uma variável \cd{Aluno x;} e diga qual
+        das duas realmente altera \cd{x}. Explique por quê.
+  \item Um registro é copiado inteiro quando passado por valor, mas um vetor não.
+        Explique essa diferença em duas frases.
+  \item Escreva \cd{int melhor(const Aluno turma[], int n)} que devolve o \emph{índice}
+        do aluno de maior nota (em caso de empate, o de menor índice), e
+        \cd{-1} se \cd{n <= 0}.
+  \item Por que a função devolve o índice em vez de devolver o próprio \cd{Aluno}?
+        Cite uma vantagem de cada escolha.
+\end{enumerate}
+
+\exercicio{Enumerações: valores, \cd{switch} e o truque do contador.}
+Considere a declaração abaixo.
+
+\begin{lstlisting}
+typedef enum { NORTE, SUL, LESTE = 10, OESTE, NUM_DIRECOES } Direcao;
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Escreva o valor inteiro de cada uma das cinco constantes.
+  \item Um colega escreveu \cd{int contagem[NUM\_DIRECOES] = \{0\};} e pretende usar
+        \cd{contagem[d]++} para contar ocorrências de cada direção. O vetor tem
+        tamanho suficiente? Há desperdício? Explique o que acontece com esse código.
+  \item Reescreva a enumeração de forma que o truque do contador funcione sem
+        desperdício, mantendo os quatro nomes de direção.
+  \item Escreva uma função \cd{const char *nome\_direcao(Direcao d)} usando \cd{switch},
+        com um caso para cada direção. O que o compilador consegue avisar nessa
+        função que ele não avisaria se as direções fossem \cd{\#define}?
+  \item \cd{Direcao d = 42;} compila? O que isso mostra sobre a garantia que um
+        \cd{enum} oferece?
+\end{enumerate}
+
+\exercicio{\cd{typedef}: ler declarações e reconhecer armadilhas.}
+Responda:
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Escreva as \textbf{três} formas de declarar um registro \cd{Ponto} com campos
+        \cd{double x, y} usando \cd{struct} e \cd{typedef} (com nome de \emph{tag},
+        sem \emph{tag}, e as duas juntas). Diga qual delas permite escrever
+        \cd{struct Ponto p;} e qual permite \cd{Ponto p;}.
+  \item Dado \cd{typedef double Vetor3[3];}, diga o que é declarado por
+        \cd{Vetor3 a;} e o que o parâmetro \cd{void f(Vetor3 v)} realmente recebe.
+        Por que essa forma é considerada uma armadilha?
+  \item \cd{typedef} cria um tipo novo ou um apelido? Mostre um exemplo curto em que
+        essa diferença aparece (isto é, em que o compilador \emph{não} reclama de
+        algo que você gostaria que ele reclamasse).
+\end{enumerate}
+
+\section{Parte III --- Ponteiros}
+
+\exercicio{Rastreio com \cd{\&}, \cd{*} e aritmética de ponteiros.}
+Considere o programa abaixo.
+
+\begin{lstlisting}
+#include <stdio.h>
+
+void dobra(int *p, int n) {
+    for (int i = 0; i < n; i++)
+        *(p + i) = *(p + i) * 2;
+}
+
+int main(void) {
+    int v[5] = {1, 2, 3, 4, 5};
+    int *p = v;
+    int *q = &v[3];
+
+    printf("A: %d %d\n", *p, *(p + 2));
+    printf("B: %ld\n", (long)(q - p));
+    p = p + 1;
+    printf("C: %d\n", *p);
+    dobra(v, 5);
+    printf("D: %d %d %d\n", v[0], *p, *q);
+    return 0;
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Escreva as quatro linhas impressas.
+  \item Suponha que \cd{v} comece no endereço \cd{0x100}. Qual é o valor numérico de
+        \cd{p + 2} na linha \textbf{A}? Por que não é \cd{0x102}?
+  \item A linha \textbf{B} imprime uma diferença de ponteiros. O que esse número
+        significa: bytes ou elementos?
+  \item Se a chamada fosse \cd{dobra(p, 4)} em vez de \cd{dobra(v, 5)}, o que a linha
+        \textbf{D} imprimiria? Explique.
+\end{enumerate}
+
+\exercicio{O bug do \cd{troca} que não troca.}
+Um colega escreveu as duas versões abaixo e não entende por que só uma funciona.
+
+\begin{lstlisting}
+void troca_v1(int a, int b) {
+    int t = a;
+    a = b;
+    b = t;
+}
+
+int main(void) {
+    int x = 10, y = 20;
+    troca_v1(x, y);
+    printf("%d %d\n", x, y);
+    return 0;
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item O que o programa imprime? Explique, falando de \emph{cópias} de argumentos.
+  \item Desenhe a memória durante a execução de \cd{troca\_v1}: as variáveis de
+        \cd{main} de um lado, os parâmetros da função do outro.
+  \item Escreva \cd{troca\_v2} usando ponteiros e mostre a chamada correta a partir
+        de \cd{main}. Onde entra o \cd{\&} e onde entra o \cd{*}?
+  \item Seu colega tentou \cd{troca\_v2(\&x, \&x)}. O que acontece? A função quebra?
+\end{enumerate}
+
+\exercicio{Percorrer sem colchetes.}
+Escreva as funções abaixo \textbf{sem usar o operador \cd{[\ ]}} em nenhum lugar ---
+apenas ponteiros e aritmética de ponteiros.
+
+\begin{lstlisting}
+int  soma_v(const int *v, int n);
+void inverte(int *v, int n);
+int *primeiro_negativo(int *v, int n);
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Implemente as três. A terceira devolve o \emph{endereço} do primeiro elemento
+        negativo, ou \cd{NULL} se não houver nenhum.
+  \item Em \cd{inverte}, use dois ponteiros que caminham em sentidos opostos e param
+        quando se cruzam. Escreva a condição de parada do laço.
+  \item Explique por que \cd{v[i]} e \cd{*(v + i)} são a mesma coisa para o compilador.
+  \item Se \cd{primeiro\_negativo} devolvesse o índice em vez do endereço, como o
+        chamador distinguiria ``não encontrei''? Compare as duas soluções.
+\end{enumerate}
+
+\exercicio{Ponteiro para ponteiro.}
+Considere o trecho abaixo.
+
+\begin{lstlisting}
+int x = 10, y = 20;
+int *p  = &x;
+int **pp = &p;
+
+**pp = 30;
+printf("A: %d %d\n", x, *p);
+*pp = &y;
+**pp = 40;
+printf("B: %d %d %d\n", x, y, *p);
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Escreva as duas linhas impressas.
+  \item Desenhe a cadeia de endereços: \cd{pp} $\to$ \cd{p} $\to$ variável.
+        Mostre o desenho \emph{antes} e \emph{depois} da linha \cd{*pp = \&y;}.
+  \item Qual é a diferença entre alterar \cd{*pp} e alterar \cd{**pp}?
+  \item Cite uma situação prática, vista em aula, em que um parâmetro \cd{int **}
+        é necessário.
+\end{enumerate}
+
+\section{Parte IV --- Vetores, strings e passagem por referência}
+
+\exercicio{O vetor que encolhe ao entrar na função.}
+Considere o programa abaixo.
+
+\begin{lstlisting}
+#include <stdio.h>
+
+void mostra(int v[]) {
+    printf("dentro: %zu\n", sizeof v);
+}
+
+int main(void) {
+    int v[10] = {0};
+    printf("fora: %zu\n", sizeof v);
+    mostra(v);
+    return 0;
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Escreva as duas linhas impressas e explique a diferença.
+  \item Escreva as \textbf{três} declarações equivalentes do parâmetro de \cd{mostra}
+        e diga por que as três significam exatamente a mesma coisa para o compilador.
+  \item Reescreva \cd{mostra} de modo que ela consiga imprimir quantos elementos o
+        vetor tem. O que precisou mudar na assinatura?
+  \item Um colega afirmou: ``vetor é ponteiro''. Dê um exemplo curto que mostra que a
+        afirmação é falsa.
+\end{enumerate}
+
+\exercicio{Strings sem \cd{<string.h>}.}
+Implemente à mão, sem usar nenhuma função de \cd{<string.h>}:
+
+\begin{lstlisting}
+int  meu_tamanho(const char *s);
+void meu_copia(char *destino, const char *origem);
+void maiusculas(char *s);
+int  meu_compara(const char *a, const char *b);
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Implemente as quatro. \cd{meu\_compara} devolve $0$ se as strings forem iguais,
+        um valor negativo se \cd{a} vier antes e positivo se vier depois.
+  \item Para \cd{char nome[20] = "Ana";}, diga o valor de \cd{sizeof nome} e o de
+        \cd{meu\_tamanho(nome)}. Por que os dois números são diferentes?
+  \item Onde está o \cd{'\textbackslash 0'} nesse vetor? Desenhe as 20 posições
+        indicando o que se sabe sobre cada uma.
+  \item \cd{meu\_copia} tem um risco que \cd{meu\_tamanho} não tem. Qual é, e o que o
+        chamador precisa garantir antes de chamá-la?
+\end{enumerate}
+
+\exercicio{Devolvendo mais de um resultado.}
+Escreva a função
+
+\begin{lstlisting}
+void estatisticas(const double v[], int n, double *media, double *menor, double *maior);
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Implemente-a percorrendo o vetor \textbf{uma única vez}.
+  \item Escreva a chamada a partir de uma \cd{main} com
+        \cd{double v[] = \{3.0, 8.5, 1.25, 6.0\};} e imprima os três resultados.
+        Onde aparece o \cd{\&} e por quê?
+  \item Por que \cd{v} não precisa de \cd{\&} na chamada, mas \cd{media} precisa?
+        Responda usando a regra ``C passa tudo por valor''.
+  \item Proteja a função contra \cd{n <= 0} e contra um ponteiro de saída nulo ---
+        o chamador que não quiser o maior valor deve poder passar \cd{NULL}.
+\end{enumerate}
+
+\exercicio{Dois erros que compilam sem reclamar.}
+Analise o programa abaixo.
+
+\begin{lstlisting}
+#include <stdio.h>
+#include <string.h>
+
+char *saudacao(const char *nome) {
+    char buffer[16];
+    strcpy(buffer, "Ola, ");
+    strcat(buffer, nome);
+    return buffer;
+}
+
+int main(void) {
+    char *s = saudacao("Maria Aparecida da Silva");
+    printf("%s\n", s);
+    return 0;
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Aponte os \textbf{dois} erros distintos e explique o que cada um causa em
+        tempo de execução.
+  \item Por que o compilador aceita esse código (talvez com um aviso) em vez de
+        recusá-lo?
+  \item Reescreva \cd{saudacao} de forma correta, \textbf{sem} usar alocação dinâmica.
+        Qual foi a mudança na assinatura?
+  \item Descreva em uma frase como você reescreveria \cd{saudacao} \emph{com} alocação
+        dinâmica, e diga de quem passa a ser a responsabilidade de liberar a memória.
+\end{enumerate}
+
+\section{Parte V --- Alocação dinâmica de memória}
+
+\exercicio{Caça às falhas clássicas.}
+O programa abaixo compila. Ele contém \textbf{cinco} defeitos ligados ao uso da
+memória dinâmica.
+
+\begin{lstlisting}
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+char *duplica(const char *s) {
+    char *novo = malloc(strlen(s));
+    strcpy(novo, s);
+    return novo;
+}
+
+int main(void) {
+    char *a = duplica("agenda");
+    printf("%s\n", a);
+    free(a);
+    printf("%s\n", a);
+    free(a);
+
+    int *v = malloc(10 * sizeof(int));
+    v = malloc(20 * sizeof(int));
+    free(v);
+    return 0;
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Liste os cinco defeitos, um por linha, dizendo em que linha cada um está e a
+        que categoria pertence (vazamento, uso após liberação, liberação dupla,
+        escrita fora do bloco, falta de verificação).
+  \item Reescreva o programa corrigido.
+  \item O que \cd{free(a)} faz com o \emph{bloco} e o que ele faz com o \emph{ponteiro}
+        \cd{a}? Que hábito de escrita evita o defeito das linhas seguintes?
+  \item Cite as duas ferramentas vistas em aula para detectar esses defeitos e diga,
+        para cada uma, qual dos cinco ela apontaria com mais clareza.
+\end{enumerate}
+
+\exercicio{Um vetor que cresce sozinho.}
+Implemente uma agenda de inteiros sem limite fixo, com a estrutura e as funções
+abaixo.
+
+\begin{lstlisting}
+typedef struct {
+    int *dados;
+    int  tamanho;     /* quantos elementos ja foram inseridos */
+    int  capacidade;  /* quantos cabem no bloco atual         */
+} Agenda;
+
+int  agenda_cria(Agenda *ag, int capacidade_inicial);
+int  agenda_insere(Agenda *ag, int valor);
+void agenda_destroi(Agenda *ag);
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Implemente as três funções. \cd{agenda\_insere} deve \textbf{dobrar} a
+        capacidade quando o bloco encher, usando \cd{realloc}. As funções que podem
+        falhar devolvem $1$ em caso de sucesso e $0$ em caso de falha.
+  \item Escreva o \emph{padrão do ponteiro temporário} no \cd{realloc} e explique, em
+        duas frases, o que daria errado se você escrevesse
+        \cd{ag->dados = realloc(ag->dados, ...)} diretamente e a realocação falhasse.
+  \item Depois de um \cd{realloc} bem-sucedido que mudou o bloco de lugar, o que
+        acontece com um ponteiro que o chamador tivesse guardado para
+        \cd{\&ag->dados[0]}? Como se chama esse problema?
+  \item Em \cd{agenda\_cria}, você usaria \cd{malloc} ou \cd{calloc}? Justifique
+        dizendo o que muda no conteúdo do bloco --- e por que ``veio zerado no meu
+        teste'' não é garantia.
+  \item Escreva uma \cd{main} que crie a agenda com capacidade inicial $2$, insira os
+        valores de $1$ a $10$, imprima quantas vezes a capacidade mudou e destrua a
+        agenda no fim.
+\end{enumerate}
+
+\section{Parte VI --- Vetores e matrizes dinâmicos}
+
+\exercicio{Matriz como vetor de ponteiros (\cd{double **}).}
+Uma turma tem \cd{nl} alunos e \cd{nc} avaliações, ambos lidos em tempo de execução.
+
+\begin{lstlisting}
+double **cria_matriz(int nl, int nc);
+void     libera_matriz(double **m, int nl);
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Implemente \cd{cria\_matriz} alocando em \textbf{dois níveis}: primeiro o vetor
+        de \cd{nl} ponteiros, depois cada linha com \cd{nc} \cd{double}.
+  \item Trate a \textbf{falha parcial}: se a alocação da linha $k$ falhar, desfaça
+        exatamente o que já havia sido feito e devolva \cd{NULL}, sem deixar nenhum
+        bloco perdido. Escreva esse trecho por inteiro.
+  \item Implemente \cd{libera\_matriz} na ordem correta. Um colega escreveu
+        \cd{free(m);} antes do laço que libera as linhas. Explique por que isso é um
+        erro e que categoria de defeito ele produz.
+  \item Desenhe a memória para \cd{nl = 3}, \cd{nc = 4}: o vetor de ponteiros e as três
+        linhas. As três linhas ficam necessariamente encostadas na memória?
+        Justifique.
+\end{enumerate}
+
+\exercicio{A mesma matriz em um bloco só.}
+Agora a mesma turma, com \textbf{um único} \cd{malloc}.
+
+\begin{lstlisting}
+double *cria_bloco(int nl, int nc);
+double  media_aluno(const double *m, int nl, int nc, int i);
+double  media_avaliacao(const double *m, int nl, int nc, int j);
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Implemente \cd{cria\_bloco} e escreva a expressão que acessa o elemento da
+        linha \cd{i}, coluna \cd{j}.
+  \item Implemente \cd{media\_aluno} (média das \cd{nc} notas do aluno \cd{i}) e
+        \cd{media\_avaliacao} (média das \cd{nl} notas da avaliação \cd{j}).
+  \item Na chamada a \cd{malloc}, por que o material insiste em escrever
+        \cd{(size\_t) nl * nc * sizeof(double)} em vez de \cd{nl * nc * sizeof(double)}?
+        Descreva a situação em que a diferença aparece.
+  \item Um colega trocou os índices e escreveu \cd{m[j * nc + i]}. O programa
+        continua compilando e, para uma matriz quadrada, continua rodando sem
+        travar. Por que esse é um erro particularmente perigoso?
+  \item Compare as duas representações (\cd{double **} e bloco único) em três
+        aspectos: número de chamadas a \cd{malloc}, contiguidade na memória e
+        facilidade de escrever \cd{m[i][j]}. Diga em que caso você escolheria cada uma.
+\end{enumerate}
+
+\end{document}

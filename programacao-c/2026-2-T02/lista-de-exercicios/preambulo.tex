@@ -1,0 +1,105 @@
+% Preâmbulo compartilhado entre a lista de exercícios e o gabarito.
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage[a4paper,margin=2.3cm,top=2.0cm,bottom=2.2cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage[framemethod=default]{mdframed}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+% --- Identidade visual (mesma paleta dos slides: VS Code Light+) ---
+\definecolor{ufsverde}{HTML}{1F6F43}
+\definecolor{bgcolor}{HTML}{F7F7F7}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\small\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=8pt,
+  xleftmargin=18pt, framexleftmargin=18pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+           {â}{{\^a}}1 {ê}{{\^e}}1 {ô}{{\^o}}1 {ã}{{\~a}}1 {õ}{{\~o}}1
+           {ç}{{\c c}}1 {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1
+           {Ú}{{\'U}}1 {Â}{{\^A}}1 {Ê}{{\^E}}1 {Ô}{{\^O}}1 {Ã}{{\~A}}1
+           {Õ}{{\~O}}1 {Ç}{{\c C}}1,
+}
+\lstset{style=ufsStyle, language=C}
+
+% Atalho para código no meio do texto
+\newcommand{\cd}[1]{\texttt{#1}}
+
+% --- Seções ---
+\titleformat{\section}{\normalfont\large\bfseries\color{ufsverde}}{}{0pt}{}
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+
+% --- Cabeçalho e rodapé ---
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancyhead[L]{\footnotesize COMP0512 --- Programação C $\cdot$ T02 $\cdot$ 2026.2}
+\fancyhead[R]{\footnotesize\textbf{\cabecalhodireita}}
+\fancyfoot[C]{\footnotesize\thepage}
+
+% --- Ambiente de exercício ---
+\newcounter{exnum}
+\newcommand{\exercicio}[1]{%
+  \par\refstepcounter{exnum}%
+  \vspace{9pt}%
+  \noindent{\color{ufsverde}\bfseries Exercício \theexnum.}\hspace{0.4em}\textbf{#1}\par
+  \vspace{3pt}%
+}
+
+% --- Bloco destacado (instruções, avisos) ---
+\newmdenv[
+  backgroundcolor=bgcolor,
+  linecolor=linecolor,
+  linewidth=0.6pt,
+  leftmargin=0pt, rightmargin=0pt,
+  innerleftmargin=10pt, innerrightmargin=10pt,
+  innertopmargin=9pt, innerbottommargin=9pt,
+  skipabove=9pt, skipbelow=9pt,
+]{destaque}
+
+% --- Cabeçalho de capa ---
+\newcommand{\capa}[2]{%
+  \noindent
+  \begin{minipage}[c]{0.15\textwidth}
+    \includegraphics[width=\textwidth]{ufs_principal_positiva.png}
+  \end{minipage}%
+  \hspace{0.02\textwidth}%
+  \begin{minipage}[c]{0.80\textwidth}
+    \raggedright\setlength{\parindent}{0pt}
+    {\footnotesize Universidade Federal de Sergipe --- Departamento de Computação\par}
+    {\footnotesize COMP0512 --- Programação C $\cdot$ Turma T02 $\cdot$ 2026.2\par}
+    \vspace{3pt}
+    {\Large\bfseries\color{ufsverde} #1\par}
+    \vspace{2pt}
+    {\small #2\par}
+    {\footnotesize Prof.\ André Yoshiaki Kashiwabara \quad$\cdot$\quad \texttt{andreyoshiaki@dcomp.ufs.br}\par}
+  \end{minipage}
+  \vspace{6pt}
+  \hrule height 1pt
+  \vspace{10pt}
+}
