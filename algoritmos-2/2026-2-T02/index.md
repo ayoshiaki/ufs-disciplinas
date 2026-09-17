@@ -91,4 +91,13 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-09-classificacao-de-arcos-e-componentes' | relative_url }}">
+    <div class="week-num">09</div>
+    <div class="week-body">
+      <div class="week-title">Classificação de arcos e componentes</div>
+      <div class="week-desc">Pós-ordem na DFS; arcos de arborescência, descendentes, de retorno e cruzados; detecção de ciclos; componentes conexos e fortemente conexos.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
 </div>

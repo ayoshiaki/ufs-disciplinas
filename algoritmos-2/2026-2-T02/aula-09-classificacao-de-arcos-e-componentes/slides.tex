@@ -1,0 +1,955 @@
+% -*- coding: utf-8 -*-
+% Aula: DFS --- classificacao de arcos e componentes
+% Continuacao da aula "Busca em profundidade".
+% Baseada em: Paulo Feofiloff, "Algoritmos para Grafos (em linguagem C)",
+% IME-USP, https://www.ime.usp.br/~pf/algoritmos_para_grafos/
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, chains, shapes.geometric}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ (os mesmos da aula anterior, mais os tipos de arco) ----
+\tikzset{
+  vtx/.style={circle, draw=blue!70, fill=blue!10, minimum size=5.5mm,
+              inner sep=0pt, font=\scriptsize},
+  vtxhl/.style={circle, draw=orange!80!black, fill=orange!25, minimum size=5.5mm,
+                inner sep=0pt, font=\scriptsize},
+  vtxA/.style={circle, draw=teal!80!black, fill=teal!15, minimum size=5.5mm,
+               inner sep=0pt, font=\scriptsize},
+  vtxB/.style={circle, draw=violet!80!black, fill=violet!15, minimum size=5.5mm,
+               inner sep=0pt, font=\scriptsize},
+  arc/.style={-{Stealth[length=2mm]}, thick, blue!60!black},
+  arcgray/.style={-{Stealth[length=2mm]}, thick, gray!50},
+  arctree/.style={-{Stealth[length=2mm]}, very thick, orange!80!black},
+  arcback/.style={-{Stealth[length=2mm]}, thick, red!75!black, dashed},
+  arcfwd/.style={-{Stealth[length=2mm]}, thick, green!45!black, densely dashdotted},
+  arccross/.style={-{Stealth[length=2mm]}, thick, violet!80!black, dotted},
+  edg/.style={thick, blue!60!black},
+  edgtree/.style={very thick, orange!80!black},
+  edgback/.style={thick, red!75!black, dashed},
+  bar/.style={draw=orange!80!black, fill=orange!25, minimum height=3.4mm,
+              inner sep=0pt, font=\tiny},
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=4.4cm, minimum height=0.5cm, font=\scriptsize}
+}
+
+% linha de fonte no rodape do frame (referencia do conceito)
+\newcommand{\fonte}[1]{\vfill{\tiny\color{gray!60!black}Fonte: #1\par}}
+
+\title{Classificação de arcos e componentes}
+\subtitle{Algoritmos e Estruturas de Dados 2}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+% =====================================================================
+\section{Onde paramos}
+
+\begin{frame}{Onde paramos}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      {\small \textbf{Da aula anterior}}
+
+      \medskip
+      {\scriptsize
+      \begin{itemize}\scriptsize
+        \item \texttt{dfsR()} marca, avança enquanto pode e recua;
+        \item \texttt{pre[v]} diz \emph{se} e \emph{quando} $v$ foi descoberto;
+        \item \texttt{GRAPHdfs()} varre tudo e produz uma \textbf{floresta} ---
+              os arcos por onde a busca avançou.
+      \end{itemize}}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.8, every node/.style={transform shape}]
+        \node[box] (a) at (0,0)     {os arcos \emph{fora} da floresta};
+        \node[box] (b) at (0,-0.85) {pós-ordem: \texttt{post[]}};
+        \node[box] (c) at (0,-1.7)  {os quatro tipos de arco};
+        \node[box] (d) at (0,-2.55) {detectar ciclos};
+        \node[box] (e) at (0,-3.4)  {componentes (e os fortemente conexos)};
+        \draw[-{Stealth[length=2mm]}, thick] (a)--(b);
+        \draw[-{Stealth[length=2mm]}, thick] (b)--(c);
+        \draw[-{Stealth[length=2mm]}, thick] (c)--(d);
+        \draw[-{Stealth[length=2mm]}, thick] (d)--(e);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Os arcos que sobraram}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.78, every node/.style={transform shape}]
+        \node[vtx] (v0) at (0,1.3)  {0};
+        \node[vtx] (v1) at (2.0,1.3){1};
+        \node[vtx] (v2) at (4.0,1.3){2};
+        \node[vtx] (v3) at (0,0)    {3};
+        \node[vtx] (v5) at (2.0,0)  {5};
+        \node[vtx] (v4) at (4.0,0)  {4};
+        \draw[arctree] (v0) to[bend left=18]  (v1);
+        \draw[arcgray] (v1) to[bend left=18]  (v0);
+        \draw[arcgray] (v0) -- (v5);
+        \draw[arctree] (v1) -- (v5);
+        \draw[arctree] (v2) -- (v4);
+        \draw[arcgray] (v3) -- (v1);
+        \draw[arctree] (v5) -- (v3);
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Laranja: os 4 arcos de árvore. Cinza: os 3 que ficaram de fora.}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      {\small
+      Os arcos cinzas não são lixo: cada um diz algo sobre a \emph{estrutura} do grafo.
+
+      \medskip
+      \begin{itemize}\scriptsize
+        \item 1\texttt{-}0 volta para um vértice que ainda está na pilha de
+              recursão --- fecha um \textbf{ciclo};
+        \item 0\texttt{-}5 aponta para um vértice que já é descendente de 0 ---
+              é um \emph{atalho};
+        \item 3\texttt{-}1 também volta.
+      \end{itemize}
+      \textbf{Precisamos de um critério mecânico} para distinguir esses casos
+      sem olhar o desenho.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =====================================================================
+\section{Pós-ordem}
+
+\begin{frame}[fragile]{O segundo carimbo: \texttt{post[]}}
+\begin{lstlisting}
+static int cnt, cnt1;
+static int pre[maxV];    /* pre[v]  = ordem de DESCOBERTA de v */
+static int post[maxV];   /* post[v] = ordem de TERMINO de v    */
+
+static void dfsR( Graph G, vertex v) {
+   pre[v] = cnt++;                        /* v abre: entrei em v */
+   for (vertex w = 0; w < G->V; ++w)
+      if (G->adj[v][w] != 0 && pre[w] == -1)
+         dfsR( G, w);
+   post[v] = cnt1++;                      /* v fecha: terminei v */
+}
+\end{lstlisting}
+  {\scriptsize Uma linha nova, e ela muda tudo. \texttt{pre[]} é gravado na
+  \emph{entrada}; \texttt{post[]}, na \emph{saída}. Entre os dois instantes, $v$
+  está na pilha de recursão --- dizemos que $v$ está \textbf{aberto}.}
+  \fonte{Feofiloff (2020), cap.\ \emph{Busca em profundidade}~\cite{feofiloff2020algoritmos}}
+\end{frame}
+
+\begin{frame}{A linha do tempo das chamadas}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.94, every node/.style={transform shape}]
+    \draw[gray!45,-{Stealth[length=2mm]}] (0.5,0.62) -- (11.9,0.62)
+      node[right,font=\tiny,black] {tempo};
+    \foreach \x in {1,...,12} \draw[gray!35] ({0.9*\x},0.54) -- ({0.9*\x},0.70);
+    % vertice / abre / fecha / linha / pre / post
+    \foreach \v/\a/\f/\r/\pr/\po in {%
+      0/1/8/0/0/3, 1/2/7/1/1/2, 5/3/6/2/2/1, 3/4/5/3/3/0,
+      2/9/12/0/4/5, 4/10/11/1/5/4} {
+      \draw[orange!80!black, fill=orange!22, rounded corners=1.5pt]
+        ({0.9*\a},{-0.78*\r-0.21}) rectangle ({0.9*\f},{-0.78*\r+0.21});
+      \node[font=\scriptsize] at ({0.45*(\a+\f)},{-0.78*\r}) {\v};
+      \node[font=\tiny, anchor=north east, gray!55!black]
+        at ({0.9*\a},{-0.78*\r-0.22}) {\pr};
+      \node[font=\tiny, anchor=north west, gray!55!black]
+        at ({0.9*\f},{-0.78*\r-0.22}) {\po};
+    }
+    \draw[gray!55,dashed] (7.65,0.85) -- (7.65,-2.75);
+    \node[font=\tiny,gray!60!black,anchor=south east] at (7.6,0.86) {1\textsuperscript{a} árvore};
+    \node[font=\tiny,gray!60!black,anchor=south west] at (7.7,0.86) {2\textsuperscript{a} árvore};
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize Cada barra é o intervalo em que o vértice ficou \textbf{aberto};
+  à esquerda dela está \texttt{pre}, à direita \texttt{post}. Duas barras ou
+  estão \emph{encaixadas} (uma dentro da outra) ou são \emph{disjuntas} --- nunca
+  se cruzam pela metade. Isso não é coincidência: é a pilha de recursão.}
+  \fonte{Cormen et al.\ (2009), \S 22.3, fig.\ 22.5~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}{O teorema dos parênteses}
+  \begin{block}{Encaixe}
+    {\small Para quaisquer $v$ e $w$, os intervalos de abertura de $v$ e de $w$
+    são disjuntos ou um contém o outro. E o intervalo de $w$ está contido no de
+    $v$ \emph{se e somente se} $w$ é descendente de $v$ na floresta DFS.}
+  \end{block}
+  \begin{exampleblock}{O critério que vamos usar o resto da aula}
+    {\small $w$ é descendente de $v$ $\iff$
+    $\texttt{pre[v]} < \texttt{pre[w]}$ \textbf{e}
+    $\texttt{post[v]} > \texttt{post[w]}$.}
+  \end{exampleblock}
+  {\scriptsize \emph{Por quê:} $v$ só fecha depois que todas as chamadas que ele
+  disparou fecharam. Se $v$ abre antes de $w$ e ainda está aberto quando $w$
+  abre, então $w$ foi descoberto \emph{dentro} da chamada \texttt{dfsR(v)}.}
+  \fonte{Cormen et al.\ (2009), \S 22.3, Teorema 22.7 e Corolário 22.8~\cite{cormen2009introduction}; Feofiloff (2020)~\cite{feofiloff2020algoritmos}}
+\end{frame}
+
+\begin{frame}{\texttt{pre[]} e \texttt{post[]} no grafo da aula}
+  \begin{center}
+  {\small
+  \begin{tabular}{lcccccc}
+    \toprule
+    vértice $v$      & 0 & 1 & 2 & 3 & 4 & 5 \\
+    \midrule
+    \texttt{pre[v]}  & 0 & 1 & 4 & 3 & 5 & 2 \\
+    \texttt{post[v]} & 3 & 2 & 5 & 0 & 4 & 1 \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  \medskip
+  {\small
+  \begin{itemize}\small
+    \item Pré-ordem (ordem de \texttt{pre}): $0, 1, 5, 3, 2, 4$ --- a ordem em
+          que os vértices foram \emph{descobertos}.
+    \item Pós-ordem (ordem de \texttt{post}): $3, 5, 1, 0, 4, 2$ --- a ordem em
+          que foram \emph{terminados}. Repare: as folhas terminam primeiro.
+    \item Teste rápido: 3 é descendente de 0? $0 < 3$ e $3 > 0$. Sim.
+          E 2 é descendente de 0? $\texttt{pre}[0]=0 < 4$, mas
+          $\texttt{post}[0]=3 \not> 5$. Não.
+  \end{itemize}}
+\end{frame}
+
+% =====================================================================
+\section{Classificação de arcos}
+
+\begin{frame}{Os quatro tipos de arco}
+  {\small Seja $v$\texttt{-}$w$ um arco examinado durante a busca.}
+  \medskip
+  {\small
+  \begin{description}\small
+    \item[\textcolor{orange!80!black}{arco de árvore}] $w$ ainda não tinha sido
+      descoberto: a busca avançou por ele. Está na floresta.
+    \item[\textcolor{red!75!black}{arco de retorno}] $w$ é \emph{ancestral} de
+      $v$ (ou o próprio $v$): $w$ ainda está aberto.
+    \item[\textcolor{green!45!black}{arco de avanço}] $w$ é \emph{descendente}
+      de $v$, mas o arco não é de árvore: um atalho para baixo.
+    \item[\textcolor{violet!80!black}{arco cruzado}] nem $v$ é ancestral de $w$,
+      nem $w$ de $v$: $w$ já fechou, em outro ramo ou em outra árvore.
+  \end{description}}
+  \medskip
+  {\scriptsize A classificação depende da floresta, e portanto da ordem em que a
+  busca visita os vértices. O que \emph{não} depende é a existência de arco de
+  retorno --- voltaremos a isso.}
+  \fonte{Cormen et al.\ (2009), \S 22.3~\cite{cormen2009introduction}; Sedgewick (2002), cap.\ 19~\cite{sedgewick2002algorithms}; Ziviani (2011), \S 7.3~\cite{ziviani2011projeto}}
+\end{frame}
+
+\begin{frame}{Um grafo com os quatro tipos}
+  {\scriptsize Ao grafo da aula acrescentamos o arco \texttt{2-0}. Ele não muda
+  \texttt{pre[]} nem \texttt{post[]} (2 só é visitado depois que 0 fechou), mas
+  completa o catálogo.}
+  \begin{center}
+  \begin{tikzpicture}[scale=1.05, every node/.style={transform shape}]
+    \node[vtx] (v0) at (0,1.3)  {0};
+    \node[vtx] (v1) at (2.2,1.3){1};
+    \node[vtx] (v2) at (4.4,1.3){2};
+    \node[vtx] (v3) at (0,0)    {3};
+    \node[vtx] (v5) at (2.2,0)  {5};
+    \node[vtx] (v4) at (4.4,0)  {4};
+    \draw[arctree]  (v0) to[bend left=18] (v1);
+    \draw[arcback]  (v1) to[bend left=18] (v0);
+    \draw[arcfwd]   (v0) -- (v5);
+    \draw[arctree]  (v1) -- (v5);
+    \draw[arctree]  (v2) -- (v4);
+    \draw[arcback]  (v3) -- (v1);
+    \draw[arctree]  (v5) -- (v3);
+    \draw[arccross] (v2) to[bend right=26] (v0);
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-4pt}
+  \begin{center}{\scriptsize
+    \textcolor{orange!80!black}{\rule{7mm}{1.2pt}}~árvore \texttt{0-1 1-5 5-3 2-4}
+    \quad
+    \textcolor{red!75!black}{\rule{7mm}{0.9pt}}~retorno \texttt{1-0 3-1}
+    \quad
+    \textcolor{green!45!black}{\rule{7mm}{0.9pt}}~avanço \texttt{0-5}
+    \quad
+    \textcolor{violet!80!black}{\rule{7mm}{0.9pt}}~cruzado \texttt{2-0}}
+  \end{center}
+\end{frame}
+
+\begin{frame}{O critério, em uma tabela}
+  \begin{center}
+  {\small
+  \begin{tabular}{llll}
+    \toprule
+    \textbf{Tipo de $v$\texttt{-}$w$} & \textbf{Relação} & \texttt{pre} & \texttt{post} \\
+    \midrule
+    árvore / avanço & $w$ descendente de $v$ & $\texttt{pre[v]} < \texttt{pre[w]}$ & $\texttt{post[v]} > \texttt{post[w]}$ \\
+    retorno         & $w$ ancestral de $v$   & $\texttt{pre[w]} < \texttt{pre[v]}$ & $\texttt{post[w]} > \texttt{post[v]}$ \\
+    cruzado         & nenhum dos dois        & $\texttt{pre[w]} < \texttt{pre[v]}$ & $\texttt{post[w]} < \texttt{post[v]}$ \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  \medskip
+  {\small
+  \begin{itemize}\small
+    \item O quarto caso, $\texttt{pre[w]} > \texttt{pre[v]}$ com
+          $\texttt{post[w]} > \texttt{post[v]}$, é \textbf{impossível}: os
+          intervalos se cruzariam pela metade.
+    \item Árvore e avanço têm a \emph{mesma} assinatura em \texttt{pre}/\texttt{post}.
+          Só o vetor \texttt{pai[]} os separa: é de árvore quando $\texttt{pai[w]} = v$.
+  \end{itemize}}
+  \fonte{Critério derivado do teorema dos parênteses --- Cormen et al.\ (2009), \S 22.3~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}{Classificando os oito arcos}
+  \begin{center}
+  {\scriptsize
+  \begin{tabular}{lcccc l}
+    \toprule
+    arco $v$\texttt{-}$w$ & \texttt{pre[v]} & \texttt{post[v]} & \texttt{pre[w]} & \texttt{post[w]} & tipo \\
+    \midrule
+    \texttt{0-1} & 0 & 3 & 1 & 2 & árvore \\
+    \texttt{0-5} & 0 & 3 & 2 & 1 & avanço \quad{\tiny($\texttt{pai}[5]=1 \neq 0$)} \\
+    \texttt{1-0} & 1 & 2 & 0 & 3 & retorno \\
+    \texttt{1-5} & 1 & 2 & 2 & 1 & árvore \\
+    \texttt{2-0} & 4 & 5 & 0 & 3 & cruzado \\
+    \texttt{2-4} & 4 & 5 & 5 & 4 & árvore \\
+    \texttt{3-1} & 3 & 0 & 1 & 2 & retorno \\
+    \texttt{5-3} & 2 & 1 & 3 & 0 & árvore \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  {\scriptsize Leia a tabela linha a linha comparando com o critério do slide
+  anterior --- nenhum desenho é necessário.}
+\end{frame}
+
+\begin{frame}[fragile]{Classificação em código}
+\begin{lstlisting}
+/* Supoe que GRAPHdfs() ja preencheu pre[], post[] e pai[]. */
+char *tipo( Graph G, vertex v, vertex w) {
+   if (pre[v] < pre[w] && post[v] > post[w])      /* w descende de v */
+      return (pai[w] == v) ? "arvore" : "avanco";
+   if (pre[w] < pre[v] && post[w] > post[v])      /* w ancestral de v */
+      return "retorno";
+   return "cruzado";                              /* nenhum dos dois */
+}
+\end{lstlisting}
+  \begin{exampleblock}{Classificar durante a busca}
+    {\scriptsize Também dá para classificar \emph{dentro} de \texttt{dfsR()}, sem
+    esperar o fim, usando só \texttt{pre} e \texttt{post} parciais:
+    \texttt{pre[w] == -1} $\Rightarrow$ árvore;
+    \texttt{post[w] == -1} $\Rightarrow$ retorno ($w$ ainda aberto);
+    senão, \texttt{pre[w] > pre[v]} $\Rightarrow$ avanço, e
+    \texttt{pre[w] < pre[v]} $\Rightarrow$ cruzado.}
+  \end{exampleblock}
+  \fonte{Código no estilo de Feofiloff (2020), cap.\ \emph{Classificação de arcos}~\cite{feofiloff2020algoritmos}}
+\end{frame}
+
+% =====================================================================
+\section{Ciclos}
+
+\begin{frame}{Ciclos e arcos de retorno}
+  \begin{block}{Teorema}
+    {\small Um grafo dirigido tem um ciclo \emph{se e somente se} qualquer
+    execução de \texttt{GRAPHdfs()} produz pelo menos um arco de retorno.}
+  \end{block}
+  {\small
+  \begin{itemize}\small
+    \item ($\Leftarrow$) Se $v$\texttt{-}$w$ é de retorno, $w$ é ancestral de $v$:
+          o caminho de $w$ até $v$ na floresta, seguido do arco $v$\texttt{-}$w$,
+          é um ciclo.
+    \item ($\Rightarrow$) Se há um ciclo, seja $w$ o seu primeiro vértice
+          descoberto pela busca. Todos os demais vértices do ciclo são
+          alcançáveis a partir de $w$ por vértices ainda brancos, logo são
+          descendentes de $w$. O arco do ciclo que \emph{entra} em $w$ sai de um
+          descendente de $w$: é de retorno.
+  \end{itemize}}
+  {\scriptsize Note a força do enunciado: o \emph{número} e a \emph{identidade}
+  dos arcos de retorno dependem da ordem de visita, mas a \emph{existência} não.}
+  \fonte{Cormen et al.\ (2009), \S 22.3, Lema 22.11~\cite{cormen2009introduction}; Feofiloff (2020)~\cite{feofiloff2020algoritmos}}
+\end{frame}
+
+\begin{frame}[fragile]{Detectando ciclo sem calcular \texttt{post[]} inteiro}
+\begin{lstlisting}
+static int temCiclo;
+/* Tres estados: pre[v]==-1 (branco), post[v]==-1 (cinza), senao preto. */
+static void dfsRciclo( Graph G, vertex v) {
+   pre[v] = cnt++;                        /* v fica CINZA (aberto) */
+   for (vertex w = 0; w < G->V; ++w)
+      if (G->adj[v][w] != 0) {
+         if (pre[w] == -1) dfsRciclo( G, w);          /* branco */
+         else if (post[w] == -1) temCiclo = 1;        /* CINZA: retorno! */
+      }                                               /* preto: ignore  */
+   post[v] = cnt1++;                      /* v fica PRETO (fechado) */
+}
+\end{lstlisting}
+  {\scriptsize No grafo da aula os arcos de retorno detectados são
+  \texttt{1-0} e \texttt{3-1}: há ciclo. Custo $\Theta(V+A)$ com listas --- o
+  mesmo da busca, sem nenhum passo extra.}
+  \fonte{Esquema branco/cinza/preto: Cormen et al.\ (2009), \S 22.3~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}{Erro clássico: ``já visitado'' não é ``retorno''}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Errado}
+        {\scriptsize \texttt{else if (pre[w] != -1) temCiclo = 1;}
+
+        \medskip
+        Isso acusa ciclo em \emph{qualquer} arco de avanço ou cruzado.}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{exampleblock}{Certo}
+        {\scriptsize \texttt{else if (post[w] == -1) temCiclo = 1;}
+
+        \medskip
+        Só o vértice \emph{aberto} --- ainda na pilha --- fecha ciclo.}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\small Teste da diferença: o grafo com os arcos \texttt{0-1}, \texttt{1-2} e
+  \texttt{0-2} não tem ciclo algum, mas \texttt{0-2} é um arco de avanço e a
+  versão errada o acusaria. Rode os dois no tutorial.}
+\end{frame}
+
+% =====================================================================
+\section{Grafos não dirigidos}
+
+\begin{frame}{Sem avanço, sem cruzado}
+  \begin{block}{Proposição}
+    {\small Em um grafo \textbf{não dirigido}, a busca em profundidade produz
+    apenas arestas de \textbf{árvore} e de \textbf{retorno}.}
+  \end{block}
+  {\small
+  \begin{itemize}\small
+    \item Cada aresta $\{v,w\}$ é examinada \emph{duas vezes}, uma de cada ponta.
+          Classifique-a na primeira vez; na segunda, $w$ já estará fechado e a
+          aresta já terá tipo.
+    \item \emph{Por que não há cruzada:} suponha que ao examinar $\{v,w\}$ o
+          vértice $w$ já esteja fechado e não seja ancestral de $v$. Então,
+          quando a busca estava em $w$, ela examinou a aresta $\{w,v\}$; naquele
+          momento $v$ ainda era branco (pois $v$ abriu depois), logo $v$ teria
+          virado descendente de $w$ --- contradição.
+    \item O mesmo argumento elimina o arco de avanço.
+  \end{itemize}}
+  \fonte{Cormen et al.\ (2009), \S 22.3, Teorema 22.10~\cite{cormen2009introduction}; Sedgewick e Wayne (2011), \S 4.1~\cite{sedgewick2011algorithms}}
+\end{frame}
+
+\begin{frame}{A versão não dirigida do nosso grafo}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.95, every node/.style={transform shape}]
+        \node[vtx] (v0) at (0,1.3)  {0};
+        \node[vtx] (v1) at (2.0,1.3){1};
+        \node[vtx] (v2) at (3.7,1.3){2};
+        \node[vtx] (v3) at (0,0)    {3};
+        \node[vtx] (v5) at (2.0,0)  {5};
+        \node[vtx] (v4) at (3.7,0)  {4};
+        \draw[edgtree] (v0) -- (v1);   % arvore
+        \draw[edgtree] (v1) -- (v3);   % arvore
+        \draw[edgtree] (v3) -- (v5);   % arvore
+        \draw[edgtree] (v2) -- (v4);   % arvore
+        \draw[edgback] (v5) -- (v0);   % retorno
+        \draw[edgback] (v5) -- (v1);   % retorno
+      \end{tikzpicture}
+      \end{center}
+      \vspace{-4pt}
+      {\scriptsize Laranja cheio: árvore. Vermelho tracejado: retorno.
+      Nenhuma aresta de avanço ou cruzada.}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      {\scriptsize
+      Busca a partir de 0, vizinhos em ordem crescente. Ordem de descoberta:
+      $0, 1, 3, 5$ e depois $2, 4$.
+
+      \medskip
+      \begin{tabular}{lcccccc}
+        \toprule
+        $v$ & 0 & 1 & 2 & 3 & 4 & 5 \\
+        \midrule
+        \texttt{pre}  & 0 & 1 & 4 & 2 & 5 & 3 \\
+        \texttt{post} & 3 & 2 & 5 & 1 & 4 & 0 \\
+        \bottomrule
+      \end{tabular}
+
+      \medskip
+      Árvore: $\{0,1\}, \{1,3\}, \{3,5\}, \{2,4\}$.
+
+      Retorno: $\{5,0\}$ e $\{5,1\}$ --- cada uma fecha um ciclo.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Ciclo em grafo não dirigido: cuidado com o pai}
+\begin{lstlisting}
+static void dfsRcicloND( Graph G, vertex v, vertex pai_v) {
+   pre[v] = cnt++;
+   for (link a = G->adj[v]; a != NULL; a = a->next) {
+      vertex w = a->w;
+      if (pre[w] == -1)
+         dfsRcicloND( G, w, v);
+      else if (w != pai_v)        /* nao e a aresta por onde eu vim */
+         temCiclo = 1;            /* aresta de retorno: ha ciclo */
+   }
+   post[v] = cnt1++;
+}
+\end{lstlisting}
+  {\scriptsize Sem o teste \texttt{w != pai\_v}, toda aresta $\{v,w\}$ seria
+  acusada de ciclo, porque ela aparece nas duas listas de adjacência. A
+  ressalva vale só para grafos \emph{simples}: aresta paralela e laço são
+  ciclos de verdade.}
+\end{frame}
+
+% =====================================================================
+\section{Componentes}
+
+\begin{frame}{Componentes conexos}
+  \begin{block}{Definição}
+    {\small Em um grafo não dirigido, $v$ e $w$ estão no mesmo
+    \textbf{componente conexo} se existe caminho entre eles. Isso particiona os
+    vértices: todo vértice está em exatamente um componente.}
+  \end{block}
+  {\small
+  \begin{itemize}\small
+    \item Uma única busca a partir de $s$ descobre exatamente o componente de $s$.
+    \item Logo a varredura \texttt{GRAPHdfs()} descobre um componente por
+          \textbf{árvore} da floresta: número de componentes $=$ número de raízes.
+    \item Basta rotular: \texttt{cc[v]} $=$ número do componente de $v$.
+  \end{itemize}}
+  {\scriptsize A floresta depende da ordem das raízes; a \emph{partição} em
+  componentes, não. Rodar a busca a partir de 2 primeiro dá outra floresta e os
+  mesmos dois componentes.}
+  \fonte{Sedgewick e Wayne (2011), \S 4.1~\cite{sedgewick2011algorithms}; Feofiloff, Kohayakawa e Wakabayashi (2011)~\cite{feofiloff2011teoriagrafos}}
+\end{frame}
+
+\begin{frame}[fragile]{Rotulando os componentes}
+\begin{lstlisting}
+static int cc[maxV];    /* cc[v] = numero do componente de v */
+
+static void dfsRcc( Graph G, vertex v, int c) {
+   cc[v] = c;
+   for (link a = G->adj[v]; a != NULL; a = a->next)
+      if (cc[a->w] == -1)
+         dfsRcc( G, a->w, c);
+}
+int GRAPHcc( Graph G) {              /* G nao dirigido */
+   int c = 0;
+   for (vertex v = 0; v < G->V; ++v) cc[v] = -1;
+   for (vertex v = 0; v < G->V; ++v)
+      if (cc[v] == -1) dfsRcc( G, v, c++);
+   return c;                         /* numero de componentes */
+}
+\end{lstlisting}
+  {\scriptsize \texttt{cc[]} substitui \texttt{pre[]} como marcador: um vetor só
+  faz os dois papéis.}
+  \fonte{Feofiloff (2020), cap.\ \emph{Componentes}~\cite{feofiloff2020algoritmos}; Sedgewick e Wayne (2011), \S 4.1~\cite{sedgewick2011algorithms}}
+\end{frame}
+
+\begin{frame}{Pré-processar para responder rápido}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \begin{center}
+      {\scriptsize
+      \begin{tabular}{lcccccc}
+        \toprule
+        $v$ & 0 & 1 & 2 & 3 & 4 & 5 \\
+        \midrule
+        \texttt{cc[v]} & 0 & 0 & 1 & 0 & 1 & 0 \\
+        \bottomrule
+      \end{tabular}}
+      \end{center}
+      \medskip
+      {\scriptsize Dois componentes: $\{0,1,3,5\}$ e $\{2,4\}$.}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{exampleblock}{A ideia que se repete no curso}
+        {\scriptsize Gaste $\Theta(V+A)$ \emph{uma vez} e depois responda
+        ``$v$ e $w$ estão conectados?'' em tempo \textbf{constante}:
+        \texttt{cc[v] == cc[w]}.
+
+        \medskip
+        Sem o pré-processamento, cada pergunta custaria uma busca inteira.}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize Esse padrão --- pré-processar uma vez, consultar muitas --- vai
+  reaparecer em caminhos mínimos e em árvores geradoras mínimas.}
+\end{frame}
+
+\begin{frame}{Em digrafo, a floresta engana}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      {\small \textbf{Nosso digrafo}}
+
+      \medskip
+      {\scriptsize A floresta DFS tem \textbf{2} árvores (raízes 0 e 2). Mas 2
+      alcança 4 e 4 não alcança 2: eles não são ``equivalentes''.
+
+      \medskip
+      Além disso, a partir de 4 a floresta teria 3 árvores. O número de árvores
+      depende da ordem --- não serve como resposta.}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Componente fortemente conexo}
+        {\scriptsize $v \equiv w$ quando $v$ alcança $w$ \textbf{e} $w$ alcança
+        $v$. Isso sim é uma relação de equivalência, e a partição não depende de
+        ordem alguma.
+
+        \medskip
+        No nosso digrafo: $\{0,1,3,5\}$, $\{2\}$ e $\{4\}$ --- \textbf{três}
+        componentes, não dois.}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize Calcular essa partição em $\Theta(V+A)$ é possível --- e usa
+  exatamente a pós-ordem desta aula, aplicada ao grafo com os arcos invertidos.
+  É o algoritmo de \textbf{Kosaraju}, o resto desta aula.}
+  \fonte{Componentes fortemente conexos: Tarjan (1972)~\cite{tarjan1972depth}; Sharir (1981)~\cite{sharir1981strong}; Cormen et al.\ (2009), \S 22.5~\cite{cormen2009introduction}}
+\end{frame}
+
+% =====================================================================
+\section{Componentes fortemente conexos}
+
+\begin{frame}{Fortemente conexo: a definição}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+      \begin{block}{Definição}
+        {\scriptsize Em um digrafo, $v \equiv w$ quando existe caminho de $v$
+        para $w$ \textbf{e} de $w$ para $v$. Um \textbf{componente fortemente
+        conexo} é um conjunto \emph{máximo} de vértices dois a dois
+        equivalentes; o digrafo é \textbf{fortemente conexo} quando tem um
+        componente só.}
+      \end{block}
+      \vspace{-6pt}
+      {\scriptsize $\equiv$ é mesmo uma relação de equivalência: reflexiva
+      (caminho de comprimento zero), simétrica (a definição já exige os dois
+      sentidos) e transitiva (concatene os caminhos). Por isso os componentes
+      \textbf{particionam} os vértices, e essa partição não depende de ordem de
+      visita nenhuma.
+
+      \smallskip
+      Em grafo não dirigido a distinção não faz falta: lá ``alcançar'' já é
+      simétrico.}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.68, every node/.style={transform shape}]
+        \node[vtxA] (v0) at (0,1.3)  {0};
+        \node[vtxA] (v1) at (1.9,1.3){1};
+        \node[vtxB] (v2) at (3.8,1.3){2};
+        \node[vtxA] (v3) at (0,0)    {3};
+        \node[vtxA] (v5) at (1.9,0)  {5};
+        \node[vtxhl] (v4) at (3.8,0) {4};
+        \draw[arc] (v0) to[bend left=18] (v1);
+        \draw[arc] (v1) to[bend left=18] (v0);
+        \draw[arc] (v0) -- (v5);
+        \draw[arc] (v1) -- (v5);
+        \draw[arc] (v3) -- (v1);
+        \draw[arc] (v5) -- (v3);
+        \draw[arc] (v2) -- (v4);
+        \draw[arc] (v2) to[bend right=30] (v0);
+        \begin{scope}[on background layer]
+          \node[draw=teal!70!black, dashed, rounded corners, inner sep=4pt,
+                fit=(v0)(v1)(v3)(v5)] {};
+        \end{scope}
+      \end{tikzpicture}
+      \end{center}
+      \vspace{-4pt}
+      {\scriptsize Três componentes: $\{0,1,3,5\}$ (o ciclo
+      $0\!\to\!5\!\to\!3\!\to\!1\!\to\!0$ passa por todos), $\{2\}$ e $\{4\}$:
+      2 alcança 0 e 4, mas ninguém volta até ele.}
+    \end{column}
+  \end{columns}
+  \fonte{Feofiloff, Kohayakawa e Wakabayashi (2011)~\cite{feofiloff2011teoriagrafos}; Cormen et al.\ (2009), \S 22.5~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}{Duas buscas, e pronto}
+  \begin{block}{A estratégia}
+    {\small
+    \begin{enumerate}\small
+      \item Rode \texttt{GRAPHdfs()} em $G$ e guarde \texttt{post[]}.
+      \item Construa $G^R$: o mesmo grafo com \textbf{todos os arcos invertidos}.
+      \item Rode a varredura em $G^R$, escolhendo as raízes em ordem
+            \textbf{decrescente} de \texttt{post}. Cada árvore dessa segunda
+            floresta é exatamente um componente fortemente conexo.
+    \end{enumerate}}
+  \end{block}
+  \medskip
+  {\small Nada além do que já temos: duas buscas em profundidade e a pós-ordem
+  da primeira. Custo $\Theta(V+A)$, como uma busca --- só que feita duas vezes.\par}
+
+  \medskip
+  {\scriptsize Duas perguntas ficam em aberto: \emph{por que inverter os
+  arcos?} e \emph{por que a pós-ordem?} Os próximos dois slides respondem uma
+  de cada vez.\par}
+  \fonte{Kosaraju (1978, inédito), publicado em Aho, Hopcroft e Ullman (1983), \S 6.7~\cite{aho1983data}; Sharir (1981)~\cite{sharir1981strong}; Cormen et al.\ (2009), \S 22.5~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}{O grafo reverso e a condensação}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      {\scriptsize \textbf{$G^R$: os mesmos vértices, todos os arcos invertidos}}
+
+      \begin{center}
+      \begin{tikzpicture}[scale=0.86, every node/.style={transform shape}]
+        \node[vtxA] (v0) at (0,1.3)  {0};
+        \node[vtxA] (v1) at (2.2,1.3){1};
+        \node[vtxB] (v2) at (4.4,1.3){2};
+        \node[vtxA] (v3) at (0,0)    {3};
+        \node[vtxA] (v5) at (2.2,0)  {5};
+        \node[vtxhl] (v4) at (4.4,0)  {4};
+        \draw[arc] (v1) to[bend left=18] (v0);
+        \draw[arc] (v0) to[bend left=18] (v1);
+        \draw[arc] (v5) -- (v0);
+        \draw[arc] (v5) -- (v1);
+        \draw[arc] (v1) -- (v3);
+        \draw[arc] (v3) -- (v5);
+        \draw[arc] (v4) -- (v2);
+        \draw[arc] (v0) to[bend right=26] (v2);
+      \end{tikzpicture}
+      \end{center}
+      \vspace{-4pt}
+      {\scriptsize As cores marcam os componentes fortes. $v$ alcança $w$ e $w$
+      alcança $v$ em $G$ $\iff$ o mesmo vale em $G^R$ --- basta ler os dois
+      caminhos ao contrário. Logo \textbf{$G$ e $G^R$ têm os mesmos
+      componentes.}}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      {\scriptsize \textbf{A condensação de $G$: um vértice por componente}}
+
+      \begin{center}
+      \begin{tikzpicture}[scale=0.86, every node/.style={transform shape}]
+        \node[box, minimum width=2.1cm, draw=violet!80!black, fill=violet!15]
+          (cb) at (0,1.1)    {$\{2\}$};
+        \node[box, minimum width=2.1cm, draw=teal!80!black, fill=teal!15]
+          (ca) at (-1.2,0)   {$\{0,1,3,5\}$};
+        \node[box, minimum width=2.1cm, draw=orange!80!black, fill=orange!25]
+          (cc) at (1.2,-0.9) {$\{4\}$};
+        \draw[arc] (cb) -- (ca);
+        \draw[arc] (cb) -- (cc);
+      \end{tikzpicture}
+      \end{center}
+      \vspace{-4pt}
+      {\scriptsize Ela é sempre um \textbf{DAG}: se houvesse ciclo entre dois
+      componentes, ida e volta existiriam e os dois seriam um componente só.}
+    \end{column}
+  \end{columns}
+  \fonte{Condensação e conexidade forte: Cormen et al.\ (2009), \S 22.5, Lema 22.13~\cite{cormen2009introduction}; Feofiloff, Kohayakawa e Wakabayashi (2011)~\cite{feofiloff2011teoriagrafos}}
+\end{frame}
+
+\begin{frame}{Por que a ordem decrescente de \texttt{post}}
+  \begin{block}{Lema}
+    {\small Se existe arco de um componente $C$ para outro componente $C'$,
+    então $\max_{v \in C} \texttt{post[v]} > \max_{w \in C'} \texttt{post[w]}$.}
+  \end{block}
+  {\scriptsize
+  \emph{Prova.} Não há caminho de $C'$ de volta para $C$ (a condensação é um
+  DAG). Se a busca descobre primeiro um vértice de $C$, ela alcança todo $C$ e
+  todo $C'$ por vértices brancos, e só fecha depois de todos eles. Se descobre
+  primeiro um vértice de $C'$, essa busca nunca chega a $C$: todo $C'$ fecha
+  antes de qualquer vértice de $C$ abrir.\hfill$\square$}
+  \begin{exampleblock}{Consequência}
+    {\scriptsize O vértice de maior \texttt{post} está num componente
+    \textbf{fonte} da condensação. Em $G^R$ esse componente vira
+    \textbf{sumidouro}: a busca partindo dali \emph{não consegue escapar} e
+    descobre exatamente ele. Rotule, remova, repita --- é o que a ordem
+    decrescente faz, sem nunca construir a condensação.}
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 22.5, Lema 22.14 e Teorema 22.16~\cite{cormen2009introduction}; Sedgewick e Wayne (2011), \S 4.2~\cite{sedgewick2011algorithms}}
+\end{frame}
+
+\begin{frame}[fragile]{Kosaraju em código}
+\begin{lstlisting}
+static int sc[maxV], ord[maxV];    /* sc[v]: componente forte de v */
+/* dfsRsc(GR,v,c): a mesma dfsRcc() de antes, rotulando sc[] em GR */
+
+int GRAPHscc( Graph G) {
+   GRAPHdfs( G);                          /* 1: preenche post[]  */
+   Graph GR = GRAPHreverse( G);           /* 2: inverte os arcos */
+   for (vertex v = 0; v < G->V; ++v)      /* ord: post decrescente */
+      { ord[G->V-1 - post[v]] = v;  sc[v] = -1; }
+   int c = 0;
+   for (int i = 0; i < G->V; ++i)         /* 3: raizes em ord    */
+      if (sc[ord[i]] == -1) dfsRsc( GR, ord[i], c++);
+   return c;                              /* qtd de componentes  */
+}
+\end{lstlisting}
+  {\scriptsize \texttt{post[]} é uma \emph{permutação} de $0..V\!-\!1$: ordenar
+  por \texttt{post} decrescente custa $\Theta(V)$, sem \texttt{qsort}.}
+  \fonte{Código no estilo de Feofiloff (2020)~\cite{feofiloff2020algoritmos}; algoritmo de Sharir (1981)~\cite{sharir1981strong}}
+\end{frame}
+
+\begin{frame}{Kosaraju no nosso digrafo}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      {\scriptsize
+      \begin{tabular}{lcccccc}
+        \toprule
+        $v$ & 0 & 1 & 2 & 3 & 4 & 5 \\
+        \midrule
+        \texttt{post[v]} & 3 & 2 & 5 & 0 & 4 & 1 \\
+        \texttt{sc[v]}   & 2 & 2 & 0 & 2 & 1 & 2 \\
+        \bottomrule
+      \end{tabular}}
+
+      \medskip
+      {\scriptsize Ordem decrescente de \texttt{post}: $\;2,\;4,\;0,\;1,\;5,\;3$.
+
+      \begin{itemize}\scriptsize\setlength{\itemsep}{1pt}
+        \item raiz \textbf{2} em $G^R$: nada sai de 2 $\Rightarrow$ $\{2\}$;
+        \item raiz \textbf{4}: só o arco $4$\texttt{-}$2$, e 2 já tem rótulo
+              $\Rightarrow$ $\{4\}$;
+        \item raiz \textbf{0}: alcança 1, 3 e 5 $\Rightarrow$ $\{0,1,3,5\}$;
+        \item 1, 5 e 3 já rotulados: termina com $c = 3$.
+      \end{itemize}}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{exampleblock}{O que mudou}
+        {\scriptsize A floresta da \emph{primeira} busca tinha 2 árvores e
+        dependia da raiz. A da \emph{segunda} tem 3 --- e essa partição é a
+        mesma para qualquer ordem inicial: quem a define é o grafo.}
+      \end{exampleblock}
+      {\scriptsize Brinde: os rótulos saem em ordem \textbf{topológica} da
+      condensação. Aqui $\{2\}$ recebe o rótulo 0 e é justamente a fonte.}
+    \end{column}
+  \end{columns}
+  \fonte{Sedgewick e Wayne (2011), \S 4.2~\cite{sedgewick2011algorithms}}
+\end{frame}
+
+% =====================================================================
+\section{Custo}
+
+\begin{frame}{Quanto custa tudo isso}
+  \begin{center}
+  {\small
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Tarefa} & \textbf{Listas} & \textbf{Matriz} \\
+    \midrule
+    \texttt{pre[]} e \texttt{post[]}            & $\Theta(V+A)$ & $\Theta(V^2)$ \\
+    classificar todos os arcos                  & $\Theta(V+A)$ & $\Theta(V^2)$ \\
+    decidir se há ciclo                         & $\Theta(V+A)$ & $\Theta(V^2)$ \\
+    rotular componentes (\texttt{cc[]})         & $\Theta(V+A)$ & $\Theta(V^2)$ \\
+    componentes fortemente conexos (Kosaraju)   & $\Theta(V+A)$ & $\Theta(V^2)$ \\
+    consultar ``$v$ e $w$ conectados?'' (depois)& $\Theta(1)$   & $\Theta(1)$ \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  \medskip
+  {\small
+  \begin{itemize}\small\setlength{\itemsep}{1pt}
+    \item Nada aqui é mais caro que a própria busca: \texttt{post[]}, o tipo do
+          arco e o rótulo do componente saem ``de graça'' junto com ela.
+    \item Kosaraju são \emph{duas} buscas mais $G^R$: ainda $\Theta(V+A)$, com
+          a constante dobrada.
+    \item Espaço extra: $\Theta(V)$ nos vetores e $\Theta(V+A)$ para guardar
+          $G^R$.
+  \end{itemize}}
+\end{frame}
+
+% =====================================================================
+\section{Fechamento}
+
+\begin{frame}{Para praticar}
+  \begin{block}{Exercícios}
+    {\scriptsize
+    \begin{enumerate}\scriptsize\setlength{\itemsep}{0pt}
+      \item Acrescente \texttt{post[]} à sua \texttt{dfsR()} e reproduza a tabela
+            \texttt{pre}/\texttt{post} desta aula.
+      \item Escreva \texttt{GRAPHclassify(G)}, que imprime cada arco do grafo com
+            o seu tipo. Confira contra a tabela dos oito arcos.
+      \item Implemente \texttt{GRAPHcyclic(G)} com os três estados e mostre um
+            grafo em que a versão ``\texttt{pre[w] != -1}'' erra.
+      \item Implemente \texttt{GRAPHcc(G)} e responda quantos componentes tem o
+            grafo não dirigido do Exemplo A do tutorial.
+      \item Prove: um digrafo é acíclico \emph{sse} nenhuma execução de
+            \texttt{GRAPHdfs()} produz arco de retorno --- e se trocarmos
+            ``nenhuma'' por ``alguma''?
+      \item Mostre um digrafo em que o número de árvores da floresta DFS muda
+            conforme a raiz escolhida, mas o número de componentes fortemente
+            conexos não.
+      \item Implemente \texttt{GRAPHreverse(G)} e \texttt{GRAPHscc(G)}; confira
+            os três componentes do digrafo da aula e mostre o que quebra se as
+            raízes forem tomadas em \texttt{post} \emph{crescente}.
+    \end{enumerate}}
+  \end{block}
+  \vspace{-8pt}
+  {\scriptsize O tutorial traz esqueletos em C para os itens 2, 3, 4 e 7.}
+\end{frame}
+
+\begin{frame}{Recapitulando a aula}
+  \begin{block}{As ideias centrais}
+    \begin{itemize}\small\setlength{\itemsep}{0pt}
+      \item \texttt{post[]} custa uma linha e transforma a DFS em uma ferramenta
+            de análise estrutural.
+      \item Teorema dos parênteses: $w$ descende de $v$ $\iff$
+            $\texttt{pre[v]} < \texttt{pre[w]}$ e $\texttt{post[v]} > \texttt{post[w]}$.
+      \item Quatro tipos de arco em digrafo; sem direção, só árvore e retorno.
+      \item Há ciclo $\iff$ há arco de retorno --- ``de retorno'' é ``o destino
+            ainda está aberto'', não ``já foi visto''.
+      \item \texttt{cc[]} particiona os vértices em $\Theta(V+A)$ e responde
+            conexidade em $\Theta(1)$; em digrafo, vale perguntar por
+            componentes \emph{fortemente} conexos.
+      \item Kosaraju: \texttt{post[]} em $G$, depois DFS em $G^R$ com raízes em
+            \texttt{post} decrescente --- cada árvore é um componente forte.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \scriptsize
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
