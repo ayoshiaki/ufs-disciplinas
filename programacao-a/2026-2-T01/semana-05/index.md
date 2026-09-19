@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "Semana 05 — Listas, Ordenação e Dicionários"
+title: "Semana 05 — Listas, Ordenação, Dicionários e Conjuntos"
 disciplina: programacao-a
 turma: 2026-2-T01
 ---
@@ -15,8 +15,8 @@ turma: 2026-2-T01
   <span>Semana 05</span>
 </nav>
 
-<h1 class="page-title">Semana 05 — Listas, Ordenação e Dicionários</h1>
-<p class="page-subtitle">Trabalhando com listas, armazenamento, algoritmos de ordenação e dicionários</p>
+<h1 class="page-title">Semana 05 — Listas, Ordenação, Dicionários e Conjuntos</h1>
+<p class="page-subtitle">Trabalhando com listas, armazenamento, algoritmos de ordenação, dicionários e conjuntos</p>
 
 {% assign base = 'https://colab.research.google.com/github/ayoshiaki/ufs-disciplinas/blob/main/programacao-a/2026-2-T01/semana-05' %}
 
@@ -31,6 +31,10 @@ turma: 2026-2-T01
       <tr>
         <td><strong>04 · Dicionários</strong></td>
         <td class="td-right"><a class="badge-colab" href="{{ base }}/04-Dicionarios.ipynb">▶ Abrir no Colab</a></td>
+      </tr>
+      <tr>
+        <td><strong>05 · Conjuntos</strong></td>
+        <td class="td-right"><a class="badge-colab" href="{{ base }}/05-Conjuntos.ipynb">▶ Abrir no Colab</a></td>
       </tr>
     </tbody>
   </table>
@@ -63,6 +67,10 @@ turma: 2026-2-T01
       <tr>
         <td><strong>Dicionários</strong></td>
         <td class="td-right"><a class="badge-pdf" href="Slides/progA_01_dicionarios.pdf">📄 PDF</a></td>
+      </tr>
+      <tr>
+        <td><strong>Conjuntos</strong></td>
+        <td class="td-right"><a class="badge-pdf" href="Slides/progA_02_conjuntos.pdf">📄 PDF</a></td>
       </tr>
     </tbody>
   </table>
