@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "Semana 08 — Coleções, Funcional e Recursão Estrutural"
+title: "Semana 08 — Conjuntos, Funcional e Recursão Estrutural"
 disciplina: programacao-a
 turma: 2026-2-T01
 ---
@@ -15,22 +15,18 @@ turma: 2026-2-T01
   <span>Semana 08</span>
 </nav>
 
-<h1 class="page-title">Semana 08 — Coleções, Funcional e Recursão Estrutural</h1>
-<p class="page-subtitle">Conjuntos, dicionários, programação funcional e recursão estrutural</p>
+<h1 class="page-title">Semana 08 — Conjuntos, Funcional e Recursão Estrutural</h1>
+<p class="page-subtitle">Conjuntos, programação funcional e recursão estrutural</p>
 
 {% assign base = 'https://colab.research.google.com/github/ayoshiaki/ufs-disciplinas/blob/main/programacao-a/2026-2-T01/semana-08' %}
 
 <div class="table-card">
-  <div class="table-card-header">📘 Coleções</div>
+  <div class="table-card-header">📘 Conjuntos</div>
   <table>
     <tbody>
       <tr>
         <td><strong>01 · Conjuntos</strong></td>
         <td class="td-right"><a class="badge-colab" href="{{ base }}/01-Conjuntos.ipynb">▶ Abrir no Colab</a></td>
-      </tr>
-      <tr>
-        <td><strong>02 · Dicionários</strong></td>
-        <td class="td-right"><a class="badge-colab" href="{{ base }}/02-Dicionarios.ipynb">▶ Abrir no Colab</a></td>
       </tr>
     </tbody>
   </table>
@@ -76,7 +72,6 @@ turma: 2026-2-T01
   <div class="table-card-header">📄 Slides</div>
   <table>
     <tbody>
-      <tr><td><strong>01 · Dicionários</strong></td><td class="td-right"><a class="badge-pdf" href="Slides/progA_01_dicionarios.pdf">📄 PDF</a></td></tr>
       <tr><td><strong>02 · Conjuntos</strong></td><td class="td-right"><a class="badge-pdf" href="Slides/progA_02_conjuntos.pdf">📄 PDF</a></td></tr>
       <tr><td><strong>03 · Compreensões</strong></td><td class="td-right"><a class="badge-pdf" href="Slides/progA_03_compreensoes.pdf">📄 PDF</a></td></tr>
       <tr><td><strong>04 · Funções de alta ordem</strong></td><td class="td-right"><a class="badge-pdf" href="Slides/progA_04_funcoes_alta_ordem.pdf">📄 PDF</a></td></tr>

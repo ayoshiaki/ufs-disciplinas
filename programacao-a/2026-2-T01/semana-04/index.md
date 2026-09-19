@@ -39,15 +39,3 @@ turma: 2026-2-T01
     </tbody>
   </table>
 </div>
-
-<div class="table-card">
-  <div class="table-card-header">📄 Lista de exercícios</div>
-  <table>
-    <tbody>
-      <tr>
-        <td><strong>Iteração indefinida e definida</strong></td>
-        <td class="td-right"><a class="badge-pdf" href="LISTA de Exercícios - iteração indefinida e definida.pdf">📄 PDF</a></td>
-      </tr>
-    </tbody>
-  </table>
-</div>

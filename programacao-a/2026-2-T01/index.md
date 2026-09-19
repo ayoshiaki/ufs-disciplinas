@@ -60,16 +60,16 @@ title: "COMP0496 — Programação A — Turma 1 · 2026/2"
     <div class="week-body">
       <div class="week-title">Iteração Definida e Busca Binária</div>
       <div class="week-desc">Iteração sobre sequências, ordenação e busca binária.</div>
-      <div class="week-badges"><span class="week-badge nb">3 notebooks</span><span class="week-badge pdf">1 PDF</span></div>
+      <div class="week-badges"><span class="week-badge nb">3 notebooks</span></div>
     </div>
   </a>
 
   <a class="week-card" href="{{ 'programacao-a/2026-2-T01/semana-05' | relative_url }}">
     <div class="week-num">05</div>
     <div class="week-body">
-      <div class="week-title">Listas e Ordenação</div>
-      <div class="week-desc">Trabalhando com listas, armazenamento e algoritmos de ordenação.</div>
-      <div class="week-badges"><span class="week-badge nb">3 notebooks</span><span class="week-badge pdf">1 PDF</span></div>
+      <div class="week-title">Listas, Ordenação e Dicionários</div>
+      <div class="week-desc">Trabalhando com listas, armazenamento, algoritmos de ordenação e dicionários.</div>
+      <div class="week-badges"><span class="week-badge nb">4 notebooks</span><span class="week-badge pdf">3 PDFs</span></div>
     </div>
   </a>
 
@@ -94,9 +94,9 @@ title: "COMP0496 — Programação A — Turma 1 · 2026/2"
   <a class="week-card" href="{{ 'programacao-a/2026-2-T01/semana-08' | relative_url }}">
     <div class="week-num">08</div>
     <div class="week-body">
-      <div class="week-title">Coleções, Funcional e Recursão Estrutural</div>
-      <div class="week-desc">Conjuntos, dicionários, programação funcional e recursão estrutural.</div>
-      <div class="week-badges"><span class="week-badge nb">8 notebooks</span><span class="week-badge pdf">8 PDFs</span></div>
+      <div class="week-title">Conjuntos, Funcional e Recursão Estrutural</div>
+      <div class="week-desc">Conjuntos, programação funcional e recursão estrutural.</div>
+      <div class="week-badges"><span class="week-badge nb">7 notebooks</span><span class="week-badge pdf">7 PDFs</span></div>
     </div>
   </a>
 
