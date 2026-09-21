@@ -1,0 +1,1147 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+% Estilo para linha de comando / Makefile (sem numeracao)
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{makeStyle}{
+  style=ufsStyle, language=make, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  mod/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+    minimum width=2.6cm, minimum height=0.85cm, font=\small\ttfamily,
+    align=center},
+  modh/.style={rectangle, draw=UFSYellow!80!black, fill=UFSYellow!20,
+    rounded corners, minimum width=2.2cm, minimum height=0.7cm,
+    font=\small\ttfamily, align=center},
+  modr/.style={rectangle, draw=UFSRed, fill=UFSRed!8, rounded corners,
+    minimum width=2.6cm, minimum height=0.85cm, font=\small\ttfamily,
+    align=center},
+  obj/.style={rectangle, draw=UFSGray, fill=black!5, minimum width=1.6cm,
+    minimum height=0.7cm, font=\small\ttfamily},
+  cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=1.1cm,
+    minimum height=0.75cm, font=\small\ttfamily},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={->, thick, UFSBlue},
+  setar/.style={->, thick, UFSRed},
+  setag/.style={->, thick, UFSGray},
+  caixa/.style={rectangle, draw=UFSGray, rounded corners, fill=black!3,
+    font=\scriptsize, align=center, inner sep=4pt},
+}
+
+% --- Metadados ---
+\title{Modularização de programas}
+\subtitle{Headers, múltiplos arquivos e bibliotecas}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10cm, minimum height=0.72cm, font=\small}
+  ]
+    \node[item] (t1) at (0, 0)    {Separar \emph{o que} um módulo oferece do \emph{como} ele faz};
+    \node[item] (t2) at (0,-0.95) {O header (\texttt{.h}) como contrato --- e as guardas de inclusão};
+    \node[item] (t3) at (0,-1.90) {De \texttt{.c} a executável: pré-processador, compilador, ligador};
+    \node[item] (t4) at (0,-2.85) {Um \texttt{Makefile} que recompila só o que mudou};
+    \node[item] (t5) at (0,-3.80) {Bibliotecas: estática (\texttt{.a}) e compartilhada (\texttt{.so})};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{O problema: o arquivo que só cresce}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Onde estamos}\\[0.3em]
+      O \texttt{notas.c} da aula passada tem 68 linhas e faz três coisas
+      diferentes: cuida da matriz, calcula estatísticas e imprime o relatório.
+
+      \medskip
+      Some mais duas funcionalidades e ele passa de 300.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que dói quando ele cresce}\\[0.3em]
+      \textcolor{UFSRed}{Reuso:} para usar \texttt{cria\_matriz} em outro
+      programa, você copia e cola.
+
+      \medskip
+      \textcolor{UFSRed}{Recompilação:} mudou uma linha, recompila tudo.
+
+      \medskip
+      \textcolor{UFSRed}{Trabalho em equipe:} dois colegas, um arquivo.
+    \end{column}
+  \end{columns}
+  \begin{block}{A pergunta de hoje}
+    Como quebrar um programa em pedaços que compilam separado --- e continuam
+    formando um executável só?
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{O programa de hoje}
+% ==================================================================
+
+\begin{frame}[fragile]{O \texttt{notas.c} de hoje, ainda em um arquivo só}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+double **cria_matriz(int nl, int nc)     { /* ... */ }
+void libera_matriz(double **m, int nl)   { /* ... */ }
+
+double media(const double *v, int n)         { /* ... */ }
+double desvio_padrao(const double *v, int n) { /* ... */ }
+
+int main(void) { /* monta a turma, imprime media e desvio */ }
+\end{lstlisting}
+  \begin{block}{}
+    \small Três assuntos convivendo: \textbf{memória}, \textbf{matemática} e
+    \textbf{apresentação}. Cada um muda por um motivo diferente.
+  \end{block}
+\end{frame}
+
+\begin{frame}{A quebra: quatro arquivos, três responsabilidades}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.6cm]
+    \node[modr] (main) at (0,0) {main.c\\[-2pt]\scriptsize monta e imprime};
+    \node[mod] (turma) at (0,-1.6) {turma.c\\[-2pt]\scriptsize a turma};
+    \node[mod] (matriz) at (-3.2,-3.2) {matriz.c\\[-2pt]\scriptsize memória};
+    \node[mod] (estat) at (3.2,-3.2) {estat.c\\[-2pt]\scriptsize matemática};
+    \draw[seta] (main) -- (turma);
+    \draw[seta] (turma) -- (matriz);
+    \draw[seta] (turma) -- (estat);
+    \node[leg, anchor=west] at (1.6,-0.8) {``usa''};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small A seta vai de quem \emph{usa} para quem \emph{oferece}. Repare que
+    \texttt{matriz.c} e \texttt{estat.c} não sabem que a turma existe --- por
+    isso servem para qualquer outro programa.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{matriz.h} e \texttt{matriz.c}}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \textbf{\texttt{matriz.h}} --- o que existe
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none]
+#ifndef MATRIZ_H
+#define MATRIZ_H
+
+double **cria_matriz(int nl, int nc);
+void libera_matriz(double **m, int nl);
+
+#endif /* MATRIZ_H */
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \textbf{\texttt{matriz.c}} --- como funciona
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none]
+#include <stdlib.h>
+#include "matriz.h"
+
+double **cria_matriz(int nl, int nc)
+{
+    double **m = malloc(nl * sizeof(double *));
+    /* ... o mesmo codigo da aula passada ... */
+    return m;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Sete linhas contra sessenta: o header cabe na tela, e é ele que o
+    resto do programa lê.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{estat.h} e \texttt{estat.c}}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \textbf{\texttt{estat.h}}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none]
+#ifndef ESTAT_H
+#define ESTAT_H
+
+double media(const double *v, int n);
+double desvio_padrao(const double *v, int n);
+
+#endif /* ESTAT_H */
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \textbf{\texttt{estat.c}}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none]
+#include <math.h>        /* sqrt */
+#include "estat.h"
+
+double desvio_padrao(const double *v, int n)
+{
+    double mu = media(v, n), s = 0.0;
+    /* ... */
+    return n > 0 ? sqrt(s / n) : 0.0;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Guarde o \texttt{sqrt}: ele vai reaparecer no fim da aula, quando
+    falarmos da biblioteca padrão.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{turma.h}: o header que também define um tipo}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+#ifndef TURMA_H
+#define TURMA_H
+
+typedef struct {
+    double **notas;
+    int nalunos;
+    int navaliacoes;
+} Turma;
+
+Turma *turma_cria(int nalunos, int navaliacoes);
+void turma_libera(Turma *t);
+void turma_relatorio(const Turma *t);
+
+#endif /* TURMA_H */
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{turma.c}: quem usa os outros dois}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+#include <stdio.h>
+#include "turma.h"
+#include "matriz.h"
+#include "estat.h"
+static void cabecalho(void)          /* so turma.c enxerga */
+{
+    printf("%-8s %8s %8s\n", "aluno", "media", "desvio");
+}
+
+void turma_relatorio(const Turma *t)
+{
+    cabecalho();
+    for (int i = 0; i < t->nalunos; i++)
+        printf("%-8d %8.2f %8.2f\n", i, media(t->notas[i], t->navaliacoes),
+               desvio_padrao(t->notas[i], t->navaliacoes));
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{main.c}: um \texttt{include} só}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+#include <stdio.h>
+#include "turma.h"       /* nao inclui matriz.h nem estat.h */
+int main(void)
+{
+    double valores[3][4] = { { 8.0, 6.5, 9.0, 7.0 },
+                             { 5.0, 7.0, 4.0, 7.0 },
+                             { 9.0, 10.0, 8.5, 9.5 } };
+    Turma *t = turma_cria(3, 4);
+    if (t == NULL) { fprintf(stderr, "sem memoria\n"); return 1; }
+    for (int i = 0; i < t->nalunos; i++)
+        for (int j = 0; j < t->navaliacoes; j++)
+            t->notas[i][j] = valores[i][j];
+    turma_relatorio(t);
+    turma_libera(t);
+    return 0;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O que vai acontecer?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item \texttt{gcc -c matriz.c} produz o quê? Esse arquivo roda?
+      \item \texttt{main.c} não inclui \texttt{matriz.h}. Ainda assim o
+        executável final vai conter \texttt{cria\_matriz}?
+      \item O que acontece se você compilar \texttt{gcc matriz.c estat.c
+        turma.c -o notas}, esquecendo \texttt{main.c}?
+      \item E se esquecer o \texttt{-lm} na hora de juntar tudo?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile em duas etapas e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra -c matriz.c estat.c turma.c main.c
+$ ls *.o
+estat.o  main.o  matriz.o  turma.o
+$ gcc matriz.o estat.o turma.o main.o -o notas -lm
+$ ./notas
+aluno       media   desvio
+0            7.62     0.96
+1            5.75     1.30
+2            9.25     0.56
+\end{lstlisting}
+  \begin{block}{}
+    \small A saída é a mesma da aula passada. O que mudou não foi o programa
+    --- foi o \emph{caminho} até o executável.
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Interface e implementação}
+% ==================================================================
+
+\begin{frame}{Declarar não é definir}
+  \begin{block}{Definição}
+    \textbf{Declaração} anuncia que um nome existe e qual é o seu tipo:
+    \texttt{double media(const double *v, int n);}
+
+    \smallskip
+    \textbf{Definição} fornece o corpo --- o código que será executado.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    A declaração é a ficha do cardápio: nome do prato, o que entra, o que sai.
+    A definição é a cozinha. Quem faz o pedido só precisa do cardápio.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{O header é um contrato entre dois lados}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[modr] (usa) at (-4,0) {turma.c\\[-2pt]\scriptsize chama};
+    \node[modh] (h) at (0,0) {matriz.h\\[-2pt]\scriptsize o contrato};
+    \node[mod] (impl) at (4,0) {matriz.c\\[-2pt]\scriptsize cumpre};
+    \draw[seta] (usa) -- (h) node[midway, above, leg] {confia};
+    \draw[seta] (impl) -- (h) node[midway, above, leg] {obedece};
+    \node[caixa, text width=10cm] at (0,-1.7) {%
+      Os dois lados leem o \emph{mesmo} arquivo. Por isso o compilador
+      consegue avisar quando a chamada e a implementação discordam --- desde
+      que os dois incluam o header.};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{O que vai no \texttt{.h} e o que fica no \texttt{.c}}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}ll@{}}
+    \toprule
+    \textbf{No header (\texttt{.h})} & \textbf{No fonte (\texttt{.c})} \\
+    \midrule
+    protótipos de funções públicas   & corpo das funções \\
+    \texttt{typedef} e \texttt{struct} usados na interface & funções auxiliares \texttt{static} \\
+    \texttt{enum} e \texttt{\#define} de constantes & variáveis do módulo (\texttt{static}) \\
+    \texttt{extern} de variáveis globais & a \emph{definição} dessas globais \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Regra prática}
+    \small Se remover a linha do header quebra quem usa o módulo, ela pertence
+    ao header. Se não quebra, ela é detalhe de implementação.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{\#include} é copiar e colar}
+\begin{lstlisting}[style=shellStyle]
+$ cat mini.c
+#include "matriz.h"
+int main(void) { return 0; }
+
+$ gcc -E mini.c            # so o pre-processador
+# 1 "mini.c"
+# 1 "./matriz.h" 1
+double **cria_matriz(int nl, int nc);
+void libera_matriz(double **m, int nl);
+# 2 "mini.c" 2
+int main(void) { return 0; }
+\end{lstlisting}
+  \begin{block}{}
+    \small O pré-processador não entende C: ele troca a linha
+    \texttt{\#include} pelo conteúdo do arquivo. As linhas com \texttt{\#}
+    apenas registram de onde veio cada trecho. Com \texttt{<stdio.h>} no lugar,
+    a saída passa de 500 linhas.
+  \end{block}
+\end{frame}
+
+\begin{frame}{\texttt{"aspas"} ou \texttt{<}ângulos\texttt{>}?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{\texttt{\#include "matriz.h"}}\\[0.3em]
+      Procura primeiro no diretório do arquivo que incluiu; depois nos
+      diretórios do sistema.
+
+      \medskip
+      Use para os \emph{seus} headers.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{\texttt{\#include <stdio.h>}}\\[0.3em]
+      Procura só nos diretórios do sistema (e nos que você acrescentar com
+      \texttt{-I}).
+
+      \medskip
+      Use para a biblioteca padrão e para bibliotecas instaladas.
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small \texttt{gcc -Icaminho/include} acrescenta um diretório à busca ---
+    é assim que você usa headers que não estão ao lado do seu \texttt{.c}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{O problema: o mesmo header, duas vezes}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[modr] (c) at (0,0) {turma.c};
+    \node[modh] (t) at (-2.6,-1.5) {turma.h};
+    \node[modh] (e) at (2.6,-1.5) {estat.h};
+    \node[modh] (m) at (0,-3.0) {tipos.h};
+    \draw[seta] (c) -- (t);
+    \draw[seta] (c) -- (e);
+    \draw[seta] (t) -- (m);
+    \draw[seta] (e) -- (m);
+    \node[caixa, text width=5.2cm, anchor=west] at (3.6,-2.0) {%
+      \texttt{tipos.h} entra \textbf{duas vezes} no texto que o compilador
+      recebe.\\[3pt]
+      Se ele definir um \texttt{typedef} ou uma \texttt{struct}:
+      \textcolor{UFSRed}{\texttt{redefinition of `Ponto'}}};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{A solução: guardas de inclusão}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+#ifndef MATRIZ_H     /* se ainda nao definido */
+#define MATRIZ_H     /* marque como definido  */
+
+double **cria_matriz(int nl, int nc);
+void libera_matriz(double **m, int nl);
+
+#endif /* MATRIZ_H */
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \small
+      Na segunda inclusão, \texttt{MATRIZ\_H} já existe: tudo entre
+      \texttt{\#ifndef} e \texttt{\#endif} é descartado.
+
+      \medskip
+      O nome da macro precisa ser único no projeto --- costume:
+      \texttt{NOMEDOARQUIVO\_H}.
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small \texttt{\#pragma once} faz o mesmo em uma linha e é aceito por
+    todos os compiladores atuais, mas não é parte do padrão C. Prefira as
+    guardas quando o código precisar ser portável.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: interface e implementação}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item declarar anuncia; definir fornece o corpo --- o header carrega as
+        declarações;
+      \item quem usa e quem implementa leem o mesmo \texttt{.h}: é isso que
+        permite ao compilador conferir as chamadas;
+      \item \texttt{\#include} é substituição de texto, feita antes de o
+        compilador ver qualquer C;
+      \item toda \texttt{.h} sua começa com \texttt{\#ifndef}/\texttt{\#define}
+        e termina com \texttt{\#endif}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{De .c a executável}
+% ==================================================================
+
+\begin{frame}{As quatro etapas escondidas atrás de \texttt{gcc}}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.35cm]
+    \node[obj, minimum width=1.5cm] (c) at (0,0) {.c};
+    \node[obj, minimum width=1.5cm, right=1.1cm of c] (i) {.i};
+    \node[obj, minimum width=1.5cm, right=1.1cm of i] (s) {.s};
+    \node[obj, minimum width=1.5cm, right=1.1cm of s] (o) {.o};
+    \node[obj, minimum width=1.7cm, right=1.1cm of o, draw=UFSRed, fill=UFSRed!8] (x) {notas};
+    \draw[seta] (c) -- (i) node[midway, above, leg] {\texttt{cpp}};
+    \draw[seta] (i) -- (s) node[midway, above, leg] {compila};
+    \draw[seta] (s) -- (o) node[midway, above, leg] {monta};
+    \draw[seta] (o) -- (x) node[midway, above, leg] {liga};
+    \node[leg] at (1.75,-0.75) {\texttt{-E}};
+    \node[leg] at (4.05,-0.75) {\texttt{-S}};
+    \node[leg] at (6.35,-0.75) {\texttt{-c}};
+    \node[leg] at (8.75,-0.75) {\texttt{ld}};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small Cada flag \emph{para} o processo em um ponto. \texttt{gcc arquivo.c}
+    sem flag nenhuma percorre as quatro etapas de uma vez --- por isso parece
+    um passo só.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Unidade de tradução: o compilador vê um arquivo por vez}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \textbf{O que o compilador enxerga ao ler \texttt{turma.c}}\\[0.3em]
+      \small O texto de \texttt{turma.c} depois dos \texttt{include}s --- e
+      mais nada. Ele \emph{não} abre \texttt{matriz.c}.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{Consequência}\\[0.3em]
+      \small Sobre \texttt{cria\_matriz} ele sabe só o que o header declarou:
+      o tipo. Basta para gerar a chamada; não basta para saber onde o código
+      está.
+    \end{column}
+  \end{columns}
+  \begin{block}{Quem resolve o resto}
+    O \textbf{ligador}, depois, com todos os \texttt{.o} na mão. É por isso
+    que erros de nome errado aparecem tão tarde.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O que sobra dentro de um \texttt{.o}}
+\begin{lstlisting}[style=shellStyle]
+$ nm turma.o
+0000000000000000 T turma_cria          # T = definido aqui (publico)
+0000000000000090 T turma_libera
+00000000000000d0 T turma_relatorio
+0000000000000160 t cabecalho           # t = definido, mas so daqui
+                 U cria_matriz         # U = usado, definido em outro lugar
+                 U desvio_padrao
+                 U media
+                 U printf
+\end{lstlisting}
+  \begin{block}{}
+    \small Um \texttt{.o} é código de máquina \emph{mais} duas listas: o que
+    ele oferece (\texttt{T}) e o que ele ainda deve (\texttt{U}).
+  \end{block}
+\end{frame}
+
+\begin{frame}{O ligador casa dívidas com ofertas}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[obj, minimum width=2.0cm] (m)   at (-4.2, 1.1) {main.o};
+    \node[obj, minimum width=2.0cm] (t)   at (-4.2, 0.0) {turma.o};
+    \node[obj, minimum width=2.0cm] (mat) at (-4.2,-1.1) {matriz.o};
+    \node[rot, anchor=west] (u1) at (-2.9, 1.1) {U turma\_cria};
+    \node[rot, anchor=west] (t1) at (-2.9, 0.0) {T turma\_cria};
+    \node[rot, anchor=west] (u2) at (0.3, 0.0) {U cria\_matriz};
+    \node[rot, anchor=west] (t2) at (0.3,-1.1) {T cria\_matriz};
+    \draw[setar] (u1.east) to[out=0, in=90] ($(t1.east)+(0.6,0)$) to[out=270, in=0] (t1.east);
+    \draw[setar] (u2.east) to[out=0, in=90] ($(t2.east)+(0.6,0)$) to[out=270, in=0] (t2.east);
+    \node[caixa, text width=4.6cm] at (3.9, 1.1) {%
+      Toda linha \texttt{U} precisa encontrar exatamente \textbf{uma} linha
+      \texttt{T} entre os arquivos ligados.};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small Nenhuma linha \texttt{U} sobrando, nenhuma \texttt{T} repetida:
+    é esse o fecho de contas que decide se o executável nasce.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Erro 1: \texttt{undefined reference} --- faltou a oferta}
+\begin{lstlisting}[style=shellStyle]
+$ gcc main.o -o notas
+/usr/bin/ld: main.o: in function `main':
+main.c:(.text+0x2a): undefined reference to `turma_cria'
+collect2: error: ld returned 1 exit status
+\end{lstlisting}
+  \begin{block}{As três causas, em ordem de frequência}
+    \small
+    \begin{enumerate}
+      \item esqueceu um \texttt{.o} (ou um \texttt{.c}) na linha de comando;
+      \item escreveu o nome diferente no \texttt{.h} e no \texttt{.c}
+        (\texttt{turma\_cria} $\times$ \texttt{cria\_turma});
+      \item a função existe, mas está em uma biblioteca que você não pediu
+        para ligar (\texttt{-lm}, por exemplo).
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Erro 2: \texttt{multiple definition} --- ofertas demais}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{O que provoca}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none]
+/* config.h  -- ERRADO */
+int contador = 0;   /* definicao! */
+\end{lstlisting}
+      \small Incluído em dois \texttt{.c}, vira duas definições da mesma
+      variável.
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      \textbf{O jeito certo}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none]
+/* config.h */
+extern int contador;   /* so anuncia */
+
+/* config.c */
+int contador = 0;      /* uma definicao */
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\begin{lstlisting}[style=shellStyle]
+/usr/bin/ld: turma.o:(.bss+0x0): multiple definition of `contador';
+main.o:(.bss+0x0): first defined here
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{static}: o que não sai do arquivo}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+static void cabecalho(void) { ... }   /* funcao so de turma.c   */
+static int chamadas = 0;              /* variavel so de turma.c */
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que muda}\\[0.2em]
+      \small O símbolo sai do \texttt{.o} como \texttt{t} minúsculo: o
+      ligador não o oferece a ninguém.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Por que usar}\\[0.2em]
+      \small Dois módulos podem ter cada um a sua \texttt{cabecalho} sem
+      colidir, e você deixa claro o que é detalhe interno.
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Dentro de uma função, \texttt{static} quer dizer outra coisa: a
+    variável sobrevive entre as chamadas. Mesma palavra, dois significados.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: compilação separada}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{-c} para em \texttt{.o}; sem flag, \texttt{gcc} vai até o
+        executável;
+      \item cada \texttt{.c} é compilado sozinho --- o compilador confia no
+        header;
+      \item o \texttt{.o} lista o que oferece (\texttt{T}) e o que deve
+        (\texttt{U}); o ligador faz o casamento;
+      \item \texttt{undefined reference} = faltou; \texttt{multiple definition}
+        = sobrou; \texttt{static} esconde.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Automatizar: make}
+% ==================================================================
+
+\begin{frame}{Por que não digitar tudo de novo}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[obj, minimum width=1.9cm, draw=UFSRed, fill=UFSRed!8] (ex) at (0,2.1) {notas};
+    \node[obj, minimum width=1.6cm] (mo) at (-3.6,0.8) {main.o};
+    \node[obj, minimum width=1.6cm] (to) at (0,0.8) {turma.o};
+    \node[obj, minimum width=1.6cm] (eo) at (3.6,0.8) {estat.o};
+    \node[caixa, text width=2.3cm] (ms) at (-3.6,-0.9)
+      {\ttfamily main.c\\ turma.h};
+    \node[caixa, text width=2.3cm] (ts) at (0,-0.9)
+      {\ttfamily turma.c\\ turma.h\\ matriz.h \ estat.h};
+    \node[caixa, text width=2.3cm] (es) at (3.6,-0.9)
+      {\ttfamily estat.c\\ estat.h};
+    \draw[seta] (ms) -- (mo);
+    \draw[seta] (ts) -- (to);
+    \draw[seta] (es) -- (eo);
+    \draw[setar] (mo) -- (ex);
+    \draw[setar] (to) -- (ex);
+    \draw[setar] (eo) -- (ex);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small Mudou \texttt{estat.c}: refazer \texttt{estat.o} e religar. Mudou
+    \texttt{turma.h}: \texttt{main.o} e \texttt{turma.o} caem junto. Quem
+    decide isso pela data dos arquivos é o \texttt{make}.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Anatomia de uma regra}
+\begin{lstlisting}[style=makeStyle]
+alvo: pre-requisitos
+<TAB>receita
+
+estat.o: estat.c estat.h
+	gcc -Wall -Wextra -c estat.c
+\end{lstlisting}
+  \begin{block}{A regra de ouro do \texttt{make}}
+    \small Se o \textbf{alvo} não existe, ou se algum \textbf{pré-requisito} é
+    mais recente que ele, execute a \textbf{receita}. Só isso.
+  \end{block}
+  \begin{alertblock}{}
+    \small A receita precisa começar com TAB de verdade --- espaços dão
+    \texttt{missing separator}. É o erro número um de quem começa.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{O \texttt{Makefile} do \texttt{notas}}
+\begin{lstlisting}[style=makeStyle]
+CC      = gcc
+CFLAGS  = -Wall -Wextra -g
+LDLIBS  = -lm
+OBJ     = main.o turma.o matriz.o estat.o
+
+notas: $(OBJ)
+	$(CC) $(OBJ) -o notas $(LDLIBS)
+
+main.o:   main.c   turma.h
+turma.o:  turma.c  turma.h matriz.h estat.h
+matriz.o: matriz.c matriz.h
+estat.o:  estat.c  estat.h
+
+.PHONY: clean
+clean:
+	rm -f $(OBJ) notas
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{As regras sem receita não estão incompletas}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que o \texttt{make} já sabe}\\[0.3em]
+      \small Existe uma regra implícita para \texttt{\%.o: \%.c}, que roda
+      \texttt{\$(CC) \$(CFLAGS) -c}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que você acrescenta}\\[0.3em]
+      \small Só a informação que o \texttt{make} não tem como adivinhar: de
+      quais \emph{headers} cada objeto depende.
+    \end{column}
+  \end{columns}
+  \begin{block}{\texttt{.PHONY}}
+    \small \texttt{clean} não é um arquivo. Sem \texttt{.PHONY: clean}, se
+    alguém criar um arquivo chamado \texttt{clean}, o \texttt{make} passa a
+    dizer ``\texttt{clean is up to date}'' e não limpa mais nada.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{make} em ação}
+\begin{lstlisting}[style=shellStyle]
+$ make                          # primeira vez: compila tudo
+gcc -Wall -Wextra -g   -c -o main.o main.c
+gcc -Wall -Wextra -g   -c -o turma.o turma.c
+gcc -Wall -Wextra -g   -c -o matriz.o matriz.c
+gcc -Wall -Wextra -g   -c -o estat.o estat.c
+gcc main.o turma.o matriz.o estat.o -o notas -lm
+
+$ make                          # nada mudou
+make: 'notas' is up to date.
+
+$ touch estat.c && make         # so o que depende de estat.c
+gcc -Wall -Wextra -g   -c -o estat.o estat.c
+gcc main.o turma.o matriz.o estat.o -o notas -lm
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Recapitulando: make}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item o \texttt{make} compara datas: alvo mais velho que
+        pré-requisito $\Rightarrow$ refaz;
+      \item a receita vai depois de um TAB;
+      \item listar os headers de cada objeto é o que faz o
+        \texttt{make} acertar quando uma interface muda;
+      \item \texttt{.PHONY} marca alvos que não são arquivos.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Bibliotecas}
+% ==================================================================
+
+\begin{frame}{O que é uma biblioteca}
+  \begin{block}{Definição}
+    Uma \textbf{biblioteca} é um pacote de arquivos-objeto já compilados,
+    distribuído junto com os headers que descrevem o que ela oferece.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    É o passo seguinte da modularização: em vez de entregar quatro
+    \texttt{.o} soltos e torcer para ninguém esquecer um, você entrega
+    \emph{um} arquivo --- e um \texttt{.h} dizendo o que tem dentro.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Biblioteca estática: \texttt{ar rcs}}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -c matriz.c estat.c turma.c
+$ ar rcs libnotas.a matriz.o estat.o turma.o     # r=inserir c=criar s=indice
+$ ar t libnotas.a
+matriz.o
+estat.o
+turma.o
+$ gcc main.c -I. -L. -lnotas -lm -o notas
+\end{lstlisting}
+  \begin{block}{Os três flags da ligação}
+    \small \texttt{-I.} onde procurar headers \quad
+    \texttt{-L.} onde procurar bibliotecas \quad
+    \texttt{-lnotas} qual usar --- o nome do arquivo é
+    \texttt{lib}\emph{notas}\texttt{.a}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{O ligador copia só o que você usa}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[caixa, minimum width=2.4cm, minimum height=2.4cm, fill=UFSYellow!15,
+      draw=UFSYellow!80!black] (lib) at (-3.6,0) {};
+    \node[leg] at (-3.6,1.5) {\texttt{libnotas.a}};
+    \node[obj, minimum width=1.5cm] at (-3.6,0.7) {matriz.o};
+    \node[obj, minimum width=1.5cm] at (-3.6,0.0) {estat.o};
+    \node[obj, minimum width=1.5cm] at (-3.6,-0.7) {turma.o};
+    \node[caixa, minimum width=2.6cm, minimum height=2.4cm, draw=UFSRed,
+      fill=UFSRed!6] (exe) at (2.6,0) {};
+    \node[leg] at (2.6,1.5) {executável \texttt{notas}};
+    \node[obj, minimum width=1.5cm] at (2.6,0.7) {main.o};
+    \node[obj, minimum width=1.5cm] at (2.6,0.0) {turma.o};
+    \node[obj, minimum width=1.5cm] at (2.6,-0.7) {matriz.o};
+    \draw[setar] (-2.2,0) -- (1.1,0) node[midway, above, leg] {cópia};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small Se \texttt{estat.o} não fosse usado por ninguém, ele ficaria de
+    fora. O executável final é autossuficiente: a \texttt{.a} pode ser
+    apagada depois.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Biblioteca compartilhada: \texttt{-fPIC -shared}}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -fPIC -c matriz.c estat.c turma.c       # codigo independente de posicao
+$ gcc -shared -o libnotas.so matriz.o estat.o turma.o -lm
+$ gcc main.c -I. -L. -lnotas -o notas
+$ ./notas
+./notas: error while loading shared libraries: libnotas.so:
+cannot open shared object file: No such file or directory
+$ LD_LIBRARY_PATH=. ./notas                   # agora sim
+\end{lstlisting}
+  \begin{block}{}
+    \small Ligou sem reclamar e mesmo assim falhou ao rodar: a
+    \texttt{.so} não entra no executável, fica só o \emph{nome} dela. Quem a
+    procura, e não acha, é o carregador do sistema.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Duas horas diferentes de resolver}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.95, every node/.style={transform shape}]
+    \node[leg] at (-3.4,1.6) {\textbf{estática}};
+    \node[caixa, minimum width=2.8cm, minimum height=1.5cm, draw=UFSRed,
+      fill=UFSRed!6] (e1) at (-3.4,0.4) {main.o\\+ turma.o\\+ matriz.o};
+    \node[leg, text width=3cm, align=center] at (-3.4,-1.2)
+      {tudo dentro; roda sozinho};
+    \node[leg] at (1.4,1.6) {\textbf{compartilhada}};
+    \node[caixa, minimum width=2.2cm, minimum height=1.5cm, draw=UFSRed,
+      fill=UFSRed!6] (e2) at (0.8,0.4) {main.o\\+ ``preciso de\\libnotas.so''};
+    \node[caixa, minimum width=1.9cm, minimum height=1.0cm,
+      draw=UFSYellow!80!black, fill=UFSYellow!15] (so) at (4.2,0.4) {libnotas.so};
+    \draw[setag, dashed] (e2) -- (so) node[midway, above, leg] {ao rodar};
+    \node[leg, text width=4.4cm, align=center] at (2.5,-1.2)
+      {o arquivo precisa estar lá na hora da execução};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Qual das duas usar}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+     & \textbf{Estática (\texttt{.a})} & \textbf{Compartilhada (\texttt{.so})} \\
+    \midrule
+    Quando entra   & na ligação        & ao executar \\
+    Executável     & maior, completo   & menor, depende do arquivo \\
+    Corrigir um bug& religar tudo      & trocar a \texttt{.so} \\
+    Dez programas  & dez cópias no disco & uma cópia na memória \\
+    Risco          & versão congelada  & sumir/mudar sem avisar \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{}
+    \small \texttt{ldd notas} lista de quais \texttt{.so} um executável
+    depende (no macOS, \texttt{otool -L}).
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Você já usa bibliotecas: \texttt{-lm}}
+\begin{lstlisting}[style=shellStyle]
+$ gcc main.o turma.o matriz.o estat.o -o notas
+/usr/bin/ld: estat.o: undefined reference to symbol 'sqrt@@GLIBC_2.2.5'
+collect2: error: ld returned 1 exit status
+$ gcc main.o turma.o matriz.o estat.o -o notas -lm     # resolvido
+\end{lstlisting}
+  \begin{block}{\texttt{math.h} e \texttt{libm} são coisas distintas}
+    \small O header traz a \emph{declaração} de \texttt{sqrt}; o código está
+    em \texttt{libm}. Incluir o header engana o compilador, não o ligador.
+    Já \texttt{printf} não pede flag porque \texttt{libc} é ligada sempre.
+  \end{block}
+  \begin{alertblock}{}
+    \small Em alguns sistemas (macOS, glibc recente) a \texttt{libm} já vem
+    junto e o erro não aparece. Escreva o \texttt{-lm} assim mesmo.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{A ordem dos \texttt{-l} importa}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -L. -lnotas main.c -o notas       # ERRADO: undefined reference
+$ gcc main.c -L. -lnotas -o notas       # certo
+\end{lstlisting}
+  \begin{block}{Por quê}
+    \small O ligador lê a linha de comando da esquerda para a direita
+    acumulando dívidas. Quando ele abriu \texttt{libnotas} no primeiro
+    comando, ninguém ainda devia \texttt{turma\_cria} --- e ele seguiu adiante
+    sem pegar nada.
+  \end{block}
+  \begin{block}{Regra}
+    \small Quem \emph{usa} vem antes de quem \emph{fornece}: primeiro seus
+    arquivos, depois as bibliotecas.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: bibliotecas}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item biblioteca = \texttt{.o} empacotados + headers que os descrevem;
+      \item estática: \texttt{ar rcs lib\emph{nome}.a}, copiada para dentro do
+        executável na ligação;
+      \item compartilhada: \texttt{-fPIC -shared}, encontrada na hora de
+        executar;
+      \item \texttt{-I} headers, \texttt{-L} onde procurar, \texttt{-l} qual
+        ligar --- e as bibliotecas por último.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Os erros que o compilador não pega}
+% ==================================================================
+
+\begin{frame}{Quatro erros que atravessam a compilação}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    \textbf{Erro} & \textbf{Quando aparece} & \textbf{Sintoma} \\
+    \midrule
+    \texttt{\#include "matriz.c"}   & na ligação  & \texttt{multiple definition} \\
+    Protótipo $\neq$ definição      & ao executar & resultado sem sentido \\
+    \texttt{Makefile} sem o header  & ao executar & lixo, ou queda sem motivo \\
+    Header sem guarda               & ao compilar & \texttt{redefinition of...} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{}
+    \small Os dois do meio são os caros: o programa compila, liga, roda --- e
+    mente.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Erro: incluir o \texttt{.c}}
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize, numbers=none]
+#include "matriz.c"      /* funciona... ate voce compilar matriz.c tambem */
+\end{lstlisting}
+  \begin{block}{O que acontece}
+    \small O corpo das funções é copiado para dentro do seu \texttt{.c}. Se
+    \texttt{matriz.c} também for compilado e ligado, o ligador encontra
+    \texttt{cria\_matriz} duas vezes: \texttt{multiple definition}.
+  \end{block}
+  \begin{block}{Como evitar}
+    \small Header nunca tem corpo de função; \texttt{.c} nunca é incluído.
+    Se está incluindo um \texttt{.c} para ``funcionar de uma vez'', o que
+    faltou foi passar os dois arquivos ao \texttt{gcc}.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Erro: o protótipo que discorda da definição}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{\texttt{estat.h}}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none]
+int media(const double *v, int n);
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{\texttt{estat.c}}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny, numbers=none]
+double media(const double *v, int n)
+{ ... }
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \begin{block}{Por que ninguém reclama}
+    \small \texttt{turma.c} acredita no header e lê o retorno como
+    \texttt{int}; \texttt{estat.c} devolve um \texttt{double}. Cada unidade de
+    tradução está coerente consigo mesma, e o ligador só compara \emph{nomes}.
+  \end{block}
+  \begin{alertblock}{A defesa}
+    \small \texttt{estat.c} \textbf{inclui} \texttt{estat.h}. Aí o conflito
+    passa a acontecer dentro de um arquivo só --- e vira erro de compilação.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Erro: o \texttt{Makefile} que esquece o header}
+\begin{lstlisting}[style=makeStyle]
+main.o: main.c            # faltou turma.h
+\end{lstlisting}
+  \begin{block}{O estrago}
+    \small Você acrescenta um campo no meio da \texttt{struct Turma}.
+    \texttt{turma.o} é refeito com o novo desenho; \texttt{main.o}, não.
+    Os dois passam a discordar de onde cada campo começa --- e o
+    \texttt{make} diz que está tudo em dia.
+  \end{block}
+  \begin{block}{As saídas}
+    \small \texttt{make clean \&\& make} resolve na hora. Para não depender de
+    memória, \texttt{gcc -MMD -MP} gera os arquivos \texttt{.d} com as
+    dependências de header, e o \texttt{Makefile} os inclui.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Recapitulando: armadilhas}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{.h} declara, \texttt{.c} define, e \texttt{.c} não se
+        inclui;
+      \item todo \texttt{.c} inclui o próprio \texttt{.h}: é a única forma de
+        o compilador conferir o contrato;
+      \item dependência de header esquecida no \texttt{Makefile} produz
+        bugs que somem quando você recompila do zero --- desconfie deles;
+      \item compile sempre com \texttt{-Wall -Wextra}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \begin{block}{Tarefa 1}
+    Crie o módulo \texttt{io.h}/\texttt{io.c} com
+    \texttt{turma\_le(Turma *t)}, que preenche as notas a partir do teclado, e
+    tire essa responsabilidade do \texttt{main.c}. Acrescente as regras
+    correspondentes ao \texttt{Makefile}.
+  \end{block}
+  \begin{block}{Tarefa 2}
+    Empacote \texttt{matriz.o} e \texttt{estat.o} em \texttt{libnotas.a} e
+    ligue o programa contra ela. Depois apague os \texttt{.o} e recompile só o
+    \texttt{main.c}: o executável ainda se forma?
+  \end{block}
+  \begin{block}{Tarefa 3}
+    Acrescente um campo no início da \texttt{struct Turma}, recompile
+    \emph{só} \texttt{turma.c} na mão e rode. Explique a saída --- e
+    depois conserte pelo \texttt{Makefile}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{block}{Uma biblioteca de verdade, com tipo opaco}
+    Reescreva o módulo da turma de modo que \texttt{turma.h} contenha apenas
+    \texttt{typedef struct Turma Turma;} --- sem os campos:
+    \begin{itemize}
+      \item a \texttt{struct} completa fica em \texttt{turma.c}; quem usa a
+        biblioteca chega às notas por \texttt{turma\_set} e \texttt{turma\_get};
+      \item gere \texttt{libturma.a} e \texttt{libturma.so} dos mesmos
+        fontes, com dois alvos no \texttt{Makefile};
+      \item escreva um cliente em \emph{outro} diretório, compilado com
+        \texttt{-I} e \texttt{-L}, sem copiar nenhum \texttt{.c};
+      \item explique por que agora o cliente não consegue depender do
+        formato interno da \texttt{struct}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      O programa é o mesmo e imprime o mesmo. O que ganhamos foi mexer em
+      um pedaço sem tocar --- nem recompilar --- os outros.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O fio da aula}\\[0.3em]
+      Header é contrato, \texttt{.o} é dívida e oferta, ligador é o
+      casamenteiro, \texttt{make} é a memória das datas e biblioteca é o
+      pacote pronto.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \item uma responsabilidade por módulo; o \texttt{.h} é a única porta;
+      \item cada \texttt{.c} compila sozinho --- o erro aparece na ligação;
+      \item \texttt{-I}, \texttt{-L}, \texttt{-l}: onde estão os headers, onde
+        estão as bibliotecas, quais usar;
+      \item o bug mais difícil da aula é o que some depois de um
+        \texttt{make clean}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
