@@ -1,0 +1,890 @@
+% -*- coding: utf-8 -*-
+% Aula: Busca em largura (BFS) e ordenacao topologica
+% Baseada em: Paulo Feofiloff, "Algoritmos para Grafos (em linguagem C)",
+% IME-USP, https://www.ime.usp.br/~pf/algoritmos_para_grafos/
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, chains, shapes.geometric}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados nos diagramas de grafos ----
+\tikzset{
+  vtx/.style={circle, draw=blue!70, fill=blue!10, minimum size=5.5mm,
+              inner sep=0pt, font=\scriptsize},
+  vtxhl/.style={circle, draw=orange!80!black, fill=orange!25, minimum size=5.5mm,
+                inner sep=0pt, font=\scriptsize},
+  vtxdone/.style={circle, draw=green!50!black, fill=green!15, minimum size=5.5mm,
+                  inner sep=0pt, font=\scriptsize},
+  arc/.style={-{Stealth[length=2mm]}, thick, blue!60!black},
+  arcgray/.style={-{Stealth[length=2mm]}, thick, gray!50},
+  arctree/.style={-{Stealth[length=2mm]}, very thick, orange!80!black},
+  edg/.style={thick, blue!60!black},
+  cell/.style={draw=gray!60, minimum size=4.2mm, inner sep=0pt, font=\tiny},
+  lnode/.style={draw=blue!60, fill=blue!8, minimum height=4.5mm,
+                minimum width=4.5mm, inner sep=1pt, font=\tiny},
+  qcell/.style={draw=gray!70, fill=gray!10, minimum width=5mm,
+                minimum height=4mm, inner sep=1pt, font=\tiny},
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=4.6cm, minimum height=0.55cm, font=\scriptsize},
+  disc/.style={rectangle, draw=blue!70, fill=blue!10, rounded corners,
+               minimum width=1.9cm, minimum height=0.5cm, inner sep=1pt,
+               font=\tiny}
+}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\title{Busca em largura e ordenação topológica}
+\subtitle{Algoritmos e Estruturas de Dados 2}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+% =====================================================================
+\section{Da profundidade à largura}
+
+\begin{frame}{Onde paramos}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{A DFS já nos deu}
+
+      \medskip
+      {\small
+      \begin{itemize}\scriptsize
+        \item alcançabilidade a partir de uma raiz;
+        \item a floresta da busca guardada em \texttt{pai[]};
+        \item pré-ordem e pós-ordem, detecção de ciclo;
+        \item custo $\Theta(V+A)$ com listas de adjacência.
+      \end{itemize}}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Mas ela não responde}
+
+      \medskip
+      {\small
+      \begin{itemize}\scriptsize
+        \item qual é o \emph{menor} número de arcos de $s$ até $w$?
+        \item quais vértices estão a exatamente 2 arcos de $s$?
+      \end{itemize}
+      O caminho que a DFS devolve é \emph{um} caminho --- em geral não o
+      mais curto. Trocar a pilha por uma \textbf{fila} muda isso.}
+    \end{column}
+  \end{columns}
+  \fonte{DFS (aula anterior) em \cite{feofiloff2020algoritmos}, cap.\
+  \emph{Busca em profundidade}, e \cite{cormen2009introduction}, §22.3;
+  BFS em \cite{feofiloff2020algoritmos}, cap.\ \emph{Busca em largura} e \cite{cormen2009introduction}, §22.2.}
+\end{frame}
+
+\begin{frame}{O grafo desta aula}
+  {\small O mesmo das aulas anteriores: vértices $0..5$ e o conjunto de arcos}
+  \begin{center}\ttfamily\small 0-1\quad 0-5\quad 1-0\quad 1-5\quad 2-4\quad 3-1\quad 5-3\end{center}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.82, every node/.style={transform shape}]
+    \node[vtx] (v0) at (0,1.3)  {0};
+    \node[vtx] (v1) at (2.0,1.3){1};
+    \node[vtx] (v2) at (4.0,1.3){2};
+    \node[vtx] (v3) at (0,0)    {3};
+    \node[vtx] (v5) at (2.0,0)  {5};
+    \node[vtx] (v4) at (4.0,0)  {4};
+    \draw[arc] (v0) to[bend left=18]  (v1);
+    \draw[arc] (v1) to[bend left=18]  (v0);
+    \draw[arc] (v0) -- (v5);
+    \draw[arc] (v1) -- (v5);
+    \draw[arc] (v2) -- (v4);
+    \draw[arc] (v3) -- (v1);
+    \draw[arc] (v5) -- (v3);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize \textbf{Convenção da aula:} os vizinhos de um vértice são sempre
+  examinados em ordem crescente --- as simulações ficam reproduzíveis.}
+  \fonte{grafo-exemplo e convenções de código de \cite{feofiloff2020algoritmos}, cap.\ \emph{Estruturas de dados para grafos}.}
+\end{frame}
+
+\begin{frame}{A regra da busca em largura}
+  \begin{block}{Busca em largura, em uma frase}
+    {\small Visite \textbf{todos} os vizinhos do vértice atual antes de avançar
+    para os vizinhos deles: primeiro o que está a 1 arco de $s$, depois o que
+    está a 2 arcos, e assim por diante.}
+  \end{block}
+  \medskip
+  {\small
+  \begin{itemize}\small
+    \item ``Largura'' é a prioridade: explorar em \textbf{camadas} concêntricas
+          em torno da raiz, como uma onda na água.
+    \item O vértice é marcado \emph{ao entrar na fila}, não ao sair --- assim
+          nenhum vértice entra duas vezes.
+    \item A estrutura que produz essa ordem é a \textbf{fila} (FIFO):
+          quem foi descoberto primeiro é expandido primeiro.
+  \end{itemize}}
+  \fonte{a ideia da busca em largura em \cite{feofiloff2020algoritmos}, cap.\ \emph{Busca em largura};
+  \cite{sedgewick2011algorithms}, §4.1; \cite{levitin2012introduction}, §3.5.}
+\end{frame}
+
+\begin{frame}{Pilha ou fila: a única diferença}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.82, every node/.style={transform shape}]
+    % pilha: o ultimo a entrar (5) fica no topo
+    \node at (1.0,1.75) {\small \textbf{DFS: pilha (LIFO)}};
+    \foreach \i/\lab in {0/0,1/1,2/5} {
+      \node[qcell, minimum width=9mm] at (1.0,{0.45*\i}) {\lab};
+    }
+    \draw[-{Stealth[length=2mm]}, thick] (1.9,0.9) -- (2.5,0.9);
+    \node[right, font=\tiny, align=left] at (2.55,0.9)
+      {sai pelo topo:\\o último a entrar};
+    \node[font=\tiny, gray!50!black] at (1.0,-0.5) {(base da pilha)};
+    % fila: sai pela frente, entra por tras
+    \node at (1.0,-1.35) {\small \textbf{BFS: fila (FIFO)}};
+    \foreach \i/\lab in {0/0,1/1,2/5} {
+      \node[qcell, minimum width=9mm] at ({0.1+0.9*\i},-2.0) {\lab};
+    }
+    \draw[-{Stealth[length=2mm]}, thick] (-0.5,-2.0) -- (-1.1,-2.0);
+    \node[left, font=\tiny] at (-1.15,-2.0) {sai};
+    \draw[-{Stealth[length=2mm]}, thick] (2.5,-2.0) -- (2.0,-2.0);
+    \node[right, font=\tiny] at (2.55,-2.0) {entra};
+  \end{tikzpicture}
+  \hspace{0.4cm}
+  \begin{minipage}{0.46\textwidth}
+    {\scriptsize
+    O esqueleto do algoritmo é \textbf{idêntico}: retire um vértice da
+    estrutura, examine seus vizinhos, insira os ainda não marcados.
+
+    \medskip
+    Só a disciplina da estrutura muda --- e com ela a ordem de visita, a
+    forma da árvore de busca e as perguntas que o percurso sabe responder.
+
+    \medskip
+    Na DFS a pilha pode ser implícita (recursão); na BFS a fila é
+    \emph{sempre} explícita.}
+  \end{minipage}
+  \end{center}
+  \fonte{a dualidade pilha/fila em \cite{sedgewick2011algorithms}, §4.1;
+  \cite{feofiloff2020algoritmos}, cap.\ \emph{Busca em largura}; \cite{levitin2012introduction}, §3.5.}
+\end{frame}
+
+% =====================================================================
+\section{Simulando a busca em largura}
+
+\begin{frame}{Passo a passo a partir de 0 --- primeira metade}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.70, every node/.style={transform shape}]
+    \foreach \dx/\tit/\marcados/\fila/\arvore in {%
+        0/{início: enfileira 0}/{0}/{0}/{},
+        5.2/{tira 0: descobre 1 e 5}/{0,1,5}/{1,5}/{0/1,0/5},
+        10.4/{tira 1: nada novo}/{0,1,5}/{5}/{0/1,0/5}} {
+      \begin{scope}[xshift=\dx cm]
+        \draw[gray!30, rounded corners] (-0.7,-1.5) rectangle (4.4,2.0);
+        \node at (1.85,1.7) {\small \tit};
+        \node[vtx] (a0) at (0,1.0)  {0};
+        \node[vtx] (a1) at (1.8,1.0){1};
+        \node[vtx] (a2) at (3.6,1.0){2};
+        \node[vtx] (a3) at (0,0)    {3};
+        \node[vtx] (a5) at (1.8,0)  {5};
+        \node[vtx] (a4) at (3.6,0)  {4};
+        \draw[arcgray] (a0) to[bend left=18] (a1);
+        \draw[arcgray] (a1) to[bend left=18] (a0);
+        \draw[arcgray] (a0) -- (a5);
+        \draw[arcgray] (a1) -- (a5);
+        \draw[arcgray] (a2) -- (a4);
+        \draw[arcgray] (a3) -- (a1);
+        \draw[arcgray] (a5) -- (a3);
+        \foreach \m in \marcados { \node[vtxhl] at (a\m) {\m}; }
+        \foreach \p/\q in \arvore { \draw[arctree] (a\p) -- (a\q); }
+        \node[font=\tiny] at (0.1,-1.1) {fila:};
+        \foreach [count=\j from 0] \q in \fila {
+          \node[qcell] at ({0.85+0.55*\j},-1.1) {\q};
+        }
+      \end{scope}
+    }
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize Ao tirar 0 da fila, \textbf{ambos} os vizinhos são descobertos e
+  enfileirados de uma vez. Quando 1 sai, seus vizinhos 0 e 5 já estão marcados:
+  nada entra na fila. Laranja $=$ marcado; laranja grosso $=$ arco da árvore.}
+  \fonte{simulações equivalentes em \cite{feofiloff2020algoritmos}, cap.\ \emph{Busca em largura} e
+  \cite{sedgewick2002algorithms}, cap.~18.}
+\end{frame}
+
+\begin{frame}{Passo a passo a partir de 0 --- segunda metade}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.70, every node/.style={transform shape}]
+    \foreach \dx/\tit/\marcados/\fila in {%
+        0/{tira 5: descobre 3}/{0,1,5,3}/{3},
+        5.2/{tira 3: nada novo}/{0,1,5,3}/{},
+        10.4/{fila vazia: fim}/{0,1,5,3}/{}} {
+      \begin{scope}[xshift=\dx cm]
+        \draw[gray!30, rounded corners] (-0.7,-1.5) rectangle (4.4,2.0);
+        \node at (1.85,1.7) {\small \tit};
+        \node[vtx] (b0) at (0,1.0)  {0};
+        \node[vtx] (b1) at (1.8,1.0){1};
+        \node[vtx] (b2) at (3.6,1.0){2};
+        \node[vtx] (b3) at (0,0)    {3};
+        \node[vtx] (b5) at (1.8,0)  {5};
+        \node[vtx] (b4) at (3.6,0)  {4};
+        \draw[arcgray] (b0) to[bend left=18] (b1);
+        \draw[arcgray] (b1) to[bend left=18] (b0);
+        \draw[arcgray] (b0) -- (b5);
+        \draw[arcgray] (b1) -- (b5);
+        \draw[arcgray] (b2) -- (b4);
+        \draw[arcgray] (b3) -- (b1);
+        \draw[arcgray] (b5) -- (b3);
+        \foreach \m in \marcados { \node[vtxhl] at (b\m) {\m}; }
+        \draw[arctree] (b0) -- (b1);
+        \draw[arctree] (b0) -- (b5);
+        \draw[arctree] (b5) -- (b3);
+        \node[font=\tiny] at (0.1,-1.1) {fila:};
+        \foreach [count=\j from 0] \q in \fila {
+          \node[qcell] at ({0.85+0.55*\j},-1.1) {\q};
+        }
+      \end{scope}
+    }
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize \textbf{Resultado:} alcançáveis a partir de 0 são $\{0,1,5,3\}$
+  --- o mesmo conjunto que a DFS encontrou, e na mesma ordem de visita
+  $0,1,5,3$. A \emph{árvore}, porém, é outra: aqui 5 é filho de 0, não de 1.}
+  \fonte{\cite{feofiloff2020algoritmos}, cap.\ \emph{Busca em largura}; árvore de busca em largura em
+  \cite{cormen2009introduction}, §22.2.}
+\end{frame}
+
+\begin{frame}{O que os vetores guardam}
+  \begin{center}
+  {\small
+  \begin{tabular}{lcccccc}
+    \toprule
+    vértice $v$      & 0 & 1 & 2 & 3 & 4 & 5 \\
+    \midrule
+    \texttt{dist[v]} & 0 & 1 & $-1$ & 2 & $-1$ & 1 \\
+    \texttt{pai[v]}  & $-1$ & 0 & $-1$ & 5 & $-1$ & 0 \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  \medskip
+  {\small
+  \begin{itemize}\small
+    \item \texttt{dist[v]} é o \textbf{número mínimo de arcos} de 0 até $v$;
+          $-1$ significa ``não alcançável''.
+    \item As camadas em torno de 0 são $\{0\}$, $\{1,5\}$, $\{3\}$.
+    \item Seguindo \texttt{pai[]} de 3 para trás: $3 \leftarrow 5 \leftarrow 0$,
+          o caminho $0\,5\,3$, com \textbf{2 arcos}.
+    \item A DFS, no mesmo grafo, daria $0\,1\,5\,3$: um caminho válido, com
+          \textbf{3 arcos}. A fila é o que garante o mínimo.
+  \end{itemize}}
+  \fonte{\texttt{dist[]} (=\,$d[v]$), \texttt{pai[]} (=\,$\pi[v]$) e a árvore de
+  busca em largura em \cite{cormen2009introduction}, §22.2 (lema 22.6: o subgrafo de
+  predecessores é uma árvore de caminhos mínimos; teorema 22.7); \cite{feofiloff2020algoritmos}, cap.\ \emph{Busca em largura}.}
+\end{frame}
+
+\begin{frame}{As camadas da busca}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.88, every node/.style={transform shape}]
+    \draw[dashed, gray!60] (0,-0.3) -- (0,1.9);
+    \draw[dashed, gray!60] (2.4,-0.3) -- (2.4,1.9);
+    \draw[dashed, gray!60] (4.8,-0.3) -- (4.8,1.9);
+    \node[font=\scriptsize, gray!50!black] at (-1.2,2.05) {\texttt{dist}=0};
+    \node[font=\scriptsize, gray!50!black] at (1.2,2.05)  {\texttt{dist}=1};
+    \node[font=\scriptsize, gray!50!black] at (3.6,2.05)  {\texttt{dist}=2};
+    \node[vtxhl] (c0) at (-1.2,0.8) {0};
+    \node[vtxhl] (c1) at (1.2,1.5)  {1};
+    \node[vtxhl] (c5) at (1.2,0.1)  {5};
+    \node[vtxhl] (c3) at (3.6,0.8)  {3};
+    \draw[arctree] (c0) -- (c1);
+    \draw[arctree] (c0) -- (c5);
+    \draw[arctree] (c5) -- (c3);
+    \draw[arcgray] (c1) -- (c5);
+    \draw[arcgray] (c1) to[bend left=25] (c0);
+    \draw[arcgray] (c3) to[bend right=25] (c1);
+    \node[vtx] (c2) at (-0.2,-1.1) {2};
+    \node[vtx] (c4) at (1.4,-1.1)  {4};
+    \draw[arcgray] (c2) -- (c4);
+    \node[font=\tiny, gray!50!black, anchor=west] at (1.9,-1.1)
+      {fora de toda camada: não alcançáveis a partir de 0};
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize \textbf{Propriedade das camadas:} todo arco do grafo liga
+  vértices da mesma camada ou de camadas \emph{consecutivas} --- nunca salta
+  uma camada à frente. Se saltasse, o vértice de destino teria sido descoberto
+  mais cedo. É essa propriedade que faz \texttt{dist[]} ser mínima.
+  Os vértices 2 e 4 formam um componente separado: sem caminho a partir de 0,
+  ficam fora de toda camada e mantêm \texttt{dist} $= -1$.}
+  \fonte{propriedade das camadas e corretude em \cite{cormen2009introduction},
+  §22.2 (teorema 22.5); \cite{sedgewick2011algorithms}, §4.1.}
+\end{frame}
+
+% =====================================================================
+\section{O algoritmo em C}
+
+\begin{frame}[fragile]{BFS com fila explícita}
+\begin{lstlisting}
+static int dist[maxV], pai[maxV];   /* -1 = ainda nao descoberto */
+
+void GRAPHbfs( Graph G, vertex s) {
+   for (vertex v = 0; v < G->V; ++v) dist[v] = pai[v] = -1;
+   QUEUEinit( G->V);
+   dist[s] = 0;  QUEUEput( s);      /* marca s ao ENTRAR na fila */
+   while (!QUEUEempty()) {
+      vertex v = QUEUEget();        /* o mais antigo da fila */
+      for (link a = G->adj[v]; a != NULL; a = a->next)
+         if (dist[a->w] == -1) {    /* w ainda nao descoberto */
+            dist[a->w] = dist[v] + 1;  pai[a->w] = v;
+            QUEUEput( a->w);
+         }
+   }
+}
+\end{lstlisting}
+  \fonte{código-fonte e variantes em \cite{feofiloff2020algoritmos}, cap.\ \emph{Busca em largura};
+  implementação em C em \cite{sedgewick2002algorithms}, cap.~18;
+  pseudocódigo \textsc{BFS} em \cite{cormen2009introduction}, §22.2.}
+\end{frame}
+
+\begin{frame}[fragile]{O erro clássico: marcar na saída da fila}
+\begin{lstlisting}
+/* ERRADO: marca w so quando ele SAI da fila */
+while (!QUEUEempty()) {
+   vertex v = QUEUEget();
+   if (dist[v] != -1) continue;       /* ja visitado: descarta */
+   /* ... calcula dist[v] aqui ... */
+   for (link a = G->adj[v]; a != NULL; a = a->next)
+      QUEUEput( a->w);                /* insere SEM checar */
+}
+\end{lstlisting}
+  \begin{block}{Por que evitar}
+    {\scriptsize O algoritmo continua correto, mas um mesmo vértice pode entrar
+    na fila uma vez por arco que chega nele. A fila cresce até $\Theta(A)$ em
+    vez de $\Theta(V)$, e o vetor \texttt{dist[]} precisa ser recalculado com
+    cuidado na saída. \textbf{Regra:} marque no momento da inserção.}
+  \end{block}
+  \fonte{a mesma distinção aparece em \cite{sedgewick2011algorithms}, §4.1, na
+  comparação entre BFS e Dijkstra.}
+\end{frame}
+
+\begin{frame}{Por que \texttt{dist[]} é mínima}
+  \begin{block}{Afirmação}
+    {\small Ao final de \texttt{GRAPHbfs(G, s)}, para todo vértice $v$,
+    \texttt{dist[v]} é o menor número de arcos de um caminho de $s$ a $v$
+    (ou $-1$, se não há caminho).}
+  \end{block}
+  {\scriptsize \emph{Esboço.} Dois fatos sustentam a prova.
+  \textbf{(i)} Os valores retirados da fila são não decrescentes, e a fila nunca
+  contém ao mesmo tempo valores que difiram por mais de 1 --- quem entra recebe
+  \texttt{dist[v]+1} com $v$ na frente da fila. Logo a busca expande a camada $k$
+  inteira antes de qualquer vértice da camada $k+1$.
+  \textbf{(ii)} Por indução em $k$: se todos os vértices a distância $k$ recebem
+  \texttt{dist} $=k$, então todo vértice a distância $k+1$ é vizinho de algum
+  deles, ainda não estava marcado quando essa camada foi expandida (senão sua
+  distância seria $\le k$) e portanto recebe $k+1$.}
+  \fonte{prova completa (teorema 22.5 e lema 22.3) em
+  \cite{cormen2009introduction}, §22.2.}
+\end{frame}
+
+\begin{frame}{Quanto custa a busca}
+  \begin{center}
+  {\small
+  \begin{tabular}{lll}
+    \toprule
+    & \textbf{Matriz de adjacências} & \textbf{Listas de adjacência} \\
+    \midrule
+    Inicializar os vetores       & $\Theta(V)$   & $\Theta(V)$ \\
+    Examinar os vizinhos de $v$  & $\Theta(V)$   & $\Theta(\text{grau de saída de } v)$ \\
+    \textbf{Total}               & $\Theta(V^2)$ & $\Theta(V + A)$ \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  \medskip
+  {\small
+  \begin{itemize}\small
+    \item Mesmo custo da DFS, pela mesma razão: cada vértice entra na fila no
+          máximo uma vez, cada arco é examinado no máximo uma vez.
+    \item Espaço extra $\Theta(V)$: os vetores \texttt{dist[]} e \texttt{pai[]}
+          mais a fila. A fila é a única diferença de espaço --- e ela pode
+          conter até $V$ vértices (uma camada inteira).
+    \item \texttt{QUEUEput}/\texttt{QUEUEget} em tempo constante: fila
+          circular sobre um vetor de $V$ posições.
+  \end{itemize}}
+  \fonte{análise por agregação em \cite{cormen2009introduction}, §22.2;
+  esparsidade em \cite{levitin2012introduction}, §3.5.}
+\end{frame}
+
+\begin{frame}{O que a BFS resolve --- e o que não resolve}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Resolve}
+
+      \medskip
+      {\scriptsize
+      \begin{itemize}\scriptsize
+        \item caminho com o \emph{menor número de arcos};
+        \item vértices a exatamente $k$ arcos da raiz;
+        \item alcançabilidade e componentes (varrendo $0..V-1$);
+        \item o diâmetro de um grafo pequeno (uma BFS por vértice).
+      \end{itemize}}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Não resolve}
+
+      \medskip
+      {\scriptsize
+      \begin{itemize}\scriptsize
+        \item caminho de \emph{menor custo} quando os arcos têm
+              \textbf{pesos} distintos --- a fila trata todo arco como
+              custo 1; isso será o algoritmo de Dijkstra, na Unidade 3;
+        \item nada que dependa de pós-ordem (classificação de arcos,
+              componentes fortes): ali a DFS é insubstituível.
+      \end{itemize}}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize \textbf{Regra prática:} pergunta sobre \emph{distância} pede
+  fila; pergunta sobre \emph{estrutura} (ciclos, ordem, componentes) pede pilha.}
+  \fonte{BFS como caso particular de Dijkstra com pesos unitários em
+  \cite{cormen2009introduction}, §24.3; \cite{sedgewick2011algorithms}, §4.4.}
+\end{frame}
+
+% =====================================================================
+\section{Grafos acíclicos e ordenação topológica}
+
+\begin{frame}{Um problema que não é de distância}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.95, every node/.style={transform shape}]
+    \node[disc] (d0) at (0,1.1)   {0: \texttt{grafo.h}};
+    \node[disc] (d1) at (2.6,1.1) {1: \texttt{grafo.c}};
+    \node[disc] (d2) at (0,0)     {2: \texttt{fila.c}};
+    \node[disc] (d3) at (2.6,0)   {3: \texttt{bfs.c}};
+    \node[disc] (d4) at (5.2,1.1) {4: \texttt{topo.c}};
+    \node[disc] (d5) at (5.2,0)   {5: \texttt{main.c}};
+    \draw[arc] (d0) -- (d1);
+    \draw[arc] (d1) -- (d3);
+    \draw[arc] (d2) -- (d3);
+    \draw[arc] (d3) -- (d4);
+    \draw[arc] (d4) -- (d5);
+    \draw[arc] (d2) to[bend right=24] (d5);
+  \end{tikzpicture}
+  \end{center}
+  {\small Cada arco $v \to w$ significa ``$v$ precisa estar pronto antes de $w$''.}
+  \medskip
+  {\scriptsize \textbf{A pergunta:} em que ordem escrever os seis módulos deste
+  projeto, um de cada vez, sem nunca começar um antes de tudo de que ele depende?
+  \texttt{bfs.c} usa a lista de adjacência (\texttt{grafo.c}) e a fila
+  (\texttt{fila.c}); \texttt{topo.c} reaproveita a varredura de \texttt{bfs.c};
+  \texttt{main.c} só liga quando os demais existem. Não é distância, não é
+  alcançabilidade --- é uma questão de \emph{ordem compatível com os arcos}. O
+  mesmo problema aparece no \texttt{make}, em gerenciadores de pacotes, em
+  planilhas (células dependentes) e no escalonamento de tarefas.}
+  \fonte{ordenação topológica e suas aplicações em
+  \cite{feofiloff2020algoritmos}, cap.\ \emph{Ordenação topológica};
+  \cite{cormen2009introduction}, §22.4.}
+\end{frame}
+
+\begin{frame}{DAG e ordenação topológica}
+  \begin{block}{Definições}
+    {\small Um \textbf{DAG} (\emph{directed acyclic graph}) é um grafo dirigido
+    sem ciclos. Uma \textbf{ordenação topológica} de um grafo dirigido é uma
+    permutação $v_1, v_2, \ldots, v_V$ de seus vértices tal que
+    \emph{todo} arco do grafo vai de um vértice para outro \textbf{mais à
+    direita} na sequência: se $v_i \to v_j$ é arco, então $i < j$.}
+  \end{block}
+  \begin{exampleblock}{Teorema (existência)}
+    {\small Um grafo dirigido admite ordenação topológica
+    \textbf{se e somente se} é um DAG.}
+  \end{exampleblock}
+  {\scriptsize \emph{Ida:} se houvesse um ciclo $u_1 \to \cdots \to u_k \to u_1$,
+  algum arco do ciclo teria que apontar para a esquerda na sequência.
+  \emph{Volta:} os dois algoritmos a seguir \emph{constroem} a ordenação de
+  qualquer DAG --- a prova é o próprio algoritmo.}
+  \fonte{definição de DAG e de ordenação topológica em \cite{feofiloff2020algoritmos}, cap.\ \emph{Ordenação topológica};
+  \cite{cormen2009introduction}, §22.4 (lema 22.11 e teorema 22.12);
+  \cite{knuth1997art}, §2.2.3; \cite{levitin2012introduction}, §4.2.}
+\end{frame}
+
+% =====================================================================
+\section{Kahn: graus de entrada e uma fila}
+
+\begin{frame}{A ideia de Kahn}
+  \begin{block}{O algoritmo em três regras}
+    {\small
+    \begin{enumerate}\small
+      \item Calcule o \textbf{grau de entrada} \texttt{indeg[v]} de cada
+            vértice: quantos arcos chegam nele.
+      \item Enfileire todos os vértices com \texttt{indeg} igual a 0 --- eles
+            não dependem de ninguém e podem vir primeiro.
+      \item Retire um vértice $v$ da fila, escreva-o na saída e, para cada
+            vizinho $w$, decremente \texttt{indeg[w]}; se chegar a 0,
+            enfileire $w$.
+    \end{enumerate}}
+  \end{block}
+  {\scriptsize Decrementar \texttt{indeg[w]} é dizer ``mais uma dependência de
+  $w$ ficou pronta''. Quando o contador zera, $w$ está liberado. É a BFS com
+  uma condição de entrada mais forte: o vértice entra na fila quando
+  \emph{todos} os seus predecessores já saíram, não ao ser visto pela primeira vez.}
+  \fonte{algoritmo original em \cite{kahn1962topological}, pp.~558--562; o mesmo método pela
+  remoção de fontes em \cite{levitin2012introduction}, §4.2; \cite{feofiloff2020algoritmos}, cap.\ \emph{Ordenação topológica}.}
+\end{frame}
+
+\begin{frame}{Kahn passo a passo --- primeira metade}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.62, every node/.style={transform shape}]
+    \foreach \dx/\tit/\prontos/\graus/\fila/\saida in {%
+        0/{início}/{}/{0,1,0,2,1,2}/{0,2}/{},
+        6.0/{sai 0}/{0}/{0,0,0,2,1,2}/{2,1}/{0},
+        12.0/{sai 2}/{0,2}/{0,0,0,1,1,1}/{1}/{0,2}} {
+      \begin{scope}[xshift=\dx cm]
+        \draw[gray!30, rounded corners] (-1.1,-2.6) rectangle (4.7,2.2);
+        \node at (1.8,1.85) {\small \tit};
+        \node[vtx] (e0) at (0,1.0)   {0};
+        \node[vtx] (e1) at (1.8,1.0) {1};
+        \node[vtx] (e2) at (0,0)     {2};
+        \node[vtx] (e3) at (1.8,0)   {3};
+        \node[vtx] (e4) at (3.6,1.0) {4};
+        \node[vtx] (e5) at (3.6,0)   {5};
+        \draw[arcgray] (e0) -- (e1);
+        \draw[arcgray] (e1) -- (e3);
+        \draw[arcgray] (e2) -- (e3);
+        \draw[arcgray] (e3) -- (e4);
+        \draw[arcgray] (e4) -- (e5);
+        \draw[arcgray] (e2) to[bend right=22] (e5);
+        \foreach \m in \prontos { \node[vtxdone] at (e\m) {\m}; }
+        \node[font=\tiny] at (-0.35,-1.1) {\texttt{indeg}:};
+        \foreach [count=\j from 0] \g in \graus {
+          \node[qcell] at ({0.75+0.5*\j},-1.1) {\g};
+        }
+        \node[font=\tiny] at (-0.45,-1.8) {fila:};
+        \foreach [count=\j from 0] \q in \fila {
+          \node[qcell] at ({0.35+0.5*\j},-1.8) {\q};
+        }
+        \node[font=\tiny] at (-0.4,-2.3) {saída:};
+        \foreach [count=\j from 0] \o in \saida {
+          \node[qcell, fill=green!12] at ({0.45+0.5*\j},-2.3) {\o};
+        }
+      \end{scope}
+    }
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize O vetor \texttt{indeg} é mostrado na ordem $0..5$. No início
+  apenas 0 (\texttt{grafo.h}) e 2 (\texttt{fila.c}) têm grau de entrada zero.
+  Ao sair 0, o grau de 1 zera e ele entra na fila \emph{atrás} de 2.}
+  \fonte{\cite{kahn1962topological}, pp.~558--562; a mesma simulação, pelo método de
+  remoção de fontes, em \cite{levitin2012introduction}, §4.2.}
+\end{frame}
+
+\begin{frame}{Kahn passo a passo --- segunda metade}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.62, every node/.style={transform shape}]
+    \foreach \dx/\tit/\prontos/\graus/\fila/\saida in {%
+        0/{sai 1}/{0,2,1}/{0,0,0,0,1,1}/{3}/{0,2,1},
+        6.0/{sai 3}/{0,2,1,3}/{0,0,0,0,0,1}/{4}/{0,2,1,3},
+        12.0/{saem 4 e 5}/{0,2,1,3,4,5}/{0,0,0,0,0,0}/{}/{0,2,1,3,4,5}} {
+      \begin{scope}[xshift=\dx cm]
+        \draw[gray!30, rounded corners] (-1.1,-2.6) rectangle (4.7,2.2);
+        \node at (1.8,1.85) {\small \tit};
+        \node[vtx] (f0) at (0,1.0)   {0};
+        \node[vtx] (f1) at (1.8,1.0) {1};
+        \node[vtx] (f2) at (0,0)     {2};
+        \node[vtx] (f3) at (1.8,0)   {3};
+        \node[vtx] (f4) at (3.6,1.0) {4};
+        \node[vtx] (f5) at (3.6,0)   {5};
+        \draw[arcgray] (f0) -- (f1);
+        \draw[arcgray] (f1) -- (f3);
+        \draw[arcgray] (f2) -- (f3);
+        \draw[arcgray] (f3) -- (f4);
+        \draw[arcgray] (f4) -- (f5);
+        \draw[arcgray] (f2) to[bend right=22] (f5);
+        \foreach \m in \prontos { \node[vtxdone] at (f\m) {\m}; }
+        \node[font=\tiny] at (-0.35,-1.1) {\texttt{indeg}:};
+        \foreach [count=\j from 0] \g in \graus {
+          \node[qcell] at ({0.75+0.5*\j},-1.1) {\g};
+        }
+        \node[font=\tiny] at (-0.45,-1.8) {fila:};
+        \foreach [count=\j from 0] \q in \fila {
+          \node[qcell] at ({0.35+0.5*\j},-1.8) {\q};
+        }
+        \node[font=\tiny] at (-0.4,-2.3) {saída:};
+        \foreach [count=\j from 0] \o in \saida {
+          \node[qcell, fill=green!12] at ({0.45+0.5*\j},-2.3) {\o};
+        }
+      \end{scope}
+    }
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize \textbf{Ordenação obtida:} $0, 2, 1, 3, 4, 5$ ---
+  \texttt{grafo.h}, \texttt{fila.c}, \texttt{grafo.c}, \texttt{bfs.c},
+  \texttt{topo.c}, \texttt{main.c}. Saíram 6 vértices
+  $= V$: o grafo é um DAG. Confira nos arcos: nenhum aponta para a esquerda.}
+  \fonte{\cite{kahn1962topological}, pp.~558--562; definição de ordenação topológica em
+  \cite{cormen2009introduction}, §22.4.}
+\end{frame}
+
+\begin{frame}[fragile]{Kahn em C}
+\begin{lstlisting}
+/* Escreve em ord[] uma ordenacao topologica; devolve 0 se G tem ciclo. */
+int GRAPHtopoKahn( Graph G, vertex ord[]) {
+   int indeg[maxV] = {0}, k = 0;
+   for (vertex v = 0; v < G->V; ++v)          /* graus de entrada */
+      for (link a = G->adj[v]; a != NULL; a = a->next) ++indeg[a->w];
+   QUEUEinit( G->V);
+   for (vertex v = 0; v < G->V; ++v) if (indeg[v] == 0) QUEUEput( v);
+   while (!QUEUEempty()) {
+      vertex v = QUEUEget();
+      ord[k++] = v;                           /* v entra na saida */
+      for (link a = G->adj[v]; a != NULL; a = a->next)
+         if (--indeg[a->w] == 0) QUEUEput( a->w);
+   }
+   return k == G->V;                          /* k < V  =>  ha ciclo */
+}
+\end{lstlisting}
+  \fonte{\cite{feofiloff2020algoritmos}, cap.\ \emph{Ordenação topológica}; implementação equivalente em
+  \cite{sedgewick2011algorithms}, §4.2; \cite{ziviani2011projeto}, §7.3.}
+\end{frame}
+
+\begin{frame}{O ciclo aparece de graça}
+  \begin{columns}[T]
+    \begin{column}{0.40\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.78, every node/.style={transform shape}]
+        \node[vtx] (g0) at (0,1.0)   {0};
+        \node[vtx] (g1) at (1.7,1.0) {1};
+        \node[vtx] (g2) at (0,0)     {2};
+        \node[vtx] (g3) at (1.7,0)   {3};
+        \node[vtx] (g4) at (3.4,1.0) {4};
+        \node[vtx] (g5) at (3.4,0)   {5};
+        \draw[arcgray] (g0) -- (g1);
+        \draw[arc, red!70!black] (g1) -- (g3);
+        \draw[arcgray] (g2) -- (g3);
+        \draw[arc, red!70!black] (g3) -- (g4);
+        \draw[arcgray] (g4) -- (g5);
+        \draw[arcgray] (g2) to[bend right=22] (g5);
+        \draw[arc, red!70!black] (g4) to[bend left=28] (g1);
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Acrescente $4 \to 1$: \texttt{grafo.c} passa a chamar uma
+      função declarada em \texttt{topo.c}.}
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      {\small
+      \begin{itemize}\scriptsize
+        \item Graus de entrada: $1$ e $3$ e $4$ nunca zeram --- cada um espera
+              por outro do ciclo.
+        \item A fila esvazia com apenas $0$ e $2$ na saída: $k = 2 < 6 = V$.
+        \item \textbf{Os vértices que sobraram} (\texttt{indeg[v]} $> 0$) são
+              exatamente os que alcançam e são alcançados por um ciclo.
+      \end{itemize}}
+      \begin{block}{Consequência prática}
+        {\scriptsize O mesmo código responde duas perguntas: ``qual é uma ordem
+        válida?'' e ``existe dependência circular?''. É assim que
+        \texttt{make} e gerenciadores de pacotes detectam ciclos.}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{detecção de ciclo por contagem da saída em \cite{kahn1962topological}, pp.~558--562;
+  por arco de retorno na DFS em \cite{cormen2009introduction}, §22.4
+  (lema 22.11).}
+\end{frame}
+
+% =====================================================================
+\section{A outra via: pós-ordem da DFS}
+
+\begin{frame}{Pós-ordem invertida}
+  \begin{block}{A ideia}
+    {\small Rode a varredura DFS. Quando a chamada \texttt{dfsR(v)} está
+    \emph{terminando}, todos os vértices alcançáveis a partir de $v$ já foram
+    processados --- logo $v$ deve vir \textbf{antes} de todos eles. Empilhe os
+    vértices em pós-ordem e leia a pilha de trás para frente.}
+  \end{block}
+  \medskip
+  {\small No DAG dos módulos, a varredura a partir de 0 termina os
+  vértices na ordem}
+  \begin{center}\ttfamily\small
+  pós-ordem: 5\ \ 4\ \ 3\ \ 1\ \ 0\ \ 2
+  \end{center}
+  {\small e a ordem inversa é}
+  \begin{center}\ttfamily\small
+  2\ \ 0\ \ 1\ \ 3\ \ 4\ \ 5
+  \end{center}
+  {\scriptsize Também é uma ordenação topológica válida --- e \emph{diferente}
+  da que Kahn produziu ($0,2,1,3,4,5$). Um DAG pode ter muitas ordenações
+  topológicas.}
+  \fonte{\textsc{Topological-Sort} por pós-ordem em
+  \cite{cormen2009introduction}, §22.4 (teorema 22.12); \cite{feofiloff2020algoritmos}, cap.\ \emph{Ordenação topológica};
+  \cite{sedgewick2011algorithms}, §4.2; \cite{levitin2012introduction}, §4.2.}
+\end{frame}
+
+\begin{frame}[fragile]{Ordenação topológica via DFS, em C}
+\begin{lstlisting}
+static int cnt2;        /* ultima vaga livre de ord[], do fim ao inicio */
+static void dfsRtopo( Graph G, vertex v, vertex ord[]) {
+   pre[v] = 0;                                    /* marca v */
+   for (link a = G->adj[v]; a != NULL; a = a->next)
+      if (pre[a->w] == -1) dfsRtopo( G, a->w, ord);
+   ord[--cnt2] = v;            /* POS-ordem: v ocupa a ultima vaga */
+}
+
+void GRAPHtopoDfs( Graph G, vertex ord[]) {
+   for (vertex v = 0; v < G->V; ++v) pre[v] = -1;
+   cnt2 = G->V;
+   for (vertex v = 0; v < G->V; ++v)
+      if (pre[v] == -1) dfsRtopo( G, v, ord);
+}
+\end{lstlisting}
+  {\scriptsize Escrever em \texttt{ord[--cnt2]} \emph{é} inverter a pós-ordem.
+  O código \textbf{supõe} que $G$ é um DAG.}
+  \fonte{\textsc{Topological-Sort} em \cite{cormen2009introduction}, §22.4;
+  código em C em \cite{feofiloff2020algoritmos}, cap.\ \emph{Ordenação topológica}.}
+\end{frame}
+
+\begin{frame}{As duas vias, lado a lado}
+  \begin{center}
+  {\scriptsize
+  \begin{tabular}{lll}
+    \toprule
+     & \textbf{Kahn (fila)} & \textbf{DFS (pós-ordem)} \\
+    \midrule
+    Estrutura auxiliar   & fila $+$ vetor \texttt{indeg}  & pilha de recursão \\
+    Pré-processamento    & calcular \texttt{indeg}: $\Theta(V+A)$ & nenhum \\
+    Custo total          & $\Theta(V+A)$                  & $\Theta(V+A)$ \\
+    Espaço extra         & $\Theta(V)$                    & $\Theta(V)$ (pilha) \\
+    Detecta ciclo        & sim, contando a saída          & sim, mas exige
+                                                            classificar arcos \\
+    Ordem no exemplo     & $0,2,1,3,4,5$                  & $2,0,1,3,4,5$ \\
+    Boa quando           & escalonamento com níveis        & a DFS já está no código \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  \medskip
+  {\scriptsize \textbf{Um detalhe útil:} Kahn permite escolher \emph{qual}
+  vértice de grau zero sai primeiro. Trocando a fila por uma fila de
+  prioridades obtém-se a ordenação topológica lexicograficamente menor; e o
+  conjunto de vértices que estão na fila ao mesmo tempo é um conjunto de
+  tarefas que poderiam rodar \emph{em paralelo}.}
+  \fonte{comparação dos dois métodos em \cite{levitin2012introduction}, §4.2, e
+  \cite{sedgewick2011algorithms}, §4.2; custos em
+  \cite{cormen2009introduction}, §22.4; \cite{kahn1962topological}, pp.~558--562.}
+\end{frame}
+
+% =====================================================================
+\section{Fechamento}
+
+\begin{frame}{Para praticar}
+  \begin{block}{Exercícios}
+    {\small
+    \begin{enumerate}\scriptsize
+      \item Implemente a fila circular sobre um vetor de $V$ posições.
+      \item Escreva \texttt{GRAPHshortestPath(G, s, t)}: imprime um caminho
+            mínimo de $s$ a $t$ usando \texttt{pai[]}, ou avisa que não existe.
+      \item Adapte \texttt{GRAPHbfs()} para a matriz de adjacências e confirme
+            que \texttt{dist[]} não muda.
+      \item Faça \texttt{GRAPHtopoKahn()} devolver também os vértices
+            envolvidos em algum ciclo.
+      \item Num DAG de dependências, calcule o número mínimo de rodadas de
+            compilação paralela.
+      \item Exiba um DAG com $V = 4$ e exatamente 3 ordenações topológicas.
+    \end{enumerate}}
+  \end{block}
+  {\scriptsize O tutorial em Jupyter traz esqueletos em C para os itens 1, 2, 4 e 5.}
+  \fonte{exercícios sobre BFS e ordenação topológica em \cite{feofiloff2020algoritmos}, cap.\ \emph{Busca em largura} e
+  cap.\ \emph{Ordenação topológica}; \cite{cormen2009introduction},
+  §22.2--22.4; \cite{ziviani2011projeto}, §7.3.}
+\end{frame}
+
+\begin{frame}{Recapitulando a aula}
+  \begin{block}{As cinco ideias centrais}
+    \begin{itemize}\scriptsize
+      \item Trocar a pilha por uma \textbf{fila} muda a busca: mesmo código,
+            camadas em vez de mergulho.
+      \item Marque o vértice \emph{ao enfileirar}: \texttt{dist[]} sai mínima e
+            a fila nunca passa de $V$ elementos.
+      \item Custo $\Theta(V+A)$ com listas --- o mesmo da DFS.
+      \item Uma \textbf{ordenação topológica} existe se e somente se o grafo é
+            um DAG; um DAG pode ter várias.
+      \item Kahn e a pós-ordem invertida da DFS resolvem o mesmo problema em
+            $\Theta(V+A)$, e ambos denunciam ciclos.
+    \end{itemize}
+  \end{block}
+  {\scriptsize \textbf{Próxima aula:} revisão da Unidade 1 --- corretude, força
+  bruta, geração combinatória e grafos --- para a prova de 29/09.}
+  \fonte{BFS em \cite{feofiloff2020algoritmos}, cap.\ \emph{Busca em largura} e \cite{cormen2009introduction}, §22.2;
+  ordenação topológica em cap.\ \emph{Ordenação topológica}, \cite{kahn1962topological}, pp.~558--562 e
+  \cite{cormen2009introduction}, §22.4.}
+\end{frame}
+
+\begin{frame}{Roteiro de leitura}
+  \begin{center}
+  {\scriptsize
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Conceito} & \textbf{Onde ler} \\
+    \midrule
+    A ideia da BFS e o código em C     & \cite{feofiloff2020algoritmos}; \cite{sedgewick2002algorithms}, cap.~18 \\
+    Camadas, \texttt{dist[]} e corretude & \cite{cormen2009introduction}, §22.2 (lema 22.3, teor.~22.5) \\
+    Pilha \emph{vs.} fila              & \cite{sedgewick2011algorithms}, §4.1; \cite{levitin2012introduction}, §3.5 \\
+    Custo $\Theta(V+A)$                & \cite{cormen2009introduction}, §22.2 \\
+    BFS e pesos: o que falta           & \cite{cormen2009introduction}, §24.3; \cite{sedgewick2011algorithms}, §4.4 \\
+    DAG e existência da ordenação      & \cite{cormen2009introduction}, §22.4; \cite{knuth1997art}, §2.2.3 \\
+    Algoritmo de Kahn                  & \cite{kahn1962topological}; \cite{sedgewick2011algorithms}, §4.2 \\
+    Ordenação por pós-ordem da DFS     & \cite{feofiloff2020algoritmos}; \cite{cormen2009introduction}, §22.4 \\
+    Implementações e exercícios        & \cite{ziviani2011projeto}, §7.3 \\
+    \bottomrule
+  \end{tabular}}
+  \end{center}
+  {\scriptsize Leitura mínima da aula: \cite{feofiloff2020algoritmos},
+  capítulos \emph{Busca em largura} e \emph{Ordenação topológica}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \scriptsize
+  \nocite{*}
+  \bibliographystyle{apalike}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

@@ -100,4 +100,13 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-10-busca-em-largura-e-ordenacao-topologica' | relative_url }}">
+    <div class="week-num">10</div>
+    <div class="week-body">
+      <div class="week-title">Busca em largura e ordenação topológica</div>
+      <div class="week-desc">Da pilha à fila: BFS, distâncias e caminhos mínimos em número de arcos; grafos acíclicos, ordenação topológica por graus de entrada (Kahn) e pela pós-ordem da DFS.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
 </div>
