@@ -1,0 +1,868 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{makeStyle}{
+  style=ufsStyle, language=make, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  mod/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+    minimum width=2.6cm, minimum height=0.85cm, font=\small\ttfamily,
+    align=center},
+  modh/.style={rectangle, draw=UFSYellow!80!black, fill=UFSYellow!20,
+    rounded corners, minimum width=2.2cm, minimum height=0.7cm,
+    font=\small\ttfamily, align=center},
+  modr/.style={rectangle, draw=UFSRed, fill=UFSRed!8, rounded corners,
+    minimum width=2.6cm, minimum height=0.85cm, font=\small\ttfamily,
+    align=center},
+  obj/.style={rectangle, draw=UFSGray, fill=black!5, minimum width=1.6cm,
+    minimum height=0.7cm, font=\small\ttfamily},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={->, thick, UFSBlue},
+  setar/.style={->, thick, UFSRed},
+  setag/.style={->, thick, UFSGray},
+  caixa/.style={rectangle, draw=UFSGray, rounded corners, fill=black!3,
+    font=\scriptsize, align=center, inner sep=4pt},
+}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{#1}}}
+
+% --- Metadados ---
+\title{Padrões de codificação}
+\subtitle{E a prática de modularizar seguindo um padrão}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10.4cm, minimum height=0.72cm, font=\small}
+  ]
+    \node[item] (t1) at (0, 0)    {Por que uma equipe adota um padrão de codificação};
+    \node[item] (t2) at (0,-0.95) {Nomes e formatação: o que o padrão fixa};
+    \node[item] (t3) at (0,-1.90) {Comentários que valem o espaço que ocupam};
+    \node[item] (t4) at (0,-2.85) {\texttt{static}, \texttt{const}, constantes com nome, \texttt{-Werror}};
+    \node[item] (t5) at (0,-3.80) {Aplicar tudo isso ao módulo que vamos encaixar no projeto};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{O problema: um exemplo de código ruim que funciona}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Onde estamos}\\[0.3em]
+      Na aula passada o \texttt{notas.c} virou quatro arquivos:
+      \texttt{matriz}, \texttt{estat}, \texttt{turma} e o \texttt{main}.
+
+      \medskip
+      Hoje um colega manda o \texttt{ranking.c}: classifica os alunos pela
+      média. Ele jura que funciona --- e funciona.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que vamos descobrir}\\[0.3em]
+      \textcolor{UFSRed}{Não tem \texttt{.h}:} para chamá-lo, o \texttt{main.c}
+      copiou as assinaturas na mão.
+
+      \medskip
+      \textcolor{UFSRed}{Guarda estado em variáveis globais.}
+
+      \medskip
+      \textcolor{UFSRed}{Ninguém consegue ler} sem parar para decifrar.
+    \end{column}
+  \end{columns}
+  \begin{block}{A pergunta de hoje}
+    O que separa um código que \emph{funciona} de um código que a turma toda
+    consegue manter?
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Um exemplo de código ruim}
+% ==================================================================
+
+\begin{frame}[fragile]{Exemplo de código ruim: o estado}
+\begin{lstlisting}[style=tinyC]
+double R[50];
+int Q[50];
+int N;
+
+void troca(int a,int b){int t=Q[a];Q[a]=Q[b];Q[b]=t;}
+
+int maior(double x,double y){ return x>y; }
+\end{lstlisting}
+  \begin{block}{}
+    \small Três variáveis globais e duas funções auxiliares que qualquer
+    outro arquivo do projeto enxerga.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Exemplo de código ruim: o cálculo}
+\begin{lstlisting}[style=tinyC]
+void calcula(Turma *t, int flag)
+{
+  double tmp;
+  N = t->nalunos;
+  for(int i=0;i<N;i++){
+  R[i]=media(t->notas[i],t->navaliacoes);
+    Q[i]=i;                 /* guarda o indice i em Q[i] */
+  }
+	for(int i=0;i<N;i++)
+		for(int j=0;j<N-1;j++)
+			if(maior(R[Q[j+1]],R[Q[j]])) troca(j,j+1);
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{...e como o \texttt{main.c} conseguiu chamá-lo}
+\begin{lstlisting}[style=tinyC]
+void mostra()
+{
+    printf("%-5s %-8s %8s %s\n","pos","aluno","media","situacao");
+  for(int i=0;i<N;i++){
+    printf("%-5d %-8d %8.2f %s\n", i+1, Q[i], R[Q[i]],
+           R[Q[i]]>=7.0?"aprovado":"reprovado");
+  }
+}
+\end{lstlisting}
+\begin{lstlisting}[style=tinyC]
+/* no main.c: o ranking nao tem header,
+   copiei as assinaturas na mao */
+void calcula(Turma *t, int flag);
+void mostra();
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O que vai acontecer?}
+  \begin{block}{Antes de rodar, decida}
+    \begin{enumerate}
+      \item O projeto compila com \texttt{-Wall -Wextra}? Com quantos avisos?
+      \item A saída do ranking sai certa para os três alunos do
+        \texttt{main.c}?
+      \item E se a turma tiver 60 alunos em vez de 3 --- o que acontece?
+      \item Amanhã o \texttt{turma.c} ganha uma função chamada
+        \texttt{troca}. O que acontece na ligação?
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{}
+    Anote suas quatro respostas antes de executar \texttt{make}.
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{O que aconteceu}
+\begin{lstlisting}[style=shellStyle]
+$ make
+ranking.c:16:10: warning: unused variable 'tmp' [-Wunused-variable]
+ranking.c:14:28: warning: unused parameter 'flag' [-Wunused-parameter]
+$ ./notas
+pos   aluno       media situacao
+1     2            9.25 aprovado
+2     0            7.62 aprovado
+3     1            5.75 reprovado
+\end{lstlisting}
+  \begin{block}{}
+    \small Perguntas 1 e 2 respondidas: compila com dois avisos, roda e
+    acerta. As perguntas 3 e 4 a execução não mostrou --- e são as que
+    interessam.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Pergunta 3: o limite que ninguém escreveu}
+  \begin{center}
+  \begin{tikzpicture}[scale=1]
+    \draw[fill=UFSBlue!10, draw=UFSBlue] (0,0) rectangle (5.6,0.65);
+    \node[font=\scriptsize\ttfamily] at (2.8,0.32) {R[0] ... R[49]};
+    \draw[fill=black!4, draw=UFSGray, dashed] (5.6,0) rectangle (8.6,0.65);
+    \node[font=\scriptsize] at (7.1,0.32) {o que vier depois};
+    \draw[setar] (6.6,1.35) -- (6.6,0.7);
+    \node[leg, align=center] at (6.6,1.62)
+      {a turma de 60 escreve \texttt{R[50]} ... \texttt{R[59]} aqui};
+  \end{tikzpicture}
+  \end{center}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small \textcolor{UFSRed}{\textbf{Em uma máquina}} depois de
+      \texttt{R} vinha \texttt{Q}: os índices dos alunos viram lixo e as
+      últimas colocações saem com média \texttt{0.00}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \small \textcolor{UFSRed}{\textbf{Em outra}} depois de \texttt{R}
+      vinha \texttt{N}: a contagem vira 50 e o programa imprime 50 linhas
+      para uma turma de 60.
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Não existe ``o que acontece'': existe comportamento indefinido.
+    O programa não quebrou --- ele mentiu, e mentiu diferente em cada
+    máquina. É o desfecho normal quando um limite fica implícito num número
+    solto.
+  \end{block}
+  \fonte{ISO/IEC 9899:2018, §J.2 (comportamento indefinido)}
+\end{frame}
+
+\begin{frame}[fragile]{Pergunta 4: dois \texttt{troca} no mesmo programa}
+\begin{lstlisting}[style=shellStyle]
+$ gcc main.o turma.o matriz.o estat.o ranking.o outro.o -o notas
+duplicate symbol '_troca' in: outro.o / ranking.o
+ld: 1 duplicate symbols          # no Linux: "multiple definition of 'troca'"
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small \textbf{O que aconteceu}\\
+      Nada está errado no \texttt{outro.c}: ele só precisou de uma função
+      \texttt{troca}. Quem reservou um nome comum para o projeto inteiro foi
+      o \texttt{ranking.c}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \small \textbf{O custo}\\
+      O erro aparece na \emph{ligação}, longe do arquivo que o causou, e
+      recai sobre quem chegou depois. Quanto maior o projeto, mais caro.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §6.2.2 (ligação externa e interna)}
+\end{frame}
+
+\begin{frame}{Funciona não é o mesmo que está pronto}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \textbf{Quem lê esse código depois}\\[0.3em]
+      Você daqui a três meses. O colega de equipe. Quem for consertar o bug
+      às onze da noite.
+
+      \medskip
+      Um trecho é escrito uma vez e lido dezenas --- o tempo de leitura é o
+      custo que importa.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{O que um padrão de codificação é}\\[0.3em]
+      Um conjunto de decisões tomadas \emph{uma vez}, por escrito, para não
+      serem rediscutidas a cada arquivo: nomes, formatação, comentários,
+      organização dos arquivos.
+
+      \medskip
+      Não é gosto pessoal: é acordo.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Pike (1999), \emph{The Practice of Programming}, cap.~1}
+\end{frame}
+
+% ==================================================================
+\section{Nomes}
+% ==================================================================
+
+\begin{frame}{Nomes dizem o que a coisa é}
+  \begin{center}
+  \small
+  \begin{tabular}{l l l}
+    \toprule
+    \textbf{No código ruim} & \textbf{O que é de verdade} &
+      \textbf{Nome} \\
+    \midrule
+    \texttt{R[i]} & média do aluno \texttt{i} & \texttt{media\_aluno[i]} \\
+    \texttt{Q[i]} & quem está na $i$-ésima colocação & \texttt{posicao[i]} \\
+    \texttt{N} & quantos alunos entraram no ranking & \texttt{quantidade} \\
+    \texttt{calcula} & calcula \emph{o quê}? & \texttt{ranking\_calcula} \\
+    \texttt{mostra} & mostra \emph{o quê}? & \texttt{ranking\_imprime} \\
+    \texttt{flag} & nada: ninguém usa & --- \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{}
+    \small Na Tarefa 2, quando o estado sai das globais e passa a viver numa
+    \texttt{struct}, \texttt{ranking\_calcula} vira \texttt{ranking\_cria}:
+    aí a função passa mesmo a \emph{criar} alguma coisa.
+  \end{block}
+  \fonte{Kernighan \& Pike (1999), §1.1 ``Names''; McConnell (2004), cap.~11}
+\end{frame}
+
+\begin{frame}{A regra do escopo, e o prefixo do módulo}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Escopo curto, nome curto}\\[0.3em]
+      \texttt{i}, \texttt{j}, \texttt{n} em um laço de três linhas estão
+      certos --- todo mundo lê sem esforço.
+
+      \medskip
+      \textbf{Escopo longo, nome descritivo}\\[0.3em]
+      O que é global, ou faz parte da interface, paga por um nome inteiro.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Prefixo de módulo}\\[0.3em]
+      O projeto já tem a convenção:\\[0.3em]
+      \texttt{turma\_cria}, \texttt{turma\_libera},
+      \texttt{turma\_relatorio}
+
+      \medskip
+      O módulo novo entra igual:\\[0.3em]
+      \texttt{ranking\_cria}, \texttt{ranking\_libera},
+      \texttt{ranking\_imprime}
+
+      \medskip
+      C não tem \emph{namespace}: o prefixo é o nosso.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Pike (1999), §1.1; GNU Coding Standards, §5.4}
+\end{frame}
+
+% ==================================================================
+\section{Formatação}
+% ==================================================================
+
+\begin{frame}[fragile]{O mesmo laço, depois do \texttt{clang-format}}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textcolor{UFSRed}{\textbf{Código ruim}}
+\begin{lstlisting}[style=tinyC]
+  for(int i=0;i<N;i++){
+  R[i]=media(t->notas[i],
+    t->navaliacoes);
+    Q[i]=i;
+  }
+	for(int i=0;i<N;i++)
+		for(int j=0;j<N-1;j++)
+			if(maior(R[Q[j+1]],R[Q[j]]))
+        troca(j,j+1);
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textcolor{UFSBlue}{\textbf{Formatado}}
+\begin{lstlisting}[style=tinyC]
+for (int i = 0; i < N; i++) {
+    R[i] = media(t->notas[i],
+                 t->navaliacoes);
+    Q[i] = i;
+}
+for (int i = 0; i < N; i++)
+    for (int j = 0; j < N - 1; j++)
+        if (maior(R[Q[j+1]], R[Q[j]]))
+            troca(j, j + 1);
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Byte por byte, o mesmo programa: só mudou o tempo que você gasta
+    para ter certeza disso. Repare no que \emph{não} mudou --- \texttt{R},
+    \texttt{Q}, \texttt{N} e \texttt{maior} continuam lá.
+  \end{block}
+\end{frame}
+
+\begin{frame}{O que um padrão de formatação fixa}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}
+        \item indentação: 4 espaços, nunca tabulação (ou o contrário --- mas
+          um só);
+        \item largura máxima de linha: 80 colunas;
+        \item onde a chave de abertura fica: função em linha nova, bloco na
+          mesma linha;
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{itemize}
+        \item espaço depois de \texttt{if}, \texttt{for}, \texttt{while};
+          nenhum antes do parêntese da chamada;
+        \item uma declaração por linha;
+        \item ordem dentro do \texttt{.c}: \texttt{include}s, constantes,
+          tipos, funções \texttt{static}, funções da interface.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Linux kernel coding style, §1--§3; GNU Coding Standards, §5.1}
+\end{frame}
+
+\begin{frame}{Consistência vale mais do que preferência}
+  \begin{block}{Por que não adianta discutir qual é o melhor}
+    Chave na mesma linha ou na linha de baixo? Dois espaços ou quatro? Não
+    há resposta certa --- há projetos que escolheram. O ganho vem de
+    \emph{todo o arquivo} seguir a mesma escolha, porque aí a formatação
+    deixa de chamar atenção e você lê o que o código faz.
+  \end{block}
+  \begin{exampleblock}{Regra prática}
+    Entrou em código alheio, siga o estilo dele. Um arquivo com dois estilos
+    é pior do que um arquivo com o estilo que você não gosta.
+  \end{exampleblock}
+  \fonte{Kernighan \& Pike (1999), §1.3 ``Consistency and Idioms''}
+\end{frame}
+
+% ==================================================================
+\section{Comentários}
+% ==================================================================
+
+\begin{frame}[fragile]{Três comentários e o que cada um vale}
+\begin{lstlisting}[style=tinyC]
+Q[i] = i;                    /* guarda o indice i em Q[i] */
+\end{lstlisting}
+  \small\textcolor{UFSRed}{Repete o código.} Se a linha mudar, ele mente.
+  \medskip
+\begin{lstlisting}[style=tinyC]
+/* ordena por media decrescente (usa selecao) */
+... insercao ...
+\end{lstlisting}
+  \small\textcolor{UFSRed}{Desatualizado.} Pior que nenhum: o leitor acredita
+  nele.
+  \medskip
+\begin{lstlisting}[style=tinyC]
+/* Insercao, e nao um algoritmo melhor, porque
+   uma turma cabe em uma sala. */
+\end{lstlisting}
+  \small\textcolor{UFSBlue}{Explica a decisão} --- o que o código não
+  consegue dizer sozinho.
+  \fonte{McConnell (2004), cap.~32; Kernighan \& Pike (1999), §1.6}
+\end{frame}
+
+\begin{frame}{Onde cada comentário mora}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{No \texttt{.h}: o contrato}\\[0.3em]
+      Para quem vai \emph{usar} sem abrir o \texttt{.c}:
+      \begin{itemize}
+        \item o que a função faz;
+        \item o que devolve, inclusive no erro;
+        \item de quem é a responsabilidade de liberar.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{No \texttt{.c}: o porquê}\\[0.3em]
+      Para quem vai \emph{manter}:
+      \begin{itemize}
+        \item por que este algoritmo e não outro;
+        \item que caso estranho aquela linha resolve;
+        \item que suposição está sendo feita.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small O comentário que descreve \emph{como} costuma ser sintoma: quase
+    sempre dá para trocá-lo por um nome melhor ou por uma função à parte.
+  \end{block}
+  \fonte{McConnell (2004), cap.~32; GNU Coding Standards, §5.2}
+\end{frame}
+
+\begin{frame}[fragile]{Sua vez: dois minutos, em dupla}
+\begin{lstlisting}[style=tinyC]
+int p(double *v, int n)
+{
+    double s = 0;              /* soma */
+    for (int i = 0; i < n; i++)
+        s += v[i];
+    if (s / n >= 7.0)          /* compara com 7.0 */
+        return 1;
+    return 0;
+}
+\end{lstlisting}
+  \begin{block}{}
+    Esta função já está formatada no padrão --- e mesmo assim três coisas
+    dela quebram o que combinamos até agora. Quais? Escreva o nome que você
+    daria à função, aos parâmetros e ao \texttt{7.0}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{O que dava para melhorar}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small
+      \textbf{1. Nomes de escopo curto num escopo longo}\\
+      \texttt{p} e \texttt{v} estão na interface:
+      \texttt{aprovado\_pela\_media(const double *notas, int quantidade)}.
+
+      \medskip
+      \textbf{2. Comentários que repetem o código}\\
+      ``soma'' e ``compara com 7.0'' somem. Falta o que o código não diz: o
+      que a função devolve, e o que vale quando \texttt{n} é 0.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \small
+      \textbf{3. Número mágico}\\
+      O \texttt{7.0} é regra da universidade, não da função:
+      \texttt{NOTA\_CORTE}, declarada uma vez.
+
+      \medskip
+      \textbf{De brinde}\\
+      \texttt{const} declara que a função não mexe nas notas --- e
+      \texttt{s / n} com \texttt{n} igual a 0 é a pergunta que o comentário
+      bom teria levantado.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Pike (1999), §1.1 e §1.5; McConnell (2004), cap.~11}
+\end{frame}
+
+% ==================================================================
+\section{O que o compilador cobra}
+% ==================================================================
+
+\begin{frame}[fragile]{Número mágico vira constante com nome}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textcolor{UFSRed}{\textbf{Código ruim}}
+\begin{lstlisting}[style=tinyC]
+double R[50];
+int Q[50];
+...
+R[Q[i]] >= 7.0 ? "aprovado"
+               : "reprovado"
+\end{lstlisting}
+      \small O 50 é um limite escondido; o 7.0 é uma regra da universidade
+      espalhada pelo código.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textcolor{UFSBlue}{\textbf{No padrão}}
+\begin{lstlisting}[style=tinyC]
+/* em ranking.h */
+#define RANKING_NOTA_CORTE 7.0
+\end{lstlisting}
+      \small O 50 simplesmente desaparece: o ranking aloca o tamanho da
+      turma, como já fazemos desde a aula de alocação dinâmica.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Pike (1999), §1.5 ``Magic Numbers''}
+\end{frame}
+
+\begin{frame}{Variável global: o estado que ninguém vê passar}
+  \begin{center}
+  \begin{tikzpicture}[
+    bx/.style={rectangle, rounded corners, minimum width=2.9cm,
+      minimum height=0.8cm, font=\small\ttfamily, align=center}]
+    % --- código ruim ---
+    \node[bx, draw=UFSRed, fill=UFSRed!8]  (c1) at (0,0)   {calcula()};
+    \node[bx, draw=UFSRed, fill=UFSRed!16] (g)  at (4.6,0) {R, Q, N};
+    \node[bx, draw=UFSRed, fill=UFSRed!8]  (m1) at (9.2,0) {mostra()};
+    \draw[setar] (c1) -- (g)  node[midway, above=1pt, leg] {escreve};
+    \draw[setar] (g)  -- (m1) node[midway, above=1pt, leg] {lê};
+    \node[leg, anchor=west] at (-1.9,-0.75)
+      {a ligação entre as duas não aparece em assinatura nenhuma};
+
+    % --- no padrão ---
+    \node[bx, draw=UFSBlue, fill=UFSBlue!8]  (c2) at (0,-2.4)   {ranking\_cria()};
+    \node[bx, draw=UFSBlue, fill=UFSBlue!16] (r)  at (4.6,-2.4) {Ranking *r};
+    \node[bx, draw=UFSBlue, fill=UFSBlue!8]  (m2) at (9.2,-2.4) {ranking\_imprime()};
+    \draw[seta] (c2) -- (r)  node[midway, above=1pt, leg] {devolve};
+    \draw[seta] (r)  -- (m2) node[midway, above=1pt, leg] {recebe};
+    \node[leg, anchor=west] at (-1.9,-3.15)
+      {a ligação está escrita no protótipo --- o compilador cobra};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small Com globais, chamar \texttt{mostra()} antes de \texttt{calcula()}
+    imprime lixo --- e nada no código avisa. Com o parâmetro, não existe
+    ranking para imprimir antes de alguém criá-lo.
+  \end{block}
+  \fonte{Kernighan \& Pike (1999), §4.5 ``Interface Principles''; McConnell (2004), §13.3}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{static}: o que é interno não vaza}
+\begin{lstlisting}[style=tinyC]
+static void ordena(Ranking *r) { ... }   /* so ranking.c enxerga */
+Ranking *ranking_cria(const Turma *t) { ... }  /* interface */
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small \textbf{Sem \texttt{static}}\\
+      \texttt{troca} e \texttt{maior} entram na tabela de símbolos do
+      \texttt{.o}. Outro módulo com uma \texttt{troca} própria derruba a
+      ligação com símbolo duplicado.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \small \textbf{Com \texttt{static}}\\
+      O símbolo não sai do arquivo. A regra fica simples: \emph{está no
+      \texttt{.h}? então é público. Não está? então é \texttt{static}.}
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §6.2.2; Kernighan \& Ritchie (1989), §4.6}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{const}: a promessa de não mexer}
+\begin{lstlisting}[style=tinyC]
+Ranking *ranking_cria(const Turma *t);   /* le a turma, nao altera */
+void ranking_imprime(const Ranking *r);  /* so imprime */
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small \textbf{Para quem lê}\\
+      O protótipo já responde ``essa função estraga meus dados?'' sem abrir
+      o \texttt{.c}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \small \textbf{Para quem escreve}\\
+      Se a implementação tentar escrever, o compilador reclama. A promessa
+      é verificada, não confiada.
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Já usamos isso sem comentar: \texttt{media(const double *v, int n)}
+    e \texttt{turma\_relatorio(const Turma *t)} estão assim desde a aula de
+    modularização.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O padrão que a máquina cobra}
+\begin{lstlisting}[style=makeStyle]
+CFLAGS = -std=c17 -Wall -Wextra -Werror -pedantic -g
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small
+      \texttt{-Wall -Wextra}: liga os avisos úteis.\\[0.3em]
+      \texttt{-Werror}: aviso vira erro --- o projeto não compila com
+      pendência.\\[0.3em]
+      \texttt{-pedantic -std=c17}: recusa extensões que só o seu compilador
+      entende.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \small \textbf{Por que já no primeiro dia}\\
+      Aviso que ninguém corrige some no meio de outros trinta. Com
+      \texttt{-Werror} a dívida nunca acumula: ou o aviso é real e você
+      corrige, ou não é e você escreve por que não é.
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small E há quem discorde: o GNU Coding Standards diz que
+    ``\emph{the compiler should be your servant, not your master}'' e deixa
+    o \texttt{-Wall} a critério de cada um. Nenhum dos dois lados está
+    errado --- por isso a decisão é da equipe, e a nossa está escrita no
+    \texttt{CFLAGS}.
+  \end{block}
+  \fonte{GCC Manual, ``Options to Request or Suppress Warnings'';
+    GNU Coding Standards, §5.3}
+\end{frame}
+
+\begin{frame}{Recapitulando: o seu checklist de revisão}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small
+      $\square$ todo nome público começa com \texttt{ranking\_}?\\[0.35em]
+      $\square$ nome de uma letra só dentro de laço curto?\\[0.35em]
+      $\square$ nenhuma variável global --- o estado viaja por
+        parâmetro?\\[0.35em]
+      $\square$ nenhum número solto: o 50 sumiu e o 7.0 tem nome?
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \small
+      $\square$ tudo que não está no \texttt{.h} é \texttt{static}?\\[0.35em]
+      $\square$ \texttt{const} em todo parâmetro que a função só lê?\\[0.35em]
+      $\square$ cada função do \texttt{.h} diz o que devolve no erro e quem
+        libera a memória?\\[0.35em]
+      $\square$ o arquivo inteiro tem uma formatação só?
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Cada linha deste checklist é uma decisão que a equipe tomou uma
+    vez para não rediscutir a cada arquivo.
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Ferramentas}
+% ==================================================================
+
+\begin{frame}[fragile]{Escrever o padrão em um arquivo}
+\begin{lstlisting}[style=shellStyle]
+# .clang-format --- na raiz do projeto
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Never
+ColumnLimit: 80
+BreakBeforeBraces: Linux
+AllowShortIfStatementsOnASingleLine: false
+\end{lstlisting}
+\begin{lstlisting}[style=makeStyle]
+formato:
+	clang-format -i *.c *.h
+\end{lstlisting}
+  \begin{block}{}
+    \small Com o padrão em arquivo, ninguém precisa lembrar dele --- e a
+    revisão de código deixa de gastar tempo com indentação.
+  \end{block}
+  \fonte{LLVM Project, \emph{ClangFormat Style Options}}
+\end{frame}
+
+\begin{frame}{O que a ferramenta faz, e o que ela não faz}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textcolor{UFSBlue}{\textbf{Ela resolve}}
+      \begin{itemize}
+        \item indentação, espaços, chaves;
+        \item largura de linha e quebras;
+        \item ordem dos \texttt{include}s, se você pedir.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textcolor{UFSRed}{\textbf{Ela não resolve}}
+      \begin{itemize}
+        \item \texttt{R}, \texttt{Q} e \texttt{N} continuam com esses nomes;
+        \item a global continua global;
+        \item o módulo continua sem \texttt{.h}.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small \texttt{clang-format} cuida da parte mecânica do padrão. A parte
+    que exige entender o programa --- nomes, fronteiras, responsabilidades
+    --- continua sendo sua.
+  \end{block}
+  \fonte{LLVM Project, \emph{ClangFormat}; Kernighan \& Pike (1999), §1.3}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}[fragile]{O \texttt{ranking.h} que faltava}
+\begin{lstlisting}[style=tinyC]
+#ifndef RANKING_H
+#define RANKING_H
+#include "turma.h"
+#define RANKING_NOTA_CORTE 7.0
+typedef struct {
+    int    *posicao;   /* posicao[0] = indice do aluno de maior media */
+    double *media;     /* media[i] = media do aluno de indice i */
+    int     quantidade;
+} Ranking;
+
+/* Devolve NULL se faltar memoria; quem chama libera. */
+Ranking *ranking_cria(const Turma *t);
+void     ranking_libera(Ranking *r);
+int      ranking_aprovado(const Ranking *r, int colocacao);  /* 0 = 1o */
+void     ranking_imprime(const Ranking *r);
+#endif /* RANKING_H */
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Altere o programa}
+  \small
+  \begin{block}{Tarefa 1 \hfill \normalfont\scriptsize agora, em aula}
+    Rode \texttt{clang-format -i ranking.c} e leia o \texttt{diff}. Depois
+    renomeie \texttt{R}, \texttt{Q}, \texttt{N}, \texttt{calcula} e
+    \texttt{mostra}; apague o \texttt{flag}.
+  \end{block}
+  \begin{block}{Tarefa 2 \hfill \normalfont\scriptsize começa em aula, termina em casa}
+    Escreva o \texttt{ranking.h} com o contrato, tire as globais, marque
+    \texttt{static} o que não está no header e apague as assinaturas
+    copiadas no \texttt{main.c}.
+  \end{block}
+  \begin{block}{Tarefa 3 \hfill \normalfont\scriptsize em casa}
+    Acrescente \texttt{-Werror -pedantic} ao \texttt{CFLAGS} e corrija as
+    dependências de \texttt{ranking.o} no \texttt{Makefile}.
+  \end{block}
+  \begin{center}
+    \scriptsize\textbf{Critério de pronto:} compila sem um aviso, \texttt{nm
+    ranking.o} só com a interface, saída igual à do começo da aula.
+  \end{center}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{block}{Um critério de ordenação que o cliente escolhe
+      \hfill \normalfont\scriptsize em casa}
+    Hoje o ranking ordena por média. Faça o critério virar parte da
+    interface, sem que \texttt{turma.c} ou \texttt{estat.c} sejam tocados:
+    \begin{itemize}
+      \item acrescente ao \texttt{ranking.h} um tipo de critério ---
+        por média, por maior nota, por menor desvio;
+      \item \texttt{ranking\_cria} recebe o critério; a função de comparação
+        correspondente fica \texttt{static} dentro de \texttt{ranking.c};
+      \item documente no header o que cada critério faz e o que acontece em
+        caso de empate;
+      \item compile com \texttt{-Werror} e mostre que nenhum símbolo novo
+        vazou: confira com \texttt{nm ranking.o}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      O programa imprime exatamente o mesmo que imprimia no começo da aula.
+      Mudou quem consegue mexer nele sem medo.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O fio da aula}\\[0.3em]
+      Nome é documentação, formatação é acordo, comentário é o porquê,
+      \texttt{static} e \texttt{const} são promessas verificadas e
+      \texttt{-Werror} é quem cobra.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \item padrão de codificação não é gosto: é decisão tomada uma vez para
+        não ser rediscutida;
+      \item a ferramenta formata; separar responsabilidades continua sendo
+        trabalho seu;
+      \item código que só você entende é código que só você mantém.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
