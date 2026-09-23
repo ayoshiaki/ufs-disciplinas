@@ -88,6 +88,10 @@ turma: 2026-2-T01
         <td><strong>Iteração indefinida e definida</strong></td>
         <td class="td-right"><a class="badge-pdf" href="LISTA de Exercícios - iteração indefinida e definida.pdf">📄 PDF</a></td>
       </tr>
+      <tr>
+        <td><strong>Strings e listas</strong><div class="td-sub">Prof. Kalil Araujo Bispo</div></td>
+        <td class="td-right"><a class="badge-pdf" href="lista-exercicios-strings-e-listas.pdf">📄 PDF</a></td>
+      </tr>
     </tbody>
   </table>
 </div>
