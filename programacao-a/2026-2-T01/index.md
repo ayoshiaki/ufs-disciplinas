@@ -69,7 +69,7 @@ title: "COMP0496 — Programação A — Turma 1 · 2026/2"
     <div class="week-body">
       <div class="week-title">Listas, Ordenação, Dicionários e Conjuntos</div>
       <div class="week-desc">Trabalhando com listas, armazenamento, algoritmos de ordenação, dicionários e conjuntos.</div>
-      <div class="week-badges"><span class="week-badge nb">5 notebooks</span><span class="week-badge pdf">4 PDFs</span></div>
+      <div class="week-badges"><span class="week-badge nb">5 notebooks</span><span class="week-badge pdf">5 PDFs</span></div>
     </div>
   </a>
 

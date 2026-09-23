@@ -1,0 +1,679 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb,graphicx,booktabs,xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,calc,arrows.meta,backgrounds,decorations.pathreplacing}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  language=Python,
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\scriptsize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numbers=none,
+  xleftmargin=6pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=3pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+  literate={á}{{\'a}}1 {à}{{\`a}}1 {â}{{\^a}}1 {ã}{{\~a}}1
+           {é}{{\'e}}1 {ê}{{\^e}}1 {í}{{\'i}}1 {ó}{{\'o}}1
+           {ô}{{\^o}}1 {õ}{{\~o}}1 {ú}{{\'u}}1 {ç}{{\c{c}}}1
+           {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1
+           {Ú}{{\'U}}1 {Ç}{{\c{C}}}1 {ü}{{\"u}}1,
+}
+\lstset{style=ufsStyle}
+
+% Saída do interpretador (sem realce de palavras-chave)
+\lstdefinestyle{terminal}{
+  language={},
+  basicstyle=\ttfamily\scriptsize\color{black},
+  keywordstyle=\color{black},
+  numbers=none,
+  backgroundcolor=\color{UFSLightGray!40},
+  frame=single, rulecolor=\color{linecolor},
+}
+
+% Rodapé de procedência do conceito apresentado no frame
+\newcommand{\fonte}[1]{\vfill{\scriptsize\color{UFSGray}Refer\^encia: #1}}
+
+\title{Listas em Python}
+\subtitle{Indexa\c{c}\~ao, pertin\^encia, igualdade e fatias}
+\author{Prof.\ Dr.\ Andr\'e Yoshiaki Kashiwabara}
+\institute{DCOMP --- Universidade Federal de Sergipe \quad \texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}
+  \vspace*{-6pt}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Roteiro}
+  \tableofcontents
+\end{frame}
+
+% =====================================================================
+\section{Criar uma lista e acessar seus elementos}
+% =====================================================================
+
+\begin{frame}[fragile]{Uma lista guarda vários valores em ordem}
+\begin{lstlisting}
+notas = [7.5, 8.0, 6.25, 9.0, 5.5]
+
+print(notas)        # [7.5, 8.0, 6.25, 9.0, 5.5]
+print(len(notas))   # 5
+print(type(notas))  # <class 'list'>
+\end{lstlisting}
+
+\begin{itemize}
+  \item Os colchetes \texttt{[\,]} delimitam a lista; as vírgulas separam os elementos.
+  \item A ordem em que os elementos foram escritos é preservada.
+  \item \texttt{len} devolve a quantidade de elementos.
+\end{itemize}
+
+\fonte{Downey (2016), cap.\ 10, se\c{c}. ``Uma lista \'e uma sequ\^encia''.}
+\end{frame}
+
+\begin{frame}[fragile]{Indexação: cada posição tem dois nomes}
+\begin{center}
+\begin{tikzpicture}[box/.style={draw=UFSGray,fill=UFSLightGray,minimum width=1.5cm,minimum height=0.8cm}]
+  \foreach \v [count=\i from 0] in {7.5, 8.0, 6.25, 9.0, 5.5} {
+    \node[box] (c\i) at (\i*1.5,0) {\texttt{\v}};
+    \node[UFSBlue] at (\i*1.5,0.7) {\small\texttt{\i}};
+    \pgfmathtruncatemacro{\n}{\i-5}
+    \node[UFSRed] at (\i*1.5,-0.7) {\small\texttt{\n}};
+  }
+\end{tikzpicture}
+\end{center}
+
+\begin{lstlisting}
+notas[0]    # 7.5   primeira nota
+notas[4]    # 5.5   ultima nota
+notas[-1]   # 5.5   ultima nota, contando do fim
+notas[-2]   # 9.0   penultima nota
+\end{lstlisting}
+
+\fonte{Matthes (2021), cap.\ 3, se\c{c}. ``Acessando elementos de uma lista''.}
+\end{frame}
+
+\begin{frame}[fragile]{Índice fora da faixa é erro, não aviso}
+\begin{lstlisting}
+notas = [7.5, 8.0, 6.25, 9.0, 5.5]
+notas[5]
+\end{lstlisting}
+
+\begin{lstlisting}[style=terminal]
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+IndexError: list index out of range
+\end{lstlisting}
+
+\begin{itemize}
+  \item Uma lista de $n$ elementos aceita índices de \texttt{0} a \texttt{n-1}.
+  \item Do outro lado, de \texttt{-1} a \texttt{-n}.
+  \item \texttt{notas[len(notas)]} é sempre erro; \texttt{notas[len(notas) - 1]} é o último.
+\end{itemize}
+
+\fonte{Python Software Foundation (2026), Tutorial, se\c{c}. 3.1.3.}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício 1 --- Boletim}
+\begin{lstlisting}
+notas = [7.5, 8.0, 6.25, 9.0, 5.5]
+\end{lstlisting}
+
+Escreva o código que imprime:
+\begin{enumerate}
+  \item a primeira nota, usando índice positivo;
+  \item a última nota de duas formas diferentes: uma com \texttt{len} e outra com índice negativo;
+  \item a penúltima nota;
+  \item a soma da primeira com a última nota.
+\end{enumerate}
+
+\textbf{Antes de executar}, responda no papel: o que acontece ao avaliar \texttt{notas[5]}?
+\end{frame}
+
+% =====================================================================
+\section{Pertinência: o operador \texttt{in}}
+% =====================================================================
+
+\begin{frame}[fragile]{O operador \texttt{in} pergunta ``está aí dentro?''}
+\begin{lstlisting}
+presentes = ["Ana", "Bruno", "Carla", "Diego"]
+
+"Carla" in presentes       # True
+"Elisa" in presentes       # False
+"Elisa" not in presentes   # True
+\end{lstlisting}
+
+\begin{itemize}
+  \item O resultado é sempre \texttt{True} ou \texttt{False} --- um valor do tipo \texttt{bool}.
+  \item A comparação é feita elemento a elemento, e \emph{strings} distinguem maiúsculas de minúsculas.
+  \item \texttt{in} procura o elemento inteiro, não um pedaço dele.
+\end{itemize}
+
+\fonte{Matthes (2021), cap.\ 5, se\c{c}. ``Verificando se um valor est\'a em uma lista''; PSF (2026), Tutorial, se\c{c}. 5.7 ``More on Conditions''.}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício 2 --- Chamada}
+\begin{lstlisting}
+presentes = ["Ana", "Bruno", "Carla", "Diego"]
+\end{lstlisting}
+
+Preveja o resultado e só depois confirme no interpretador:
+\begin{enumerate}
+  \item \texttt{"Carla" in presentes}
+  \item \texttt{"carla" in presentes} --- explique a diferença para o item anterior;
+  \item \texttt{"Ana Souza" in presentes} --- por que não basta conter o nome?
+\end{enumerate}
+
+Agora escreva você:
+\begin{enumerate}
+  \setcounter{enumi}{3}
+  \item uma expressão que informe se ``Elisa'' está \emph{ausente};
+  \item uma expressão que verifique se o último aluno da lista é ``Diego'', \textbf{sem usar} \texttt{in}.
+\end{enumerate}
+\end{frame}
+
+% =====================================================================
+\section{Igualdade: o operador \texttt{==}}
+% =====================================================================
+
+\begin{frame}[fragile]{\texttt{==} compara conteúdo, posição a posição}
+\begin{lstlisting}
+[1, 2, 3] == [1, 2, 3]   # True
+[1, 2, 3] == [3, 2, 1]   # False   a ordem importa
+[1, 2, 3] == [1, 2]      # False   o tamanho importa
+[1, 2, 3] == [1, 2, 3.0] # True    3 == 3.0
+\end{lstlisting}
+
+\begin{itemize}
+  \item Duas listas são iguais quando têm o mesmo tamanho e elementos iguais nas mesmas posições.
+  \item A comparação de cada par de elementos usa o \texttt{==} do tipo deles.
+\end{itemize}
+
+\fonte{Python Software Foundation (2026), Tutorial, se\c{c}. 5.8 ``Comparing Sequences''.}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{==} é igualdade; \texttt{is} é identidade}
+\begin{lstlisting}
+a = [1, 2, 3]
+b = [1, 2, 3]
+c = a
+
+a == b   # True    mesmo conteudo
+a is b   # False   sao dois objetos distintos na memoria
+a is c   # True    c e outro nome para o mesmo objeto
+
+c[0] = 99
+print(a) # [99, 2, 3]  alterar c altera a
+\end{lstlisting}
+
+\begin{itemize}
+  \item \texttt{is} pergunta se os dois nomes apontam para o \emph{mesmo} objeto.
+  \item Use \texttt{==} para comparar valores; \texttt{is} praticamente só para \texttt{None}.
+\end{itemize}
+
+\fonte{Ramalho (2023), cap.\ 6, se\c{c}. ``Identidade, igualdade e apelidos''.}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício 3 --- Conferência de prova}
+\begin{lstlisting}
+gabarito = ["A", "C", "B", "D", "A"]
+resposta = ["A", "C", "B", "A", "A"]
+\end{lstlisting}
+
+\begin{enumerate}
+  \item Qual o valor de \texttt{gabarito == resposta}? Por quê?
+  \item Compare a segunda questão das duas listas com uma única expressão \texttt{==}.
+  \item Escreva um laço que percorra os índices e imprima a \textbf{primeira} posição em que as listas divergem.
+  \item Faça \texttt{copia = gabarito}. O que devolvem \texttt{copia == gabarito} e \texttt{copia is gabarito}?
+  \item Após \texttt{copia[0] = "B"}, imprima \texttt{gabarito}. Explique o resultado.
+\end{enumerate}
+\end{frame}
+
+% =====================================================================
+\section{Fatias}
+% =====================================================================
+
+\begin{frame}[fragile]{Uma fatia devolve uma nova lista}
+\begin{lstlisting}
+temperaturas = [21, 23, 26, 28, 30, 29, 25]
+
+temperaturas[0:3]   # [21, 23, 26]   indices 0, 1 e 2
+temperaturas[2:5]   # [26, 28, 30]   indices 2, 3 e 4
+temperaturas[:3]    # [21, 23, 26]   inicio omitido = 0
+temperaturas[4:]    # [30, 29, 25]   fim omitido = ate o final
+\end{lstlisting}
+
+\begin{itemize}
+  \item Em \texttt{lista[i:j]}, o índice \texttt{i} entra e o índice \texttt{j} \textbf{fica de fora}.
+  \item Por isso \texttt{j - i} é o número de elementos da fatia.
+  \item A lista original não é modificada: a fatia é um objeto novo.
+\end{itemize}
+
+\fonte{Matthes (2021), cap.\ 4, se\c{c}. ``Trabalhando com parte de uma lista''.}
+\end{frame}
+
+\begin{frame}[fragile]{Fatias com passo}
+\begin{lstlisting}
+temperaturas = [21, 23, 26, 28, 30, 29, 25]
+
+temperaturas[::2]    # [21, 26, 30, 25]   de dois em dois
+temperaturas[1::2]   # [23, 28, 29]       comecando no indice 1
+temperaturas[::-1]   # [25, 29, 30, 28, 26, 23, 21]  invertida
+temperaturas[:]      # copia completa
+\end{lstlisting}
+
+\begin{itemize}
+  \item A forma geral é \texttt{lista[inicio:fim:passo]}.
+  \item Passo negativo percorre a lista de trás para frente.
+  \item \texttt{lista[:]} produz uma cópia --- igual pelo \texttt{==}, diferente pelo \texttt{is}.
+\end{itemize}
+
+\fonte{Ramalho (2023), cap.\ 2, se\c{c}. ``Fatiamento''.}
+\end{frame}
+
+\begin{frame}[fragile]{Cópia e apelido não são a mesma coisa}
+\begin{lstlisting}
+original = [1, 2, 3]
+copia = original[:]     # nova lista com o mesmo conteudo
+apelido = original      # outro nome para a mesma lista
+
+apelido[0] = 99
+print(original)   # [99, 2, 3]
+print(copia)      # [1, 2, 3]
+print(copia == original)   # False
+\end{lstlisting}
+
+Alterar pelo apelido altera a lista original; alterar a cópia, não.
+
+\fonte{Downey (2016), cap.\ 10, se\c{c}. ``Apelidos''.}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício 4 --- Janelas de temperatura}
+\begin{lstlisting}
+temperaturas = [21, 23, 26, 28, 30, 29, 25]
+\end{lstlisting}
+
+\begin{enumerate}
+  \item Obtenha as três primeiras e as três últimas medições, cada uma com uma fatia.
+  \item Obtenha as medições dos índices 2 a 4, \emph{inclusive}.
+  \item Obtenha as medições de dias alternados, começando pelo primeiro.
+  \item Use \texttt{==} e uma fatia para decidir se a lista é igual à sua própria inversão.
+  \item Crie \texttt{copia} com \texttt{[:]} e \texttt{apelido} sem fatia; altere \texttt{apelido[0] = 0} e imprima as três listas. Explique o que \texttt{==} e \texttt{is} respondem para cada par.
+\end{enumerate}
+\end{frame}
+
+% =====================================================================
+\section{Listas heterogêneas}
+% =====================================================================
+
+\begin{frame}[fragile]{Uma lista pode misturar tipos --- inclusive listas}
+\begin{lstlisting}
+aluno = ["Ana Souza", 19, True, [8.5, 7.0, 9.25]]
+
+aluno[0]      # 'Ana Souza'   str
+aluno[1]      # 19            int
+aluno[2]      # True          bool
+aluno[3]      # [8.5, 7.0, 9.25]   list
+aluno[3][1]   # 7.0   segunda nota: indexa a lista de dentro
+\end{lstlisting}
+
+\begin{itemize}
+  \item Cada posição guarda uma referência para um objeto de qualquer tipo.
+  \item Quando o elemento é uma lista, basta indexar duas vezes.
+\end{itemize}
+
+\fonte{Ramalho (2023), cap.\ 2, se\c{c}. ``Vis\~ao geral das sequ\^encias embutidas''.}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício 5 --- Registro do aluno}
+\begin{lstlisting}
+aluno = ["Ana Souza", 19, True, [8.5, 7.0, 9.25]]
+\end{lstlisting}
+
+\begin{enumerate}
+  \item Imprima o nome, a idade e a \textbf{segunda} nota do aluno.
+  \item Avalie \texttt{19 in aluno} e \texttt{9.25 in aluno}. Por que os resultados diferem?
+  \item Extraia com uma fatia apenas os campos cadastrais (nome, idade e matrícula).
+  \item Crie \texttt{outro} com exatamente o mesmo conteúdo e compare com \texttt{==} e com \texttt{is}.
+  \item Escreva uma expressão que valha \texttt{True} quando o aluno estiver matriculado \textbf{e} a média das notas for pelo menos 7,0.
+\end{enumerate}
+\end{frame}
+
+\begin{frame}[fragile]{Um par por duas posições: a lista plana}
+\begin{center}
+\begin{tikzpicture}[box/.style={draw=UFSGray,minimum width=1.7cm,minimum height=0.8cm},
+                    pal/.style={box,fill=UFSYellow!35}, cnt/.style={box,fill=UFSLightGray}]
+  \node[pal] (a) at (0,0)   {\texttt{'rato'}};
+  \node[cnt] (b) at (1.7,0) {\texttt{2}};
+  \node[pal] (c) at (3.4,0) {\texttt{'roupa'}};
+  \node[cnt] (d) at (5.1,0) {\texttt{1}};
+  \foreach \i/\x in {0/0, 1/1.7, 2/3.4, 3/5.1}
+    \node[UFSBlue] at (\x,0.65) {\small\texttt{\i}};
+  \draw[UFSGray,decorate,decoration={brace,mirror,amplitude=4pt}] (-0.85,-0.55) -- (2.55,-0.55)
+    node[midway,below=4pt] {\scriptsize par 0};
+  \draw[UFSGray,decorate,decoration={brace,mirror,amplitude=4pt}] (2.55,-0.55) -- (5.95,-0.55)
+    node[midway,below=4pt] {\scriptsize par 1};
+\end{tikzpicture}
+\end{center}
+
+\begin{itemize}
+  \item Sem listas aninhadas: a palavra do par \texttt{p} fica em \texttt{2*p}; a contagem, em \texttt{2*p + 1}.
+  \item \texttt{lista[::2]} devolve só as palavras; \texttt{lista[1::2]}, só as contagens.
+  \item \texttt{lista.append(x)} acrescenta \texttt{x} ao final --- dois \texttt{append} inserem um par novo.
+\end{itemize}
+
+\fonte{Matthes (2021), cap.\ 3, se\c{c}. ``Acrescentando elementos a uma lista''.}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício 6 --- Contagem de palavras}
+\begin{lstlisting}
+texto = ["o", "rato", "roeu", "a", "roupa", "do", "rei",
+         "de", "roma", "o", "rato", "roeu", "o", "queijo"]
+contagem = ["o", 3, "rato", 2]   # inicio ja montado, para os itens 1 a 3
+\end{lstlisting}
+
+\begin{enumerate}
+  \item Imprima, por indexação, a palavra e a contagem do par de índice 1.
+  \item Obtenha com fatias a lista só de palavras e a lista só de contagens.
+  \item \texttt{2 in contagem} vale \texttt{True}, mas 2 não é palavra registrada. Escreva a expressão que decide se \texttt{"rato"} é uma \textbf{palavra} da contagem.
+  \item Partindo de \texttt{contagem = []}, escreva o laço que percorre \texttt{texto} e monta a lista plana: se a palavra já estiver registrada, some 1 à contagem dela; senão, acrescente a palavra e o valor 1.
+  \item Imprima o relatório \texttt{palavra: contagem}, um por linha.
+\end{enumerate}
+\end{frame}
+
+% =====================================================================
+\section{Colocar a lista plana em ordem}
+% =====================================================================
+
+\begin{frame}[fragile]{Trocar dois elementos de lugar}
+\begin{lstlisting}
+lista = [10, 20, 30]
+lista[0], lista[2] = lista[2], lista[0]
+print(lista)   # [30, 20, 10]
+\end{lstlisting}
+
+\begin{itemize}
+  \item A lista é \textbf{mutável}: atribuir a uma posição altera o objeto no lugar, sem criar outra lista.
+  \item A atribuição simultânea troca os dois valores sem precisar de variável auxiliar.
+  \item Na lista plana, trocar um \emph{par} de lugar são \textbf{duas} trocas: a palavra e a contagem.
+  \item \texttt{max(lista)} e \texttt{min(lista)} funcionam sobre uma fatia, porque a fatia é uma lista de verdade.
+\end{itemize}
+
+\fonte{Downey (2016), cap.\ 10, se\c{c}. ``Listas s\~ao mut\'aveis''.}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício 7 --- Ordenar por número de ocorrências}
+\begin{lstlisting}
+# contagem de palavras de outro texto, na ordem de primeira aparicao
+contagem = ["sol", 2, "mar", 5, "areia", 1, "vento", 3, "sal", 5, "onda", 4]
+\end{lstlisting}
+
+\begin{enumerate}
+  \item Obtenha a maior contagem sem reordenar nada, usando \texttt{max} sobre uma fatia.
+  \item Escreva as duas trocas que põem o par de índice 2 na frente do par de índice 0.
+  \item Reordene \texttt{contagem} da palavra mais frequente para a menos frequente, movendo sempre o \textbf{par inteiro}. A lista deve continuar plana.
+  \item Confirme com \texttt{==} que as contagens ficaram em ordem não-crescente.
+  \item \texttt{"mar"} e \texttt{"sal"} empatam em 5. Qual dos dois ficou primeiro? Isso era garantido?
+\end{enumerate}
+\end{frame}
+
+% =====================================================================
+\section{Soluções}
+% =====================================================================
+
+\begin{frame}[fragile]{Solução do Exercício 1}
+\begin{lstlisting}
+notas = [7.5, 8.0, 6.25, 9.0, 5.5]
+
+print(notas[0])                 # 7.5
+print(notas[len(notas) - 1])    # 5.5
+print(notas[-1])                # 5.5
+print(notas[-2])                # 9.0
+print(notas[0] + notas[-1])     # 13.0
+
+notas[5]   # IndexError: list index out of range
+\end{lstlisting}
+
+O maior índice válido é \texttt{len(notas) - 1}, isto é, 4.
+\end{frame}
+
+\begin{frame}[fragile]{Solução do Exercício 2}
+\begin{lstlisting}
+presentes = ["Ana", "Bruno", "Carla", "Diego"]
+
+"Carla" in presentes       # True
+"carla" in presentes       # False: 'c' e 'C' sao caracteres distintos
+"Ana Souza" in presentes   # False: in compara o elemento inteiro
+
+"Elisa" not in presentes   # True
+presentes[-1] == "Diego"   # True
+\end{lstlisting}
+
+O item 5 mostra que \texttt{in} e \texttt{==} respondem a perguntas diferentes: pertencer à lista e ser igual a um elemento específico.
+\end{frame}
+
+\begin{frame}[fragile]{Solução do Exercício 3}
+\begin{lstlisting}
+gabarito = ["A", "C", "B", "D", "A"]
+resposta = ["A", "C", "B", "A", "A"]
+
+gabarito == resposta          # False: divergem na posicao 3
+gabarito[1] == resposta[1]    # True
+
+for i in range(len(gabarito)):
+    if gabarito[i] != resposta[i]:
+        print("primeira divergencia no indice", i)   # 3
+        break
+
+copia = gabarito
+copia == gabarito   # True
+copia is gabarito   # True: mesmo objeto, nao uma copia
+copia[0] = "B"
+print(gabarito)     # ['B', 'C', 'B', 'D', 'A']
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Solução do Exercício 4}
+\begin{lstlisting}
+temperaturas = [21, 23, 26, 28, 30, 29, 25]
+
+temperaturas[:3]     # [21, 23, 26]
+temperaturas[-3:]    # [30, 29, 25]
+temperaturas[2:5]    # [26, 28, 30]
+temperaturas[::2]    # [21, 26, 30, 25]
+
+temperaturas == temperaturas[::-1]   # False: nao e palindromo
+
+copia = temperaturas[:]
+apelido = temperaturas
+apelido[0] = 0
+print(temperaturas)  # [0, 23, 26, 28, 30, 29, 25]
+print(apelido)       # [0, 23, 26, 28, 30, 29, 25]
+print(copia)         # [21, 23, 26, 28, 30, 29, 25]
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Solução do Exercício 4 --- \texttt{==} e \texttt{is}}
+\begin{lstlisting}
+apelido == temperaturas    # True    mesmo conteudo
+apelido is temperaturas    # True    mesmo objeto
+copia == temperaturas      # False   o conteudo mudou em um deles
+copia is temperaturas      # False   sempre foram objetos distintos
+\end{lstlisting}
+
+\begin{itemize}
+  \item A fatia \texttt{[:]} criou um objeto novo: as alterações feitas por \texttt{apelido} não o atingem.
+  \item Logo após a cópia, \texttt{copia == temperaturas} ainda era \texttt{True}; só a atribuição \texttt{apelido[0] = 0} desfez a igualdade.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Solução do Exercício 5}
+\begin{lstlisting}
+aluno = ["Ana Souza", 19, True, [8.5, 7.0, 9.25]]
+
+print(aluno[0], aluno[1], aluno[3][1])   # Ana Souza 19 7.0
+
+19 in aluno      # True:  19 e um elemento de aluno
+9.25 in aluno    # False: 9.25 esta dentro de aluno[3], nao de aluno
+9.25 in aluno[3] # True
+
+aluno[:3]        # ['Ana Souza', 19, True]
+
+outro = ["Ana Souza", 19, True, [8.5, 7.0, 9.25]]
+outro == aluno   # True
+outro is aluno   # False
+
+notas = aluno[3]
+aluno[2] and sum(notas) / len(notas) >= 7.0   # True
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Solução do Exercício 6 --- itens 1 a 3}
+\begin{lstlisting}
+contagem = ["o", 3, "rato", 2]
+
+print(contagem[2], contagem[3])   # rato 2   par 1: indices 2*1 e 2*1+1
+
+contagem[::2]    # ['o', 'rato']   so as palavras
+contagem[1::2]   # [3, 2]          so as contagens
+
+2 in contagem              # True, mas 2 e uma contagem
+"rato" in contagem[::2]    # True  e esta e a pergunta certa
+2 in contagem[::2]         # False
+\end{lstlisting}
+
+A fatia com passo separa os dois campos e devolve ao \texttt{in} a pergunta correta.
+\end{frame}
+
+\begin{frame}[fragile]{Solução do Exercício 6 --- itens 4 e 5}
+\begin{lstlisting}
+contagem = []
+for palavra in texto:
+    achou = False
+    for i in range(0, len(contagem), 2):   # visita so os indices pares
+        if contagem[i] == palavra:
+            contagem[i + 1] = contagem[i + 1] + 1
+            achou = True
+            break
+    if not achou:
+        contagem.append(palavra)
+        contagem.append(1)
+
+for i in range(0, len(contagem), 2):
+    print(contagem[i], ":", contagem[i + 1])
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Solução do Exercício 6 --- saída e leitura}
+\begin{lstlisting}[style=terminal]
+o : 3        rei : 1
+rato : 2     de : 1
+roeu : 2     roma : 1
+a : 1        queijo : 1
+roupa : 1
+do : 1
+\end{lstlisting}
+
+\begin{itemize}
+  \item \texttt{contagem} ficou com 20 posições: 10 palavras distintas, 2 posições cada.
+  \item O passo 2 aparece duas vezes com o mesmo papel: em \texttt{range(0, len(contagem), 2)} e na fatia \texttt{contagem[::2]}.
+  \item \texttt{contagem[::2]} preserva a ordem da primeira ocorrência de cada palavra.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Solução do Exercício 7 --- itens 1 e 2}
+\begin{lstlisting}
+contagem = ["sol", 2, "mar", 5, "areia", 1, "vento", 3, "sal", 5, "onda", 4]
+
+contagem[1::2]        # [2, 5, 1, 3, 5, 4]
+max(contagem[1::2])   # 5
+
+trocada = contagem[:]       # copia, para nao perder a ordem original
+i, j = 2 * 0, 2 * 2         # inicio do par 0 e inicio do par 2
+trocada[i], trocada[j] = trocada[j], trocada[i]
+trocada[i+1], trocada[j+1] = trocada[j+1], trocada[i+1]
+
+print(trocada)
+# ['areia', 1, 'mar', 5, 'sol', 2, 'vento', 3, 'sal', 5, 'onda', 4]
+\end{lstlisting}
+
+As duas trocas andam juntas: mover só a palavra desalinharia a lista.
+\end{frame}
+
+\begin{frame}[fragile]{Solução do Exercício 7 --- item 3}
+\begin{lstlisting}
+ordenada = contagem[:]          # trabalha sobre uma copia
+n = len(ordenada) // 2          # quantidade de pares
+
+for p in range(n):
+    maior = p
+    for q in range(p + 1, n):
+        if ordenada[2*q + 1] > ordenada[2*maior + 1]:
+            maior = q
+    i, j = 2 * p, 2 * maior
+    ordenada[i], ordenada[j] = ordenada[j], ordenada[i]
+    ordenada[i+1], ordenada[j+1] = ordenada[j+1], ordenada[i+1]
+
+print(ordenada[::2])    # ['mar', 'sal', 'onda', 'vento', 'sol', 'areia']
+print(ordenada[1::2])   # [5, 5, 4, 3, 2, 1]
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Solução do Exercício 7 --- itens 4 e 5}
+\begin{lstlisting}
+ordenada[1::2] == [5, 5, 4, 3, 2, 1]   # True
+
+# 'mar' ficou antes de 'sal' -- mas isso nao estava garantido:
+antes   = ["x", 1, "y", 1, "z", 2]
+# depois do mesmo algoritmo:
+depois  = ["z", 2, "y", 1, "x", 1]     # 'x' vinha antes de 'y' e agora vem depois
+\end{lstlisting}
+
+\begin{itemize}
+  \item O item 4 usa \texttt{==} entre duas listas: mesmo tamanho, mesmos valores, mesmas posições.
+  \item A troca move o par escolhido para a frente e joga o que estava lá para trás --- e é isso que pode inverter dois empatados.
+  \item Quando a ordem de aparição precisa sobreviver ao empate, não basta trocar: é preciso deslocar os pares intermediários.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{O que ficou de cada operação}
+\begin{itemize}
+  \item \textbf{Indexação} --- \texttt{lista[i]}: um elemento; índices de \texttt{0} a \texttt{n-1} ou de \texttt{-1} a \texttt{-n}.
+  \item \textbf{\texttt{in}} --- pertinência: procura o elemento \emph{inteiro} e devolve \texttt{bool}.
+  \item \textbf{\texttt{==}} --- igualdade de conteúdo, posição a posição; \texttt{is} compara identidade.
+  \item \textbf{Fatias} --- \texttt{lista[i:j:k]}: uma \emph{nova} lista; o fim fica de fora.
+  \item \textbf{Listas heterogêneas} --- cada posição pode guardar um tipo diferente, inclusive outra lista.
+  \item \textbf{Lista plana de pares} --- campos intercalados; \texttt{2*p} e \texttt{2*p+1} localizam o par \texttt{p}, e o passo 2 separa os campos.
+  \item \textbf{Mutabilidade} --- atribuir a \texttt{lista[i]} altera a lista no lugar; reordenar pares é trocar dois elementos de cada vez.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}

@@ -61,6 +61,10 @@ turma: 2026-2-T01
   <table>
     <tbody>
       <tr>
+        <td><strong>Listas em Python</strong><div class="td-sub">Indexação, pertinência, igualdade e fatias</div></td>
+        <td class="td-right"><a class="badge-pdf" href="listas_em_python/slides.pdf">📄 PDF</a></td>
+      </tr>
+      <tr>
         <td><strong>Complementar · Busca e ordenação</strong></td>
         <td class="td-right"><a class="badge-pdf" href="slides_complementar_busca_ordenacao.pdf">📄 PDF</a></td>
       </tr>
