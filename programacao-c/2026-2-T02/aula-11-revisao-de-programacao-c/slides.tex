@@ -1,0 +1,1096 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=8pt,
+  xleftmargin=16pt, framexleftmargin=16pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=3pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  xleftmargin=4pt, framexleftmargin=4pt,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{numC}{
+  style=ufsStyle, language=C,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  xleftmargin=4pt, framexleftmargin=4pt,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  caixa/.style={rectangle, draw=UFSGray, rounded corners, fill=black!3,
+    font=\scriptsize, align=center, inner sep=4pt},
+  etapa/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+    minimum width=2.5cm, minimum height=0.9cm, font=\small, align=center},
+  byte/.style={rectangle, draw=UFSGray, minimum width=0.42cm,
+    minimum height=0.5cm, font=\tiny\ttfamily, inner sep=0pt},
+  cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=0.8cm,
+    minimum height=0.55cm, font=\scriptsize\ttfamily, inner sep=1pt},
+  celr/.style={cel, draw=UFSRed, fill=UFSRed!8},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={->, thick, UFSBlue},
+  setar/.style={->, thick, UFSRed},
+}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% Abertura de rodada: perguntas para a turma e aulas de origem
+\newcommand{\rodada}[4]{%
+  \begin{frame}{Lembrar: #2}
+    \begin{block}{Antes do resumo: responda em voz alta (1 min)}
+      #4
+    \end{block}
+    \vfill
+    {\small\textcolor{UFSGray}{Rodada #1 --- aulas de origem:} #3}
+  \end{frame}}
+
+% --- Metadados ---
+\title{Revisão de Programação C}
+\subtitle{Oito rodadas de resumo e exercício rápido}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Como vai funcionar hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.55cm]
+    \node[etapa] (a) {\textbf{Lembrar}\\{\scriptsize 1 min, em voz alta}};
+    \node[etapa, right=of a] (b) {\textbf{Resumo}\\{\scriptsize 2--3 min}};
+    \node[etapa, right=of b, draw=UFSRed, fill=UFSRed!8] (c)
+      {\textbf{Exercício}\\{\scriptsize 2--4 min, sozinho}};
+    \node[etapa, right=of c] (d) {\textbf{Compare}\\{\scriptsize 1 min, com o vizinho}};
+    \draw[seta] (a) -- (b);
+    \draw[seta] (b) -- (c);
+    \draw[seta] (c) -- (d);
+    \draw[seta] (d.south) -- ++(0,-0.45) -| node[pos=0.25, below, leg]
+      {próxima rodada --- são oito} (a.south);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Combinado}
+    \begin{itemize}
+      \item \textbf{Tudo no papel, sem computador}: numere uma folha de
+        \textbf{R1} a \textbf{R8} e responda lendo o código, \emph{antes} de
+        conversar com o vizinho.
+      \item Ninguém corrige no meio: o gabarito vem todo junto no final, e cada
+        um confere a própria folha.
+      \item Errou uma rodada? O último slide diz qual aula e quais exercícios
+        da lista revisar.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{O caminho que percorremos}
+  \begin{center}
+  \begin{tikzpicture}[
+    r/.style={rectangle, rounded corners, fill=UFSBlue, text=white,
+      font=\small\bfseries, minimum width=0.9cm, minimum height=0.62cm},
+    t/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+      font=\scriptsize, minimum width=5.3cm, minimum height=0.62cm,
+      align=left, anchor=west}
+  ]
+    \foreach \n/\txt [count=\k from 0] in {
+      R1/{Tipos, registros e alinhamento},
+      R2/{Enumerações e \texttt{typedef}},
+      R3/{Ponteiros: \texttt{\&}, \texttt{*} e aritmética},
+      R4/{Vetores, strings e passagem de parâmetros}} {
+      \node[r] (r\k) at (0, -0.8*\k) {\n};
+      \node[t, right=0.15cm of r\k] {\txt};
+    }
+    \foreach \n/\txt [count=\k from 0] in {
+      R5/{Alocação dinâmica de memória},
+      R6/{Vetores e matrizes dinâmicos},
+      R7/{Modularização e compilação separada},
+      R8/{Padrões de codificação}} {
+      \node[r] (s\k) at (7.0, -0.8*\k) {\n};
+      \node[t, right=0.15cm of s\k] {\txt};
+    }
+    \draw[seta] (r0.north) ++(0,0.15) -- ++(0,0.25) -| node[pos=0.25, above, leg]
+      {do valor na variável \ldots} (s0.north);
+    \node[leg, below=0.25cm of r3.south east, anchor=north west]
+      {\ldots\ ao programa em vários arquivos, dentro de um padrão};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{R1 --- Tipos e registros}
+
+\rodada{1}{tipos e registros}{fundamentos de C; tipos, estruturas e TADs; registros e alinhamento}{
+  \begin{itemize}
+    \item Quanto vale \texttt{7 / 2} em C? E \texttt{7 / 2.0}?
+    \item O que acontece com um registro quando ele é passado para uma função?
+    \item Por que \texttt{sizeof} de um registro pode ser maior que a soma dos
+      campos?
+  \end{itemize}}
+
+\begin{frame}{Resumo: tipos e registros}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Tipo de dados}
+        \small Diz como ler os bits e quais operações valem.
+        \texttt{int / int} é divisão \textbf{inteira}: \texttt{7/2 == 3}.
+        Basta um operando \texttt{double} para a conta ser real.
+      \end{block}
+      \begin{block}{Registro (\texttt{struct})}
+        \small Agrupa campos de tipos diferentes sob um nome; acesso com
+        ponto. Atribuição, passagem e retorno são
+        por \textbf{cópia} --- do registro inteiro.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Tipo abstrato de dados}
+        \small Separa \emph{o que} se pode fazer (operações) de \emph{como}
+        é feito (a estrutura por dentro). Quem usa só conhece a interface.
+      \end{block}
+      \begin{exampleblock}{Vetores paralelos $\times$ vetor de registros}
+        \small \texttt{nome[i]}, \texttt{nota[i]} \ldots\ viram
+        \texttt{turma[i].nome}, \texttt{turma[i].nota}: os dados de um aluno
+        ficam juntos.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Ritchie (1989), §2.2, §2.5 e cap.~6~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}{Resumo: alinhamento e padding}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \small
+      \textbf{As três regras}, na ordem dos campos:
+      \begin{enumerate}
+        \item cada campo tem alinhamento $a$ (\texttt{char} 1, \texttt{int} 4,
+          \texttt{double} 8);
+        \item o campo começa no próximo offset múltiplo de $a$ --- os bytes
+          pulados são \textbf{padding};
+        \item o tamanho total sobe até múltiplo do \textbf{maior} $a$.
+      \end{enumerate}
+      Ordenar do maior para o menor alinhamento reduz o desperdício.
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \texttt{\scriptsize struct \{ char c; int i; char d; \}}
+      \begin{center}
+      \begin{tikzpicture}
+        \foreach \k in {0,...,11} {
+          \pgfmathsetmacro{\x}{0.44*\k}
+          \node[byte] (b\k) at (\x, 0) {};
+          \node[font=\tiny, text=UFSGray] at (\x, 0.42) {\k};
+        }
+        \node[byte, fill=UFSBlue!25] at (b0) {c};
+        \foreach \k in {1,2,3} \node[byte, pattern=north east lines,
+          pattern color=UFSRed!60] at (b\k) {};
+        \foreach \k in {4,...,7} \node[byte, fill=UFSYellow!40] at (b\k) {i};
+        \node[byte, fill=UFSBlue!25] at (b8) {d};
+        \foreach \k in {9,10,11} \node[byte, pattern=north east lines,
+          pattern color=UFSRed!60] at (b\k) {};
+        \node[leg, anchor=west] at (-0.2,-0.6) {\texttt{sizeof} = 12, com 6 de padding};
+        \node[leg, anchor=west] at (-0.2,-1.05)
+          {reordenado (\texttt{int}, \texttt{char}, \texttt{char}): 8};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  \fonte{Bryant \& O'Hallaron (2015), §3.9.3~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R1 --- 3 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=numC]
+struct Leitura {
+    char   sensor;
+    double valor;
+    int    codigo;
+};
+\end{lstlisting}
+      \scriptsize\textcolor{UFSGray}{Considere uma máquina de 64 bits
+      comum (\texttt{char} 1, \texttt{int} 4, \texttt{double} 8).}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Responda na folha}
+        \begin{enumerate}
+          \item[(a)] Em que offset começa cada campo?
+          \item[(b)] Quanto vale \texttt{sizeof(struct Leitura)}?
+          \item[(c)] Reordene os campos para gastar o mínimo. Qual o novo
+            \texttt{sizeof}?
+        \end{enumerate}
+      \end{block}
+      \small Dica: desenhe a fita de bytes, como no slide anterior.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R2 --- \texttt{enum} e \texttt{typedef}}
+
+\rodada{2}{\texttt{enum} e \texttt{typedef}}{enumerações e \texttt{typedef}}{
+  \begin{itemize}
+    \item Sem valores explícitos, que número recebe a primeira constante de
+      um \texttt{enum}?
+    \item Uma variável \texttt{enum} aceita só os valores listados?
+    \item \texttt{typedef} cria um tipo novo?
+  \end{itemize}}
+
+\begin{frame}[fragile]{Resumo: \texttt{enum} e \texttt{typedef}}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+\begin{lstlisting}[style=tinyC]
+typedef enum {
+    CURSANDO, APROVADO, REPROVADO,
+    NUM_SITUACOES     /* vale 3 */
+} Situacao;
+int total[NUM_SITUACOES] = {0};
+
+switch (s) {
+case CURSANDO:  ...
+case APROVADO:  ...
+case REPROVADO: ...
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.53\textwidth}
+      \small
+      \begin{itemize}
+        \item \texttt{enum} nomeia inteiros: começa em 0, e cada constante
+          sem valor vale a anterior $+1$.
+        \item Em \texttt{switch}, \texttt{-Wall} avisa o caso esquecido.
+        \item A sentinela final conta os valores --- se ninguém atribuir
+          valores à mão.
+        \item Não é trava: a variável aceita qualquer inteiro.
+        \item \texttt{typedef} é só apelido; em vetor, esconde que ele não
+          se copia com \texttt{=}.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Ritchie (1989), §2.3 e §6.7~\cite{kernighan1989c}; King (2008), §16.5~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R2 --- 2 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=numC]
+enum Cor { VERMELHO, VERDE = 5,
+           AZUL, NUM_CORES };
+
+enum Cor c = 42;
+
+typedef char Nome[20];
+Nome a = "Ana", b;
+b = a;
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Responda na folha}
+        \begin{enumerate}
+          \item[(a)] Quanto valem \texttt{AZUL} e \texttt{NUM\_CORES}?
+            \texttt{NUM\_CORES} ainda conta quantas cores existem?
+          \item[(b)] A linha 4 compila?
+          \item[(c)] A linha 8 compila?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R3 --- Ponteiros}
+
+\rodada{3}{ponteiros}{ponteiros: conceitos, operadores e aritmética}{
+  \begin{itemize}
+    \item O que um ponteiro guarda?
+    \item Qual a diferença entre \texttt{\&x} e \texttt{*p}?
+    \item Se \texttt{p} aponta para um \texttt{int}, quantos bytes
+      \texttt{p + 1} avança?
+  \end{itemize}}
+
+\begin{frame}{Resumo: \texttt{\&}, \texttt{*} e a função que altera o chamador}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cel, minimum width=1.4cm] (x) {5};
+    \node[rot, above=0.05cm of x] {x @ 0x1000};
+    \node[celr, minimum width=1.6cm, right=2.4cm of x] (p) {0x1000};
+    \node[rot, above=0.05cm of p] {p @ 0x2000};
+    \draw[setar] (p.west) -- node[above, leg] {\texttt{*p} chega em \texttt{x}} (x.east);
+    \node[leg, right=0.4cm of p, align=left]
+      {\texttt{int *p = \&x;}\\\texttt{*p = 9;}\ \ $\Rightarrow$ \texttt{x} vale 9};
+  \end{tikzpicture}
+  \end{center}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Os dois operadores}
+        \small \texttt{\&x}: o endereço de \texttt{x}.\\
+        \texttt{*p}: o conteúdo no endereço guardado em \texttt{p}.\\
+        São inversos: \texttt{*(\&x)} é \texttt{x}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Por que existem}
+        \small C passa tudo por valor. Para uma função alterar \texttt{x},
+        passe \texttt{\&x} e use \texttt{*} lá dentro --- é o que
+        \texttt{scanf} e \texttt{troca} fazem.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Ritchie (1989), §5.1--5.2~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}{Resumo: aritmética de ponteiros}
+  \begin{center}
+  \begin{tikzpicture}
+    \foreach \v [count=\k from 0] in {10,20,30,40} {
+      \node[cel, minimum width=1.3cm] (v\k) at (1.3*\k, 0) {\v};
+      \node[rot, below=0.05cm of v\k] {v[\k]};
+    }
+    \node[celr, minimum width=0.8cm] (p) at (1.3, 1.3) {p};
+    \draw[setar] (p) -- (v1.north);
+    \node[celr, minimum width=1.3cm] (q) at (3.9, 1.3) {p + 2};
+    \draw[setar] (q) -- (v3.north);
+    \draw[decorate, decoration={brace, amplitude=4pt}, UFSGray]
+      (1.3,0.5) -- node[above=2pt, leg] {2 elementos = 8 bytes} (3.9,0.5);
+  \end{tikzpicture}
+  \end{center}
+  \small
+  \begin{itemize}
+    \item \texttt{p + k} avança $k$ \emph{elementos}: $k \times$
+      \texttt{sizeof(*p)} bytes.
+    \item \texttt{v[i]} é exatamente \texttt{*(v + i)}; o nome do vetor vale
+      o endereço de \texttt{v[0]}.
+    \item \texttt{p - q} (mesmo vetor) dá a distância em elementos, do tipo
+      \texttt{ptrdiff\_t}.
+  \end{itemize}
+  \fonte{Kernighan \& Ritchie (1989), §5.3--5.4~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R3 --- 3 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=numC]
+int v[] = { 10, 20, 30, 40 };
+int *p = v + 1;
+int x = 5;
+int *q = &x;
+
+*q = *p + 1;
+p += 2;
+*p = x * 2;
+
+printf("%d %d %d %td\n",
+       x, v[3], *(v + 2), p - v);
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Responda na folha}
+        \begin{enumerate}
+          \item[(a)] Para onde \texttt{p} aponta depois da linha 7?
+          \item[(b)] O que o programa imprime?
+        \end{enumerate}
+      \end{block}
+      \small Dica: desenhe o vetor e mova a seta de \texttt{p} a cada linha.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R4 --- Vetores e strings}
+
+\rodada{4}{vetores, strings e parâmetros}{vetores, strings e passagem por referência}{
+  \begin{itemize}
+    \item O que uma função recebe quando você passa um vetor?
+    \item Qual a diferença entre \texttt{sizeof(s)} e \texttt{strlen(s)}?
+    \item Quando o \texttt{\&} é necessário na chamada?
+  \end{itemize}}
+
+\begin{frame}{Resumo: o vetor que decai e a string que termina em \texttt{'\textbackslash 0'}}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Vetor em função}
+        \small O vetor \textbf{decai} para o endereço do primeiro elemento:
+        \texttt{int v[]}, \texttt{int v[10]} e \texttt{int *v} são o mesmo
+        parâmetro. O tamanho não viaja: vai como parâmetro extra.
+      \end{block}
+      \begin{block}{C só passa por valor}
+        \small Escalar que deve mudar: \texttt{\&} na chamada, \texttt{*} no
+        uso. Vetor e string já chegam como endereço.
+      \end{block}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small\texttt{char s[8] = "ana";}
+      \begin{center}
+      \begin{tikzpicture}
+        \foreach \c [count=\k from 0] in {a,n,a,\textbackslash 0,?,?,?,?} {
+          \node[byte, minimum width=0.55cm] (s\k) at (0.55*\k, 0) {\c};
+        }
+        \node[byte, minimum width=0.55cm, fill=UFSRed!20] at (s3) {\textbackslash 0};
+        \draw[decorate, decoration={brace, amplitude=4pt, mirror}, UFSGray]
+          ([yshift=-2pt]s0.south west) -- node[below=3pt, leg] {\texttt{strlen} = 3}
+          ([yshift=-2pt]s2.south east);
+        \draw[decorate, decoration={brace, amplitude=4pt}, UFSGray]
+          ([yshift=2pt]s0.north west) -- node[above=3pt, leg] {\texttt{sizeof} = 8}
+          ([yshift=2pt]s7.north east);
+      \end{tikzpicture}
+      \end{center}
+      \small String é vetor de \texttt{char} com a marca
+      \texttt{'\textbackslash 0'} no fim do conteúdo. Comparar é com
+      \texttt{strcmp}, nunca com \texttt{==}.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Ritchie (1989), §1.9, §5.3 e §5.5~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R4 --- 3 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=numC]
+void f(int v[10]) {
+    printf("B: %zu\n", sizeof(v));
+}
+
+int main(void) {
+    int a[10];
+    char s[20] = "prova";
+    printf("A: %zu %zu %zu\n",
+      sizeof(a), sizeof(s), strlen(s));
+    f(a);
+    s[2] = '\0';
+    printf("C: %s %zu\n", s, strlen(s));
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Responda na folha}
+        O que aparece nas linhas \texttt{A:}, \texttt{B:} e \texttt{C:}?
+      \end{block}
+      \scriptsize\textcolor{UFSGray}{Máquina de 64 bits: \texttt{int} 4,
+      ponteiro 8.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R5 --- Alocação dinâmica}
+
+\rodada{5}{alocação dinâmica}{alocação dinâmica de memória}{
+  \begin{itemize}
+    \item Onde vive um bloco de \texttt{malloc}, e até quando?
+    \item O que \texttt{malloc} devolve quando não há memória?
+    \item Por que \texttt{v = realloc(v, \ldots)} é perigoso?
+  \end{itemize}}
+
+\begin{frame}{Resumo: pedir, verificar, usar, devolver}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.35cm]
+    \node[etapa, minimum width=2.3cm] (a) {\texttt{malloc}\\{\scriptsize\texttt{n * sizeof(T)}}};
+    \node[etapa, minimum width=2.3cm, right=of a] (b) {testar\\{\scriptsize\texttt{== NULL}}};
+    \node[etapa, minimum width=2.3cm, right=of b] (c) {usar\\{\scriptsize\texttt{v[0..n-1]}}};
+    \node[etapa, minimum width=2.3cm, right=of c] (d) {\texttt{free(v)}\\{\scriptsize\texttt{v = NULL}}};
+    \draw[seta] (a) -- (b);
+    \draw[seta] (b) -- (c);
+    \draw[seta] (c) -- (d);
+  \end{tikzpicture}
+  \end{center}
+  \small
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{itemize}
+        \item O ponteiro vive na pilha; o bloco vive na \textbf{heap} até o
+          \texttt{free}, mesmo que o ponteiro se perca.
+        \item \texttt{malloc}: conteúdo indeterminado. \texttt{calloc(q, t)}:
+          zerado.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{itemize}
+        \item \texttt{realloc} pode mudar o endereço e devolve \texttt{NULL} na
+          falha: receba em um \textbf{temporário}.
+        \item \texttt{free} devolve o bloco mas não mexe no ponteiro.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Ritchie (1989), §7.8.5~\cite{kernighan1989c}; King (2008), §17.1--17.4~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Resumo: as quatro falhas clássicas}
+  \begin{center}
+  \small
+  \begin{tabular}{lll}
+    \toprule
+    Falha & O que é & Sintoma típico \\
+    \midrule
+    Vazamento          & alocar e nunca liberar        & programa incha com o tempo \\
+    Ponteiro pendurado & usar depois do \texttt{free}  & lixo ou \emph{segfault} aleatório \\
+    \texttt{free} duplo & liberar duas vezes           & aborta em \texttt{free}, sem pista \\
+    Estouro do bloco   & escrever além do tamanho      & corrompe o vizinho \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Nenhuma falha onde foi cometida}
+    \small O programa quebra depois, em outro lugar. Quem aponta a linha certa
+    é a ferramenta: \texttt{gcc -g -fsanitize=address}.
+  \end{block}
+  \fonte{Serebryany et al.\ (2012)~\cite{serebryany2012asan}; King (2008), §17.4~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R5 --- 4 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+\begin{lstlisting}[style=numC]
+int *cria(int n) {
+    int *v = malloc(n);
+    for (int i = 0; i < n; i++)
+        v[i] = i * i;
+    return v;
+}
+
+int main(void) {
+    int *v = cria(5);
+    v = realloc(v, 10 * sizeof(int));
+    free(v);
+    printf("%d\n", v[4]);
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.41\textwidth}
+      \begin{block}{Responda na folha}
+        \small O compilador aceita este código sem nenhum aviso --- e ele tem
+        \textbf{quatro} problemas. Para cada um: a linha, qual é o problema e
+        como corrigir.
+      \end{block}
+      \scriptsize\textcolor{UFSGray}{Use a tabela das quatro falhas e o
+      ciclo pedir--verificar--usar--devolver.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R6 --- Matrizes dinâmicas}
+
+\rodada{6}{matrizes dinâmicas}{alocação dinâmica de vetores e matrizes}{
+  \begin{itemize}
+    \item Quais são as duas formas de alocar uma matriz \texttt{nl}$\times$\texttt{nc}?
+    \item Em que ordem se libera uma \texttt{double **}?
+    \item No bloco único, onde fica o elemento $(i, j)$?
+  \end{itemize}}
+
+\begin{frame}{Resumo: dois caminhos para duas dimensões}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \centering\textbf{\small Vetor de ponteiros (\texttt{double **})}\\[0.3em]
+      \begin{tikzpicture}
+        \foreach \k in {0,1,2} {
+          \node[celr, minimum width=0.6cm] (p\k) at (0, -0.6*\k) {};
+          \foreach \j in {0,...,3}
+            \node[cel, minimum width=0.5cm] (l\k\j) at (1.6+0.5*\j, -0.6*\k) {};
+          \draw[setar] (p\k.east) -- (l\k0.west);
+        }
+        \node[rot, above=0.05cm of p0] {m};
+      \end{tikzpicture}\\[0.3em]
+      \begin{itemize}\scriptsize
+        \item $1 + nl$ \texttt{malloc}; \texttt{m[i][j]}
+        \item falha no meio: desfazer o que já deu certo
+        \item liberar de \textbf{dentro para fora}: linhas, depois \texttt{m}
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering\textbf{\small Bloco único (\texttt{double *})}\\[0.3em]
+      \begin{tikzpicture}
+        \foreach \j in {0,...,11} {
+          \pgfmathsetmacro{\c}{int(\j/4)==1 ? 25 : 8}
+          \node[cel, minimum width=0.42cm, fill=UFSBlue!\c] (b\j) at (0.42*\j, 0) {};
+        }
+        \node[rot, below=0.05cm of b1] {linha 0};
+        \node[rot, below=0.05cm of b5] {linha 1};
+        \node[rot, below=0.05cm of b9] {linha 2};
+      \end{tikzpicture}\\[0.8em]
+      \begin{itemize}\scriptsize
+        \item um \texttt{malloc}, um \texttt{free}; linhas contíguas
+        \item elemento $(i,j)$ em \texttt{m[i * nc + j]}; \texttt{nc} viaja junto
+        \item \texttt{(size\_t)nl * nc} evita estouro de \texttt{int}
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Ritchie (1989), §5.7--5.9~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R6 --- 3 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \small Uma matriz com \texttt{nl = 3} linhas e \texttt{nc = 4} colunas.
+\begin{lstlisting}[style=numC]
+/* liberando a versao double ** */
+free(m);
+for (int i = 0; i < nl; i++)
+    free(m[i]);
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Responda na folha}
+        \begin{enumerate}
+          \item[(a)] No bloco único, em que índice fica o elemento da linha
+            2, coluna 1?
+          \item[(b)] Quantas chamadas a \texttt{malloc} cada versão faz?
+          \item[(c)] O que está errado na liberação ao lado? Corrija.
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R7 --- Modularização}
+
+\rodada{7}{modularização}{modularização: headers, múltiplos arquivos e bibliotecas}{
+  \begin{itemize}
+    \item O que vai no \texttt{.h} e o que fica no \texttt{.c}?
+    \item Para que serve a guarda \texttt{\#ifndef}/\texttt{\#define}/\texttt{\#endif}?
+    \item \texttt{undefined reference} é erro do compilador ou do ligador?
+  \end{itemize}}
+
+\begin{frame}{Resumo: de \texttt{.c} a executável}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.5cm]
+    \node[etapa, minimum width=2.0cm] (c) {\texttt{.c} + \texttt{.h}};
+    \node[etapa, minimum width=2.3cm, right=of c] (pp) {pré-processador\\{\scriptsize\texttt{\#include} = colar texto}};
+    \node[etapa, minimum width=2.3cm, right=of pp] (cc) {compilador\\{\scriptsize\texttt{gcc -c} $\to$ \texttt{.o}}};
+    \node[etapa, minimum width=2.3cm, right=of cc] (ld) {ligador\\{\scriptsize casa dívidas e ofertas}};
+    \draw[seta] (c) -- (pp);
+    \draw[seta] (pp) -- (cc);
+    \draw[seta] (cc) -- (ld);
+    \node[caixa, fill=UFSRed!8, draw=UFSRed, below=0.35cm of cc, text width=2.6cm]
+      {\texttt{redefinition of}\\{\tiny um arquivo por vez}};
+    \node[caixa, fill=UFSRed!8, draw=UFSRed, below=0.35cm of ld, text width=2.9cm]
+      {\texttt{undefined reference} (faltou)\\\texttt{multiple definition} (sobrou)};
+  \end{tikzpicture}
+  \end{center}
+  \small
+  \begin{itemize}
+    \item O \texttt{.h} é o contrato: protótipos, tipos, constantes --- nunca
+      corpos de função nem definição de variáveis.
+    \item Todo \texttt{.h} começa com \texttt{\#ifndef X\_H} / \texttt{\#define
+      X\_H} e termina com \texttt{\#endif}.
+    \item \texttt{static} numa função a esconde do ligador: dois
+      \texttt{.c} podem ter a sua.
+  \end{itemize}
+  \fonte{Kernighan \& Ritchie (1989), §4.5, §4.6 e §4.11.3~\cite{kernighan1989c}; King (2008), cap.~15~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R7 --- 4 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.33\textwidth}
+\begin{lstlisting}[style=tinyC]
+/* estat.h  (sem guarda) */
+struct Resumo {
+    double media, maior;
+};
+double estat_media(
+    const double *v, int n);
+
+/* turma.h  (sem guarda) */
+#include "estat.h"
+struct Resumo turma_resume(
+    const double *v, int n);
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.30\textwidth}
+\begin{lstlisting}[style=tinyC]
+/* main.c */
+#include "estat.h"
+#include "turma.h"
+int main(void) { ... }
+
+/* estat.c e turma.c:
+   cada um define a sua
+   void troca(double *a,
+              double *b)
+   { ... }            */
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \begin{block}{Responda na folha}
+        \scriptsize Um colega digitou estes comandos, nesta ordem. Sem
+        executar: dá erro? Em qual etapa, de que tipo, e como corrigir?
+        \begin{enumerate}
+          \item[(a)] \texttt{gcc -c main.c}
+          \item[(b)] com (a) corrigido:\\\texttt{gcc main.c turma.c}
+          \item[(c)] \texttt{gcc main.c turma.c estat.c}
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R8 --- Padrões de codificação}
+
+\rodada{8}{padrões de codificação}{padrões de codificação e prática de modularização}{
+  \begin{itemize}
+    \item Por que evitar variáveis globais?
+    \item O que é um número mágico?
+    \item O que \texttt{static} e \texttt{const} dizem a quem lê o código?
+  \end{itemize}}
+
+\begin{frame}{Resumo: o checklist de revisão}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small
+      $\square$ todo nome público começa com o prefixo do módulo
+        (\texttt{ranking\_})?\\[0.35em]
+      $\square$ nome de uma letra só dentro de laço curto?\\[0.35em]
+      $\square$ nenhuma variável global --- o estado viaja por
+        parâmetro?\\[0.35em]
+      $\square$ nenhum número solto: limites e limiares têm nome?
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \small
+      $\square$ tudo que não está no \texttt{.h} é \texttt{static}?\\[0.35em]
+      $\square$ \texttt{const} em todo parâmetro que a função só lê?\\[0.35em]
+      $\square$ cada função do \texttt{.h} diz o que devolve e quem
+        libera a memória?\\[0.35em]
+      $\square$ uma formatação só (\texttt{clang-format}) e
+        \texttt{-Wall -Wextra} limpo?
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Funcionar não é o mesmo que estar pronto: o padrão existe para o
+    próximo leitor --- que muitas vezes é você.
+  \end{block}
+  \fonte{McConnell (2004), caps.~11 e 32~\cite{mcconnell2004code}; Kernighan \& Pike (1999), cap.~1~\cite{kernighan1999practice}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R8 --- 4 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=numC]
+/* ranking.c */
+int n, k;
+double R[50];
+
+void calc(double *v)
+{
+    k = 0;
+    for (int i = 0; i < n; i++)
+        if (v[i] >= 7.0)
+            R[k++] = v[i];
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Responda na folha}
+        \small
+        \begin{enumerate}
+          \item[(a)] Aponte \textbf{quatro} problemas usando o checklist.
+          \item[(b)] O que acontece se a turma tiver 60 alunos aprovados?
+          \item[(c)] Reescreva só a \textbf{assinatura} de \texttt{calc}
+            dentro do padrão, sem globais.
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{Gabarito}
+
+\begin{frame}{Hora de conferir}
+  \begin{block}{Como conferir}
+    Marque na folha: \textbf{C} (certo), \textbf{P} (parcial) ou \textbf{E}
+    (errado) em cada rodada. O placar diz o que revisar antes da prova ---
+    está no último slide.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Gabarito R1: \texttt{struct Leitura}}
+  \begin{center}
+  \begin{tikzpicture}
+    \foreach \k in {0,...,23} {
+      \pgfmathsetmacro{\x}{0.42*\k}
+      \node[byte] (b\k) at (\x, 0) {};
+    }
+    \foreach \k in {0,8,16,23} \node[font=\tiny, text=UFSGray] at (0.42*\k, 0.42) {\k};
+    \node[byte, fill=UFSBlue!25] at (b0) {s};
+    \foreach \k in {1,...,7} \node[byte, pattern=north east lines,
+      pattern color=UFSRed!60] at (b\k) {};
+    \foreach \k in {8,...,15} \node[byte, fill=UFSYellow!40] at (b\k) {v};
+    \foreach \k in {16,...,19} \node[byte, fill=UFSBlue!10] at (b\k) {c};
+    \foreach \k in {20,...,23} \node[byte, pattern=north east lines,
+      pattern color=UFSRed!60] at (b\k) {};
+  \end{tikzpicture}
+  \end{center}
+  \small
+  \begin{enumerate}
+    \item[(a)] \texttt{sensor} em 0; \texttt{valor} em \textbf{8} (múltiplo
+      de 8, pula 7 bytes); \texttt{codigo} em \textbf{16}.
+    \item[(b)] Ocupa 20 bytes, mas sobe até múltiplo de 8:
+      \texttt{sizeof} = \textbf{24} (11 de padding).
+    \item[(c)] \texttt{double valor; int codigo; char sensor;} $\Rightarrow$
+      $8 + 4 + 1 = 13$, arredondado para \textbf{16}.
+  \end{enumerate}
+  \fonte{Bryant \& O'Hallaron (2015), §3.9.3~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}[fragile]{Gabarito R2: \texttt{enum} e \texttt{typedef}}
+  \small
+  \begin{enumerate}
+    \item[(a)] \texttt{VERMELHO} = 0, \texttt{VERDE} = 5, \texttt{AZUL} =
+      \textbf{6}, \texttt{NUM\_CORES} = \textbf{7}. São 3 cores, mas a
+      sentinela vale 7: o truque do contador só funciona sem valores
+      explícitos. \texttt{int total[NUM\_CORES]} desperdiçaria 4 posições.
+    \item[(b)] \textbf{Compila}, sem aviso, e \texttt{c} vale 42. O
+      \texttt{enum} dá nome a valores, mas não restringe a variável.
+    \item[(c)] \textbf{Não compila}. \texttt{Nome} é um vetor de 20
+      \texttt{char}, e vetor não se atribui --- o \texttt{typedef} só
+      escondeu isso. Para copiar: \texttt{strcpy(b, a);}
+  \end{enumerate}
+\begin{lstlisting}[style=shellStyle]
+error: assignment to expression with array type
+\end{lstlisting}
+  \fonte{Kernighan \& Ritchie (1989), §2.3 e §6.7~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}{Gabarito R3: rastreio de ponteiros}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \small
+      \begin{tabular}{@{}lll@{}}
+        \toprule
+        linha & efeito & estado \\
+        \midrule
+        2 & \texttt{p} $\to$ \texttt{v[1]} & \\
+        4 & \texttt{q} $\to$ \texttt{x} & \\
+        6 & \texttt{x = v[1] + 1} & \texttt{x = 21} \\
+        7 & \texttt{p} $\to$ \texttt{v[3]} & \\
+        8 & \texttt{v[3] = 21 * 2} & \texttt{v[3] = 42} \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Respostas}
+        \small
+        (a) \texttt{p} aponta para \texttt{v[3]}: avançou 2
+        \emph{elementos} a partir de \texttt{v[1]}.\\[0.4em]
+        (b) Imprime:\\[0.2em]
+        \texttt{\large 21 42 30 3}\\[0.4em]
+        \texttt{*(v+2)} é \texttt{v[2]}, intocado; \texttt{p - v} é a
+        distância em elementos.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Ritchie (1989), §5.4~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}[fragile]{Gabarito R4: \texttt{sizeof}, decaimento e \texttt{'\textbackslash 0'}}
+\begin{lstlisting}[style=shellStyle]
+A: 40 20 5
+B: 8
+C: pr 2
+\end{lstlisting}
+  \small
+  \begin{itemize}
+    \item \texttt{A:} \texttt{a} tem 10 \texttt{int} $= 40$ bytes;
+      \texttt{s} tem capacidade 20; o conteúdo \texttt{"prova"} tem 5.
+    \item \texttt{B:} dentro de \texttt{f}, \texttt{v} é um \texttt{int *}:
+      \texttt{sizeof} dá o tamanho do \textbf{ponteiro}, 8 --- o
+      \texttt{[10]} da declaração é ignorado. O próprio compilador avisa:
+      \texttt{-Wsizeof-array-argument}.
+    \item \texttt{C:} o \texttt{'\textbackslash 0'} na posição 2 corta a
+      string: \texttt{"pr"}, tamanho 2. Os bytes \texttt{ova} continuam lá,
+      mas ninguém os lê.
+  \end{itemize}
+  \fonte{Kernighan \& Ritchie (1989), §5.3 e §5.5~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}{Gabarito R5: as quatro falhas}
+  \scriptsize
+  \begin{tabular}{@{}c>{\raggedright\arraybackslash}p{5.9cm}>{\raggedright\arraybackslash}p{5.6cm}@{}}
+    \toprule
+    Linha & Problema & Correção \\
+    \midrule
+    2 & \textbf{estouro do bloco}: \texttt{malloc(n)} pede $n$ \emph{bytes},
+      não $n$ \texttt{int}s
+      & \texttt{malloc(n * sizeof(int))} \\
+    2 & \textbf{sem teste de \texttt{NULL}} antes de usar o bloco
+      & \texttt{if (v == NULL) return NULL;} e testar também em \texttt{main} \\
+    10 & \textbf{vazamento} se \texttt{realloc} falhar: \texttt{v} recebe
+      \texttt{NULL} e o bloco antigo fica sem dono
+      & \texttt{int *tmp = realloc(v, \ldots);} testar \texttt{tmp} e só
+      então \texttt{v = tmp;} \\
+    12 & \textbf{ponteiro pendurado}: lê \texttt{v[4]} depois do \texttt{free}
+      & imprimir antes; \texttt{free(v); v = NULL;} por último \\
+    \bottomrule
+  \end{tabular}
+  \begin{block}{O compilador ficou quieto; o sanitizer, não}
+    \small \texttt{gcc -g -fsanitize=address} para já no primeiro:
+    \texttt{heap-buffer-overflow} na linha 4, bloco alocado na linha 2.
+  \end{block}
+  \fonte{King (2008), §17.1--17.4~\cite{king2008c}; Serebryany et al.\ (2012)~\cite{serebryany2012asan}}
+\end{frame}
+
+\begin{frame}[fragile]{Gabarito R6: matrizes dinâmicas}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \small
+      \begin{enumerate}
+        \item[(a)] \texttt{i * nc + j} $= 2 \times 4 + 1 =$ \textbf{9}.
+        \item[(b)] Bloco único: \textbf{1}. \texttt{double **}: $1 + nl =$
+          \textbf{4} (um para os ponteiros, um por linha).
+        \item[(c)] Depois de \texttt{free(m)}, ler \texttt{m[i]} é usar
+          memória já devolvida --- ponteiro pendurado. Libere de
+          \textbf{dentro para fora}:
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=numC]
+for (int i = 0; i < nl; i++)
+    free(m[i]);   /* linhas */
+free(m);          /* depois, m */
+m = NULL;
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Ritchie (1989), §5.9~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}[fragile]{Gabarito R7: modularização}
+  \small
+  \begin{enumerate}
+    \item[(a)] \textbf{Erro de compilação}: \texttt{main.c} inclui
+      \texttt{estat.h} duas vezes (direto e via \texttt{turma.h}) e o
+      compilador vê \texttt{struct Resumo} definida duas vezes ---
+      \texttt{redefinition of 'Resumo'}. Correção: guarda de inclusão em
+      todo \texttt{.h}.
+    \item[(b)] Compila, mas \textbf{falha na ligação}: \texttt{turma.c} chama
+      \texttt{estat\_media}, que ninguém definiu --- \texttt{undefined
+      reference to `estat\_media'}. Faltou \texttt{estat.c} no comando.
+    \item[(c)] \textbf{Falha na ligação}: \texttt{troca} está definida em
+      dois \texttt{.o} --- \texttt{multiple definition of `troca'}. Correção:
+      \texttt{static} nas duas (uso interno) ou uma só, declarada num
+      \texttt{.h}.
+  \end{enumerate}
+\begin{lstlisting}[style=shellStyle]
+#ifndef ESTAT_H
+#define ESTAT_H
+...                  /* conteudo do header */
+#endif
+\end{lstlisting}
+  \fonte{Kernighan \& Ritchie (1989), §4.6 e §4.11.3~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}[fragile]{Gabarito R8: padrões de codificação}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \scriptsize
+      \textbf{(a)} Qualquer quatro:
+      \begin{itemize}
+        \item \textbf{estado global}: \texttt{n}, \texttt{k}, \texttt{R} ---
+          a entrada e a saída não aparecem na assinatura;
+        \item \textbf{números mágicos}: \texttt{50} e \texttt{7.0};
+        \item \textbf{nomes} de uma letra fora de laço, e \texttt{calc}
+          sem prefixo não diz o que calcula;
+        \item \texttt{v} só é lido: falta \texttt{const};
+        \item tudo público: sem \texttt{.h}, sem \texttt{static}.
+      \end{itemize}
+      \textbf{(b)} \texttt{R[50]} estoura: escreve além do vetor e corrompe
+      o vizinho, sem aviso algum.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize\textbf{(c)} Uma resposta possível:
+\begin{lstlisting}[style=tinyC]
+#define RANKING_MEDIA_APROVACAO 7.0
+
+/* Copia para aprovados as medias
+ * >= RANKING_MEDIA_APROVACAO.
+ * aprovados tem espaco para n.
+ * Devolve quantas copiou. */
+int ranking_filtra_aprovados(
+    const double *medias, int n,
+    double *aprovados);
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{McConnell (2004), caps.~11 e 32~\cite{mcconnell2004code}}
+\end{frame}
+
+% ==================================================================
+\section*{Fechamento}
+
+\begin{frame}{Seu placar: onde revisar}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}cll@{}}
+    \toprule
+    Errou & Revise a aula & Exercícios da lista \\
+    \midrule
+    R1 & Fundamentos; tipos e TADs; registros e alinhamento & 1--6 \\
+    R2 & Enumerações e \texttt{typedef}                     & 7, 8 \\
+    R3 & Ponteiros: conceitos, operadores e aritmética     & 9--12 \\
+    R4 & Vetores, strings e passagem por referência        & 13--16 \\
+    R5 & Alocação dinâmica de memória                      & 17, 18 \\
+    R6 & Alocação dinâmica de vetores e matrizes           & 19, 20 \\
+    R7 & Modularização de programas                        & slides da aula \\
+    R8 & Padrões de codificação                            & slides da aula \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Para casa}
+    \small Rodada errada: refaça no papel os exercícios indicados e releia a aula.
+  \end{block}
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Referências}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
