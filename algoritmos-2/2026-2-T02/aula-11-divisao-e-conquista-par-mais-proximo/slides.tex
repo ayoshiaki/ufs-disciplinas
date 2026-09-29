@@ -1,0 +1,840 @@
+% -*- coding: utf-8 -*-
+% Aula: Divisao e conquista -- revisao do teorema mestre e par de pontos mais proximo
+% Fontes principais: Levitin (2012), cap. 5; Cormen et al. (2009), secs. 4.5 e 33.4;
+% Kleinberg e Tardos (2006), sec. 5.4.
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, patterns}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  pt/.style={circle, fill=blue!60!black, inner sep=0pt, minimum size=1.6mm},
+  pthl/.style={circle, fill=orange!85!black, inner sep=0pt, minimum size=2.2mm},
+  ptlbl/.style={font=\tiny, inner sep=1pt},
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=4.6cm, minimum height=0.55cm, font=\scriptsize},
+  cell/.style={draw=gray!70, fill=white, minimum width=4.2mm, minimum height=4.2mm,
+               inner sep=0pt, font=\tiny},
+  rnode/.style={rectangle, draw=blue!60, fill=blue!8, rounded corners=1pt,
+                inner sep=1.5pt, font=\tiny},
+  fase/.style={rectangle, rounded corners, draw=blue!60, fill=blue!10,
+               minimum width=2.3cm, minimum height=0.6cm, font=\scriptsize,
+               align=center}
+}
+
+% os 8 pontos do exemplo condutor: A..D a esquerda, E..H a direita
+\newcommand{\pontosexemplo}{%
+  \foreach \n/\x/\y/\p in {A/1/5/above left, B/2/9/above left, C/4/5/above left,
+      D/5/8/above left, E/6/8/above right, F/8/8/above right, G/10/2/above left,
+      H/11/9/above left}{%
+    \node[pt] (\n) at (\x,\y) {};
+    \node[ptlbl, \p] at (\n) {\n};
+  }%
+}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\title{Divisão e conquista}
+\subtitle{Teorema mestre e o par de pontos mais próximo}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=3mm]
+    \node[box] (t1) {1.\ O problema: par de pontos mais próximo};
+    \node[box, below=of t1] (t2) {2.\ O paradigma de divisão e conquista};
+    \node[box, below=of t2] (t3) {3.\ Revisão do teorema mestre};
+    \node[box, below=of t3] (t4) {4.\ Aquecimento: par mais próximo na reta};
+    \node[box, below=of t4, fill=orange!20, draw=orange!80!black] (t5)
+         {5.\ Par mais próximo no plano em $O(n\log n)$};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4, t4/t5}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+    \draw[-{Stealth}, thick, orange!80!black, dashed]
+      (t5.east) to[bend right=50] node[right, font=\tiny, align=left]
+      {a recorrência\\do algoritmo\\volta ao\\teorema mestre} (t3.east);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\section{O problema motivador}
+
+\begin{frame}{Por que precisamos de algo melhor que força bruta?}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \textbf{Problema:}\\[2pt]
+      {\scriptsize
+      Dados $n$ pontos no plano, encontrar os dois que estão mais
+      próximos um do outro.
+      \begin{itemize}\scriptsize
+        \item controle de tráfego aéreo: dois aviões perto demais;
+        \item simulação física: detecção de colisões;
+        \item agrupamento: primeiro passo da ligação simples.
+      \end{itemize}}
+
+      \smallskip
+      \textbf{Solução} (a desta aula):\\[2pt]
+      {\scriptsize dividir o plano ao meio, resolver cada metade e
+      examinar só uma \emph{faixa estreita} perto da divisa.}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}[x=3.2mm, y=3.2mm]
+        \draw[gray!30, step=1] (0,0) grid (12,10);
+        \pontosexemplo
+        \node[pthl] at (D) {};
+        \node[pthl] at (E) {};
+        \draw[orange!85!black, very thick] (D) -- (E);
+        \node[font=\tiny, orange!85!black, below] at (5.5,7.8) {$d=1$};
+      \end{tikzpicture}
+
+      {\tiny exemplo condutor: 8 pontos, par mais próximo $\{D,E\}$}
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 3.3 e \S 5.5~\cite{levitin2012introduction};
+    Kleinberg e Tardos (2006), \S 5.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Par de pontos mais próximo: definição}
+  \begin{block}{Definição}
+    Dado $P=\{p_1,\dots,p_n\}$, com $p_i=(x_i,y_i)$ e $n\ge 2$, encontrar
+    $i\neq j$ que minimizam a distância euclidiana
+    \[
+      d(p_i,p_j)=\sqrt{(x_i-x_j)^2+(y_i-y_j)^2}.
+    \]
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize Em uma dimensão basta ordenar e olhar vizinhos consecutivos.
+    No plano não existe uma ordem que coloque lado a lado os pontos
+    próximos: ordenar por $x$ deixa $B$ ao lado de $C$, que estão a
+    $\sqrt{20}$ um do outro.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 33.4~\cite{cormen2009introduction};
+    Shamos e Hoey (1975), que propuseram o problema e o algoritmo~\cite{shamos1975closest}.}
+\end{frame}
+
+\begin{frame}[fragile]{Força bruta: todos os pares}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}
+double forcaBruta( Ponto P[], int n) {
+   double d = INFINITY;
+   for (int i = 0; i < n; ++i)
+      for (int j = i+1; j < n; ++j) {
+         double dij = dist( P[i], P[j]);
+         if (dij < d) d = dij;
+      }
+   return d;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \scriptsize
+      Número de distâncias calculadas:
+      \[
+        \sum_{i=0}^{n-1}(n-1-i)=\binom{n}{2}=\frac{n(n-1)}{2}\in\Theta(n^2).
+      \]
+      É a estratégia da Unidade~1: correta, simples e quadrática.
+
+      \smallskip
+      No exemplo condutor: $\binom{8}{2}=28$ distâncias.
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 3.3, \emph{Closest-Pair Problem by Brute Force}~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Quanto custa $\Theta(n^2)$ na prática?}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{rrrr}
+    \toprule
+    $n$ & pares $\binom{n}{2}$ & tempo a $10^9$ pares/s & $n\log_2 n$ a $10^9$/s \\
+    \midrule
+    $10^3$ & $5\times 10^5$    & 0{,}5 ms     & 0{,}01 ms \\
+    $10^5$ & $5\times 10^9$    & 5 s          & 1{,}7 ms  \\
+    $10^6$ & $5\times 10^{11}$ & $\approx$ 8 min  & 20 ms \\
+    $10^7$ & $5\times 10^{13}$ & $\approx$ 14 h   & 0{,}23 s \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{alertblock}{Pergunta da aula}
+    \scriptsize Existe um algoritmo que \emph{não} examine todos os pares?
+    A resposta é sim, e ele custa $O(n\log n)$. Para chegar lá precisamos
+    de uma técnica de projeto (divisão e conquista) e de uma ferramenta de
+    análise (o teorema mestre).
+  \end{alertblock}
+  \fonte{Estimativas de ordem de grandeza; medições reais no tutorial da aula.
+    Kleinberg e Tardos (2006), \S 5.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: o problema motivador}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\small
+      \item O par mais próximo tem aplicações em geometria, simulação e agrupamento.
+      \item A força bruta examina $\binom{n}{2}$ pares: $\Theta(n^2)$.
+      \item Para $n=10^6$, isso já leva minutos; queremos $O(n\log n)$.
+      \item Ordenar por $x$ \emph{sozinho} não resolve no plano.
+    \end{itemize}
+  \end{block}
+  \fonte{Levitin (2012), \S 3.3~\cite{levitin2012introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Divisão e conquista}
+
+\begin{frame}{Por que precisamos de divisão e conquista?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[2pt]
+      {\scriptsize Algoritmos incrementais (inserção, força bruta) avançam
+      um elemento por vez e tendem a custar $\Theta(n^2)$.}
+
+      \medskip
+      \textbf{Solução:}\\[2pt]
+      {\scriptsize Quebrar a instância em pedaços de tamanho $n/b$,
+      resolvê-los recursivamente e \emph{combinar} as respostas. Se dividir
+      e combinar forem baratos, o ganho se multiplica a cada nível da
+      recursão.}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \centering
+      \begin{tikzpicture}[node distance=5mm and 0mm]
+        \node[fase] (p) {instância\\tamanho $n$};
+        \node[fase, below left=of p, minimum width=1.6cm] (a) {tamanho $n/2$};
+        \node[fase, below right=of p, minimum width=1.6cm] (b) {tamanho $n/2$};
+        \node[fase, below=17mm of p, fill=green!12, draw=green!50!black] (s) {solução};
+        \draw[-{Stealth}, thick] (p) -- node[left, font=\tiny] {dividir} (a);
+        \draw[-{Stealth}, thick] (p) -- (b);
+        \draw[-{Stealth}, thick] (a) -- node[left, font=\tiny] {combinar} (s);
+        \draw[-{Stealth}, thick] (b) -- (s);
+        \node[font=\tiny, blue!60!black] at ($(a)!0.5!(b)$) {conquistar};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Feofiloff, aula \emph{Divisão e conquista}~\cite{feofiloff2026analise};
+    Levitin (2012), cap.~5~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Divisão e conquista: definição}
+  \begin{block}{Definição}
+    \scriptsize Um algoritmo de divisão e conquista resolve uma instância em três fases:
+    \begin{enumerate}\scriptsize
+      \item \textbf{dividir} a instância em $a$ instâncias menores do mesmo problema;
+      \item \textbf{conquistar}: resolver cada uma recursivamente (ou diretamente, se pequena);
+      \item \textbf{combinar} as soluções parciais em uma solução da instância original.
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize A recursão é a parte fácil, porque ``resolve sozinha''. Todo o engenho
+    fica em \emph{dividir} e \emph{combinar}, e é daí que vem o custo $f(n)$
+    que aparece na recorrência.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 2.3.1~\cite{cormen2009introduction};
+    Feofiloff, aula \emph{Divisão e conquista}~\cite{feofiloff2026analise}.}
+\end{frame}
+
+\begin{frame}{Exemplo-âncora: mergesort}
+  \begin{center}
+  \begin{tikzpicture}[x=4.4mm, y=4.4mm]
+    % linha 0: entrada
+    \foreach \v [count=\i from 0] in {5,2,4,7,1,3,2,6}
+      \node[cell] at (\i+3.5,0) {\v};
+    \node[font=\tiny, anchor=east] at (2.6,0) {entrada};
+    % linha 1: dividir
+    \foreach \v [count=\i from 0] in {5,2,4,7}
+      \node[cell] at (\i,-2) {\v};
+    \foreach \v [count=\i from 0] in {1,3,2,6}
+      \node[cell] at (\i+11,-2) {\v};
+    \node[font=\tiny, anchor=west, blue!60!black] at (15,-2) {\textbf{dividir}: $\Theta(1)$};
+    % linha 2: conquistar
+    \foreach \v [count=\i from 0] in {2,4,5,7}
+      \node[cell, fill=green!12] at (\i,-4) {\v};
+    \foreach \v [count=\i from 0] in {1,2,3,6}
+      \node[cell, fill=green!12] at (\i+11,-4) {\v};
+    \node[font=\tiny, anchor=west, blue!60!black] at (15,-4) {\textbf{conquistar}: $2\,T(n/2)$};
+    % linha 3: combinar
+    \foreach \v [count=\i from 0] in {1,2,2,3,4,5,6,7}
+      \node[cell, fill=orange!20] at (\i+3.5,-6) {\v};
+    \node[font=\tiny, anchor=west, blue!60!black] at (15,-6) {\textbf{combinar} (intercalar): $\Theta(n)$};
+    \draw[-{Stealth}, gray] (5.5,-0.6) -- (1.5,-1.4);
+    \draw[-{Stealth}, gray] (9.5,-0.6) -- (12.5,-1.4);
+    \draw[-{Stealth}, gray, dashed] (1.5,-2.6) -- node[left, font=\tiny] {recursão} (1.5,-3.4);
+    \draw[-{Stealth}, gray, dashed] (12.5,-2.6) -- (12.5,-3.4);
+    \draw[-{Stealth}, gray] (1.5,-4.6) -- (5.5,-5.4);
+    \draw[-{Stealth}, gray] (12.5,-4.6) -- (9.5,-5.4);
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-2pt}
+  \[
+    T(n)=2\,T(n/2)+\Theta(n),\qquad T(1)=\Theta(1).
+  \]
+  \fonte{Cormen et al.\ (2009), \S 2.3, Fig.~2.4~\cite{cormen2009introduction};
+    Levitin (2012), \S 5.1~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Da recorrência ao custo: a árvore de recursão}
+  \begin{columns}[c]
+    \begin{column}{0.58\textwidth}
+      \centering
+      \begin{tikzpicture}[x=3.6mm, y=7mm]
+        \node[rnode] (r) at (8,0) {$cn$};
+        \node[rnode] (a) at (4,-1) {$cn/2$};
+        \node[rnode] (b) at (12,-1) {$cn/2$};
+        \foreach \x in {2,6,10,14}
+          \node[rnode] (c\x) at (\x,-2) {$cn/4$};
+        \draw (r)--(a) (r)--(b) (a)--(c2) (a)--(c6) (b)--(c10) (b)--(c14);
+        \node[font=\scriptsize] at (8,-2.8) {$\vdots$};
+        \foreach \x in {0,2,...,16}
+          \node[rnode, fill=gray!15, draw=gray] at (\x,-3.5) {$c$};
+        \foreach \y/\t in {0/cn, -1/cn, -2/cn, -3.5/cn}
+          \node[font=\tiny, orange!85!black, anchor=west] at (17,\y) {$\t$};
+        \draw[decorate, decoration={brace, amplitude=4pt, mirror}]
+          (-0.8,0.2) -- node[left=4pt, font=\tiny, align=right] {$\log_2 n$\\níveis} (-0.8,-3.7);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \scriptsize
+      \begin{itemize}\scriptsize
+        \item No nível $j$ há $2^j$ nós, cada um com custo $cn/2^j$.
+        \item Soma por nível: $2^j\cdot cn/2^j = cn$.
+        \item São $\log_2 n+1$ níveis.
+      \end{itemize}
+      \[
+        T(n)=cn(\log_2 n+1)\in\Theta(n\log n).
+      \]
+      Desenhar a árvore para cada algoritmo cansa, e o teorema mestre
+      faz essa soma por nós.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 2.3.2, Fig.~2.5, e \S 4.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: divisão e conquista}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\small
+      \item Três fases: dividir, conquistar (recursão) e combinar.
+      \item O custo não recursivo de dividir e combinar forma o termo $f(n)$.
+      \item $a$ subproblemas de tamanho $n/b$ dão $T(n)=a\,T(n/b)+f(n)$.
+      \item A árvore de recursão soma o custo nível a nível; no mergesort,
+            $cn$ por nível em $\log n$ níveis.
+    \end{itemize}
+  \end{block}
+  \fonte{Levitin (2012), cap.~5~\cite{levitin2012introduction};
+    Cormen et al.\ (2009), \S 4.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Revisão do teorema mestre}
+
+\begin{frame}{Por que precisamos do teorema mestre?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[2pt]
+      {\scriptsize Toda análise de divisão e conquista termina em uma
+      recorrência
+      \[ T(n)=a\,T(n/b)+f(n), \]
+      e resolvê-la por substituição ou árvore de recursão é trabalhoso.}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{Solução:}\\[2pt]
+      {\scriptsize Um ``livro de receitas'': comparar $f(n)$ com
+      $n^{\log_b a}$, que é o número de folhas da árvore, e ler a resposta
+      em um de três casos.}
+
+      \medskip
+      {\scriptsize
+      \begin{tabular}{@{}ll@{}}
+        $a\ge 1$ & número de subproblemas \\
+        $b>1$    & fator de redução do tamanho \\
+        $f(n)$   & custo de dividir e combinar
+      \end{tabular}}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 4.5~\cite{cormen2009introduction};
+    Feofiloff, aula \emph{Recorrências}, seção \emph{Teorema Mestre}~\cite{feofiloff2026analise}.}
+\end{frame}
+
+\begin{frame}{Teorema mestre: versão com $f(n)\in\Theta(n^d)$}
+  \begin{block}{Teorema (Levitin, 2012)}
+    \scriptsize Se $T(n)=a\,T(n/b)+f(n)$ com $a\ge 1$, $b\ge 2$ e $f(n)\in\Theta(n^d)$, $d\ge 0$, então
+    \[
+      T(n)\in
+      \begin{cases}
+        \Theta(n^d)            & \text{se } a < b^d \quad\text{(a raiz domina)},\\
+        \Theta(n^d \log n)     & \text{se } a = b^d \quad\text{(todos os níveis empatam)},\\
+        \Theta(n^{\log_b a})   & \text{se } a > b^d \quad\text{(as folhas dominam)}.
+      \end{cases}
+    \]
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize O nível $j$ da árvore custa $a^j\,(n/b^j)^d = n^d\,(a/b^d)^j$.
+    Temos uma série geométrica de razão $r=a/b^d$: se $r<1$, ela
+    decresce e a soma é dominada pelo primeiro termo; se $r=1$, são
+    $\log_b n$ termos iguais; se $r>1$, ela cresce e o último termo
+    (as folhas) domina.
+  \end{exampleblock}
+  \fonte{Levitin (2012), cap.~5, \emph{Master Theorem}~\cite{levitin2012introduction};
+    Kleinberg e Tardos (2006), \S 5.2~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Os três casos vistos na árvore}
+  \begin{center}
+  \begin{tikzpicture}[x=1mm, y=1mm]
+    % caso 1: decrescente
+    \begin{scope}[shift={(0,0)}]
+      \foreach \w [count=\j from 0] in {32,16,8,4,2}
+        \fill[blue!50] (16-\w/2, -\j*5) rectangle (16+\w/2, -\j*5+3.5);
+      \node[font=\scriptsize, align=center] at (16,-28) {$a<b^d$\\raiz domina\\$\Theta(f(n))$};
+    \end{scope}
+    % caso 2: constante
+    \begin{scope}[shift={(48,0)}]
+      \foreach \j in {0,...,4}
+        \fill[green!50!black!60] (4, -\j*5) rectangle (28, -\j*5+3.5);
+      \node[font=\scriptsize, align=center] at (16,-28) {$a=b^d$\\níveis iguais\\$\Theta(f(n)\log n)$};
+    \end{scope}
+    % caso 3: crescente
+    \begin{scope}[shift={(96,0)}]
+      \foreach \w [count=\j from 0] in {2,4,8,16,32}
+        \fill[orange!80] (16-\w/2, -\j*5) rectangle (16+\w/2, -\j*5+3.5);
+      \node[font=\scriptsize, align=center] at (16,-28) {$a>b^d$\\folhas dominam\\$\Theta(n^{\log_b a})$};
+    \end{scope}
+    \node[font=\tiny, rotate=90, gray] at (-4,-8) {nível $0\to\log_b n$};
+    \draw[-{Stealth}, gray] (-1,2) -- (-1,-20);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize Cada barra é a soma dos custos de um nível. A resposta é a da parte mais pesada da árvore.}
+  \fonte{Cormen et al.\ (2009), \S 4.6, Fig.~4.7~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Teorema mestre: enunciado geral}
+  \begin{block}{Teorema 4.1 (Cormen et al., 2009)}
+    \scriptsize Sejam $a\ge 1$, $b>1$ e $T(n)=a\,T(n/b)+f(n)$. Compare $f(n)$ com $n^{\log_b a}$:
+    \begin{enumerate}\scriptsize
+      \item se $f(n)=O(n^{\log_b a-\varepsilon})$ para algum $\varepsilon>0$, então $T(n)=\Theta(n^{\log_b a})$;
+      \item se $f(n)=\Theta(n^{\log_b a})$, então $T(n)=\Theta(n^{\log_b a}\lg n)$;
+      \item se $f(n)=\Omega(n^{\log_b a+\varepsilon})$ para algum $\varepsilon>0$ \emph{e}
+            $a\,f(n/b)\le c\,f(n)$ para alguma constante $c<1$ e todo $n$ grande
+            (regularidade), então $T(n)=\Theta(f(n))$.
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{O que muda em relação à versão com $n^d$}
+    \scriptsize $f$ não precisa ser um polinômio, mas precisa ser
+    \emph{polinomialmente} menor ou maior que $n^{\log_b a}$ (o fator $n^\varepsilon$).
+    Pisos e tetos ($\lfloor n/2\rfloor$, $\lceil n/2\rceil$) não alteram a resposta.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 4.5, Teorema~4.1, e \S 4.6.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplos: aplicando a receita}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{llcccl}
+    \toprule
+    algoritmo & recorrência & $a$ & $b$ & $d$ & resultado \\
+    \midrule
+    busca binária            & $T(n/2)+\Theta(1)$   & 1 & 2 & 0 & $a=b^d$: $\Theta(\log n)$ \\
+    mergesort                & $2T(n/2)+\Theta(n)$  & 2 & 2 & 1 & $a=b^d$: $\Theta(n\log n)$ \\
+    máximo por D\&C          & $2T(n/2)+\Theta(1)$  & 2 & 2 & 0 & $a>b^d$: $\Theta(n)$ \\
+    multiplicação ingênua    & $4T(n/2)+\Theta(n)$  & 4 & 2 & 1 & $a>b^d$: $\Theta(n^2)$ \\
+    \rowcolor{orange!15}
+    Karatsuba                & $3T(n/2)+\Theta(n)$  & 3 & 2 & 1 & $a>b^d$: $\Theta(n^{\log_2 3})\approx n^{1{,}585}$ \\
+    \rowcolor{orange!15}
+    Strassen                 & $7T(n/2)+\Theta(n^2)$& 7 & 2 & 2 & $a>b^d$: $\Theta(n^{\log_2 7})\approx n^{2{,}807}$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{alertblock}{Lição para as próximas aulas}
+    \scriptsize Quando as folhas dominam, cortar \emph{um} subproblema ($a$: $4\to 3$, $8\to 7$)
+    muda o expoente. Karatsuba e Strassen fazem exatamente isso.
+  \end{alertblock}
+  \fonte{Levitin (2012), \S 5.4~\cite{levitin2012introduction};
+    Cormen et al.\ (2009), \S 4.2 (Strassen)~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 5.5 (Karatsuba)~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Quando o teorema mestre \emph{não} se aplica}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{lll}
+    \toprule
+    recorrência & por que falha & o que fazer \\
+    \midrule
+    $T(n)=T(n-1)+n$           & não divide por $b$         & somar direto: $\Theta(n^2)$ \\
+    $T(n)=T(n/3)+T(2n/3)+n$   & subproblemas desiguais     & árvore de recursão: $\Theta(n\log n)$ \\
+    $T(n)=n\,T(n/2)+1$        & $a$ não é constante        & substituição / árvore \\
+    \rowcolor{orange!15}
+    $T(n)=2T(n/2)+n\lg n$     & $n\lg n$ não é $n^{1+\varepsilon}$ & extensão do caso~2 \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Extensão do caso 2}
+    \scriptsize Se $f(n)=\Theta(n^{\log_b a}\lg^k n)$ com $k\ge 0$, então
+    $T(n)=\Theta(n^{\log_b a}\lg^{k+1} n)$.\\
+    Assim, $2T(n/2)+n\lg n=\Theta(n\lg^2 n)$. Vamos reencontrar essa recorrência
+    no par mais próximo.
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 4.5 (exemplo da lacuna) e Exercício~4.6-2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: teorema mestre}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\small
+      \item Compare o custo da raiz $f(n)$ com o das folhas $n^{\log_b a}$.
+      \item Raiz domina: $\Theta(f(n))$. Empate: $\Theta(f(n)\log n)$. Folhas dominam: $\Theta(n^{\log_b a})$.
+      \item Na versão geral a diferença precisa ser polinomial, e o caso~3 pede regularidade.
+      \item Fora da forma $aT(n/b)+f(n)$, volte à árvore de recursão.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 4.5~\cite{cormen2009introduction};
+    Levitin (2012), cap.~5~\cite{levitin2012introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Aquecimento: pontos na reta}
+
+\begin{frame}{Por que começar pela reta?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\[2pt]
+      {\scriptsize Dados $n$ números reais $x_1,\dots,x_n$, achar o par
+      mais próximo. Ordenar e comparar vizinhos resolve em $\Theta(n\log n)$,
+      mas essa ideia \emph{não} se generaliza para o plano.}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{Solução:}\\[2pt]
+      {\scriptsize Resolver com divisão e conquista e observar \emph{onde} está
+      o trabalho da combinação. É esse o esqueleto que levaremos para o plano.}
+    \end{column}
+  \end{columns}
+
+  \bigskip
+  \begin{center}
+  \begin{tikzpicture}[x=9mm]
+    \draw[-{Stealth}, gray] (0,0) -- (12,0);
+    \foreach \x/\n in {1/1, 2/2, 4/4, 5/5, 6/6, 8/8, 10/10, 11/11}{
+      \node[pt] at (\x,0) {};
+      \node[ptlbl, below=1pt] at (\x,0) {\n};
+    }
+    \draw[red!70!black, dashed, thick] (5.5,-0.5) -- (5.5,0.6) node[above, font=\tiny] {mediana $m$};
+    \draw[decorate, decoration={brace, amplitude=3pt}, blue!60!black]
+      (1,0.25) -- node[above=2pt, font=\tiny] {$S_1$: $\delta_1=1$} (5,0.25);
+    \draw[decorate, decoration={brace, amplitude=3pt}, blue!60!black]
+      (6,0.25) -- node[above=2pt, font=\tiny] {$S_2$: $\delta_2=1$} (11,0.25);
+    \draw[orange!85!black, very thick] (5,-0.1) -- (6,-0.1);
+    \node[font=\tiny, orange!85!black] at (5.5,-0.7) {único par que cruza};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{Levitin (2012), \S 5.5~\cite{levitin2012introduction};
+    Shamos e Hoey (1975), \S 2~\cite{shamos1975closest}.}
+\end{frame}
+
+\begin{frame}{Par mais próximo na reta: algoritmo e custo}
+  \begin{block}{Algoritmo (entrada já ordenada)}
+    \scriptsize
+    \begin{enumerate}\scriptsize
+      \item \textbf{Dividir} na mediana: $S_1$ (metade esquerda) e $S_2$ (metade direita).
+      \item \textbf{Conquistar}: $\delta_1$ e $\delta_2$ recursivamente.
+      \item \textbf{Combinar}: $\delta=\min\{\delta_1,\ \delta_2,\ \min S_2-\max S_1\}$.
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Por que a combinação é barata}
+    \scriptsize Um par que cruza a divisa e é mais curto que $\delta_1$ e $\delta_2$
+    só pode ser o do \emph{último} de $S_1$ com o \emph{primeiro} de $S_2$: há
+    um único candidato.\\[2pt]
+    $T(n)=2T(n/2)+\Theta(1)\Rightarrow$ caso $a>b^d$: $\Theta(n)$, mais $\Theta(n\log n)$ da ordenação inicial.
+  \end{exampleblock}
+  \fonte{Levitin (2012), \S 5.5~\cite{levitin2012introduction};
+    Shamos e Hoey (1975), \S 2~\cite{shamos1975closest}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: pontos na reta}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\small
+      \item O par ótimo está inteiro em $S_1$, inteiro em $S_2$ ou \emph{cruza} a divisa.
+      \item Pares que cruzam só importam se forem mais curtos que $\delta=\min\{\delta_1,\delta_2\}$.
+      \item Na reta existe um só candidato que cruza; no plano, quantos existem?
+    \end{itemize}
+  \end{block}
+  \fonte{Shamos e Hoey (1975), \S 2~\cite{shamos1975closest}.}
+\end{frame}
+
+% =====================================================================
+\section{Par mais próximo no plano}
+
+\begin{frame}{Por que a combinação é o desafio no plano?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      {\scriptsize Dividindo por uma reta vertical, podem existir até
+      $\frac n2\cdot\frac n2$ pares que cruzam a divisa. Examinar todos
+      nos devolve a $\Theta(n^2)$.}
+
+      \medskip
+      \textbf{Solução:}\\[2pt]
+      {\scriptsize Com $\delta=\min\{\delta_L,\delta_R\}$, só importam pontos
+      a menos de $\delta$ da reta, e cada um deles precisa ser comparado
+      com \textbf{no máximo 7} vizinhos.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}[x=3.2mm, y=3.2mm]
+        \fill[yellow!25] (3.5,0) rectangle (7.5,10);
+        \draw[gray!30, step=1] (0,0) grid (12,10);
+        \draw[red!70!black, dashed, thick] (5.5,0) -- (5.5,10.4) node[above, font=\tiny] {$x=5{,}5$};
+        \pontosexemplo
+        \draw[blue!60!black, thick] (A) -- node[below, font=\tiny] {$\delta_L=3$} (C);
+        \draw[blue!60!black, thick] (E) -- node[above, font=\tiny] {$\delta_R=2$} (F);
+        \draw[decorate, decoration={brace, amplitude=3pt, mirror}]
+          (3.5,-0.3) -- node[below=2pt, font=\tiny] {faixa $2\delta=4$} (7.5,-0.3);
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 33.4~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 5.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{O algoritmo no plano: definição}
+  \begin{block}{Algoritmo (Shamos e Hoey, 1975; versão de Cormen et al.)}
+    \scriptsize Entrada: $X$ (pontos ordenados por $x$) e $Y$ (os mesmos, ordenados por $y$).
+    \begin{enumerate}\scriptsize
+      \item \textbf{Base}: se $n\le 3$, força bruta.
+      \item \textbf{Dividir}: reta vertical na mediana de $X$; separar $Y$ em $Y_L$ e $Y_R$
+            \emph{mantendo a ordem por $y$}, em tempo $\Theta(n)$.
+      \item \textbf{Conquistar}: $\delta_L=\textsc{pmp}(X_L,Y_L)$ e $\delta_R=\textsc{pmp}(X_R,Y_R)$;
+            $\delta=\min\{\delta_L,\delta_R\}$.
+      \item \textbf{Combinar}: $Y'\gets$ pontos de $Y$ com $|x-x_m|<\delta$ (já ordenados por $y$);
+            comparar cada ponto de $Y'$ com os \textbf{7 seguintes}; atualizar $\delta$.
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize A faixa pode conter todos os $n$ pontos, mas mesmo assim o trabalho é
+    $\le 7n$ comparações, porque $\delta$ limita quantos pontos cabem perto de cada um.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 33.4~\cite{cormen2009introduction};
+    Shamos e Hoey (1975)~\cite{shamos1975closest}.}
+\end{frame}
+
+\begin{frame}{Por que bastam 7 vizinhos?}
+  \begin{columns}[c]
+    \begin{column}{0.4\textwidth}
+      \centering
+      \begin{tikzpicture}[x=9mm, y=9mm]
+        \foreach \i in {0,1,2,3} \foreach \j in {0,1}
+          \draw[gray!70, fill=blue!5] (\i,\j) rectangle (\i+1,\j+1);
+        \draw[red!70!black, dashed, thick] (2,-0.3) -- (2,2);
+        \draw[very thick] (0,0) rectangle (4,2);
+        % pontos do mesmo lado distam >= delta (= 2 quadrados)
+        \node[pthl] at (0.2,0.05) {};
+        \node[font=\tiny, below] at (0.2,0.05) {$p$};
+        \foreach \x/\y in {1.95/1.2, 2.1/0.1, 3.9/1.0}
+          \node[pt] at (\x,\y) {};
+        \draw[decorate, decoration={brace, amplitude=3pt}]
+          (0,2.05) -- node[above=2pt, font=\tiny] {$2\delta$} (4,2.05);
+        \draw[decorate, decoration={brace, amplitude=3pt}]
+          (4.05,2) -- node[right=2pt, font=\tiny] {$\delta$} (4.05,0);
+        \draw[decorate, decoration={brace, amplitude=2pt, mirror}]
+          (3,-0.05) -- node[below=2pt, font=\tiny, gray] {$\delta/2$} (4,-0.05);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      \scriptsize
+      \begin{itemize}\scriptsize
+        \item Seja $p$ um ponto da faixa. Se $q$ vem depois de $p$ em $Y'$ e
+              $d(p,q)<\delta$, então $q$ está no retângulo $2\delta\times\delta$
+              que começa na altura de $p$.
+        \item Divida o retângulo em 8 quadrados de lado $\delta/2$. Cada quadrado
+              fica de um só lado da reta.
+        \item Dois pontos no mesmo quadrado distam no máximo
+              $\frac{\delta}{2}\sqrt 2<\delta$, o que contradiz $\delta_L,\delta_R\ge\delta$.
+        \item Logo há no máximo 8 pontos no retângulo: $p$ e \textbf{7 outros}.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 33.4, Fig.~33.11~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 5.4, (5.10)~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}[fragile]{A combinação em C}
+\begin{lstlisting}
+/* F[0..f-1]: pontos com |x - divisor.x| < d, ja' em ordem de y */
+int f = 0;
+for (int i = 0; i < n; ++i)
+   if (fabs( Y[i].x - divisor.x) < d) F[f++] = Y[i];
+
+for (int i = 0; i < f; ++i)
+   for (int j = i+1; j < f && F[j].y - F[i].y < d; ++j) {   /* no maximo 7 */
+      double dij = dist( F[i], F[j]);
+      if (dij < d) d = dij;
+   }
+\end{lstlisting}
+  \scriptsize
+  O teste \texttt{F[j].y - F[i].y < d} para o laço interno assim que o vizinho sai do
+  retângulo. Ele é mais econômico que ``exatamente 7'' e continua limitado por 7.
+  O programa completo está no tutorial da aula.
+  \fonte{Cormen et al.\ (2009), \S 33.4~\cite{cormen2009introduction};
+    Levitin (2012), \S 5.5~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplo: o algoritmo no exemplo condutor}
+  \begin{columns}[c]
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}[x=3.2mm, y=3.2mm]
+        \fill[yellow!25] (3.5,0) rectangle (7.5,10);
+        \draw[gray!30, step=1] (0,0) grid (12,10);
+        \draw[red!70!black, dashed, thick] (5.5,0) -- (5.5,10);
+        \pontosexemplo
+        \node[pthl] at (D) {};
+        \node[pthl] at (E) {};
+        \draw[orange!85!black, very thick] (D) -- (E);
+        \draw[gray, dashed] (C) -- (D);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \begin{exampleblock}{Exemplo}
+        \scriptsize
+        $A(1,5)\ B(2,9)\ C(4,5)\ D(5,8)\ \mid\ E(6,8)\ F(8,8)\ G(10,2)\ H(11,9)$
+        \begin{enumerate}\scriptsize
+          \item Divisa em $x=5{,}5$ (entre $D$ e $E$).
+          \item Esquerda: $\delta_L=d(A,C)=3$. Direita: $\delta_R=d(E,F)=2$. Então $\delta=2$.
+          \item Faixa $3{,}5<x<7{,}5$: $Y'=(C,\ D,\ E)$ por $y$.
+          \item $C$: o próximo é $D$, mas $y_D-y_C=3\ge\delta$, e o laço para sem calcular.
+          \item $D$: $d(D,E)=1<2$, e o novo $\delta$ passa a ser 1.
+        \end{enumerate}
+        Resposta: $\{D,E\}$, com $d=1$, um par que \emph{cruza} a divisa.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \fonte{Exemplo construído para a aula; conferido com o programa do tutorial.}
+\end{frame}
+
+\begin{frame}{Análise: a recorrência volta ao teorema mestre}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Versão 1: ordena a faixa em cada chamada}
+        \scriptsize
+        \[ T(n)=2T(n/2)+\Theta(n\log n) \]
+        $f(n)=n\lg n$ não é polinomialmente maior que $n^{\log_2 2}=n$:
+        cai na \emph{lacuna}. Pela extensão do caso~2 ($k=1$):
+        \[ T(n)=\Theta(n\log^2 n). \]
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Versão 2: pré-ordena $X$ e $Y$ uma vez}
+        \scriptsize
+        Separar $Y$ em $Y_L,Y_R$ e filtrar $Y'$ custa $\Theta(n)$:
+        \[ T(n)=2T(n/2)+\Theta(n) \]
+        $a=2=b^d$: caso~2, $\Theta(n\log n)$.\\
+        Somando a pré-ordenação $\Theta(n\log n)$:
+        \[ \Theta(n\log n). \]
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize É a mesma recorrência do mergesort. O truque é não pagar a ordenação
+  dentro da recursão, e sim ``desintercalar'' $Y$, o inverso do \texttt{merge}.
+  Esse limite é ótimo no modelo de árvores de decisão algébricas.}
+  \fonte{Cormen et al.\ (2009), \S 33.4 e Exerc.~4.6-2~\cite{cormen2009introduction};
+    Preparata e Shamos (1985), cap.~5~\cite{preparata1985computational}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: par mais próximo no plano}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\small
+      \item Dividir pela mediana em $x$, resolver cada metade e obter $\delta=\min\{\delta_L,\delta_R\}$.
+      \item Pares que cruzam só na faixa $|x-x_m|<\delta$, e cada ponto tem no máximo 7 vizinhos a testar.
+      \item Com a faixa ordenada a cada chamada o custo é $\Theta(n\log^2 n)$; com pré-ordenação, $\Theta(n\log n)$.
+      \item Para $n=10^6$: de $\approx 5\times 10^{11}$ distâncias para poucos milhões.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 33.4~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 5.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Fechando o ciclo}
+  \begin{center}
+  \begin{tikzpicture}[node distance=4mm and 6mm]
+    \node[fase] (p) {problema\\$\Theta(n^2)$};
+    \node[fase, right=of p] (dc) {dividir, conquistar,\\combinar};
+    \node[fase, right=of dc] (rec) {recorrência\\$2T(n/2)+f(n)$};
+    \node[fase, right=of rec, fill=green!12, draw=green!50!black] (tm) {teorema mestre\\$\Theta(n\log n)$};
+    \draw[-{Stealth}, thick] (p) -- (dc);
+    \draw[-{Stealth}, thick] (dc) -- (rec);
+    \draw[-{Stealth}, thick] (rec) -- (tm);
+    \draw[-{Stealth}, thick, orange!80!black, dashed] (tm.south) to[bend left=20]
+      node[below, font=\tiny] {se $f(n)$ é alto demais, repense \emph{dividir} e \emph{combinar}} (dc.south);
+  \end{tikzpicture}
+  \end{center}
+  \medskip
+  {\scriptsize
+  \textbf{Próximas aulas:} Karatsuba e Strassen, em que o ganho vem de reduzir $a$, o número de
+  subproblemas, e não $f(n)$.}
+  \fonte{Levitin (2012), \S 5.4~\cite{levitin2012introduction};
+    Cormen et al.\ (2009), \S 4.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

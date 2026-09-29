@@ -109,6 +109,15 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-11-divisao-e-conquista-par-mais-proximo' | relative_url }}">
+    <div class="week-num">11</div>
+    <div class="week-body">
+      <div class="week-title">Divisão e conquista: par de pontos mais próximo</div>
+      <div class="week-desc">Revisão do teorema mestre; par de pontos mais próximo da força bruta quadrática à divisão e conquista em O(n log n), com a faixa central e o limite de vizinhos a comparar.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/lista-de-exercicios' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📝</div>
     <div class="week-body">
