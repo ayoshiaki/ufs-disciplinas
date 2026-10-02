@@ -96,7 +96,7 @@ title: "COMP0496 — Programação A — Turma 1 · 2026/2"
     <div class="week-body">
       <div class="week-title">Programação Funcional e Recursão Estrutural</div>
       <div class="week-desc">Programação funcional, compreensões e recursão estrutural.</div>
-      <div class="week-badges"><span class="week-badge nb">5 notebooks</span><span class="week-badge pdf">6 PDFs</span></div>
+      <div class="week-badges"><span class="week-badge nb">5 notebooks</span><span class="week-badge pdf">7 PDFs</span></div>
     </div>
   </a>
 

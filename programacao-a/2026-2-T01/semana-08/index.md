@@ -69,3 +69,15 @@ turma: 2026-2-T01
     </tbody>
   </table>
 </div>
+
+<div class="table-card">
+  <div class="table-card-header">📄 Lista de exercícios</div>
+  <table>
+    <tbody>
+      <tr>
+        <td><strong>Funções de alta ordem: map, filter e reduce</strong></td>
+        <td class="td-right"><a class="badge-pdf" href="lista-exercicios-map-filter-reduce.pdf">📄 PDF</a></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
