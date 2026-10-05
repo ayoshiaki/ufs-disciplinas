@@ -1,0 +1,1067 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc, trees}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{codC}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7.5}{8.6}\selectfont\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  reg/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=3.6cm,
+    minimum height=0.48cm, font=\scriptsize\ttfamily, align=center},
+  regmain/.style={reg, draw=UFSGray, fill=black!5},
+  regbase/.style={reg, draw=UFSRed, fill=UFSRed!8},
+  chamada/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+    font=\scriptsize\ttfamily, inner sep=3pt},
+  chamadar/.style={chamada, draw=UFSRed, fill=UFSRed!10},
+  evento/.style={rectangle, rounded corners, font=\scriptsize\ttfamily,
+    inner sep=3pt, minimum width=1.9cm},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={->, thick, UFSBlue},
+  setar/.style={->, thick, UFSRed},
+  setag/.style={->, thick, UFSGray},
+  caixa/.style={rectangle, draw=UFSGray, rounded corners, fill=black!3,
+    font=\scriptsize, align=center, inner sep=4pt},
+}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% --- Metadados ---
+\title{Recursividade}
+\subtitle{Funções que chamam a si mesmas e a pilha de execução}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10.4cm, minimum height=0.72cm, font=\small}
+  ]
+    \node[item] (t1) at (0, 0)    {Funções que chamam a si mesmas: caso base e passo recursivo};
+    \node[item] (t2) at (0,-0.95) {O que a máquina guarda a cada chamada: a pilha de execução};
+    \node[item] (t3) at (0,-1.90) {O que se faz antes e depois da chamada: a ida e a volta};
+    \node[item] (t4) at (0,-2.85) {Quando a função chama a si mesma duas vezes};
+    \node[item] (t5) at (0,-3.80) {Recursão ou laço: o que cada um custa};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{Por que recursão}
+% ==================================================================
+
+\begin{frame}{O problema: definições que usam a si mesmas}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Muita coisa se define assim}\\[0.3em]
+      \small
+      $n! = n \cdot (n-1)!$, \quad e $1! = 1$
+
+      \medskip
+      a soma de um vetor é o último elemento mais a soma do resto
+
+      \medskip
+      uma pasta contém arquivos e \emph{outras pastas}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que vamos descobrir}\\[0.3em]
+      \small
+      Em C, uma função pode chamar a si mesma --- e o código fica com a
+      mesma cara da definição.
+
+      \medskip
+      Mas cada chamada tem o seu próprio \texttt{n}. \textcolor{UFSRed}{Onde
+      ficam todos esses \texttt{n} ao mesmo tempo?}
+    \end{column}
+  \end{columns}
+  \begin{block}{A pergunta de hoje}
+    O que a máquina faz, passo a passo, quando uma função chama a si mesma?
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{pilha.c} (1/4)}
+\begin{lstlisting}[style=codC]
+/* pilha.c --- o que acontece a cada chamada de uma funcao recursiva */
+#include <stdio.h>
+/* A: fatorial, contando o que acontece na ida e na volta */
+long fatorial(int n)
+{
+    static int nivel = 0;   /* static: um so para todas as chamadas */
+    printf("%*sfatorial(%d) comeca   &n = %p\n", 2 * nivel, "", n,
+           (void *) &n);
+    nivel++;
+    long resultado;
+    if (n <= 1)
+        resultado = 1;                      /* caso base */
+    else
+        resultado = n * fatorial(n - 1);    /* passo recursivo */
+    nivel--;
+    printf("%*sfatorial(%d) devolve %ld\n", 2 * nivel, "", n, resultado);
+    return resultado;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{pilha.c} (2/4): a ida, a volta e duas chamadas}
+\begin{lstlisting}[style=codC]
+/* B: o que se faz antes e depois da chamada */
+void desce_e_sobe(int n)
+{
+    if (n == 0)
+        return;
+    printf("%d ", n);       /* antes da chamada */
+    desce_e_sobe(n - 1);
+    printf("%d ", n);       /* depois da chamada */
+}
+
+/* C: uma funcao que chama a si mesma duas vezes */
+long fib(int n, int *chamadas)
+{
+    (*chamadas)++;
+    if (n < 2)
+        return n;
+    return fib(n - 1, chamadas) + fib(n - 2, chamadas);
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{pilha.c} (3/4): a soma de um vetor}
+\begin{lstlisting}[style=codC]
+/* D: a soma de um vetor e' o ultimo mais a soma do resto */
+int soma(const int *v, int n)
+{
+    if (n == 0)
+        return 0;
+    return soma(v, n - 1) + v[n - 1];
+}
+\end{lstlisting}
+  \begin{block}{Dois detalhes de \texttt{printf} no trecho \textbf{A}}
+    \small
+    \texttt{\%*s} com \texttt{""} imprime \texttt{2 * nivel} espaços: é só a
+    indentação do rastro.
+
+    \medskip
+    \texttt{\%p} imprime um endereço; por isso o \texttt{(void *) \&n}.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{pilha.c} (4/4): o \texttt{main}}
+\begin{lstlisting}[style=codC]
+int main(void)
+{
+    printf("A: 4! = %ld\n", fatorial(4));
+    printf("B: ");
+    desce_e_sobe(3);
+    printf("\n");
+    int chamadas = 0;
+    long f = fib(5, &chamadas);
+    printf("C: fib(5) = %ld com %d chamadas\n", f, chamadas);
+    chamadas = 0;
+    f = fib(20, &chamadas);
+    printf("C: fib(20) = %ld com %d chamadas\n", f, chamadas);
+    int v[] = {3, 1, 4, 1, 5};
+    printf("D: soma = %d\n", soma(v, 5));
+    return 0;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item Quantas linhas \texttt{comeca} e quantas \texttt{devolve}
+        aparecem --- e em que ordem?
+      \item O endereço \texttt{\&n} é o mesmo nas chamadas de
+        \texttt{fatorial}?
+      \item A linha \textbf{A} sai antes ou depois do rastro de
+        \texttt{fatorial}?
+      \item O que a linha \textbf{B} imprime?
+      \item Na linha \textbf{C}, quantas chamadas faz \texttt{fib(5)}? E
+        \texttt{fib(20)}: umas 80, umas 400 ou mais de 10\,000?
+      \item Quanto vale a soma da linha \textbf{D}?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra pilha.c -o pilha
+$ ./pilha
+fatorial(4) comeca   &n = 0x16fb4a6fc
+  fatorial(3) comeca   &n = 0x16fb4a6ac
+    fatorial(2) comeca   &n = 0x16fb4a65c
+      fatorial(1) comeca   &n = 0x16fb4a60c
+      fatorial(1) devolve 1
+    fatorial(2) devolve 2
+  fatorial(3) devolve 6
+fatorial(4) devolve 24
+A: 4! = 24
+B: 3 2 1 1 2 3
+C: fib(5) = 5 com 15 chamadas
+C: fib(20) = 6765 com 21891 chamadas
+D: soma = 14
+\end{lstlisting}
+  \vspace{-0.4em}
+  \begin{center}
+    \scriptsize\textcolor{UFSGray}{Os endereços na sua máquina serão outros;
+    o padrão entre eles, não.}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{Caso base e passo recursivo}
+% ==================================================================
+
+\begin{frame}{Definição: função recursiva}
+  \begin{block}{Função recursiva}
+    Uma função é \textbf{recursiva} quando chama a si mesma, direta ou
+    indiretamente. Cada chamada resolve uma \emph{instância menor} do mesmo
+    problema, até chegar a uma instância tão pequena que se resolve sem
+    chamar ninguém.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    ``Se a instância é pequena, resolva diretamente. Senão, reduza-a a uma
+    instância menor do \emph{mesmo} problema, confie que a chamada recursiva
+    a resolve, e use a resposta.''
+  \end{exampleblock}
+  \fonte{Feofiloff (2009), cap.~2~\cite{feofiloff2009algoritmos};
+    Kernighan \& Ritchie (1989), §4.10~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}[fragile]{Da definição matemática ao código}
+  \begin{columns}[c]
+    \begin{column}{0.38\textwidth}
+      \[
+        n! =
+        \begin{cases}
+          1 & \text{se } n \le 1\\[0.3em]
+          n \cdot (n-1)! & \text{se } n > 1
+        \end{cases}
+      \]
+      \begin{center}
+        \scriptsize
+        \textcolor{UFSRed}{\textbf{caso base}}: responde sem recursão\\
+        \textcolor{UFSBlue}{\textbf{passo recursivo}}: usa a resposta\\
+        de uma instância menor
+      \end{center}
+    \end{column}
+    \begin{column}{0.6\textwidth}
+\begin{lstlisting}[style=tinyC]
+long fatorial(int n)
+{
+    if (n <= 1)
+        return 1;                 /* caso base */
+    return n * fatorial(n - 1);   /* passo     */
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Cada linha da definição virou uma linha do código. É essa
+    correspondência que torna a recursão fácil de escrever --- e de
+    conferir.
+  \end{block}
+  \fonte{Tenenbaum et al.\ (1995), cap.~3~\cite{tenenbaum1995estruturas};
+    King (2008), §9.6~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Por que \texttt{fatorial(1)} não chamou \texttt{fatorial(0)}?}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \small
+      No rastro, a descida parou em \texttt{fatorial(1)}:
+      \begin{center}
+        \ttfamily\scriptsize
+        \begin{tabular}{l}
+          fatorial(4) comeca\\
+          \ \ fatorial(3) comeca\\
+          \ \ \ \ fatorial(2) comeca\\
+          \ \ \ \ \ \ fatorial(1) comeca\\
+          \ \ \ \ \ \ \textcolor{UFSRed}{fatorial(1) devolve 1}
+        \end{tabular}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        Qual linha do código decidiu parar?
+
+        \medskip
+        E o que garante que, começando de qualquer $n \ge 1$, essa linha
+        \emph{sempre} será alcançada?
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{As duas peças de toda função recursiva}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Caso base}
+        \small Uma instância pequena resolvida \textbf{sem} chamar a
+        função. Aqui: \texttt{if (n <= 1) resultado = 1;}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Passo recursivo}
+        \small Chama a função com uma instância \textbf{estritamente menor},
+        que caminha em direção ao caso base. Aqui: $n \to n-1$.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{alertblock}{Se faltar uma das peças}
+    \small Sem caso base, ou com um passo que não se aproxima dele (por
+    exemplo \texttt{fatorial(n + 1)}), a função nunca para de se chamar.
+    O que acontece com a máquina nesse caso é assunto da próxima aula.
+  \end{alertblock}
+  \fonte{Feofiloff (2009), cap.~2~\cite{feofiloff2009algoritmos};
+    Deitel \& Deitel (2011), §5.14~\cite{deitel2011como}}
+\end{frame}
+
+\begin{frame}[fragile]{Exemplo: a soma da linha \textbf{D}}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=tinyC]
+int soma(const int *v, int n)
+{
+    if (n == 0)        /* vetor vazio */
+        return 0;
+    return soma(v, n - 1) + v[n - 1];
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \begin{tabular}{@{}l@{\ }l@{}}
+        \texttt{soma(v,5)} & $=$ \texttt{soma(v,4)} $+ 5$\\
+        \texttt{soma(v,4)} & $=$ \texttt{soma(v,3)} $+ 1$\\
+        \texttt{soma(v,3)} & $=$ \texttt{soma(v,2)} $+ 4$\\
+        \texttt{soma(v,2)} & $=$ \texttt{soma(v,1)} $+ 1$\\
+        \texttt{soma(v,1)} & $=$ \texttt{soma(v,0)} $+ 3$\\
+        \texttt{soma(v,0)} & $=$ \textcolor{UFSRed}{$0$ \quad (caso base)}
+      \end{tabular}
+
+      \medskip
+      Voltando: $0+3=3$, $3+1=4$, $4+4=8$, $8+1=9$, $9+5=\mathbf{14}$.
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Caso base: o vetor vazio, cuja soma é 0. Passo: o vetor encolhe
+    um elemento por chamada --- e \texttt{n} chega a 0 em exatamente 5
+    passos.
+  \end{block}
+  \fonte{Feofiloff (2009), cap.~2~\cite{feofiloff2009algoritmos}}
+\end{frame}
+
+\begin{frame}{Recapitulando: caso base e passo recursivo}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item uma função recursiva chama a si mesma com uma instância menor;
+      \item o \textbf{caso base} responde sem recursão e é onde a descida
+        para;
+      \item o \textbf{passo recursivo} precisa \emph{se aproximar} do caso
+        base a cada chamada;
+      \item escrever a função é traduzir a definição: um caso para cada linha.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{A pilha de execução}
+% ==================================================================
+
+\begin{frame}{Por que \texttt{\&n} mudou a cada chamada?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+        \ttfamily\scriptsize
+        \begin{tabular}{ll}
+          fatorial(4) & \&n = 0x16fb4a\textbf{6fc}\\
+          fatorial(3) & \&n = 0x16fb4a\textbf{6ac}\\
+          fatorial(2) & \&n = 0x16fb4a\textbf{65c}\\
+          fatorial(1) & \&n = 0x16fb4a\textbf{60c}
+        \end{tabular}
+      \end{center}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        É a mesma função, com a mesma variável \texttt{n}. Por que quatro
+        endereços diferentes?
+
+        \medskip
+        E por que \texttt{fatorial(4)} ainda sabe que o seu \texttt{n} vale
+        4 quando \texttt{fatorial(3)} devolve?
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Definição: registro de ativação e pilha de execução}
+  \begin{block}{Registro de ativação (\emph{stack frame})}
+    \small A cada chamada, a máquina reserva um bloco de memória só dela, com
+    os \textbf{parâmetros}, as \textbf{variáveis locais} e o
+    \textbf{endereço de retorno} (onde continuar quando ela terminar).
+  \end{block}
+  \begin{block}{Pilha de execução}
+    \small Os registros ficam empilhados: o da chamada mais recente fica no
+    \textbf{topo} e é o primeiro a sair, quando ela retorna.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \small Quatro chamadas ativas de \texttt{fatorial} são quatro registros
+    --- e, portanto, quatro variáveis \texttt{n} distintas.
+  \end{exampleblock}
+  \fonte{Bryant \& O'Hallaron (2015), §3.7.1~\cite{bryant2015computer};
+    Deitel \& Deitel (2011), cap.~5~\cite{deitel2011como}}
+\end{frame}
+
+\begin{frame}{A ida: cada chamada empilha um registro}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[regmain] (m)  at (0,0)     {main};
+    \node[reg]     (f4) at (0,0.5)  {fatorial \ \ n = 4 \ \ espera 4 * ?};
+    \node[reg]     (f3) at (0,1.0)  {fatorial \ \ n = 3 \ \ espera 3 * ?};
+    \node[reg]     (f2) at (0,1.5)  {fatorial \ \ n = 2 \ \ espera 2 * ?};
+    \node[regbase] (f1) at (0,2.0)  {fatorial \ \ n = 1 \ \ caso base};
+
+    \node[rot, right=4pt of f4] {\&n = \ldots6fc};
+    \node[rot, right=4pt of f3] {\&n = \ldots6ac};
+    \node[rot, right=4pt of f2] {\&n = \ldots65c};
+    \node[rot, right=4pt of f1] {\&n = \ldots60c};
+
+    \node[leg, left=4pt of f1] (topo) {topo $\rightarrow$};
+    \draw[seta] ($(m.south west)+(-1.4,0)$) -- node[leg, left, align=right]
+      {a pilha\\cresce} ($(f1.north west)+(-1.4,0)$);
+
+    \node[caixa, anchor=west] at (4.4,1.0)
+      {Neste desenho, cima = endereços\\
+       \emph{menores}: a pilha cresce\\
+       em direção ao endereço 0.\\[0.4em]
+       Quatro registros vivos ao\\mesmo tempo, cada um\\com o seu \texttt{n}.};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{Bryant \& O'Hallaron (2015), §3.7.1 e §3.7.6~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{A volta: cada \texttt{return} desempilha um registro}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[regmain] (m)  at (0,0)     {main};
+    \node[reg]     (f4) at (0,0.5)  {fatorial \ \ n = 4};
+    \node[reg]     (f3) at (0,1.0)  {fatorial \ \ n = 3};
+    \node[reg]     (f2) at (0,1.5)  {fatorial \ \ n = 2};
+    \node[regbase] (f1) at (0,2.0)  {fatorial \ \ n = 1};
+
+    \draw[setar] (f1.east) to[bend left=60]
+      node[right, font=\scriptsize, text=UFSRed] {devolve 1 \quad $\Rightarrow$ 2 * 1 = 2} (f2.east);
+    \draw[setar] (f2.east) to[bend left=60]
+      node[right, font=\scriptsize, text=UFSRed] {devolve 2 \quad $\Rightarrow$ 3 * 2 = 6} (f3.east);
+    \draw[setar] (f3.east) to[bend left=60]
+      node[right, font=\scriptsize, text=UFSRed] {devolve 6 \quad $\Rightarrow$ 4 * 6 = 24} (f4.east);
+    \draw[setar] (f4.east) to[bend left=60]
+      node[right, font=\scriptsize, text=UFSRed] {devolve 24 \quad $\Rightarrow$ \texttt{A: 4! = 24}} (m.east);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small A multiplicação \texttt{n * fatorial(n - 1)} só termina na volta:
+    cada registro ficou esperando, com o seu \texttt{n} guardado, até o de
+    cima devolver. Por isso as linhas \texttt{devolve} saem na ordem inversa
+    das \texttt{comeca}.
+  \end{block}
+  \fonte{Deitel \& Deitel (2011), §5.14~\cite{deitel2011como}}
+\end{frame}
+
+\begin{frame}{Por que a distância entre os \texttt{\&n} é sempre a mesma?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \ttfamily\scriptsize
+      \begin{tabular}{l@{\quad}r}
+        0x16fb4a6fc $-$ 0x16fb4a6ac & = 0x50\\
+        0x16fb4a6ac $-$ 0x16fb4a65c & = 0x50\\
+        0x16fb4a65c $-$ 0x16fb4a60c & = 0x50
+      \end{tabular}
+
+      \medskip
+      \normalfont\small 0x50 = \textbf{80 bytes} nesta máquina.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Resposta}
+        \small Todas as chamadas são da mesma função, com os mesmos
+        parâmetros e locais: o compilador reserva \textbf{o mesmo tamanho}
+        de registro para cada uma.
+
+        \medskip
+        Os endereços \emph{diminuem}: na maioria das máquinas, a pilha
+        cresce para endereços menores.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \begin{center}
+    \scriptsize\textcolor{UFSGray}{Outro compilador ou processador dá outro
+    tamanho (48, 64, \ldots) --- mas sempre o mesmo de uma chamada para a
+    seguinte.}
+  \end{center}
+  \fonte{Bryant \& O'Hallaron (2015), §3.7.1~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{E o \texttt{nivel}? Por que não recomeçou do zero?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{O que o rastro mostra}
+        \small A indentação cresceu a cada chamada e diminuiu a cada
+        retorno. Então todas as chamadas enxergam \textbf{o mesmo}
+        \texttt{nivel}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Por quê}
+        \small Uma variável local \texttt{static} não mora no registro de
+        ativação: existe uma só, durante todo o programa, e é inicializada
+        uma única vez.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{center}
+    \small
+    \begin{tabular}{@{}lll@{}}
+      \toprule
+      & \texttt{int n} (parâmetro) & \texttt{static int nivel}\\
+      \midrule
+      quantos existem & um por chamada ativa & um só\\
+      onde & no registro, na pilha & fora da pilha\\
+      vida & até a chamada retornar & o programa inteiro\\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \fonte{Kernighan \& Ritchie (1989), §4.6~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}[fragile]{Por que a linha \textbf{A} saiu depois de todo o rastro?}
+\begin{lstlisting}[style=tinyC]
+printf("A: 4! = %ld\n", fatorial(4));
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Pense antes de ler a resposta}
+        \small O \texttt{printf} aparece \emph{antes} de \texttt{fatorial}
+        nessa linha. Por que o texto \texttt{A:} saiu por último?
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Resposta}
+        \small Para chamar \texttt{printf}, primeiro é preciso o
+        \emph{valor} de cada argumento. \texttt{fatorial(4)} roda
+        inteira --- com todo o rastro --- e só então \texttt{printf}
+        é chamada com o 24.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{center}
+    \small Antes de uma chamada começar, todos os seus argumentos já foram
+    calculados.
+  \end{center}
+  \fonte{ISO/IEC 9899:2018, §6.5.2.2~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}{Recapitulando: a pilha de execução}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item cada chamada ganha um \textbf{registro de ativação} com
+        parâmetros, locais e endereço de retorno;
+      \item por isso cada chamada recursiva tem o \emph{seu} \texttt{n};
+      \item o registro mais recente fica no topo e sai primeiro: a volta
+        acontece na ordem inversa da ida;
+      \item uma local \texttt{static} fica fora da pilha e é compartilhada
+        por todas as chamadas;
+      \item os argumentos são calculados antes de a chamada começar.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{A ida e a volta}
+% ==================================================================
+
+\begin{frame}[fragile]{Por que \textbf{B} imprimiu \texttt{3 2 1 1 2 3}?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=tinyC]
+void desce_e_sobe(int n)
+{
+    if (n == 0)
+        return;
+    printf("%d ", n);   /* antes  */
+    desce_e_sobe(n - 1);
+    printf("%d ", n);   /* depois */
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small Os dois \texttt{printf} são iguais. Por que o primeiro
+        imprime em ordem decrescente e o segundo em ordem crescente?
+
+        \medskip
+        E quantas vezes o \texttt{return} da linha 4 é executado?
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: o que vem antes acontece na ida}
+  \begin{center}
+  \begin{tikzpicture}[x=1.45cm, y=0.62cm]
+    \node[evento, fill=UFSBlue!10, draw=UFSBlue] (d3) at (0, 0) {n=3: imprime 3};
+    \node[evento, fill=UFSBlue!10, draw=UFSBlue] (d2) at (1,-1) {n=2: imprime 2};
+    \node[evento, fill=UFSBlue!10, draw=UFSBlue] (d1) at (2,-2) {n=1: imprime 1};
+    \node[evento, fill=UFSGray!15, draw=UFSGray] (b0) at (3,-3) {n=0: return};
+    \node[evento, fill=UFSRed!10, draw=UFSRed]   (u1) at (4,-2) {n=1: imprime 1};
+    \node[evento, fill=UFSRed!10, draw=UFSRed]   (u2) at (5,-1) {n=2: imprime 2};
+    \node[evento, fill=UFSRed!10, draw=UFSRed]   (u3) at (6, 0) {n=3: imprime 3};
+    \draw[seta]  (d3) -- (d2);
+    \draw[seta]  (d2) -- (d1);
+    \draw[seta]  (d1) -- (b0);
+    \draw[setar] (b0) -- (u1);
+    \draw[setar] (u1) -- (u2);
+    \draw[setar] (u2) -- (u3);
+    \node[leg, text=UFSBlue] at (0.6,-3) {ida: \texttt{printf} antes da chamada};
+    \node[leg, text=UFSRed]  at (5.4,-3) {volta: \texttt{printf} depois};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small O que está \textbf{antes} da chamada recursiva roda na ida, do
+    maior para o menor. O que está \textbf{depois} só roda quando a chamada
+    de cima retorna --- na ordem inversa, como a pilha manda. Cada registro
+    ainda guarda o seu \texttt{n} quando chega a vez dele.
+  \end{block}
+  \fonte{Tenenbaum et al.\ (1995), cap.~3~\cite{tenenbaum1995estruturas}}
+\end{frame}
+
+\begin{frame}[fragile]{Exemplo: imprimir uma string de trás para frente}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[style=tinyC]
+void ao_contrario(const char *s)
+{
+    if (*s == '\0')         /* vazia      */
+        return;
+    ao_contrario(s + 1);    /* o resto... */
+    putchar(*s);            /* ...e eu    */
+}
+
+int main(void)
+{
+    ao_contrario("pilha");  /* ahlip */
+    putchar('\n');
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \small
+      Sem índice, sem \texttt{strlen}, sem laço decrescente.
+
+      \medskip
+      Na ida, cada registro guarda um ponteiro para uma letra:
+      \texttt{p}, \texttt{i}, \texttt{l}, \texttt{h}, \texttt{a}.
+
+      \medskip
+      Na volta, eles imprimem na ordem inversa:
+      \texttt{a}, \texttt{h}, \texttt{l}, \texttt{i}, \texttt{p}.
+    \end{column}
+  \end{columns}
+  \fonte{Deitel \& Deitel (2011), cap.~5~\cite{deitel2011como};
+    Kernighan \& Ritchie (1989), §4.10~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: a ida e a volta}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item o código \textbf{antes} da chamada recursiva roda na ida, na
+        ordem das chamadas;
+      \item o código \textbf{depois} dela roda na volta, na ordem inversa;
+      \item a pilha é o que torna a volta possível: cada registro ainda tem
+        os seus valores quando chega a vez dele;
+      \item trocar uma linha de lugar em relação à chamada muda a ordem de
+        tudo.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Recursão múltipla}
+% ==================================================================
+
+\begin{frame}{Por que \texttt{fib(5)} precisou de 15 chamadas?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \small
+      \[
+        F(n) =
+        \begin{cases}
+          n & \text{se } n < 2\\
+          F(n-1) + F(n-2) & \text{se } n \ge 2
+        \end{cases}
+      \]
+      \begin{center}
+        \scriptsize\ttfamily
+        C: fib(5) = 5 com 15 chamadas\\
+        C: fib(20) = 6765 com 21891 chamadas
+      \end{center}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small \texttt{fatorial(5)} faria 5 chamadas. Por que
+        \texttt{fib(5)} faz 15?
+
+        \medskip
+        E por que \texttt{fib(20)} faz mais de três vezes o próprio
+        resultado?
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Deitel \& Deitel (2011), §5.15~\cite{deitel2011como}}
+\end{frame}
+
+\begin{frame}{A árvore de chamadas de \texttt{fib(4)}}
+  \begin{center}
+  \begin{tikzpicture}[
+    level distance=0.85cm,
+    level 1/.style={sibling distance=4.6cm},
+    level 2/.style={sibling distance=2.3cm},
+    level 3/.style={sibling distance=1.3cm},
+    every node/.style={chamada},
+    edge from parent/.style={draw, UFSGray, thick}
+  ]
+    \node {fib(4)}
+      child { node {fib(3)}
+        child { node[chamadar] {fib(2)}
+          child { node {fib(1)} }
+          child { node {fib(0)} } }
+        child { node {fib(1)} } }
+      child { node[chamadar] {fib(2)}
+        child { node {fib(1)} }
+        child { node {fib(0)} } };
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{}
+    \small Cada chamada com $n \ge 2$ abre \textbf{duas}: 9 nós para
+    \texttt{fib(4)}. Então \texttt{fib(5)} = 1 + 9 (de \texttt{fib(4)}) +
+    5 (de \texttt{fib(3)}) = \textbf{15}. E \textcolor{UFSRed}{\texttt{fib(2)}
+    é calculada duas vezes} do zero.
+  \end{block}
+  \fonte{Deitel \& Deitel (2011), §5.15~\cite{deitel2011como};
+    Feofiloff (2009), cap.~2~\cite{feofiloff2009algoritmos}}
+\end{frame}
+
+\begin{frame}{A árvore tem 9 nós, mas a pilha nunca passa de 4}
+  \begin{columns}[c]
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[regmain] (m)  at (0,0)    {main};
+        \node[reg]     (a)  at (0,0.5) {fib \ n = 4};
+        \node[reg]     (b)  at (0,1.0) {fib \ n = 3};
+        \node[reg]     (c)  at (0,1.5) {fib \ n = 2};
+        \node[regbase] (d)  at (0,2.0) {fib \ n = 1};
+        \node[leg, above=2pt of d] {pilha no momento mais fundo};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \small
+      A pilha guarda só o \textbf{caminho} da raiz até a chamada atual.
+      Quando \texttt{fib(1)} retorna, o registro dela sai, e só então
+      \texttt{fib(0)} entra no mesmo lugar.
+
+      \medskip
+      Total de chamadas: cresce com a \textbf{árvore}.\\
+      Registros ao mesmo tempo: a \textbf{altura}, no máximo $n$.
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small São duas medidas diferentes: \emph{quantas chamadas} diz quanto
+    tempo o programa leva; \emph{quantas ao mesmo tempo} diz quanta pilha
+    ele usa.
+  \end{block}
+  \fonte{Bryant \& O'Hallaron (2015), §3.7.6~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{Quanto custa recalcular}
+  \begin{columns}[c]
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+        \small
+        \begin{tabular}{rrr}
+          \toprule
+          $n$ & $F(n)$ & chamadas\\
+          \midrule
+          5  & 5           & 15\\
+          10 & 55          & 177\\
+          20 & 6\,765      & 21\,891\\
+          30 & 832\,040    & 2\,692\,537\\
+          40 & 102\,334\,155 & 331\,160\,281\\
+          \bottomrule
+        \end{tabular}
+      \end{center}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \small
+      O número de chamadas é $2F(n+1) - 1$: cresce no mesmo ritmo que a
+      própria sequência, multiplicando-se por $\approx 1{,}6$ a cada
+      $n$.
+
+      \medskip
+      A pilha, enquanto isso, nunca passa de $n$ registros. O problema
+      aqui não é memória: é o \textbf{trabalho repetido}.
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Recursão múltipla é natural quando os subproblemas são
+    \emph{diferentes} (as duas metades de um vetor, as subpastas de uma
+    pasta). Quando eles se repetem, como aqui, o custo explode.
+  \end{block}
+  \fonte{Deitel \& Deitel (2011), §5.15--5.16~\cite{deitel2011como};
+    Ziviani (2011), §2.2~\cite{ziviani2011projeto}}
+\end{frame}
+
+\begin{frame}{Recapitulando: recursão múltipla}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item uma função que se chama duas vezes forma uma \textbf{árvore} de
+        chamadas;
+      \item o número total de chamadas pode crescer muito mais rápido que
+        $n$;
+      \item a pilha guarda só um caminho dessa árvore: no máximo a sua
+        altura;
+      \item tempo (total de chamadas) e pilha (chamadas simultâneas) são
+        custos distintos.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Recursão ou laço?}
+% ==================================================================
+
+\begin{frame}[fragile]{O mesmo fatorial, de dois jeitos}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textcolor{UFSBlue}{\textbf{Recursivo}}
+\begin{lstlisting}[style=tinyC]
+long fatorial(int n)
+{
+    if (n <= 1)
+        return 1;
+    return n * fatorial(n - 1);
+}
+\end{lstlisting}
+      \scriptsize $n$ registros na pilha, $n$ chamadas.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textcolor{UFSBlue}{\textbf{Iterativo}}
+\begin{lstlisting}[style=tinyC]
+long fatorial(int n)
+{
+    long r = 1;
+    for (int i = 2; i <= n; i++)
+        r *= i;
+    return r;
+}
+\end{lstlisting}
+      \scriptsize Um registro, uma chamada; o laço muda \texttt{r} e
+      \texttt{i} no lugar.
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Toda função recursiva pode ser reescrita com laço (às vezes com
+    uma pilha explícita). A recursiva costuma ser mais próxima da
+    definição; a iterativa, mais econômica.
+  \end{block}
+  \fonte{Deitel \& Deitel (2011), §5.16~\cite{deitel2011como};
+    Tenenbaum et al.\ (1995), cap.~3~\cite{tenenbaum1995estruturas}}
+\end{frame}
+
+\begin{frame}{Quando cada um compensa}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textcolor{UFSBlue}{\textbf{Prefira recursão quando}}
+      \begin{itemize}
+        \small
+        \item o problema se divide em partes do mesmo tipo (pastas,
+          árvores, metades de vetor);
+        \item a versão com laço precisaria de uma pilha feita à mão;
+        \item a profundidade é pequena.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textcolor{UFSRed}{\textbf{Prefira o laço quando}}
+      \begin{itemize}
+        \small
+        \item cada chamada faz só uma chamada, no fim (fatorial, soma);
+        \item os subproblemas se repetem (\texttt{fib} ingênua);
+        \item a profundidade pode ser enorme.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{center}
+    \small\textcolor{UFSRed}{\textbf{Próxima aula:}} e \texttt{soma(v, 10000000)}?
+    Dez milhões de registros de 80 bytes cabem na pilha?
+  \end{center}
+  \fonte{Deitel \& Deitel (2011), §5.16~\cite{deitel2011como};
+    Feofiloff (2009), cap.~2~\cite{feofiloff2009algoritmos}}
+\end{frame}
+
+\begin{frame}{Recapitulando: recursão ou laço?}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item recursão e laço resolvem os mesmos problemas;
+      \item a recursão paga um registro de ativação por chamada ativa;
+      \item ela compensa quando a estrutura do problema já é recursiva;
+      \item o laço compensa quando a recursão é só uma contagem disfarçada.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \small
+  \begin{block}{Tarefa 1}
+    Troque o caso base de \texttt{fatorial} para \texttt{n == 0}. Quantas
+    linhas \texttt{comeca} aparecem? E \texttt{fatorial(0)}, nas duas versões?
+  \end{block}
+  \begin{block}{Tarefa 2}
+    Em \texttt{desce\_e\_sobe}, apague um \texttt{printf} de cada vez e
+    preveja a saída. Depois faça a função imprimir \texttt{3 2 1 0 1 2 3}.
+  \end{block}
+  \begin{block}{Tarefa 3}
+    Faça \texttt{fib} medir também a profundidade máxima da pilha. Quantos
+    registros \texttt{fib(20)} empilha ao mesmo tempo?
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Desafio}
+  \begin{block}{Potência em poucas chamadas}
+    \small Escreva duas versões de \texttt{long potencia(long x, int n)}:
+    \begin{itemize}
+      \item \textbf{ingênua:} $x^n = x \cdot x^{n-1}$, com $x^0 = 1$;
+      \item \textbf{rápida:} $x^n = (x^{n/2})^2$ se $n$ é par, e
+        $x \cdot x^{n-1}$ se é ímpar --- calculando $x^{n/2}$ \emph{uma
+        vez só}.
+    \end{itemize}
+    Requisitos:
+    \begin{itemize}
+      \item as duas devolvem o mesmo valor para $2^{0}, \ldots, 2^{62}$;
+      \item conte as chamadas de cada uma para \texttt{potencia(1, 1000)}
+        e explique a diferença;
+      \item desenhe a pilha da versão rápida no momento mais fundo de
+        \texttt{potencia(2, 10)}.
+    \end{itemize}
+  \end{block}
+  \fonte{Ziviani (2011), §2.2~\cite{ziviani2011projeto}}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      \small Uma função que chama a si mesma deixou de ser mágica: é uma
+      chamada como outra qualquer, com o seu próprio registro na pilha.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O preço}\\[0.3em]
+      \small Cada chamada ativa ocupa um registro. Enquanto a descida não
+      chega ao caso base, nenhum deles é devolvido.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \small
+      \item caso base para parar, passo recursivo que se aproxima dele;
+      \item um registro por chamada: parâmetros, locais, endereço de
+        retorno;
+      \item antes da chamada roda na ida; depois dela, na volta;
+      \item chamadas no total $\neq$ chamadas ao mesmo tempo.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}
