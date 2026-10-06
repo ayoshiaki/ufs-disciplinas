@@ -1,0 +1,665 @@
+% -*- coding: utf-8 -*-
+% Aula: Divisao e conquista -- multiplicacao de inteiros grandes (Karatsuba)
+% Fontes principais: Levitin (2012), sec. 5.4; Kleinberg e Tardos (2006), sec. 5.5;
+% Dasgupta et al. (2008), sec. 2.1; Cormen et al. (2009), sec. 4.5;
+% Karatsuba e Ofman (1962/63); Karatsuba (1995) para a historia.
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, patterns}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=5.6cm, minimum height=0.55cm, font=\scriptsize},
+  dig/.style={draw=blue!60!black, fill=blue!10, minimum size=6mm, inner sep=0pt,
+              font=\small\ttfamily},
+  digA/.style={dig, fill=orange!20, draw=orange!80!black},
+  digB/.style={dig, fill=green!15, draw=green!50!black},
+  no/.style={rectangle, rounded corners=2pt, draw=blue!60, fill=blue!8,
+             font=\tiny, inner sep=2pt, align=center},
+  folha/.style={no, fill=orange!15, draw=orange!80!black},
+  fase/.style={rectangle, rounded corners, draw=blue!60, fill=blue!10,
+               minimum width=2.3cm, minimum height=0.6cm, font=\scriptsize,
+               align=center}
+}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\title{Divisão e conquista}
+\subtitle{Multiplicação de inteiros grandes (Karatsuba)}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=3mm]
+    \node[box] (t1) {1.\ O problema: multiplicar inteiros de $n$ dígitos em $\Theta(n^2)$};
+    \node[box, below=of t1] (t2) {2.\ Divisão ingênua: 4 subproblemas, nenhum ganho};
+    \node[box, below=of t2, fill=orange!20, draw=orange!80!black] (t3)
+         {3.\ Karatsuba: 3 subproblemas e $\Theta(n^{1{,}585})$};
+    \node[box, below=of t3] (t4) {4.\ Na prática e na história: corte, Toom, FFT};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+    \draw[-{Stealth}, thick, orange!80!black, dashed]
+      (t3.east) to[out=0, in=0, looseness=2.2] node[right, xshift=1mm, font=\tiny, align=left]
+      {trocar um produto\\por somas} (t2.east);
+  \end{tikzpicture}
+  \end{center}
+  \medskip
+  {\scriptsize\centering Na próxima aula, a mesma ideia aplicada a matrizes: Strassen.\par}
+\end{frame}
+
+% =====================================================================
+\section{O problema}
+
+\begin{frame}{Por que multiplicar inteiros grandes?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize Um \texttt{long long} guarda só 19 dígitos. Muita coisa precisa de mais:
+      \begin{itemize}\scriptsize
+        \item \textbf{criptografia:} uma chave RSA de 2048 bits tem cerca de
+              \textbf{617 dígitos} decimais, e cifrar exige muitas multiplicações;
+        \item \textbf{linguagens:} o \texttt{int} do Python não tem limite de tamanho;
+        \item \textbf{álgebra computacional:} produtos exatos de polinômios e frações.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução?}\\[2pt]
+      \scriptsize O algoritmo da escola faz $n^2$ multiplicações de dígitos.
+      Para $n=10^6$ dígitos são $10^{12}$ produtos: uns 17 minutos a $10^9$ por segundo.
+      \medskip
+
+      \textbf{Pergunta da aula:} dá para fazer com \emph{menos} que $n^2$?
+      Em 1960, Kolmogorov conjecturou que não.
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 5.4~\cite{levitin2012introduction};
+    Knuth (1997), \S 4.3.3~\cite{knuth1997seminumerical}; Karatsuba (1995)~\cite{karatsuba1995complexity}.}
+\end{frame}
+
+\begin{frame}{Inteiros como sequências de dígitos: definição}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \begin{block}{Definição}
+        \scriptsize Um inteiro de $n$ dígitos na base $B$ (aqui $B=10$) é
+        \[ x = \sum_{i=0}^{n-1} x_i\,B^{i}, \qquad 0\le x_i < B. \]
+        Guardamos os dígitos num vetor, do \emph{menos} significativo ($x_0$) para o mais
+        significativo, como um polinômio avaliado em $B$.
+      \end{block}
+      \begin{exampleblock}{Intuição}
+        \scriptsize No produto da escola, cada dígito de $y$ multiplica todos os $n$ dígitos
+        de $x$: são $n\cdot n = n^2$ produtos de um dígito, mais as somas com vai-um.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \centering\small
+      \begin{tabular}{@{}r@{\;}r@{}}
+        & \texttt{2135} \\
+        $\times$ & \texttt{4014} \\ \midrule
+        & \texttt{8540} \\
+        & \texttt{2135\phantom{0}} \\
+        & \texttt{0000\phantom{00}} \\
+        + & \texttt{8540\phantom{000}} \\ \midrule
+        & \texttt{8569890}
+      \end{tabular}
+      \\[3pt]
+      {\tiny $4\times 4 = 16$ produtos de um dígito}
+    \end{column}
+  \end{columns}
+  \fonte{Knuth (1997), \S 4.3.1, Algoritmo M~\cite{knuth1997seminumerical};
+    Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{O algoritmo da escola em C}
+  \begin{columns}[T]
+    \begin{column}{0.63\textwidth}
+\begin{lstlisting}
+/* r = x y; x[0] é o dígito menos significativo;
+   r tem 2n posições, todas zeradas */
+void multEscola( int n, const int *x,
+                 const int *y, int *r) {
+   for (int j = 0; j < n; ++j) {
+      int vaiUm = 0;
+      for (int i = 0; i < n; ++i) {
+         int t = r[i+j] + x[i] * y[j] + vaiUm;
+         r[i+j] = t % 10;
+         vaiUm = t / 10;
+      }
+      r[j+n] = vaiUm;
+   }
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.34\textwidth}
+      \scriptsize
+      \textbf{Contagem:}
+      \begin{itemize}\scriptsize
+        \item o laço interno roda $n\cdot n$ vezes;
+        \item cada volta faz 1 produto de dígitos e $O(1)$ somas;
+        \item total: $\Theta(n^2)$.
+      \end{itemize}
+      \smallskip
+      Dobrar $n$ multiplica o tempo por $2^2=4$ (medido no tutorial).
+      \smallskip
+
+      Somar dois números de $n$ dígitos custa só $\Theta(n)$. Essa diferença é o que
+      Karatsuba vai explorar.
+    \end{column}
+  \end{columns}
+  \fonte{Knuth (1997), \S 4.3.1, Algoritmo M~\cite{knuth1997seminumerical}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: o problema}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Inteiros grandes são vetores de dígitos: $x=\sum x_i B^i$.
+      \item Somar custa $\Theta(n)$; multiplicar pelo método da escola custa $\Theta(n^2)$.
+      \item Multiplicar por $B^m$ é só deslocar $m$ casas (acrescentar zeros), com custo
+            $\Theta(n)$ e nenhuma multiplicação de dígitos.
+      \item Ler a entrada já custa $\Theta(n)$. A pergunta é onde fica o custo entre $n$ e $n^2$.
+    \end{itemize}
+  \end{block}
+  \fonte{Knuth (1997), \S 4.3.1 e \S 4.3.3~\cite{knuth1997seminumerical}.}
+\end{frame}
+
+% =====================================================================
+\section{Divisão ingênua}
+
+\begin{frame}{Por que tentar divisão e conquista?}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\
+      \scriptsize Mergesort e o par mais próximo nos ensinaram a quebrar a entrada ao meio.
+      Um número de $n$ dígitos se parte naturalmente em duas \textbf{metades} de $m=n/2$ dígitos.
+      \medskip
+
+      \textbf{Solução?}\\
+      \scriptsize Escrever $x = a\cdot 10^m + b$ e $y = c\cdot 10^m + d$ e multiplicar as
+      metades, recursivamente.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}[node distance=0pt]
+        \node at (-0.7,0) {$x=$};
+        \foreach \d [count=\i] in {2,1} \node[digA] at (\i*0.6-0.3,0) {\d};
+        \foreach \d [count=\i] in {3,5} \node[digB] at (\i*0.6+0.95,0) {\d};
+        \node at (-0.7,-0.9) {$y=$};
+        \foreach \d [count=\i] in {4,0} \node[digA] at (\i*0.6-0.3,-0.9) {\d};
+        \foreach \d [count=\i] in {1,4} \node[digB] at (\i*0.6+0.95,-0.9) {\d};
+        \draw[decorate, decoration={brace, amplitude=3pt}] (0,0.4) -- (1.2,0.4)
+          node[midway, above=2pt, font=\tiny] {$a=21$};
+        \draw[decorate, decoration={brace, amplitude=3pt}] (1.25,0.4) -- (2.45,0.4)
+          node[midway, above=2pt, font=\tiny] {$b=35$};
+        \draw[decorate, decoration={brace, amplitude=3pt, mirror}] (0,-1.3) -- (1.2,-1.3)
+          node[midway, below=2pt, font=\tiny] {$c=40$};
+        \draw[decorate, decoration={brace, amplitude=3pt, mirror}] (1.25,-1.3) -- (2.45,-1.3)
+          node[midway, below=2pt, font=\tiny] {$d=14$};
+      \end{tikzpicture}
+      \\[4pt]
+      {\tiny $2135 = 21\cdot 10^2 + 35$, \quad $4014 = 40\cdot 10^2 + 14$}
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 5.5~\cite{kleinberg2006algorithm};
+    Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Divisão ingênua: definição}
+  \begin{block}{Produto pelas metades}
+    \scriptsize
+    \[
+      x\,y = (a\cdot 10^m + b)(c\cdot 10^m + d)
+          = ac\cdot 10^{2m} + (ad + bc)\cdot 10^m + bd.
+    \]
+  \end{block}
+  \begin{exampleblock}{No exemplo: $2135\times 4014$}
+    \scriptsize
+    $ac = 21\cdot 40 = 840$, \quad $ad = 21\cdot 14 = 294$, \quad
+    $bc = 35\cdot 40 = 1400$, \quad $bd = 35\cdot 14 = 490$.
+    \[ 840\cdot 10^4 + (294+1400)\cdot 10^2 + 490 = 8\,400\,000 + 169\,400 + 490
+       = 8\,569\,890 \;\checkmark \]
+  \end{exampleblock}
+  \scriptsize\textbf{Custo:} \textbf{4} produtos de $n/2$ dígitos (recursivos), mais deslocamentos
+  e 3 somas, todos $\Theta(n)$.
+  \fonte{Kleinberg e Tardos (2006), \S 5.5~\cite{kleinberg2006algorithm};
+    Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Análise: o teorema mestre diz que nada mudou}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \scriptsize
+      \[ T(n) = 4\,T(n/2) + \Theta(n) \]
+      $a=4$, $b=2$, $d=1$: como $4 > 2^1$, as \textbf{folhas dominam}:
+      \[ T(n)\in\Theta(n^{\log_2 4}) = \Theta(n^2). \]
+      Na árvore, o nível $j$ tem $4^j$ nós de custo $n/2^j$:
+      \[ 4^j\cdot\frac{n}{2^j} = n\,2^j, \]
+      uma série que \emph{dobra} a cada nível. As $n^2$ folhas fazem quase todo o trabalho.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}[x=0.85mm, y=1mm]
+        \foreach \w/\l [count=\j from 0] in {3/n, 6/2n, 12/4n, 24/8n, 46/n^2}
+          { \fill[orange!80] (25-\w/2, -\j*6) rectangle (25+\w/2, -\j*6+4);
+            \node[font=\tiny, anchor=west] at (50,-\j*6+2) {$\l$}; }
+        \node[font=\tiny, anchor=east] at (-1,2) {raiz};
+        \node[font=\tiny, anchor=east] at (-1,-22) {folhas};
+      \end{tikzpicture}
+      \medskip
+
+      \scriptsize\textbf{Lição:} como as folhas dominam, só adianta reduzir $a$, o
+      \emph{número} de subproblemas.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 4.5, Teorema 4.1~\cite{cormen2009introduction};
+    Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: divisão ingênua}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item $x=a\cdot10^m+b$ e $y=c\cdot10^m+d$ dão $xy=ac\cdot10^{2m}+(ad+bc)\cdot10^m+bd$.
+      \item 4 produtos de $n/2$ dígitos e somas $\Theta(n)$:
+            $T(n)=4T(n/2)+\Theta(n)=\Theta(n^2)$.
+      \item Dividir por dividir não basta. Quando as folhas dominam, baratear a combinação
+            não adianta; é preciso \textbf{cortar subproblemas}.
+    \end{itemize}
+  \end{block}
+  \fonte{Kleinberg e Tardos (2006), \S 5.5~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{O algoritmo de Karatsuba}
+
+\begin{frame}{Por que 3 produtos bastariam?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\
+      \scriptsize Não precisamos de $ad$ e $bc$ \emph{separados}: só da soma $ad+bc$.
+      Gastar dois produtos com ela é desperdício.
+      \medskip
+
+      \textbf{Solução:}\\
+      \scriptsize um único produto já contém tudo:
+      \[ (a+b)(c+d) = ac + (ad+bc) + bd. \]
+      Como $ac$ e $bd$ já serão calculados, basta subtraí-los:
+      \[ ad+bc = (a+b)(c+d) - ac - bd. \]
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{exampleblock}{O mesmo truque, 150 anos antes}
+        \scriptsize Gauss multiplicava complexos com 3 produtos reais:
+        \[ (a+bi)(c+di) = (ac-bd) + (ad+bc)\,i, \]
+        com $ad+bc=(a+b)(c+d)-ac-bd$.
+      \end{exampleblock}
+      \scriptsize\centering
+      \begin{tabular}{lcc}
+        \toprule
+                  & produtos & somas/subtr. \\
+        \midrule
+        ingênuo   & 4 & 3 \\
+        \rowcolor{orange!15}
+        Karatsuba & 3 & 6 \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \fonte{Dasgupta et al.\ (2008), \S 2.1~\cite{dasgupta2008algorithms};
+    Karatsuba e Ofman (1962)~\cite{karatsuba1963multiplication}.}
+\end{frame}
+
+\begin{frame}{Karatsuba: definição}
+  \begin{block}{Algoritmo de Karatsuba (1962)}
+    \scriptsize Com $x = a\cdot 10^m + b$ e $y = c\cdot 10^m + d$, calcule recursivamente
+    \[
+      z_2 = a\,c, \qquad z_0 = b\,d, \qquad z_1 = (a+b)(c+d) - z_2 - z_0,
+    \]
+    e devolva
+    \[ x\,y = z_2\cdot 10^{2m} + z_1\cdot 10^m + z_0. \]
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize Trocamos uma multiplicação (cara, recursiva) por três somas/subtrações
+    (baratas, $\Theta(n)$). O ganho de um produto em quatro se repete em \emph{cada nível}
+    da recursão.
+  \end{exampleblock}
+  \scriptsize\textbf{Detalhe:} $a+b$ pode ter $m+1$ dígitos (vai-um). Isso não muda a análise.
+  \fonte{Karatsuba e Ofman (1962)~\cite{karatsuba1963multiplication};
+    Levitin (2012), \S 5.4~\cite{levitin2012introduction};
+    Kleinberg e Tardos (2006), \S 5.5~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: $2135\times 4014$ por Karatsuba}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+      \scriptsize
+      $m=2$: \quad $a=21$, $b=35$, $c=40$, $d=14$.
+      \[
+        \begin{aligned}
+          z_2 &= 21\cdot 40 = 840\\
+          z_0 &= 35\cdot 14 = 490\\
+          (a+b)(c+d) &= 56\cdot 54 = 3024\\
+          z_1 &= 3024 - 840 - 490 = 1694
+        \end{aligned}
+      \]
+      Confira: $ad+bc = 294+1400 = 1694$ \checkmark
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \begin{exampleblock}{Combinação}
+        \scriptsize
+        \[
+          \begin{aligned}
+            x\,y &= 840\cdot 10^4 + 1694\cdot 10^2 + 490\\
+                 &= 8\,400\,000 + 169\,400 + 490\\
+                 &= 8\,569\,890 \;\checkmark
+          \end{aligned}
+        \]
+      \end{exampleblock}
+      \scriptsize Foram \textbf{3} produtos de dois dígitos em vez de 4. E cada um deles
+      também é feito por Karatsuba (próximo slide).
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 5.4, exemplo $2135\cdot 4014$~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{A árvore de recursão do exemplo}
+  \begin{center}
+  \begin{tikzpicture}[level distance=11mm,
+      level 1/.style={sibling distance=45mm},
+      level 2/.style={sibling distance=14mm},
+      edge from parent/.style={draw, gray!70, -{Stealth[length=1.5mm]}}]
+    \node[no] {$2135\cdot 4014$\\$=8\,569\,890$}
+      child { node[no] {$21\cdot 40$\\$=840$}
+        child { node[folha] {$2\cdot 4$\\$=8$} }
+        child { node[folha] {$1\cdot 0$\\$=0$} }
+        child { node[folha] {$3\cdot 4$\\$=12$} } }
+      child { node[no] {$35\cdot 14$\\$=490$}
+        child { node[folha] {$3\cdot 1$\\$=3$} }
+        child { node[folha] {$5\cdot 4$\\$=20$} }
+        child { node[folha] {$8\cdot 5$\\$=40$} } }
+      child { node[no] {$56\cdot 54$\\$=3024$}
+        child { node[folha] {$5\cdot 5$\\$=25$} }
+        child { node[folha] {$6\cdot 4$\\$=24$} }
+        child { node[folha] {$11\cdot 9$\\$=99$} } };
+  \end{tikzpicture}
+  \end{center}
+  \scriptsize Em cada nó: $z_2$, $z_0$, $(a+b)(c+d)$. Ex.: $21\cdot 40$ tem $z_2=8$, $z_0=0$,
+  $z_1=12-8-0=4$, logo $8\cdot 100 + 4\cdot 10 + 0 = 840$.
+  \textbf{9 produtos} de um dígito ($3^2$), contra $16$ ($4^2$) da escola.
+  O $11\cdot 9$ vem do vai-um em $5+6$.
+  \fonte{Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{O algoritmo recursivo}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}
+KARATSUBA(x, y, n):        /* n dígitos */
+   se n <= CORTE: devolva ESCOLA(x, y)
+   m = n/2
+   a, b = x div 10^m, x mod 10^m
+   c, d = y div 10^m, y mod 10^m
+   z2 = KARATSUBA(a,   c,   m)
+   z0 = KARATSUBA(b,   d,   m)
+   p  = KARATSUBA(a+b, c+d, m+1)
+   z1 = p - z2 - z0
+   devolva z2*10^(2m) + z1*10^m + z0
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \scriptsize
+      \textbf{Dividir:} separar as metades e formar $a+b$, $c+d$: $\Theta(n)$.\\[2pt]
+      \textbf{Conquistar:} 3 chamadas de tamanho $\approx n/2$.\\[2pt]
+      \textbf{Combinar:} 2 subtrações, deslocamentos e somas: $\Theta(n)$.
+      \medskip
+
+      ``$\cdot 10^m$'' é só deslocar dígitos; ``div'' e ``mod'' por $10^m$ são só
+      escolher metades do vetor. Nada disso multiplica.
+      A versão em C está no tutorial.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 5.5, \textsc{Recursive-Multiply}~\cite{kleinberg2006algorithm};
+    Dasgupta et al.\ (2008), \S 2.1~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Análise: o teorema mestre agora ajuda}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \[ T(n) = 3\,T(n/2) + \Theta(n) \]
+      $a=3$, $b=2$, $d=1$: $3 > 2$, as folhas dominam:
+      \[ T(n)\in\Theta(n^{\log_2 3}) \approx \Theta(n^{1{,}585}). \]
+      Contando só produtos de dígitos, com $M(1)=1$:
+      \[ M(n) = 3\,M(n/2) \;\Rightarrow\; M(2^k)=3^k = n^{\log_2 3}. \]
+      O nível $j$ custa $3^j\cdot\frac{n}{2^j}=n\,(3/2)^j$: ainda cresce, mas mais devagar.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering\scriptsize
+      \begin{tabular}{rrrr}
+        \toprule
+        $n$ & escola $4^k$ & Karatsuba $3^k$ & razão \\
+        \midrule
+        $2^4=16$       & $256$                & $81$                 & 3,2 \\
+        $2^{7}=128$    & $1{,}6\times10^{4}$  & $2{,}2\times10^{3}$  & 7,5 \\
+        $2^{10}=1024$  & $1{,}0\times10^{6}$  & $5{,}9\times10^{4}$  & 18 \\
+        $2^{20}\approx10^6$ & $1{,}1\times10^{12}$ & $3{,}5\times10^{9}$  & 315 \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      A razão é $(4/3)^k$. Com um milhão de dígitos, os 17 minutos caem para
+      poucos segundos.
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 5.4~\cite{levitin2012introduction};
+    Cormen et al.\ (2009), \S 4.5 e Problema 30-1~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: Karatsuba}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item $ad+bc=(a+b)(c+d)-ac-bd$: 3 produtos em vez de 4, pagando com somas.
+      \item $T(n)=3T(n/2)+\Theta(n)\in\Theta(n^{\log_2 3})\approx\Theta(n^{1{,}585})$: o
+            \emph{expoente} cai, e não só a constante.
+      \item No exemplo $2135\times4014$: 9 produtos de um dígito em vez de 16.
+      \item As fórmulas valem para polinômios (troque $10^m$ por $t^m$), por isso as
+            bibliotecas usam Karatsuba também para multiplicar polinômios.
+    \end{itemize}
+  \end{block}
+  \fonte{Karatsuba e Ofman (1962)~\cite{karatsuba1963multiplication};
+    Cormen et al.\ (2009), Problema 30-1~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Na prática e na história}
+
+\begin{frame}{Por que ninguém roda Karatsuba até 1 dígito?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\
+      \scriptsize Em números pequenos, as somas extras e as chamadas recursivas custam mais
+      do que o produto que economizam.
+      \medskip
+
+      Contando operações da implementação do tutorial: a escola faz $2n^2$; um nível de
+      Karatsuba faz $3\cdot 2(n/2)^2 + 4n - 3 = 1{,}5\,n^2 + 4n - 3$. Compensa só se
+      \[ 0{,}5\,n^2 > 4n - 3 \iff n \ge 8. \]
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{Solução:} um \textbf{ponto de corte}.\\
+      \scriptsize Abaixo dele, usa-se a escola.
+      \begin{itemize}\scriptsize
+        \item \textbf{CPython:} \texttt{KARATSUBA\_CUTOFF} $=70$ ``dígitos'' de 30 bits
+              (cerca de 630 dígitos decimais);
+        \item \textbf{GMP:} o limiar é medido em cada máquina por um programa de
+              ajuste e, acima de outros limiares, troca Karatsuba por Toom-3, Toom-4, \ldots, FFT.
+      \end{itemize}
+      Na prática, o corte medido é maior que o da contagem: chamadas e memória também custam.
+    \end{column}
+  \end{columns}
+  \fonte{CPython, \texttt{Objects/longobject.c}~\cite{cpython2026longobject};
+    GMP, ``Multiplication Algorithms''~\cite{gmp2023manual}.}
+\end{frame}
+
+\begin{frame}{Uma conjectura derrubada em uma semana}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \scriptsize
+      \textbf{1960, Universidade de Moscou.} Kolmogorov abre um seminário sobre complexidade
+      e conjectura que multiplicar dois números de $n$ dígitos exige $\Omega(n^2)$ operações.
+      \medskip
+
+      Em cerca de uma semana, \textbf{Anatolii Karatsuba}, aluno de 23 anos, encontra o
+      método de $n^{\log_2 3}$. Kolmogorov apresenta o resultado na sessão seguinte e
+      encerra o seminário.
+      \medskip
+
+      Em 1962 sai o artigo assinado por Karatsuba e Ofman, escrito por Kolmogorov. Karatsuba
+      só soube do artigo ao receber as separatas.
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{exampleblock}{Lição}
+        \scriptsize Uma cota inferior ``óbvia'' precisa de prova. O método da escola era
+        usado havia séculos, e ninguém tinha provado que ele era ótimo, porque ele não é.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \fonte{Karatsuba (1995)~\cite{karatsuba1995complexity};
+    Knuth (1997), \S 4.3.3~\cite{knuth1997seminumerical}.}
+\end{frame}
+
+\begin{frame}{Depois de Karatsuba: a corrida até $n\log n$}
+  \begin{columns}[c]
+    \begin{column}{0.64\textwidth}
+      \centering\tiny
+      \begin{tabular}{@{}llll@{}}
+        \toprule
+        algoritmo & ano & ideia & custo \\
+        \midrule
+        escola              & ---  & $n^2$ produtos             & $\Theta(n^2)$ \\
+        \rowcolor{orange!15}
+        Karatsuba           & 1962 & 2 partes, 3 produtos       & $n^{1{,}585}$ \\
+        Toom-3              & 1963 & 3 partes, 5 produtos       & $n^{1{,}465}$ \\
+        Toom-$k$            &      & $k$ partes, $2k-1$ produtos & $n^{\log_k(2k-1)}$ \\
+        Schönhage--Strassen & 1971 & FFT                        & $n\log n\log\log n$ \\
+        Harvey--van der Hoeven & 2019 & FFT multidimensional    & $n\log n$ \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \scriptsize
+      Toom-$k$ generaliza Karatsuba: corta em $k$ partes e avalia/interpola polinômios.
+      O expoente tende a 1 quando $k$ cresce, mas as constantes explodem.
+      \medskip
+
+      Conjectura-se que $n\log n$ é ótimo: \textbf{ninguém provou}. Kolmogorov errou o
+      limite, e o limite certo continua em aberto.
+    \end{column}
+  \end{columns}
+  \fonte{Knuth (1997), \S 4.3.3~\cite{knuth1997seminumerical};
+    Schönhage e Strassen (1971)~\cite{schonhage1971schnelle};
+    Harvey e van der Hoeven (2021)~\cite{harvey2021integer}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: na prática e na história}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Implementações reais param a recursão num ponto de corte e usam a escola
+            dali para baixo. O Python faz exatamente isso no seu \texttt{int}.
+      \item A conjectura $\Omega(n^2)$ de Kolmogorov caiu em uma semana: cota inferior
+            exige prova.
+      \item Karatsuba abriu uma família (Toom-Cook, FFT) que chegou a $O(n\log n)$ em 2019.
+            O limite inferior continua em aberto.
+    \end{itemize}
+  \end{block}
+  \fonte{Karatsuba (1995)~\cite{karatsuba1995complexity};
+    Harvey e van der Hoeven (2021)~\cite{harvey2021integer}.}
+\end{frame}
+
+\begin{frame}{Fechando o ciclo}
+  \begin{center}
+  \begin{tikzpicture}[node distance=4mm and 11mm, fase/.append style={minimum width=2cm}]
+    \node[fase] (p) {escola\\$\Theta(n^2)$};
+    \node[fase, right=of p] (dc) {metades\\$4T(n/2)+n$};
+    \node[fase, right=of dc] (ka) {Karatsuba\\$3T(n/2)+n$};
+    \node[fase, right=of ka, fill=green!12, draw=green!50!black] (tm) {teorema mestre\\$\Theta(n^{1{,}585})$};
+    \draw[-{Stealth}, thick] (p) -- (dc);
+    \draw[-{Stealth}, thick] (dc) -- node[above, font=\tiny] {$4\to3$} (ka);
+    \draw[-{Stealth}, thick] (ka) -- (tm);
+    \draw[-{Stealth}, thick, orange!80!black, dashed] (dc.south) to[out=-120, in=-60, looseness=1.3]
+      node[below, font=\tiny] {sem ganho: $\Theta(n^2)$} (p.south);
+  \end{tikzpicture}
+  \end{center}
+  \medskip
+  {\scriptsize
+  O roteiro: escrever a recorrência, ver que as folhas dominam e \textbf{cortar um
+  subproblema}, aceitando mais somas. Cortar um subproblema muda o expoente.
+  \smallskip
+
+  \textbf{Próxima aula:} multiplicação de matrizes. Por blocos são 8 produtos e
+  $\Theta(n^3)$; Strassen faz com 7, usando a mesma ideia.}
+  \fonte{Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{levitin2012introduction,cormen2009introduction,cormen2012algoritmos,kleinberg2006algorithm,dasgupta2008algorithms,knuth1997seminumerical,karatsuba1963multiplication,karatsuba1995complexity,schonhage1971schnelle,harvey2021integer,gmp2023manual,cpython2026longobject}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

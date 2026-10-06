@@ -301,3 +301,92 @@
   note         = {Aulas \emph{Divis\~ao e conquista}, \emph{Recorr\^encias} (Teorema Mestre) e \emph{Mergesort}. Acesso em 24 set. 2026},
   url          = {https://www.ime.usp.br/~pf/analise_de_algoritmos/}
 }
+
+% Aula 12 — Divisão e conquista: multiplicação de inteiros grandes (Karatsuba)
+
+@book{cormen2012algoritmos,
+  author    = {Cormen, Thomas H. and Leiserson, Charles E. and Rivest, Ronald L. and Stein, Clifford},
+  title     = {Algoritmos: Teoria e Pr\'atica},
+  edition   = {3},
+  year      = {2012},
+  publisher = {Elsevier},
+  address   = {Rio de Janeiro},
+  note      = {Tradu\c{c}\~ao da 3.\ ed.\ norte-americana. Se\c{c}\~ao 4.5}
+}
+
+@book{dasgupta2008algorithms,
+  author    = {Dasgupta, Sanjoy and Papadimitriou, Christos H. and Vazirani, Umesh V.},
+  title     = {Algorithms},
+  year      = {2008},
+  publisher = {McGraw-Hill},
+  isbn      = {978-0-07-352340-8},
+  note      = {Se\c{c}\~ao 2.1: Multiplication (o truque de Gauss)}
+}
+
+@book{knuth1997seminumerical,
+  author    = {Knuth, Donald E.},
+  title     = {The Art of Computer Programming, Volume 2: Seminumerical Algorithms},
+  edition   = {3},
+  year      = {1997},
+  publisher = {Addison-Wesley},
+  isbn      = {978-0-201-89684-8},
+  note      = {Se\c{c}\~ao 4.3.3: How fast can we multiply?}
+}
+
+@article{karatsuba1963multiplication,
+  author  = {Karatsuba, Anatolii and Ofman, Yuri},
+  title   = {Multiplication of Multidigit Numbers on Automata},
+  journal = {Soviet Physics Doklady},
+  year    = {1963},
+  volume  = {7},
+  pages   = {595--596},
+  note    = {Tradu\c{c}\~ao do original russo em Doklady Akademii Nauk SSSR, v.~145, n.~2, p.~293--294, 1962}
+}
+
+@article{karatsuba1995complexity,
+  author  = {Karatsuba, Anatolii A.},
+  title   = {The Complexity of Computations},
+  journal = {Proceedings of the Steklov Institute of Mathematics},
+  year    = {1995},
+  volume  = {211},
+  pages   = {169--183},
+  note    = {Relato hist\'orico do semin\'ario de Kolmogorov (1960)}
+}
+
+@article{schonhage1971schnelle,
+  author  = {Sch{\"o}nhage, Arnold and Strassen, Volker},
+  title   = {Schnelle {Multiplikation} gro{\ss}er {Zahlen}},
+  journal = {Computing},
+  year    = {1971},
+  volume  = {7},
+  number  = {3--4},
+  pages   = {281--292},
+  doi     = {10.1007/BF02242355}
+}
+
+@article{harvey2021integer,
+  author  = {Harvey, David and van der Hoeven, Joris},
+  title   = {Integer Multiplication in Time {$O(n \log n)$}},
+  journal = {Annals of Mathematics},
+  year    = {2021},
+  volume  = {193},
+  number  = {2},
+  pages   = {563--617},
+  doi     = {10.4007/annals.2021.193.2.4}
+}
+
+@misc{gmp2023manual,
+  author       = {Granlund, Torbj{\"o}rn and {the GMP development team}},
+  title        = {{GNU MP}: The {GNU} Multiple Precision Arithmetic Library},
+  howpublished = {Manual, se\c{c}\~ao ``Multiplication Algorithms''},
+  url          = {https://gmplib.org/manual/Multiplication-Algorithms},
+  note         = {Acesso em: out.\ 2026}
+}
+
+@misc{cpython2026longobject,
+  author       = {{Python Software Foundation}},
+  title        = {{CPython}: \texttt{Objects/longobject.c}},
+  howpublished = {C\'odigo-fonte, constante \texttt{KARATSUBA\_CUTOFF}},
+  url          = {https://github.com/python/cpython/blob/main/Objects/longobject.c},
+  note         = {Acesso em: out.\ 2026}
+}
