@@ -1,0 +1,1060 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc, trees}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{codC}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7.5}{8.6}\selectfont\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  reg/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=3.4cm,
+    minimum height=0.44cm, font=\scriptsize\ttfamily, align=center},
+  regmain/.style={reg, draw=UFSGray, fill=black!5},
+  regbase/.style={reg, draw=UFSRed, fill=UFSRed!8},
+  heap/.style={rectangle, draw=UFSRed, fill=UFSRed!8, rounded corners,
+    font=\scriptsize\ttfamily, align=center, inner sep=4pt},
+  zona/.style={rectangle, draw=UFSGray, minimum width=3.2cm,
+    font=\scriptsize, align=center},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={->, thick, UFSBlue},
+  setar/.style={->, thick, UFSRed},
+  setag/.style={->, thick, UFSGray},
+  caixa/.style={rectangle, draw=UFSGray, rounded corners, fill=black!3,
+    font=\scriptsize, align=center, inner sep=4pt},
+}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% --- Metadados ---
+\title{Recursividade e memória}
+\subtitle{O que a recursão gasta, onde, e como não estourar}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10.4cm, minimum height=0.6cm, font=\small}
+  ]
+    \node[item] (t1) at (0, 0)    {Até onde a pilha aguenta: o limite e o estouro};
+    \node[item] (t2) at (0,-0.8)  {O que pesa em cada registro --- e o que morre no \texttt{return}};
+    \node[item] (t3) at (0,-1.6)  {Quando nada fica para a volta: recursão de cauda};
+    \node[item] (t4) at (0,-2.4)  {Uma tabela no heap para todas as chamadas};
+    \node[item] (t5) at (0,-3.2)  {\texttt{malloc} em cada chamada: quem libera, e quando};
+    \node[item] (t6) at (0,-4.0)  {Exercícios};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+    \draw[seta] (t5) -- (t6);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{A pergunta que ficou}
+% ==================================================================
+
+\begin{frame}{O problema: a recursão não é de graça}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Da aula passada}\\[0.3em]
+      \small
+      Cada chamada ativa ocupa um \textbf{registro de ativação} na pilha, e
+      nenhum é devolvido antes de a descida chegar ao caso base.
+
+      \medskip
+      A pergunta que ficou: \textcolor{UFSRed}{\texttt{soma(v, 10000000)}
+      funciona?}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que vamos descobrir}\\[0.3em]
+      \small
+      A pilha tem um tamanho fixo --- e pequeno. Saber quanto cada chamada
+      gasta, e o que mandar para o \textbf{heap}, é o que separa uma função
+      recursiva que funciona de uma que derruba o programa.
+    \end{column}
+  \end{columns}
+  \begin{block}{A pergunta de hoje}
+    Quanta memória uma função recursiva gasta, em que lugar, e o que fazer
+    quando ela não cabe?
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{memoria.c} (1/3)}
+\begin{lstlisting}[style=codC]
+/* memoria.c --- quanto de memoria a recursao gasta, e onde */
+#include <stdio.h>
+#include <stdlib.h>
+/* A: a soma da aula passada: a adicao fica para a volta */
+long soma(const int *v, int n)
+{
+    if (n == 0)
+        return 0;
+    return soma(v, n - 1) + v[n - 1];
+}
+
+/* B: a mesma soma, levando o parcial na ida: nada fica para a volta */
+long soma_acum(const int *v, int n, long parcial)
+{
+    if (n == 0)
+        return parcial;
+    return soma_acum(v, n - 1, parcial + v[n - 1]);
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{memoria.c} (2/3): uma tabela no heap}
+\begin{lstlisting}[style=codC]
+/* C: Fibonacci que anota cada resultado em uma tabela no heap */
+long fib_memo(int n, long *memo)
+{
+    if (n < 2)
+        return n;
+    if (memo[n] == 0)
+        memo[n] = fib_memo(n - 1, memo) + fib_memo(n - 2, memo);
+    return memo[n];
+}
+\end{lstlisting}
+  \begin{block}{Lembrete da aula passada}
+    \small A \texttt{fib} ingênua recalculava os mesmos valores do zero:
+    \texttt{fib(40)} fez 331\,160\,281 chamadas. Aqui, cada \texttt{fib(k)}
+    calculado fica guardado em \texttt{memo[k]}.
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{memoria.c} (3/3): o \texttt{main}}
+\begin{lstlisting}[style=codC, basicstyle=\ttfamily\fontsize{7}{7.9}\selectfont]
+int main(int argc, char *argv[])
+{
+    int n = (argc > 1) ? atoi(argv[1]) : 1000;
+    int *v = malloc(n * sizeof *v);         /* o vetor mora no heap */
+    long *memo = calloc(91, sizeof *memo);  /* tabela zerada */
+    if (v == NULL || memo == NULL) {
+        free(v);
+        free(memo);
+        return 1;
+    }
+    for (int i = 0; i < n; i++)
+        v[i] = 1;
+    printf("C: fib(90) = %ld\n", fib_memo(90, memo));
+    free(memo);
+
+    printf("B: soma_acum(v, %d) = %ld\n", n, soma_acum(v, n, 0));
+    printf("A: soma(v, %d) = %ld\n", n, soma(v, n));
+    free(v);
+    return 0;
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item Com \texttt{./memoria 100000}: quais linhas aparecem, e com que
+        valores?
+      \item E com \texttt{./memoria 1000000}? E com \texttt{10000000}?
+      \item Se alguma execução falhar, qual linha sai por último?
+      \item A linha \textbf{C} demora? A \texttt{fib} ingênua levaria quanto
+        tempo para \texttt{fib(90)}?
+      \item O vetor de 10 milhões de \texttt{int} ocupa 40\,MB. Ele é o
+        problema?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra memoria.c -o memoria
+$ ./memoria 100000
+C: fib(90) = 2880067194370816120
+B: soma_acum(v, 100000) = 100000
+A: soma(v, 100000) = 100000
+$ ./memoria 1000000
+C: fib(90) = 2880067194370816120
+Segmentation fault: 11
+$ echo $?
+139
+\end{lstlisting}
+  \begin{center}
+    \scriptsize\textcolor{UFSGray}{No Linux a mensagem é
+    \texttt{Segmentation fault (core dumped)}. Com \texttt{10000000}, o mesmo
+    resultado.}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{Até onde a pilha aguenta}
+% ==================================================================
+
+\begin{frame}{Por que 100 mil passou e 1 milhão não?}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \small
+      \begin{itemize}
+        \item a linha \textbf{C} saiu: o heap deu conta da tabela;
+        \item a linha \textbf{B} \emph{não} saiu: o programa morreu
+          \emph{dentro} de \texttt{soma\_acum};
+        \item o vetor de 1 milhão de \texttt{int} (4\,MB) foi alocado sem
+          problema.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        O que \texttt{soma\_acum(v, 1000000, 0)} empilha que
+        \texttt{soma\_acum(v, 100000, 0)} não empilha?
+
+        \medskip
+        Existe um $n$ exato a partir do qual o programa cai? Do que ele
+        depende?
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Definição: limite da pilha e estouro de pilha}
+  \begin{block}{Limite da pilha}
+    \small Cada programa recebe, ao iniciar, uma pilha de tamanho
+    \textbf{fixo}, definido pelo sistema operacional. Em Linux e macOS o
+    padrão é de cerca de \textbf{8\,MB}; o comando \texttt{ulimit -s} mostra
+    o valor em KB.
+  \end{block}
+  \begin{block}{Estouro de pilha (\emph{stack overflow})}
+    \small Quando os registros ativos passam desse limite, o próximo
+    registro cai em memória que não pertence à pilha. O sistema
+    interrompe o programa (\texttt{SIGSEGV}, \emph{segmentation fault}).
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \small profundidade máxima $\approx$ tamanho da pilha $\div$ tamanho de
+    um registro
+  \end{exampleblock}
+  \fonte{Kerrisk (2010), §36.3~\cite{kerrisk2010linux};
+    Bryant \& O'Hallaron (2015), §3.7.1~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{A conta: quantos registros cabem em 8\,MB}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+        \small
+        \begin{tabular}{rrc}
+          \toprule
+          $n$ & pilha necessária & cabe?\\
+          \midrule
+          1\,000      & 48\,KB  & sim\\
+          100\,000    & 4,8\,MB & sim\\
+          1\,000\,000 & 48\,MB  & \textcolor{UFSRed}{não}\\
+          10\,000\,000 & 480\,MB & \textcolor{UFSRed}{não}\\
+          \bottomrule
+        \end{tabular}
+
+        \medskip
+        \scriptsize registros de 48 bytes, compilado sem otimização
+      \end{center}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small
+      Nesta máquina, \texttt{ulimit -s} dá 8\,176\,KB
+      = 8\,372\,224 bytes.
+
+      \medskip
+      Por busca binária, o maior $n$ que passa fica em torno de \textbf{174 mil} (varia um pouco a cada execução):
+      \[
+        8\,372\,224 \div 174\,000 \approx 48 \text{ bytes por registro.}
+      \]
+      O limite não é um número mágico: é uma divisão.
+    \end{column}
+  \end{columns}
+  \fonte{Kerrisk (2010), §36.3~\cite{kerrisk2010linux}; medido com
+    \texttt{memoria.c}}
+\end{frame}
+
+\begin{frame}{E o vetor de 40\,MB? Por que ele não estourou nada?}
+  \begin{block}{Pense antes de passar o slide}
+    \small No \texttt{main}, \texttt{v} foi criado com \texttt{malloc}. O que
+    aconteceria se ele fosse declarado assim?
+    \begin{center}
+      \texttt{int v[10000000];}
+    \end{center}
+    E por que 40\,MB no heap não são problema, se 48\,MB na pilha são?
+  \end{block}
+\end{frame}
+
+\begin{frame}{A resposta: pilha e heap são regiões diferentes}
+  \begin{columns}[c]
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[zona, minimum height=1.0cm, fill=UFSBlue!8, draw=UFSBlue]
+          (p) at (0,0) {\textbf{pilha}\\registros: \texttt{n}, \texttt{parcial}};
+        \node[zona, minimum height=0.9cm, fill=white, dashed]
+          (l) at (0,-0.95) {\textcolor{UFSGray}{livre}};
+        \node[zona, minimum height=1.0cm, fill=UFSRed!8, draw=UFSRed]
+          (h) at (0,-1.9) {\textbf{heap}\\\texttt{v}, \texttt{memo}};
+        \node[zona, minimum height=0.5cm, fill=black!5] (d) at (0,-2.65)
+          {dados estáticos};
+        \node[zona, minimum height=0.5cm, fill=black!5] (c) at (0,-3.15)
+          {código};
+        \draw[seta] (p.south east) ++(0.15,0.3) -- ++(0,-0.6);
+        \draw[setar] (h.north east) ++(0.15,-0.3) -- ++(0,0.6);
+        \node[leg, anchor=west] at (1.75,0.1) {limite fixo};
+        \node[leg, anchor=west] at (1.75,-1.8) {cresce sob};
+        \node[leg, anchor=west] at (1.75,-2.1) {demanda};
+        \node[leg, anchor=east] at (-1.7,0.4) {endereços};
+        \node[leg, anchor=east] at (-1.7,0.1) {altos};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \small
+      \texttt{int v[10000000]} como local vai para o registro do
+      \texttt{main}: 40\,MB numa pilha de 8\,MB. O programa cai
+      \textbf{antes} da primeira chamada.
+
+      \medskip
+      O heap cresce sob demanda, até o limite da memória do processo.
+      Se não houver espaço, \texttt{malloc} devolve \texttt{NULL}
+      --- um erro que dá para \emph{testar}. O estouro de pilha não avisa.
+    \end{column}
+  \end{columns}
+  \fonte{Kerrisk (2010), §6.3~\cite{kerrisk2010linux};
+    Bryant \& O'Hallaron (2015), §9.9~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{Recapitulando: até onde a pilha aguenta}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item a pilha tem tamanho fixo, da ordem de 8\,MB;
+      \item a profundidade máxima é o limite dividido pelo tamanho de um
+        registro;
+      \item passar do limite é um \emph{segmentation fault}, sem aviso e
+        sem chance de recuperação;
+      \item dados grandes vão para o heap, onde a falta de espaço vira um
+        \texttt{NULL} testável.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{O que pesa em cada registro}
+% ==================================================================
+
+\begin{frame}[fragile]{Um vetor local em cada nível}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=tinyC]
+/* gorda.c */
+int desce(int n)
+{
+    char linha[4096];   /* 4 KB */
+    linha[0] = (char) n;
+    if (n == 0)
+        return linha[0];
+    return desce(n - 1) + linha[0];
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small \texttt{soma\_acum} aguentou cerca de 174 mil níveis. Quantos
+        níveis \texttt{desce} aguenta?
+        \begin{itemize}
+          \item uns 170 mil?
+          \item uns 20 mil?
+          \item uns 2 mil?
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: as locais se multiplicam pela profundidade}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \small
+      Medido: \texttt{desce} cai a partir de \textbf{2\,010} níveis.
+      \[
+        8\,372\,224 \div 2\,010 \approx 4\,165 \text{ bytes}
+      \]
+      = os 4\,096 de \texttt{linha} + o resto do registro.
+
+      \medskip
+      Um vetor local existe uma vez \emph{por chamada ativa}. Em uma função
+      recursiva, ele é pago a cada nível.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{O que fazer}
+        \small
+        \begin{itemize}
+          \item alocar o espaço \textbf{uma vez}, no heap, fora da
+            recursão;
+          \item passar o ponteiro para baixo como parâmetro;
+          \item cada registro paga só 8 bytes do ponteiro.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Bryant \& O'Hallaron (2015), §3.7.4~\cite{bryant2015computer};
+    medido com \texttt{gorda.c}}
+\end{frame}
+
+\begin{frame}[fragile]{E se a função devolver o endereço de uma local?}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=tinyC]
+char *rotulo(int n)
+{
+    char texto[16];
+    snprintf(texto, sizeof texto,
+             "nivel %d", n);
+    return texto;
+}
+
+int main(void)
+{
+    char *a = rotulo(1);
+    char *b = rotulo(2);
+    printf("%s | %s\n", a, b);
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small O que o \texttt{printf} imprime?
+
+        \medskip
+        Onde está \texttt{texto} depois que \texttt{rotulo} retorna?
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{A resposta: o registro morreu com o \texttt{return}}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra rotulo.c -o rotulo
+rotulo.c:6:12: warning: address of stack memory associated with local
+      variable 'texto' returned [-Wreturn-stack-address]
+$ ./rotulo
+??? | ???        <- bytes ilegiveis, outros a cada execucao
+\end{lstlisting}
+  \begin{block}{}
+    \small A vida de uma local termina quando a chamada termina. O ponteiro
+    continua apontando para onde ela estava --- uma área que a próxima
+    chamada reaproveita. O resultado é imprevisível; o compilador avisa
+    (no gcc: \texttt{-Wreturn-local-addr}).
+  \end{block}
+  \begin{center}
+    \small Para devolver texto: receba o espaço do chamador, ou devolva
+    memória do \texttt{malloc} --- e documente quem dá \texttt{free}.
+  \end{center}
+  \fonte{ISO/IEC 9899:2018, §6.2.4~\cite{iso2018c17};
+    Bryant \& O'Hallaron (2015), §9.11~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{Recapitulando: o que pesa em cada registro}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item parâmetros e locais --- inclusive vetores --- moram no
+        registro;
+      \item numa função recursiva, cada local é paga uma vez por nível;
+      \item espaço grande: aloque uma vez no heap e passe o ponteiro;
+      \item o registro deixa de existir no \texttt{return}: nunca devolva
+        o endereço de uma local.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Recursão de cauda}
+% ==================================================================
+
+\begin{frame}[fragile]{Por que, com \texttt{-O2}, a linha \textbf{B} passou?}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -O2 -Wall -Wextra memoria.c -o memoria
+$ ./memoria 1000000
+C: fib(90) = 2880067194370816120
+B: soma_acum(v, 1000000) = 1000000
+Segmentation fault: 11
+\end{lstlisting}
+  \begin{block}{Pense antes de passar o slide}
+    \small Mesmo programa, mesmo $n$. Só mudou a opção de otimização.
+
+    \medskip
+    Por que \texttt{soma\_acum} agora aguenta um milhão de níveis e
+    \texttt{soma} não? O que uma tem que a outra não tem?
+  \end{block}
+\end{frame}
+
+\begin{frame}{Definição: chamada de cauda}
+  \begin{block}{Chamada de cauda}
+    \small Uma chamada é \textbf{de cauda} quando é a última coisa que a
+    função faz: o valor que ela devolve é devolvido direto, sem nenhuma
+    conta depois. Uma função recursiva cujas chamadas são todas de cauda é
+    uma \textbf{recursão de cauda}.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \small Se nada fica pendente, o registro de quem chamou não serve para
+    mais nada: o compilador pode \emph{reaproveitá-lo} e trocar a chamada
+    por um salto --- a recursão vira um laço.
+  \end{exampleblock}
+  \begin{center}
+    \small
+    \texttt{return soma(v, n - 1) + v[n - 1];} \quad
+    \textcolor{UFSRed}{a soma fica para depois}\\[0.2em]
+    \texttt{return soma\_acum(v, n - 1, parcial + v[n - 1]);} \quad
+    \textcolor{UFSBlue}{nada fica}
+  \end{center}
+  \fonte{Abelson et al.\ (1996), §1.2.1~\cite{abelson1996structure}}
+\end{frame}
+
+\begin{frame}{O que fica pendente em cada registro}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \textcolor{UFSRed}{\textbf{\texttt{soma(v, 3)}}}\\[0.4em]
+      \begin{tikzpicture}
+        \node[regmain] (m)  at (0,0)    {main};
+        \node[reg]     (a)  at (0,0.45) {n = 3 \ espera ? + v[2]};
+        \node[reg]     (b)  at (0,0.90) {n = 2 \ espera ? + v[1]};
+        \node[reg]     (c)  at (0,1.35) {n = 1 \ espera ? + v[0]};
+        \node[regbase] (d)  at (0,1.80) {n = 0 \ devolve 0};
+      \end{tikzpicture}
+
+      \scriptsize cada registro guarda uma conta por terminar:\\
+      todos precisam continuar vivos
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \textcolor{UFSBlue}{\textbf{\texttt{soma\_acum(v, 3, 0)}}}\\[0.4em]
+      \begin{tikzpicture}
+        \node[regmain] (m)  at (0,0)    {main};
+        \node[reg]     (a)  at (0,0.45) {n \ \ parcial};
+      \end{tikzpicture}
+
+      \vspace{0.3em}
+      {\scriptsize\ttfamily
+      \begin{tabular}{rrl}
+        n & parcial & \\
+        \midrule
+        3 & 0 & \\
+        2 & 1 & \\
+        1 & 2 & \\
+        0 & 3 & \textcolor{UFSRed}{devolve 3}
+      \end{tabular}}
+
+      \scriptsize o resultado parcial desce junto:\\
+      um registro só, atualizado no lugar
+      \end{center}
+    \end{column}
+  \end{columns}
+  \fonte{Abelson et al.\ (1996), §1.2.1~\cite{abelson1996structure}}
+\end{frame}
+
+\begin{frame}[fragile]{O que o compilador fez com \texttt{soma\_acum}}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textcolor{UFSBlue}{\textbf{O que você escreveu}}
+\begin{lstlisting}[style=tinyC]
+long soma_acum(const int *v, int n,
+               long parcial)
+{
+    if (n == 0)
+        return parcial;
+    return soma_acum(v, n - 1,
+                     parcial + v[n - 1]);
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textcolor{UFSBlue}{\textbf{O que o \texttt{-O2} gerou (em C)}}
+\begin{lstlisting}[style=tinyC]
+long soma_acum(const int *v, int n,
+               long parcial)
+{
+    while (n != 0) {
+        parcial = parcial + v[n - 1];
+        n = n - 1;
+    }
+    return parcial;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    \small Os parâmetros viram as variáveis do laço; a chamada vira
+    ``volte ao início''. Um registro só, qualquer que seja $n$.
+  \end{block}
+  \fonte{Abelson et al.\ (1996), §1.2.1~\cite{abelson1996structure};
+    Bryant \& O'Hallaron (2015), §3.7~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{Não conte com isso}
+  \begin{alertblock}{A otimização não é garantida}
+    \small
+    \begin{itemize}
+      \item o padrão C não exige que chamadas de cauda virem laço;
+      \item sem \texttt{-O2} --- como na depuração --- \texttt{soma\_acum}
+        caiu em cerca de 174 mil níveis;
+      \item outro compilador ou outra versão pode fazer diferente, para mais
+        ou para menos;
+      \item uma mudança pequena (um \texttt{printf} depois da chamada) tira a
+        chamada da cauda.
+    \end{itemize}
+  \end{alertblock}
+  \begin{block}{Regra prática}
+    \small Se a profundidade pode chegar a dezenas de milhares, escreva o
+    laço você mesmo. A versão de cauda é o meio do caminho: já tem a cara
+    do laço.
+  \end{block}
+  \fonte{ISO/IEC 9899:2018, §6.5.2.2~\cite{iso2018c17}; medido com
+    \texttt{memoria.c} (clang, macOS)}
+\end{frame}
+
+\begin{frame}{Recapitulando: recursão de cauda}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item numa chamada de cauda nada fica pendente no registro de quem
+        chamou;
+      \item o resultado parcial desce como parâmetro (um acumulador);
+      \item com otimização, o compilador \emph{pode} transformar a
+        recursão em laço;
+      \item ``pode'' não é ``vai'': para profundidades grandes, use o laço.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Uma tabela para todas as chamadas}
+% ==================================================================
+
+\begin{frame}{Por que \texttt{fib(90)} saiu na hora?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \small
+      A \texttt{fib} ingênua faz $2F(n+1) - 1$ chamadas. Para $n = 90$:
+      \[
+        \approx 9{,}3 \times 10^{18} \text{ chamadas}
+      \]
+      A um bilhão de chamadas por segundo, quase \textbf{300 anos}.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small Quantas chamadas \texttt{fib\_memo(90, memo)} faz?
+
+        \medskip
+        Quantas tabelas \texttt{memo} existem durante a execução --- uma
+        por chamada, ou uma só?
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Deitel \& Deitel (2011), §5.15~\cite{deitel2011como}}
+\end{frame}
+
+\begin{frame}{Definição: memoização}
+  \begin{block}{Memoização}
+    \small Guardar o resultado de cada chamada já calculada e, na próxima vez
+    que ela for pedida, \textbf{consultar} em vez de recalcular.
+  \end{block}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[regmain] (m)  at (0,0)    {main \ memo = \ldots};
+        \node[reg]     (a)  at (0,0.45) {fib\_memo \ n = 90};
+        \node[reg]     (b)  at (0,0.90) {fib\_memo \ n = 89};
+        \node[reg]     (c)  at (0,1.35) {\ldots};
+        \node[heap]    (t)  at (3.3,0.7) {memo[0..90]\\91 \texttt{long}\\728 bytes};
+        \draw[setar] (m.east) -- (t);
+        \draw[setar] (a.east) -- (t);
+        \draw[setar] (b.east) -- (t);
+        \node[leg] at (3.3,-0.1) {heap: uma só};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \small Cada registro tem só uma \emph{cópia do ponteiro}; a tabela é
+      uma só. Resultado: \textbf{179} chamadas ($2n - 1$) em vez de
+      $9{,}3 \times 10^{18}$.
+    \end{column}
+  \end{columns}
+  \fonte{Michie (1968)~\cite{michie1968memo};
+    Cormen et al.\ (2009), §15.3~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}{Quem aloca, quem libera}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Fora da recursão}
+        \small A tabela precisa existir \textbf{antes} da primeira chamada e
+        \textbf{depois} da última. Por isso o \texttt{main} aloca, passa o
+        ponteiro e libera no fim.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Por que \texttt{calloc}}
+        \small O zero significa ``ainda não calculado''. Com
+        \texttt{malloc}, a tabela viria com lixo --- e o lixo seria lido como
+        resultado pronto.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{center}
+    \small
+    \begin{tabular}{@{}lll@{}}
+      \toprule
+      é de\ldots & vai para & exemplo\\
+      \midrule
+      uma chamada só & a pilha (local) & \texttt{n}, \texttt{parcial}\\
+      todas as chamadas & o heap, alocado fora & \texttt{memo}, \texttt{v}\\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \fonte{Kernighan \& Ritchie (1989), §7.8.5~\cite{kernighan1989c};
+    Cormen et al.\ (2009), §15.3~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}{Recapitulando: uma tabela para todas as chamadas}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item memoização troca memória por tempo: 728 bytes no lugar de
+        séculos;
+      \item o que é compartilhado por todas as chamadas vai para o heap,
+        alocado fora da recursão;
+      \item cada registro carrega só o ponteiro, não a tabela;
+      \item \texttt{calloc} dá uma tabela zerada --- e o zero precisa ter
+        significado.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{\texttt{malloc} em cada chamada}
+% ==================================================================
+
+\begin{frame}[fragile]{Uma função recursiva que devolve memória do heap}
+  \begin{columns}[c]
+    \begin{column}{0.6\textwidth}
+\begin{lstlisting}[style=codC]
+/* invertida.c: copia de s de tras para frente */
+char *invertida(const char *s)
+{
+    if (*s == '\0') {              /* caso base */
+        char *r = aloca(1);
+        r[0] = '\0';
+        return r;
+    }
+    char *resto = invertida(s + 1);
+    size_t k = strlen(resto);
+    char *r = aloca(k + 2);
+    strcpy(r, resto);   /* o resto invertido... */
+    r[k] = *s;          /* ...e a minha letra   */
+    r[k + 1] = '\0';
+    libera(resto);      /* na volta */
+    return r;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      \small
+      \texttt{aloca} e \texttt{libera} chamam \texttt{malloc} e
+      \texttt{free}, e contam quantos bytes estão no heap agora e no
+      máximo (o \emph{pico}).
+
+      \medskip
+      Cada nível recebe um bloco da chamada de baixo, monta um bloco maior e
+      devolve.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Quanto heap isso usa?}
+  \begin{block}{Antes de executar, escreva sua resposta}
+    \begin{enumerate}
+      \item Para uma string de $n = 10\,000$ letras, quantos bytes ficam no
+        heap no \textbf{pico}? Uns 20 mil? Uns 10 milhões?
+      \item E se apagarmos a linha \texttt{libera(resto);}? Quanto fica no
+        heap no fim?
+      \item Sem o \texttt{libera}, o resultado impresso muda?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+  \begin{center}
+    \small
+    \begin{tabular}{@{}rrrr@{}}
+      \toprule
+      & \multicolumn{1}{c}{com \texttt{libera(resto)}}
+      & \multicolumn{2}{c}{sem \texttt{libera(resto)}}\\
+      \cmidrule(lr){2-2}\cmidrule(lr){3-4}
+      $n$ & pico & pico & perdido no fim\\
+      \midrule
+      10      & 21       & 66           & 55\\
+      1\,000  & 2\,001   & 501\,501     & 500\,500\\
+      10\,000 & 20\,001  & 50\,015\,001 & 50\,005\,000\\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \begin{block}{}
+    \small Sem o \texttt{libera}, o resultado impresso é \textbf{o mesmo} ---
+    nada avisa. Para inverter 10\,KB de texto, o programa deixa 50\,MB
+    perdidos no heap.
+  \end{block}
+  \begin{center}
+    \scriptsize\textcolor{UFSGray}{``perdido'' = pico menos o bloco do
+    resultado, que o \texttt{main} ainda usa e libera.}
+  \end{center}
+  \fonte{medido com \texttt{invertida.c}}
+\end{frame}
+
+\begin{frame}{Por que $2n$ com o \texttt{free} e $n^2/2$ sem ele}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.45cm, y=0.32cm]
+        \foreach \k in {1,...,6} {
+          \fill[UFSRed!20, draw=UFSRed] (\k-1,0) rectangle (\k,\k);
+        }
+        \draw[UFSBlue, very thick] (4,0) rectangle (6,6);
+        \node[leg, below] at (3,0) {blocos de 1, 2, \ldots, $n+1$ bytes};
+        \node[leg, text=UFSBlue, align=left, anchor=west] at (6.3,4.5)
+          {com \texttt{free}:\\só os 2 últimos\\vivos juntos};
+        \node[leg, text=UFSRed, align=left, anchor=west] at (6.3,1.2)
+          {sem \texttt{free}:\\todos ficam};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small
+      Com o \texttt{free}, enquanto um nível monta o seu bloco ($k+2$
+      bytes), só o do nível de baixo ($k+1$) ainda existe: pico
+      $\approx 2n$.
+
+      \medskip
+      Sem o \texttt{free}, nenhum bloco sai:
+      \[
+        1 + 2 + \cdots + (n+1) = \tfrac{(n+1)(n+2)}{2}
+      \]
+      É um \textbf{vazamento de memória} que cresce com o quadrado de $n$.
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §17.4~\cite{king2008c};
+    Bryant \& O'Hallaron (2015), §9.11~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{A regra: quem recebe o bloco é dono dele}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{O contrato}
+        \small \texttt{invertida} devolve um bloco do heap. Quem chama
+        \emph{recebe a posse}: precisa usá-lo e depois dar \texttt{free}
+        --- seja o \texttt{main}, seja o nível de cima da própria recursão.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Ida e volta, de novo}
+        \small O \texttt{libera(resto)} vem \textbf{depois} da chamada:
+        roda na volta, quando o bloco já foi copiado. Antes do
+        \texttt{strcpy}, seria um uso de memória já liberada.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{center}
+    \small Escreva o contrato no comentário da função:\\[0.2em]
+    \texttt{/* devolve bloco do heap; quem chama deve dar free */}
+  \end{center}
+  \fonte{Kernighan \& Ritchie (1989), §7.8.5~\cite{kernighan1989c};
+    King (2008), §17.4~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: \texttt{malloc} em cada chamada}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item cada nível que aloca precisa liberar o que não vai devolver;
+      \item o \texttt{free} do bloco recebido vem depois de usá-lo --- na
+        volta;
+      \item um vazamento dentro da recursão se multiplica pelo número de
+        chamadas;
+      \item o resultado certo não prova que a memória está certa: meça.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \small
+  \begin{block}{Tarefa 1}
+    Descubra o limite da \emph{sua} máquina: o maior $n$ que
+    \texttt{./memoria} aceita sem e com \texttt{-O2}. Rode
+    \texttt{ulimit -s} e calcule o tamanho de cada registro.
+  \end{block}
+  \begin{block}{Tarefa 2}
+    Rode \texttt{ulimit -s 65536} e repita \texttt{./memoria 1000000}.
+    Depois ponha um \texttt{int rascunho[32]} (usado) em
+    \texttt{soma\_acum}. Preveja o novo limite antes de medir.
+  \end{block}
+  \begin{block}{Tarefa 3}
+    Troque \texttt{calloc} por \texttt{malloc} na tabela. O que muda? E se
+    a tabela tiver 90 posições em vez de 91?
+  \end{block}
+\end{frame}
+
+\begin{frame}{Exercícios (1/2)}
+  \footnotesize
+  \begin{block}{Exercício 1 --- somar pelas metades}
+    Escreva \texttt{long soma\_metades(const int *v, int ini, int fim)}
+    que soma \texttt{v[ini..fim-1]} somando a metade esquerda e a direita.
+    Ela funciona com 10 milhões de elementos sem \texttt{-O2}. Por quê?
+  \end{block}
+  \begin{block}{Exercício 2 --- o vetor auxiliar vai para o heap}
+    Uma ordenação recursiva declara \texttt{int aux[fim - ini]} a cada
+    chamada e cai com 10 milhões de elementos. Aloque \texttt{aux}
+    \textbf{uma vez}, no heap, e passe-o para baixo.
+  \end{block}
+  \fonte{Feofiloff (2009), cap.~2~\cite{feofiloff2009algoritmos}}
+\end{frame}
+
+\begin{frame}{Exercícios (2/2)}
+  \footnotesize
+  \begin{block}{Exercício 3 --- máximo com acumulador}
+    \texttt{maximo} em recursão de cauda, levando o maior até agora como
+    parâmetro. Teste com 1 milhão de elementos, sem e com \texttt{-O2}.
+  \end{block}
+  \begin{block}{Exercício 4 --- combinações com tabela}
+    $C(n,k) = C(n-1,k-1) + C(n-1,k)$. Calcule $C(60, 30)$ com uma tabela
+    $(n+1) \times (k+1)$ em bloco único no heap (\texttt{memo[i * nc + j]}).
+  \end{block}
+  \begin{block}{Exercício 5 --- repetir sem vazar}
+    \texttt{char *repete(const char *s, int k)} devolve \texttt{s} repetida
+    \texttt{k} vezes, num bloco do heap. No fim, o heap volta a zero.
+  \end{block}
+  \fonte{Cormen et al.\ (2009), §15.3~\cite{cormen2009introduction};
+    King (2008), §17.4~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{block}{Pintar uma região: troque a pilha do sistema por uma sua}
+    \small Uma grade de \texttt{l} $\times$ \texttt{c} caracteres, alocada
+    no heap, tem células livres (\texttt{.}) e paredes (\texttt{X}).
+    \begin{itemize}
+      \item \texttt{pinta\_rec}: a partir de \texttt{(i, j)}, marca a célula
+        com \texttt{\#} e chama a si mesma para os quatro vizinhos; devolve
+        quantas pintou;
+      \item \texttt{pinta\_pilha}: o mesmo, sem recursão, com uma pilha de
+        posições no heap que cresce com \texttt{realloc}.
+    \end{itemize}
+    \begin{itemize}
+      \item as duas concordam em grades pequenas;
+      \item numa grade $3000 \times 3000$, a recursiva cai --- mesmo com
+        \texttt{-O2}. Explique por quê;
+      \item a versão com pilha própria pinta as 4\,500\,000 células e
+        libera tudo.
+    \end{itemize}
+  \end{block}
+  \fonte{Bryant \& O'Hallaron (2015), §9.9~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      \small A pergunta da aula passada tem resposta: dez milhões de
+      registros não cabem. Mas a soma de dez milhões cabe --- em um laço, ou
+      em uma recursão que desce só $\log_2 n$ níveis.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O preço}\\[0.3em]
+      \small A pilha é pequena, e estourá-la não avisa. O heap é grande, mas
+      cada bloco precisa de um dono que dê \texttt{free}.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \small
+      \item profundidade máxima $\approx$ pilha $\div$ registro;
+      \item vetores locais pesam em cada nível: aloque fora e passe o
+        ponteiro;
+      \item recursão de cauda \emph{pode} virar laço --- não conte com isso;
+      \item o que é de todas as chamadas vai para o heap; quem recebe um
+        bloco o libera.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}
