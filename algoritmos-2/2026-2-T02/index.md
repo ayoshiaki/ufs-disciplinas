@@ -127,6 +127,15 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-13-divisao-e-conquista-strassen' | relative_url }}">
+    <div class="week-num">13</div>
+    <div class="week-body">
+      <div class="week-title">Divisão e conquista: multiplicação de matrizes de Strassen</div>
+      <div class="week-desc">Algoritmo clássico em O(n³); produto por blocos com oito produtos e por que não ajuda; os sete produtos de Strassen em O(n^2,81), custos práticos e a corrida pelo expoente ω, inclusive com IA.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-14-programacao-dinamica-memoization-subestrutura-otima' | relative_url }}">
     <div class="week-num">14</div>
     <div class="week-body">

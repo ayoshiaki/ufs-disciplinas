@@ -1,0 +1,1148 @@
+% -*- coding: utf-8 -*-
+% Aula: Divisao e conquista -- multiplicacao de matrizes de Strassen
+% Fontes principais: Levitin (2012), sec. 5.4; Cormen et al. (2009), secs. 4.2 e 4.5;
+% Strassen (1969); Landsberg (2008); Fawzi et al. (2022), Novikov et al. (2025) e
+% Dupont et al. (2026) e OpenAI (2026) na curiosidade final.
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{cancel}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, patterns}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=5.6cm, minimum height=0.55cm, font=\scriptsize},
+  blk/.style={draw=blue!60!black, fill=blue!8, minimum size=7mm, inner sep=0pt,
+              font=\scriptsize},
+  blkA/.style={blk, fill=blue!12},
+  blkB/.style={blk, fill=green!12, draw=green!50!black},
+  blkC/.style={blk, fill=orange!15, draw=orange!80!black},
+  fase/.style={rectangle, rounded corners, draw=blue!60, fill=blue!10,
+               minimum width=2.3cm, minimum height=0.6cm, font=\scriptsize,
+               align=center}
+}
+
+% matriz 2x2 de blocos: \blocos{estilo}{nome}{prefixo}
+\newcommand{\blocos}[3]{%
+  \matrix[matrix of math nodes, nodes={#1}, column sep=-\pgflinewidth,
+          row sep=-\pgflinewidth, ampersand replacement=\&] (#2) {%
+    #3_{11} \& #3_{12} \\ #3_{21} \& #3_{22} \\};%
+}
+
+% uma grade de coeficientes (4 linhas x 7 colunas) de U, V ou W
+% #1 = deslocamento x, #2 = rótulo, #3 = lista de linhas, #4 = rótulos das linhas
+\newcommand{\gradecoef}[4]{%
+  \begin{scope}[shift={(#1,0)}]
+    \foreach \lin [count=\i] in {#3} {
+      \foreach \v [count=\j] in \lin {
+        \ifnum\v=1  \fill[blue!65]  (\j*0.32,-\i*0.32) rectangle ++(0.32,0.32);\fi
+        \ifnum\v=-1 \fill[red!65]   (\j*0.32,-\i*0.32) rectangle ++(0.32,0.32);\fi
+        \draw[gray!60] (\j*0.32,-\i*0.32) rectangle ++(0.32,0.32);
+      }
+    }
+    \foreach \r [count=\i] in {#4}
+      \node[font=\tiny, anchor=east] at (0.3,-\i*0.32+0.16) {$\r$};
+    \foreach \j in {1,...,7}
+      \node[font=\tiny] at (\j*0.32+0.16, 0.18) {$M_{\j}$};
+    \node[font=\scriptsize\bfseries] at (1.28,-1.65) {#2};
+  \end{scope}%
+}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+% ---- termos na reconstrução de Strassen: úteis (azul) e lixo (vermelho) ----
+\newcommand{\util}[1]{\textcolor{blue!70!black}{#1}}
+\newcommand{\lixo}[1]{\textcolor{red!75!black}{#1}}
+
+\title{Divisão e conquista}
+\subtitle{Multiplicação de matrizes de Strassen}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=3mm]
+    \node[box] (t1) {1.\ O problema: produto de matrizes em $\Theta(n^3)$};
+    \node[box, below=of t1] (t2) {2.\ Divisão em blocos: 8 subproblemas, nenhum ganho};
+    \node[box, below=of t2, fill=orange!20, draw=orange!80!black] (t3)
+         {3.\ Strassen: 7 subproblemas e $\Theta(n^{2{,}807})$};
+    \node[box, below=of t3] (t4) {4.\ Strassen na prática e a corrida pelo expoente};
+    \node[box, below=of t4, fill=green!12, draw=green!50!black] (t5)
+         {5.\ Curiosidade: a IA procurando algoritmos};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4, t4/t5}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+    \draw[-{Stealth}, thick, orange!80!black, dashed]
+      (t3.east) to[out=0, in=0, looseness=2.2] node[right, xshift=1mm, font=\tiny, align=left]
+      {mesma ideia de Karatsuba:\\trocar produtos por somas} (t2.east);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% =====================================================================
+\section{O problema}
+
+\begin{frame}{Por que precisamos multiplicar matrizes depressa?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize O produto de matrizes está no núcleo de muita computação:
+      \begin{itemize}\scriptsize
+        \item \textbf{grafos:} se $A$ é a matriz de adjacência, $(A^k)_{ij}$ conta os
+              passeios de comprimento $k$ de $i$ a $j$; $\operatorname{tr}(A^3)/6$ conta os
+              triângulos de um grafo não dirigido;
+        \item \textbf{redes neurais:} cada camada densa é um produto de matrizes;
+        \item \textbf{computação gráfica, sistemas lineares, simulação.}
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução?}\\[2pt]
+      \scriptsize O algoritmo da escola faz $n^3$ multiplicações.
+      Para $n=10^4$ são $10^{12}$ operações: cerca de 17 minutos a $10^9$ operações por
+      segundo.
+      \medskip
+
+      \textbf{Pergunta da aula:} dá para fazer com \emph{menos} que $n^3$?
+      Até 1969, achava-se que $n^3$ era o mínimo possível.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 4.2~\cite{cormen2009introduction};
+    Strassen (1969)~\cite{strassen1969gaussian}.}
+\end{frame}
+
+\begin{frame}{Produto de matrizes: definição}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Definição}
+        \scriptsize Dadas $A$ e $B$ de ordem $n\times n$, o produto $C=AB$ é
+        \[ c_{ij} \;=\; \sum_{k=1}^{n} a_{ik}\,b_{kj}, \qquad 1\le i,j\le n. \]
+      \end{block}
+      \begin{exampleblock}{Intuição}
+        \scriptsize Cada uma das $n^2$ entradas de $C$ é o produto escalar de uma
+        \emph{linha} de $A$ com uma \emph{coluna} de $B$: $n$ multiplicações cada,
+        $n^3$ no total.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \centering
+      \begin{tikzpicture}[x=4mm, y=4mm]
+        \draw[gray] (0,0) grid (4,4);  \node[font=\scriptsize] at (2,-0.8) {$A$};
+        \fill[blue!35] (0,2) rectangle (4,3); \draw[gray] (0,0) grid (4,4);
+        \node at (4.8,2) {$\times$};
+        \begin{scope}[shift={(5.6,0)}]
+          \fill[green!40] (2,0) rectangle (3,4); \draw[gray] (0,0) grid (4,4);
+          \node[font=\scriptsize] at (2,-0.8) {$B$};
+        \end{scope}
+        \node at (10.4,2) {$=$};
+        \begin{scope}[shift={(11.2,0)}]
+          \fill[orange!70] (2,2) rectangle (3,3); \draw[gray] (0,0) grid (4,4);
+          \node[font=\scriptsize] at (2,-0.8) {$C$};
+        \end{scope}
+        \node[font=\tiny, align=center] at (7.6,-2.4) {linha $i$ de $A$ $\cdot$ coluna $j$ de $B$ $=$ $c_{ij}$};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 4.2, procedimento \textsc{Square-Matrix-Multiply}~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{O algoritmo clássico em C}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}
+/* C = A B, matrizes n x n em ordem de linhas */
+void multClassico( int n, const double *A,
+                   const double *B, double *C) {
+   for (int i = 0; i < n; ++i)
+      for (int j = 0; j < n; ++j) {
+         double s = 0.0;
+         for (int k = 0; k < n; ++k)
+            s += A[i*n+k] * B[k*n+j];
+         C[i*n+j] = s;
+      }
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \scriptsize
+      \textbf{Contagem exata:}
+      \begin{itemize}\scriptsize
+        \item multiplicações: $n\cdot n\cdot n = n^3$;
+        \item somas: $n^2(n-1)$;
+        \item total: $2n^3-n^2 \in \Theta(n^3)$.
+      \end{itemize}
+      \medskip
+      Dobrar $n$ multiplica o tempo por $2^3 = 8$.
+      Você vai medir isso no tutorial.
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 2.3, Exemplo 3~\cite{levitin2012introduction};
+    Cormen et al.\ (2009), \S 4.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: o problema}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item $c_{ij}$ é o produto da linha $i$ de $A$ pela coluna $j$ de $B$.
+      \item O algoritmo clássico faz $n^3$ multiplicações e $n^2(n-1)$ somas: $\Theta(n^3)$.
+      \item Ler a entrada já custa $\Theta(n^2)$, então nenhum algoritmo faz menos que isso.
+            A pergunta é onde fica o custo \emph{entre} $n^2$ e $n^3$.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 4.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Divisão em blocos}
+
+\begin{frame}{Por que tentar divisão e conquista?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\
+      \scriptsize Mergesort e o par mais próximo nos ensinaram a quebrar a entrada em
+      pedaços menores. Uma matriz $n\times n$ (com $n$ potência de 2) se parte
+      naturalmente em quatro \textbf{blocos} de $\frac n2\times\frac n2$.
+      \medskip
+
+      \textbf{Solução?}\\
+      \scriptsize Tratar cada bloco como se fosse um número e usar a regra do
+      produto $2\times 2$.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \blocos{blkA}{mA}{A}
+        \node[right=1mm of mA] (x) {$\times$};
+        \begin{scope}[shift={(2.6,0)}]\blocos{blkB}{mB}{B}\end{scope}
+        \node[right=1mm of mB] (eq) {$=$};
+        \begin{scope}[shift={(5.2,0)}]\blocos{blkC}{mC}{C}\end{scope}
+        \draw[decorate, decoration={brace, amplitude=3pt, mirror}]
+          (mA.south west) -- (mA.south east) node[midway, below=2pt, font=\tiny] {$n$};
+        \draw[decorate, decoration={brace, amplitude=2pt, mirror}]
+          (mA-2-1.south west) -- (mA-2-1.south east) node[midway, below=2pt, font=\tiny] {};
+        \node[font=\tiny, below=4mm of mB] {cada bloco é $\frac n2\times\frac n2$};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 4.2, \textsc{Square-Matrix-Multiply-Recursive}~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Produto por blocos: definição}
+  \begin{block}{Regra do produto por blocos}
+    \scriptsize
+    \[
+      \begin{aligned}
+        C_{11} &= A_{11}B_{11} + A_{12}B_{21}, &\qquad C_{12} &= A_{11}B_{12} + A_{12}B_{22},\\
+        C_{21} &= A_{21}B_{11} + A_{22}B_{21}, &\qquad C_{22} &= A_{21}B_{12} + A_{22}B_{22}.
+      \end{aligned}
+    \]
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize É a mesma fórmula do produto de matrizes $2\times 2$ de números, só que cada
+    ``número'' agora é um bloco. Ela vale porque não usamos a comutatividade: escrevemos
+    sempre $A_{\cdot\cdot}B_{\cdot\cdot}$, nunca $B_{\cdot\cdot}A_{\cdot\cdot}$.
+    \smallskip
+
+    \textbf{Custo:} \textbf{8} produtos de blocos (recursivos) e \textbf{4} somas de blocos,
+    cada uma $\Theta\big((n/2)^2\big)$.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 4.2~\cite{cormen2009introduction};
+    Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Análise: o teorema mestre diz que nada mudou}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \scriptsize
+      \[ T(n) = 8\,T(n/2) + \Theta(n^2) \]
+      $a=8$, $b=2$, $d=2$: como $8 > 2^2$, as \textbf{folhas dominam}:
+      \[ T(n)\in\Theta(n^{\log_2 8}) = \Theta(n^3). \]
+      Na árvore, o nível $j$ tem $8^j$ nós de custo $(n/2^j)^2$:
+      \[ 8^j\Big(\frac{n}{2^j}\Big)^2 = n^2\,2^j, \]
+      uma série que \emph{dobra} a cada nível. As $n^3$ folhas fazem todo o trabalho.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}[x=1mm, y=1mm]
+        \foreach \w/\l [count=\j from 0] in {3/n^2, 6/2n^2, 12/4n^2, 24/8n^2, 46/n^3}
+          { \fill[orange!80] (25-\w/2, -\j*6) rectangle (25+\w/2, -\j*6+4);
+            \node[font=\tiny, anchor=west] at (50,-\j*6+2) {$\l$}; }
+        \node[font=\tiny, anchor=east] at (-1,2) {raiz};
+        \node[font=\tiny, anchor=east] at (-1,-22) {folhas};
+      \end{tikzpicture}
+      \medskip
+
+      \scriptsize\textbf{Lição:} como as folhas dominam, só ajuda reduzir $a$, o
+      \emph{número} de subproblemas.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 4.2 e \S 4.5, Teorema 4.1~\cite{cormen2009introduction};
+    Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: divisão em blocos}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item A regra $2\times 2$ vale para blocos, porque não depende de comutatividade.
+      \item 8 produtos de $\frac n2$ e somas $\Theta(n^2)$: $T(n)=8T(n/2)+\Theta(n^2)=\Theta(n^3)$.
+      \item Quando as folhas dominam, baratear a combinação não adianta. É preciso cortar
+            subproblemas, como Karatsuba fez com inteiros ($4\to 3$).
+    \end{itemize}
+  \end{block}
+  \fonte{Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{O algoritmo de Strassen}
+
+\begin{frame}{Contexto: em 1969, todos apostavam no $n^3$}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}[x=1mm, y=-8.6mm]
+        \draw[thick, gray!70] (0,0.6) -- (0,4.4);
+        \foreach \i/\ano/\txt in {
+          1/1965/{Klyuyev e Kokovkin-Shcherbak: eliminação\\gaussiana é ótima \emph{se} só operarmos\\linhas e colunas inteiras},
+          2/1968/{Winograd: produto interno com metade\\dos produtos, mas usando $ab=ba$\\(não serve para blocos)},
+          3/1969/{\textbf{Strassen tenta provar que 8 é o mínimo}\\\textbf{para $2\times2$ \ldots\ e acha 7}},
+          4/1971/{Winograd; Hopcroft e Kerr:\\7 é ótimo para $2\times2$}} {
+          \fill[orange!85!black] (0,\i) circle (1.1pt);
+          \node[font=\tiny\bfseries, anchor=east] at (-1.5,\i) {\ano};
+          \node[font=\tiny, anchor=west, align=left] at (1.5,\i) {\txt};
+        }
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{Como foi descoberto:}\\
+      \scriptsize Strassen queria provar, por eliminação exaustiva de casos, que
+      \textbf{não existia} receita $2\times2$ com menos de 8 produtos. A prova não fechava,
+      e o motivo era que a receita existia.
+      \medskip
+
+      \textbf{O título é uma provocação:}\\
+      \scriptsize \emph{Gaussian elimination is not optimal} (3 páginas). Com o mesmo truque,
+      inversão, determinante e sistemas lineares também caem para $O(n^{2{,}81})$,
+      derrubando o $\Theta(n^3)$ da eliminação gaussiana.
+      \medskip
+
+      \scriptsize O artigo abriu a pergunta ``qual é o menor expoente $\omega$?''.
+      Em out./2026 a OpenAI anunciou $\omega\le 9/4$; ninguém sabe se $\omega=2$.
+    \end{column}
+  \end{columns}
+  \fonte{Strassen (1969)~\cite{strassen1969gaussian};
+    Landsberg (2008), Obs.~1.1.1~\cite{landsberg2008geometry};
+    Klyuyev e Kokovkin-Shcherbak (1965)~\cite{klyuyev1965minimization};
+    Hopcroft e Kerr (1971)~\cite{hopcroft1971minimizing};
+    OpenAI (2026)~\cite{openai2026ninefourths}.}
+\end{frame}
+
+\begin{frame}{Por que 7 produtos fariam diferença?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\
+      \scriptsize Um produto de blocos é caro (é ele mesmo um produto de matrizes, resolvido
+      recursivamente); uma soma de blocos custa só $\Theta(n^2)$. Os produtos são caros e as somas são baratas.
+      \medskip
+
+      \textbf{Solução (Strassen, 1969):}\\
+      \scriptsize calcular o produto $2\times 2$ com \textbf{7} multiplicações,
+      pagando com mais somas (18 em vez de 4).
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering\scriptsize
+      \begin{tabular}{lcc}
+        \toprule
+                       & produtos & somas \\
+        \midrule
+        blocos ingênuo & 8 & 4 \\
+        \rowcolor{orange!15}
+        Strassen       & 7 & 18 \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      Trocar 1 produto por 14 somas \emph{parece} um mau negócio.
+      Mas o produto se repete em todos os níveis da recursão, enquanto as somas são
+      só $\Theta(n^2)$ por nível.
+    \end{column}
+  \end{columns}
+  \fonte{Strassen (1969)~\cite{strassen1969gaussian};
+    Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Strassen: definição}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Os 7 produtos}
+        \scriptsize
+        \vspace{-4pt}
+        \[
+          \begin{aligned}
+            M_1 &= (A_{11}+A_{22})(B_{11}+B_{22})\\
+            M_2 &= (A_{21}+A_{22})\,B_{11}\\
+            M_3 &= A_{11}\,(B_{12}-B_{22})\\
+            M_4 &= A_{22}\,(B_{21}-B_{11})\\
+            M_5 &= (A_{11}+A_{12})\,B_{22}\\
+            M_6 &= (A_{21}-A_{11})(B_{11}+B_{12})\\
+            M_7 &= (A_{12}-A_{22})(B_{21}+B_{22})
+          \end{aligned}
+        \]
+      \end{block}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{As combinações}
+        \scriptsize
+        \vspace{-4pt}
+        \[
+          \begin{aligned}
+            C_{11} &= M_1 + M_4 - M_5 + M_7\\
+            C_{12} &= M_3 + M_5\\
+            C_{21} &= M_2 + M_4\\
+            C_{22} &= M_1 - M_2 + M_3 + M_6
+          \end{aligned}
+        \]
+      \end{block}
+      \scriptsize Somas: 10 nos $M_i$ e 8 nos $C_{ij}$, total \textbf{18}.
+      Nenhum produto usa comutatividade, então a receita vale para blocos.
+    \end{column}
+  \end{columns}
+  \fonte{Strassen (1969)~\cite{strassen1969gaussian};
+    Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Por que funciona? Conferindo duas entradas}
+  \begin{exampleblock}{$C_{12}$: os termos extras se cancelam}
+    \scriptsize
+    \[
+      M_3 + M_5 = A_{11}B_{12} \cancel{- A_{11}B_{22}} + \cancel{A_{11}B_{22}} + A_{12}B_{22}
+      = A_{11}B_{12} + A_{12}B_{22}. \;\checkmark
+    \]
+  \end{exampleblock}
+  \begin{exampleblock}{$C_{11}$: expandindo os quatro produtos}
+    \scriptsize
+    \[
+      \begin{aligned}
+        M_1 &= A_{11}B_{11} + A_{11}B_{22} + A_{22}B_{11} + A_{22}B_{22}\\
+        M_4 &= A_{22}B_{21} - A_{22}B_{11}\\
+        -M_5 &= -A_{11}B_{22} - A_{12}B_{22}\\
+        M_7 &= A_{12}B_{21} + A_{12}B_{22} - A_{22}B_{21} - A_{22}B_{22}
+      \end{aligned}
+    \]
+    Somando, sobra apenas $A_{11}B_{11} + A_{12}B_{21}$. $\checkmark$
+    \;$C_{21}$ e $C_{22}$ ficam como exercício.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 4.2, verificação de $C_{11}$~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Como chegar nessas contas? A ideia}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{exampleblock}{O truque de Gauss: $(a+bi)(c+di)$ com 3 produtos}
+        \scriptsize
+        Queremos $ac-bd$ e $ad+bc$, que pedem 4 produtos. Com somas antes de multiplicar:
+        \[
+          k_1 = c\,(a+b),\quad k_2 = a\,(d-c),\quad k_3 = b\,(c+d)
+        \]
+        \vspace{-10pt}
+        \[
+          ac-bd = k_1-k_3, \qquad ad+bc = k_1+k_2
+        \]
+        O produto $k_1$ serve às \textbf{duas} saídas.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{A estratégia, aplicada a $2\times2$:}
+      \scriptsize
+      \begin{itemize}
+        \item Um produto de somas gera vários termos $A_{ik}B_{lj}$ de uma vez.
+        \item Cada produto deve entregar termos \util{úteis} a dois blocos de $C$.
+        \item O \lixo{lixo} de um produto é cancelado por outro produto que
+              \emph{também} seja útil.
+      \end{itemize}
+      \begin{alertblock}{Reconstrução didática}
+        \scriptsize O artigo de Strassen tem 3 páginas e não mostra a derivação.
+        Os próximos passos mostram \emph{um} caminho que leva às mesmas fórmulas.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), Exercício 4.2-7, truque de Gauss~\cite{cormen2009introduction};
+    Strassen (1969)~\cite{strassen1969gaussian}.}
+\end{frame}
+
+\begin{frame}{Reconstrução, passo 1: um produto, dois blocos}
+  \begin{columns}[T]
+    \begin{column}{0.36\textwidth}
+      \begin{block}{O alvo}
+        \scriptsize
+        \vspace{-4pt}
+        \[
+          \begin{aligned}
+            C_{11} &= A_{11}B_{11} + A_{12}B_{21}\\
+            C_{12} &= A_{11}B_{12} + A_{12}B_{22}\\
+            C_{21} &= A_{21}B_{11} + A_{22}B_{21}\\
+            C_{22} &= A_{21}B_{12} + A_{22}B_{22}
+          \end{aligned}
+        \]
+      \end{block}
+      \scriptsize $A_{11}B_{11}$ e $A_{22}B_{22}$ estão em blocos diferentes.
+      Um único produto pode gerar os dois?
+    \end{column}
+    \begin{column}{0.6\textwidth}
+      \scriptsize
+      \textbf{Diagonal vezes diagonal:}
+      \[
+        M_1 = (A_{11}+A_{22})(B_{11}+B_{22})
+        = \util{A_{11}B_{11}} + \lixo{A_{11}B_{22}} + \lixo{A_{22}B_{11}} + \util{A_{22}B_{22}}
+      \]
+      Dois termos \util{úteis} (para $C_{11}$ e $C_{22}$) e dois de \lixo{lixo}.
+      \medskip
+
+      \textbf{Limpeza útil:} cada lixo vira parte de um produto que também gera um termo de $C$.
+      \[
+        \begin{aligned}
+          M_2 &= (A_{21}+A_{22})\,B_{11} = \util{A_{21}B_{11}} + \lixo{A_{22}B_{11}}
+            &&\text{útil para } C_{21}\\
+          M_5 &= (A_{11}+A_{12})\,B_{22} = \lixo{A_{11}B_{22}} + \util{A_{12}B_{22}}
+            &&\text{útil para } C_{12}
+        \end{aligned}
+      \]
+    \end{column}
+  \end{columns}
+  \fonte{Reconstrução das fórmulas de Strassen (1969)~\cite{strassen1969gaussian};
+    alvo em Cormen et al.\ (2009), \S 4.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Reconstrução, passo 2: os blocos fora da diagonal}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{$C_{12} = A_{11}B_{12} + A_{12}B_{22}$}
+        \scriptsize
+        $M_5$ já traz $\util{A_{12}B_{22}}$, mas com $\lixo{A_{11}B_{22}}$ de sobra. Falta
+        \[
+          A_{11}B_{12} - A_{11}B_{22} = A_{11}\,(B_{12}-B_{22}) = M_3
+        \]
+        \vspace{-8pt}
+        \[
+          \Rightarrow\; C_{12} = M_3 + M_5
+        \]
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{$C_{21} = A_{21}B_{11} + A_{22}B_{21}$}
+        \scriptsize
+        $M_2$ já traz $\util{A_{21}B_{11}}$, mas com $\lixo{A_{22}B_{11}}$ de sobra. Falta
+        \[
+          A_{22}B_{21} - A_{22}B_{11} = A_{22}\,(B_{21}-B_{11}) = M_4
+        \]
+        \vspace{-8pt}
+        \[
+          \Rightarrow\; C_{21} = M_2 + M_4
+        \]
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  \scriptsize
+  A correção que falta tem um fator comum ($A_{11}$ ou $A_{22}$), então custa
+  \textbf{um} produto só.
+  \textbf{Placar:} 5 produtos ($M_1,\dots,M_5$), dois blocos de $C$ prontos.
+  Para os dois blocos restantes sobram 2 produtos.
+  \fonte{Reconstrução das fórmulas de Strassen (1969)~\cite{strassen1969gaussian}.}
+\end{frame}
+
+\begin{frame}{Reconstrução, passo 3: o resíduo fatora}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \scriptsize
+      \textbf{$C_{11}$:} parta de $M_1$, tire o lixo $A_{11}B_{22}$ com $-M_5$ e o lixo
+      $A_{22}B_{11}$ com $+M_4$:
+      \[
+        M_1 + M_4 - M_5 = A_{11}B_{11} + A_{22}B_{22} + A_{22}B_{21} - A_{12}B_{22}
+      \]
+      O que falta para chegar em $C_{11}$:
+      \[
+        \begin{aligned}
+          &A_{12}B_{21} + A_{12}B_{22} - A_{22}B_{21} - A_{22}B_{22}\\
+          &= (A_{12}-A_{22})(B_{21}+B_{22}) = M_7
+        \end{aligned}
+      \]
+      \textbf{$C_{22}$,} por simetria:
+      \[
+        C_{22} - (M_1 - M_2 + M_3) = (A_{21}-A_{11})(B_{11}+B_{12}) = M_6
+      \]
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{alertblock}{Onde está o pulo do gato}
+        \scriptsize Um resíduo de 4 termos costuma exigir \textbf{2} produtos, e aí
+        voltaríamos a 8. Aqui ele fatora como \textbf{um} produto de somas.
+        A parte difícil é escolher o $M_1$ que faz os resíduos fatorarem.
+      \end{alertblock}
+      \begin{block}{E não dá para fazer melhor}
+        \scriptsize Para $2\times2$, 7 produtos é o mínimo (Winograd; Hopcroft e Kerr, 1971).
+        A seção final mostra a mesma busca como decomposição de um tensor.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Reconstrução das fórmulas de Strassen (1969)~\cite{strassen1969gaussian};
+    Winograd (1971)~\cite{winograd1971multiplication};
+    Hopcroft e Kerr (1971)~\cite{hopcroft1971minimizing}.}
+\end{frame}
+
+\begin{frame}{Exemplo: Strassen em uma matriz $2\times 2$}
+  \begin{columns}[T]
+    \begin{column}{0.4\textwidth}
+      \scriptsize
+      \[
+        A=\begin{pmatrix}1&3\\7&5\end{pmatrix},\quad
+        B=\begin{pmatrix}6&8\\4&2\end{pmatrix}
+      \]
+      Pelo algoritmo clássico:
+      \[
+        C=\begin{pmatrix}1\cdot6+3\cdot4 & 1\cdot8+3\cdot2\\ 7\cdot6+5\cdot4 & 7\cdot8+5\cdot2\end{pmatrix}
+         =\begin{pmatrix}18&14\\62&66\end{pmatrix}
+      \]
+      com 8 multiplicações.
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      \begin{exampleblock}{Por Strassen: 7 multiplicações}
+        \scriptsize
+        \begin{tabular}{@{}l@{\;}l@{\qquad}l@{\;}l@{}}
+          $M_1=(1+5)(6+2)$ & $=48$  & $M_5=(1+3)\cdot 2$ & $=8$\\
+          $M_2=(7+5)\cdot 6$ & $=72$ & $M_6=(7-1)(6+8)$ & $=84$\\
+          $M_3=1\cdot(8-2)$ & $=6$  & $M_7=(3-5)(4+2)$ & $=-12$\\
+          $M_4=5\cdot(4-6)$ & $=-10$ & & \\
+        \end{tabular}
+        \smallskip
+
+        $C_{11}=48-10-8-12=18$ \qquad $C_{12}=6+8=14$\\
+        $C_{21}=72-10=62$ \qquad\quad\; $C_{22}=48-72+6+84=66$ \;$\checkmark$
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), Exercício 4.2-1~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{O algoritmo recursivo}
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+\begin{lstlisting}
+STRASSEN(A, B, n):     /* n potencia de 2 */
+   se n <= CORTE: devolva CLASSICO(A, B, n)
+   particione A, B em blocos n/2 x n/2
+   M1 = STRASSEN(A11+A22, B11+B22, n/2)
+   M2 = STRASSEN(A21+A22, B11,     n/2)
+   ...                        /* M3 a M6 */
+   M7 = STRASSEN(A12-A22, B21+B22, n/2)
+   C11 = M1+M4-M5+M7;   C12 = M3+M5
+   C21 = M2+M4;         C22 = M1-M2+M3+M6
+   devolva C
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \scriptsize
+      \textbf{Dividir:} formar as 10 somas de entrada, $\Theta(n^2)$.\\[2pt]
+      \textbf{Conquistar:} 7 chamadas recursivas de tamanho $n/2$.\\[2pt]
+      \textbf{Combinar:} 8 somas, $\Theta(n^2)$.
+      \medskip
+
+      A versão completa em C, com um \textbf{ponto de corte} para o algoritmo clássico,
+      está no tutorial.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 4.2, passos 1--4~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Análise: o teorema mestre agora ajuda}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \[ T(n) = 7\,T(n/2) + \Theta(n^2) \]
+      $a=7$, $b=2$, $d=2$: $7 > 4$, as folhas dominam:
+      \[ T(n)\in\Theta(n^{\log_2 7}) \approx \Theta(n^{2{,}807}). \]
+      Contando só multiplicações, com $M(1)=1$:
+      \[ M(n) = 7\,M(n/2) \;\Rightarrow\; M(2^k)=7^k = n^{\log_2 7}. \]
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering\scriptsize
+      \begin{tabular}{rrrr}
+        \toprule
+        $n$ & clássico $n^3$ & Strassen $7^k$ & razão \\
+        \midrule
+        $2^4=16$     & $4{,}1\times10^{3}$  & $2{,}4\times10^{3}$  & 1,7 \\
+        $2^{7}=128$  & $2{,}1\times10^{6}$  & $8{,}2\times10^{5}$  & 2,5 \\
+        $2^{10}=1024$& $1{,}1\times10^{9}$  & $2{,}8\times10^{8}$  & 3,8 \\
+        $2^{13}=8192$& $5{,}5\times10^{11}$ & $9{,}7\times10^{10}$ & 5,7 \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      A razão é $(8/7)^k$: cresce com $n$, mas devagar.
+      O ganho só aparece em matrizes grandes.
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 5.4~\cite{levitin2012introduction};
+    Cormen et al.\ (2009), \S 4.2 e \S 4.5~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: Strassen}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item 7 produtos e 18 somas no lugar de 8 produtos e 4 somas.
+      \item As fórmulas não usam comutatividade, então valem recursivamente para blocos.
+      \item $T(n)=7T(n/2)+\Theta(n^2)\in\Theta(n^{\log_2 7})\approx\Theta(n^{2{,}807})$: o
+            \emph{expoente} cai, e não só a constante.
+      \item Mesmo truque de Karatsuba: aceitar mais somas (baratas) para fazer menos
+            multiplicações recursivas (caras).
+    \end{itemize}
+  \end{block}
+  \fonte{Strassen (1969)~\cite{strassen1969gaussian};
+    Levitin (2012), \S 5.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Strassen na prática}
+
+\begin{frame}{Por que ninguém roda Strassen até $n=1$?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:}\\
+      \scriptsize As 18 somas custam caro em matrizes pequenas. Um nível de Strassen sobre
+      blocos de ordem $m$, com o clássico embaixo, vence o clássico direto quando
+      \[ 7(2m^3-m^2)+18m^2 \;<\; 2(2m)^3-(2m)^2 \iff m > 7{,}5. \]
+      Em contagem de operações, só vale recursar a partir de $n=16$.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{Solução:}\\
+      \begin{itemize}\scriptsize
+        \item \textbf{ponto de corte:} abaixo de um $n_0$, use o clássico. Na prática $n_0$
+              fica entre dezenas e centenas, por causa de cache e alocação;
+        \item \textbf{$n$ que não é potência de 2:} complete com zeros até a próxima
+              potência (\emph{padding}) ou trate a linha e a coluna que sobram à parte.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Higham (2002), cap.~23~\cite{higham2002accuracy};
+    Cormen et al.\ (2009), \S 4.2, Exercício 4.2-3~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Os custos escondidos}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Memória}
+        \scriptsize Cada nível aloca blocos temporários para as somas e para os $M_i$.
+        O clássico trabalha no lugar. Em hardware moderno, mover dados custa mais que
+        multiplicar.
+      \end{block}
+      \begin{block}{Estabilidade numérica}
+        \scriptsize Em ponto flutuante, o erro de Strassen é limitado só em \emph{norma},
+        não entrada a entrada. Entradas pequenas de $C$ podem sair com erro relativo
+        grande, o que não acontece no clássico.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{exampleblock}{Onde Strassen aparece de verdade}
+        \scriptsize
+        \begin{itemize}\scriptsize
+          \item álgebra exata (inteiros, corpos finitos): não há erro de arredondamento e
+                o ganho assintótico vale integralmente;
+          \item matrizes grandes e densas, com um ou dois níveis de recursão sobre
+                um núcleo clássico otimizado.
+        \end{itemize}
+      \end{exampleblock}
+      \scriptsize As bibliotecas BLAS de uso geral usam, em geral, o algoritmo clássico
+      organizado em blocos para aproveitar o cache.
+    \end{column}
+  \end{columns}
+  \fonte{Higham (2002), cap.~23~\cite{higham2002accuracy}.}
+\end{frame}
+
+\begin{frame}{A corrida pelo expoente $\omega$}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \centering
+      \begin{tikzpicture}[x=0.85mm, y=28mm]
+        \draw[->] (1965,2) -- (2030,2) node[right, font=\tiny] {ano};
+        \draw[->] (1965,2) -- (1965,3.08) node[above, font=\tiny] {$\omega\le$};
+        \foreach \y/\l in {2.0/2{,}0,2.2/2{,}2,2.4/2{,}4,2.6/2{,}6,2.8/2{,}8,3.0/3{,}0}
+          \node[font=\tiny, anchor=east] at (1965,\y) {\l};
+        \foreach \x in {1970,1990,2010,2030}
+          \node[font=\tiny, anchor=north] at (\x,2) {\x};
+        \draw[dashed, gray] (1965,3) -- (1969,3);
+        \draw[thick, blue!60!black] (1969,3) -- (1969,2.808) -- (1978,2.808) -- (1978,2.796)
+          -- (1979,2.796) -- (1979,2.780) -- (1981,2.780) -- (1981,2.522) -- (1986,2.522)
+          -- (1986,2.479) -- (1990,2.479) -- (1990,2.376) -- (2024,2.371) -- (2026,2.371)
+          -- (2026.8,2.371);
+        \draw[thick, violet!80!black, densely dashed] (2026.8,2.371) -- (2026.8,2.25)
+          -- (2028,2.25);
+        \fill[violet!80!black] (2026.8,2.25) circle (1.1pt);
+        \foreach \x/\y in {1969/2.808, 1978/2.796, 1979/2.780, 1981/2.522, 1986/2.479,
+                           1990/2.376, 2024/2.371}
+          \fill[orange!85!black] (\x,\y) circle (0.9pt);
+        \fill[green!50!black] (2026,2.371) circle (1.1pt);
+        \node[font=\tiny, anchor=west] at (1970,2.86) {Strassen 2,808};
+        \node[font=\tiny, anchor=south west] at (1990,2.38) {Coppersmith--Winograd 2,376};
+        \node[font=\tiny, anchor=north east, align=right] at (2024,2.34)
+          {2024: 2,371339\\\textcolor{green!40!black}{ago./2026: 2,371177}\\
+           \textcolor{violet!80!black}{out./2026: $9/4=2{,}25$}};
+        \draw[dashed, red!70!black] (1965,2) -- (2028,2);
+        \node[font=\tiny, red!70!black, anchor=south west] at (1966,2.01) {limite inferior trivial: 2};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \scriptsize
+      $\omega$ é o menor expoente tal que existe algoritmo $O(n^{\omega+\varepsilon})$.
+      \smallskip
+
+      De 1990 a ago./2026, décadas de trabalho baixaram $\omega$ só na \emph{terceira}
+      casa decimal. Em out./2026 a OpenAI anunciou $\omega\le 9/4$: se confirmado, o maior
+      salto desde 1981.
+      \smallskip
+
+      Esses algoritmos são \textbf{galácticos}: a constante é tão grande que só ganhariam em
+      matrizes maiores do que qualquer computador comporta. \textbf{Ninguém sabe se
+      $\omega=2$.}
+    \end{column}
+  \end{columns}
+  \fonte{Strassen (1969)~\cite{strassen1969gaussian};
+    Alman et al.\ (2024), $\omega<2{,}371339$~\cite{alman2024more};
+    Dupont et al.\ (2026)~\cite{dupont2026improving};
+    OpenAI (2026), $\omega\le 9/4$~\cite{openai2026ninefourths}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: Strassen na prática}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Implementações reais param a recursão num ponto de corte e usam o clássico
+            dali para baixo.
+      \item Memória extra e estabilidade em ponto flutuante limitam o uso; em aritmética
+            exata, Strassen brilha.
+      \item O melhor limite anunciado para o expoente é $\omega\le 9/4$ (out./2026, ainda
+            em verificação), sempre com algoritmos impraticáveis. Strassen e suas variantes continuam sendo os que se
+            usam na prática.
+    \end{itemize}
+  \end{block}
+  \fonte{Higham (2002), cap.~23~\cite{higham2002accuracy};
+    OpenAI (2026)~\cite{openai2026ninefourths}.}
+\end{frame}
+
+% =====================================================================
+\section{Curiosidade: a IA procurando algoritmos}
+
+\begin{frame}{Por que procurar com o computador?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\
+      \scriptsize Winograd (1971) provou que \textbf{7 é ótimo} para o produto $2\times 2$:
+      não existe receita com 6. Para baixar o expoente é preciso um bloco base maior,
+      $3\times3$, $4\times4$, \ldots, e o espaço de receitas cresce de forma explosiva.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Ideia:}\\
+      \scriptsize aplicar Strassen duas vezes dá uma receita $4\times 4$ com $7^2=$ \textbf{49}
+      produtos. Existe alguma com menos? Ninguém sabia desde 1969.
+      \medskip
+
+      A DeepMind transformou essa pergunta num \textbf{jogo} e deixou uma IA jogar.
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize\textbf{Cuidado:} o algoritmo precisa ser \emph{não comutativo}. Receitas que
+  usam $ab=ba$ (Winograd, 1968, já fazia $4\times4$ com 48) não servem para blocos,
+  porque $XY\neq YX$ em matrizes.}
+  \fonte{Winograd (1971)~\cite{winograd1971multiplication};
+    Fawzi et al.\ (2022)~\cite{fawzi2022discovering}.}
+\end{frame}
+
+\begin{frame}{Multiplicar matrizes é decompor um tensor}
+  \begin{columns}[c]
+    \begin{column}{0.38\textwidth}
+      \scriptsize
+      Toda receita do tipo Strassen é dada por três tabelas $U,V,W$:
+      \[
+        M_r = \Big(\sum_i u_{ir}\,a_i\Big)\Big(\sum_j v_{jr}\,b_j\Big),\quad
+        c_k = \sum_r w_{kr}\,M_r.
+      \]
+      O número de colunas $R$ é o número de multiplicações. Achar $U,V,W$ com $R$ pequeno é
+      achar uma \textbf{decomposição de posto $R$} do tensor $\mathcal T$ do produto
+      de matrizes: $\mathcal T = \sum_{r=1}^{R} u_r\otimes v_r\otimes w_r$.
+    \end{column}
+    \begin{column}{0.6\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \gradecoef{0}{$U$}{{1,0,1,0,1,-1,0},{0,0,0,0,1,0,1},{0,1,0,0,0,1,0},{1,1,0,1,0,0,-1}}{A_{11},A_{12},A_{21},A_{22}}
+        \gradecoef{3.1}{$V$}{{1,1,0,-1,0,1,0},{0,0,1,0,0,1,0},{0,0,0,1,0,0,1},{1,0,-1,0,1,0,1}}{B_{11},B_{12},B_{21},B_{22}}
+        \gradecoef{6.2}{$W$}{{1,0,0,1,-1,0,1},{0,0,1,0,1,0,0},{0,1,0,1,0,0,0},{1,-1,1,0,0,1,0}}{C_{11},C_{12},C_{21},C_{22}}
+        \fill[blue!65] (1.0,-2.15) rectangle ++(0.2,0.2);
+        \node[font=\tiny, anchor=west] at (1.2,-2.05) {$+1$};
+        \fill[red!65] (2.0,-2.15) rectangle ++(0.2,0.2);
+        \node[font=\tiny, anchor=west] at (2.2,-2.05) {$-1$};
+        \draw[gray!60] (3.0,-2.15) rectangle ++(0.2,0.2);
+        \node[font=\tiny, anchor=west] at (3.2,-2.05) {$0$};
+      \end{tikzpicture}
+      \\[2pt]
+      {\tiny Strassen como decomposição de posto 7. Ex.: a coluna $M_1$ de $U$ é
+      $A_{11}+A_{22}$.}
+    \end{column}
+  \end{columns}
+  \fonte{Fawzi et al.\ (2022), Fig.~1~\cite{fawzi2022discovering};
+    Strassen (1969)~\cite{strassen1969gaussian}.}
+\end{frame}
+
+\begin{frame}{AlphaTensor (DeepMind, 2022): o TensorGame}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{O jogo}
+        \scriptsize
+        \begin{itemize}\scriptsize
+          \item \textbf{estado:} o tensor que falta decompor (começa em $\mathcal T$);
+          \item \textbf{jogada:} escolher $u,v,w$ com coeficientes em
+                $\{-2,\dots,2\}$ e subtrair $u\otimes v\otimes w$;
+          \item \textbf{vitória:} chegar ao tensor zero; cada jogada custa um ponto.
+        \end{itemize}
+      \end{block}
+      \scriptsize O agente aprende por reforço, como o AlphaZero no xadrez e no go.
+      Número de jogadas = número de multiplicações.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \centering
+      \begin{tikzpicture}[node distance=8mm]
+        \node[fase, minimum width=1cm] (s0) {$\mathcal T$};
+        \node[fase, right=14mm of s0] (s1) {$\mathcal T - u_1\!\otimes\! v_1\!\otimes\! w_1$};
+        \node[fase, below=8mm of s1] (s2) {$\cdots$};
+        \node[fase, left=14mm of s2, minimum width=1cm, fill=green!12, draw=green!50!black] (s3) {$0$};
+        \draw[-{Stealth}, thick] (s0) -- node[above, font=\tiny] {jogada 1} (s1);
+        \draw[-{Stealth}, thick] (s1) -- node[right, font=\tiny] {jogada 2} (s2);
+        \draw[-{Stealth}, thick] (s2) -- node[below, font=\tiny] {jogada $R$} (s3);
+      \end{tikzpicture}
+      \medskip
+
+      \scriptsize Para $2\times 2$, o agente redescobre $R=7$.
+    \end{column}
+  \end{columns}
+  \fonte{Fawzi et al.\ (2022), \emph{Nature} 610:47--53~\cite{fawzi2022discovering}.}
+\end{frame}
+
+\begin{frame}{O que AlphaTensor e AlphaEvolve encontraram}
+  \centering\scriptsize
+  \begin{tabular}{lccll}
+    \toprule
+    receita base & produtos & expoente recursivo & vale em & \\
+    \midrule
+    clássico $2\times2$             & 8  & $3$                     & qualquer anel & \\
+    Strassen $2\times2$ (1969)      & 7  & $\log_2 7\approx 2{,}807$ & qualquer anel & \\
+    Strassen 2 níveis, $4\times4$   & 49 & $\log_4 49\approx 2{,}807$ & qualquer anel & \\
+    \rowcolor{green!10}
+    AlphaTensor $4\times4$ (2022)   & 47 & $\log_4 47\approx 2{,}777$ & só módulo 2 ($\mathbb Z_2$) & \\
+    \rowcolor{green!10}
+    AlphaEvolve $4\times4$ (2025)   & 48 & $\log_4 48\approx 2{,}792$ & complexos & \\
+    Dumas, Pernet, Sedoglavic (2025)& 48 & $\log_4 48\approx 2{,}792$ & racionais (e reais) & \\
+    \bottomrule
+  \end{tabular}
+  \medskip
+
+  \begin{itemize}\scriptsize
+    \item AlphaTensor também achou $5\times5$ módulo 2 com 96 produtos (antes 98); semanas
+          depois, Kauers e Moosbauer chegaram a 95 com uma busca sem aprendizado.
+    \item AlphaEvolve (um agente que evolui código com o Gemini) fez a primeira melhora
+          sobre os 49 de Strassen para números complexos em 56 anos.
+    \item AlphaTensor também otimizou para hardware específico: 10--20\% mais rápido em
+          GPU V100 e TPU para matrizes grandes.
+  \end{itemize}
+  \fonte{Fawzi et al.\ (2022)~\cite{fawzi2022discovering}; Kauers e Moosbauer (2022)~\cite{kauers2022flip};
+    Novikov et al.\ (2025)~\cite{novikov2025alphaevolve}; Dumas et al.\ (2025)~\cite{dumas2025noncommutative}.}
+\end{frame}
+
+\begin{frame}{2026: AlphaEvolve também baixa o limite de $\omega$}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}[node distance=2.5mm,
+          rota/.style={rectangle, draw=blue!60, fill=blue!8, rounded corners,
+                       text width=5.2cm, align=left, font=\tiny, inner sep=3pt}]
+        \node[rota] (r1) {\textbf{Rota 1: receita base pequena} (Strassen, AlphaTensor)\\
+          $k\times k$ com $R$ produtos $\Rightarrow$ expoente $\log_k R$.\\
+          Melhor por esta rota: da ordem de $2{,}77$. \emph{Algoritmos práticos.}};
+        \node[rota, below=of r1, fill=orange!12, draw=orange!80!black] (r2)
+          {\textbf{Rota 2: método laser} (Strassen 1986, Coppersmith--Winograd 1990)\\
+          tensor estruturado $\to$ potências enormes $\to$ zerar blocos até sobrarem
+          muitos produtos de matrizes independentes.\\
+          O limite de $\omega$ sai de um \textbf{problema de otimização} gigante.
+          \emph{Algoritmos galácticos.}};
+        \node[rota, below=of r2, fill=green!12, draw=green!50!black] (r3)
+          {\textbf{ago./2026:} melhor otimizador para a Rota 2 $\Rightarrow$
+          $\omega < 2{,}371177$ (antes $2{,}371339$)};
+        \draw[-{Stealth}, thick, green!40!black] (r2) -- (r3);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{O que foi feito:}\\
+      \scriptsize DeepMind com Alman, Vassilevska Williams e Zhou (autores dos recordes
+      de 2023--2024). Eles reformularam a otimização da \emph{combination loss analysis}
+      para resolvê-la num cenário maior, criaram um otimizador com técnicas de
+      aprendizado de máquina e o refinaram com o AlphaEvolve.
+      \medskip
+
+      \textbf{O que isso significa:}\\
+      \scriptsize A IA não achou uma receita nova: ela melhorou o \emph{solver} que
+      calcula quanto o método laser consegue garantir. O ganho está na
+      4.\textsuperscript{a} casa decimal. É um pré-print (ago./2026), ainda sem
+      revisão por pares.
+    \end{column}
+  \end{columns}
+  \fonte{Dupont et al.\ (2026), arXiv:2608.16884~\cite{dupont2026improving};
+    Alman et al.\ (2024)~\cite{alman2024more}.}
+\end{frame}
+
+\begin{frame}{Out./2026: a OpenAI anuncia $\omega\le 9/4$}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \centering
+      \begin{tikzpicture}[node distance=2mm,
+          passo/.style={rectangle, draw=blue!60, fill=blue!8, rounded corners,
+                        text width=5.4cm, align=left, font=\tiny, inner sep=3pt}]
+        \node[passo] (c1) {\textbf{Caracteres de Strassen (1986--88):} números $\lambda(\cdot)$
+          que somam em $\oplus$, multiplicam em $\otimes$ e não crescem por restrição.
+          Para cada um, $\lambda(T_n)=n^{3t}$, e $\omega$ é o maior $3t$ possível.};
+        \node[passo, below=of c1] (c2) {\textbf{Ponte: multiplicar polinômios} de
+          $a$ e $b$ coeficientes. Por interpolação,
+          $P(a,a)\le(2a-1)^{1/t}$.};
+        \node[passo, below=of c2, fill=orange!12, draw=orange!80!black] (c3)
+          {\textbf{Construção nova:} separar blocos que já são independentes em 2 das
+          3 ``pernas'' do tensor $\Rightarrow$ $P(a,a)\ge a^{4/3}$.};
+        \node[passo, below=of c3, fill=green!12, draw=green!50!black] (c4)
+          {$a^{4/3}\le(2a)^{1/t}$ para todo $a$ $\Rightarrow$ $\frac43\le\frac1t$
+          $\Rightarrow$ $t\le\frac34$ $\Rightarrow$ $\omega\le 3t\le\frac94$};
+        \foreach \a/\b in {c1/c2, c2/c3, c3/c4}
+          \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \textbf{O que mudou:}\\
+      \scriptsize $\omega$ cairia de $2{,}371$ para $2{,}25$, o maior salto desde 1981.
+      A prova não usa o método laser: volta à teoria espectral do próprio Strassen.
+      \medskip
+
+      \textbf{Quem fez:}\\
+      \scriptsize Um modelo interno, ainda não lançado, da OpenAI. O pré-print
+      (13 páginas, 02/10/2026) vem com uma formalização em Lean do teorema principal.
+      \medskip
+
+      \textbf{Cautela:}\\
+      \scriptsize Ainda não houve revisão por pares nem verificação independente.
+      O algoritmo continua galáctico: a prova não indica um tamanho de matriz em que
+      ele seria competitivo.
+    \end{column}
+  \end{columns}
+  \fonte{OpenAI (2026), Teorema~1.1 e Seção~5~\cite{openai2026ninefourths};
+    Strassen (1988)~\cite{strassen1988asymptotic}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: a curiosidade}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Uma receita de multiplicação é uma decomposição do tensor do produto; o número
+            de termos é o número de multiplicações.
+      \item AlphaTensor e AlphaEvolve não inventaram uma técnica nova: eles \emph{buscam}
+            receitas base menores.
+            A análise continua sendo a desta aula, por exemplo
+            $T(n)=48\,T(n/4)+\Theta(n^2)\in\Theta(n^{\log_4 48})$.
+      \item Os ganhos são pequenos (49 $\to$ 48) e passam longe de $\omega\approx 2{,}371$,
+            mas são receitas \emph{práticas}, e por meio século ninguém achou.
+      \item Em 2026 a IA entrou na rota teórica: AlphaEvolve otimizou o método laser
+            ($\omega<2{,}371177$) e um modelo da OpenAI anunciou uma prova de
+            $\omega\le 9/4$, ainda em verificação.
+    \end{itemize}
+  \end{block}
+  \fonte{Fawzi et al.\ (2022)~\cite{fawzi2022discovering};
+    Novikov et al.\ (2025)~\cite{novikov2025alphaevolve};
+    Dupont et al.\ (2026)~\cite{dupont2026improving};
+    OpenAI (2026)~\cite{openai2026ninefourths}.}
+\end{frame}
+
+\begin{frame}{Fechando o ciclo}
+  \begin{center}
+  \begin{tikzpicture}[node distance=4mm and 11mm, fase/.append style={minimum width=2cm}]
+    \node[fase] (p) {clássico\\$\Theta(n^3)$};
+    \node[fase, right=of p] (dc) {blocos\\$8T(n/2)+n^2$};
+    \node[fase, right=of dc] (st) {Strassen\\$7T(n/2)+n^2$};
+    \node[fase, right=of st, fill=green!12, draw=green!50!black] (tm) {teorema mestre\\$\Theta(n^{2{,}807})$};
+    \draw[-{Stealth}, thick] (p) -- (dc);
+    \draw[-{Stealth}, thick] (dc) -- node[above, font=\tiny] {$8\to7$} (st);
+    \draw[-{Stealth}, thick] (st) -- (tm);
+    \draw[-{Stealth}, thick, orange!80!black, dashed] (dc.south) to[out=-120, in=-60, looseness=1.3]
+      node[below, font=\tiny] {sem ganho: $\Theta(n^3)$} (p.south);
+  \end{tikzpicture}
+  \end{center}
+  \medskip
+  {\scriptsize
+  Karatsuba ($3T(n/2)+n$) e Strassen ($7T(n/2)+n^2$) seguem o mesmo roteiro: quando as folhas
+  dominam, \textbf{cortar um subproblema muda o expoente}.
+  \smallskip
+
+  \textbf{Próxima aula:} programação dinâmica. E se os subproblemas se \emph{repetem} em vez
+  de serem independentes?}
+  \fonte{Levitin (2012), \S 5.4 e cap.~8~\cite{levitin2012introduction}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{levitin2012introduction,cormen2009introduction,cormen2012algoritmos,strassen1969gaussian,winograd1971multiplication,higham2002accuracy,fawzi2022discovering,kauers2022flip,novikov2025alphaevolve,dumas2025noncommutative,alman2024more,klyuyev1965minimization,hopcroft1971minimizing,landsberg2008geometry,dupont2026improving,openai2026ninefourths,strassen1988asymptotic}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
