@@ -26,6 +26,18 @@ title: "COMP0496 — Programação A — Turma 1 · 2026/2"
   </table>
 </div>
 
+<div class="table-card">
+  <div class="table-card-header">📄 Lista de exercícios</div>
+  <table>
+    <tbody>
+      <tr>
+        <td><strong>Fintech: map, filter, reduce e recursão</strong><div class="td-sub">PIX, crédito e investimentos</div></td>
+        <td class="td-right"><a class="badge-pdf" href="{{ 'programacao-a/lista-exercicios-fintech.pdf' | relative_url }}">📄 PDF</a></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
 <div class="weeks-timeline">
 
   <a class="week-card" href="{{ 'programacao-a/2026-2-T01/semana-01' | relative_url }}">
