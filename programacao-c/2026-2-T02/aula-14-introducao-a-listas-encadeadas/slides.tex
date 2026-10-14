@@ -1,0 +1,1112 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, shapes.multipart, arrows.meta, positioning,
+  matrix, fit, backgrounds, decorations.pathreplacing, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{codC}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7.5}{8.6}\selectfont\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  no/.style={rectangle split, rectangle split horizontal, rectangle split parts=2,
+    draw=UFSBlue, fill=UFSBlue!8, minimum height=0.55cm,
+    font=\scriptsize\ttfamily, inner sep=3pt,
+    rectangle split part fill={UFSBlue!8, white}},
+  nonovo/.style={no, draw=UFSRed, rectangle split part fill={UFSRed!8, white}},
+  nolivre/.style={no, draw=UFSGray, dashed, rectangle split part fill={black!5, black!5}},
+  var/.style={rectangle, draw=UFSGray, fill=black!5, minimum width=0.7cm,
+    minimum height=0.55cm, font=\scriptsize\ttfamily},
+  cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=0.62cm,
+    minimum height=0.5cm, font=\scriptsize\ttfamily, inner sep=1pt},
+  celnova/.style={cel, draw=UFSRed, fill=UFSRed!12},
+  nulo/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={-{Stealth[length=2mm]}, thick, UFSBlue},
+  setar/.style={-{Stealth[length=2mm]}, thick, UFSRed},
+  setag/.style={-{Stealth[length=2mm]}, thick, UFSGray},
+}
+
+% Centro da parte "prox" de um no (ponto de partida da seta)
+\newcommand{\ptr}[1]{($(#1.one split north)!0.5!(#1.south east)$)}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% --- Metadados ---
+\title{Listas encadeadas}
+\subtitle{Uma introdução: o nó, o encadeamento e o caminho até o \texttt{NULL}}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10.4cm, minimum height=0.55cm, font=\small}
+  ]
+    \node[item] (t1) at (0, 0)    {Por que não basta um vetor};
+    \node[item] (t2) at (0,-0.72) {O nó: um registro que aponta para outro};
+    \node[item] (t3) at (0,-1.44) {Montar e percorrer: do início até o \texttt{NULL}};
+    \node[item] (t4) at (0,-2.16) {Inserir no início};
+    \node[item] (t5) at (0,-2.88) {Liberar a lista sem perder o caminho};
+    \node[item] (t6) at (0,-3.60) {Vetor ou lista?};
+    \node[item] (t7) at (0,-4.32) {Exercícios};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+    \draw[seta] (t5) -- (t6);
+    \draw[seta] (t6) -- (t7);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{A pergunta de hoje}
+% ==================================================================
+
+\begin{frame}{O problema: guardar uma coleção que muda o tempo todo}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Até aqui}\\[0.3em]
+      \small
+      A \texttt{agenda.c} guardava os contatos num vetor no heap, que
+      crescia com \texttt{realloc}. Funciona --- enquanto os contatos
+      entram \emph{no fim}.
+
+      \medskip
+      E se cada contato novo precisar entrar \textcolor{UFSRed}{no
+      começo}? Ou no meio, em ordem alfabética?
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que vamos descobrir}\\[0.3em]
+      \small
+      Um vetor exige que os elementos fiquem \textbf{lado a lado} na
+      memória. Abrir mão disso --- cada elemento num bloco próprio,
+      apontando para o próximo --- é a ideia da \textbf{lista
+      encadeada}, a primeira estrutura de dados dinâmica do curso.
+    \end{column}
+  \end{columns}
+  \begin{block}{A pergunta de hoje}
+    Como guardar uma sequência sem que os elementos precisem estar
+    vizinhos na memória --- e o que isso custa?
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{lista.c} (1/3)}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=codC]
+/* lista.c --- uma lista encadeada */
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct no {
+    int valor;
+    struct no *prox;  /* ou NULL */
+} No;
+\end{lstlisting}
+      \small Cada valor da lista mora num \texttt{No}, alocado com
+      \texttt{malloc}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+/* devolve o novo inicio da lista */
+No *insere_inicio(No *ini, int valor)
+{
+    No *novo = malloc(sizeof *novo);
+    if (novo == NULL) {
+        perror("malloc");
+        exit(1);
+    }
+    novo->valor = valor;
+    novo->prox = ini;
+    return novo;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{lista.c} (2/3): percorrer e liberar}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[style=codC]
+void imprime(const No *ini)
+{
+    for (const No *p = ini; p != NULL;
+         p = p->prox)
+        printf("%d -> ", p->valor);
+    printf("NULL\n");
+}
+
+int conta(const No *ini)
+{
+    if (ini == NULL)
+        return 0;
+    return 1 + conta(ini->prox);
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[style=codC]
+void libera(No *ini)
+{
+    while (ini != NULL) {
+        No *prox = ini->prox; /* antes! */
+        free(ini);
+        ini = prox;
+    }
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{lista.c} (3/3): o \texttt{main}}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=codC]
+int main(void)
+{
+    No *lista = NULL;          /* vazia */
+    for (int i = 1; i <= 4; i++)
+        lista = insere_inicio(lista, 10 * i);
+    imprime(lista);
+    printf("%d nos, %zu bytes cada\n",
+           conta(lista), sizeof(No));
+    libera(lista);
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \small
+      A lista começa vazia: \texttt{lista} vale \texttt{NULL}.
+
+      \medskip
+      Cada volta do laço cria um nó com o valor $10 \cdot i$ e guarda em
+      \texttt{lista} o ponteiro que \texttt{insere\_inicio} devolve.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item Em que ordem os valores 10, 20, 30 e 40 aparecem na primeira
+        linha?
+      \item Quantos nós \texttt{conta} encontra?
+      \item Quantos bytes tem cada \texttt{No}? Um \texttt{int} tem 4 bytes
+        e um ponteiro, 8.
+      \item Quantas vezes \texttt{malloc} é chamado? E \texttt{free}?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra lista.c -o lista
+$ ./lista
+40 -> 30 -> 20 -> 10 -> NULL
+4 nos, 16 bytes cada
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Duas surpresas}
+        \small
+        \begin{itemize}
+          \item a ordem saiu \textbf{invertida};
+          \item 16 bytes, e não $4 + 8 = 12$.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Quatro \texttt{malloc}, um por nó, e quatro \texttt{free}. Ao
+      longo da aula, cada surpresa ganha uma explicação.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{Por que não basta um vetor}
+% ==================================================================
+
+\begin{frame}{Inserir no começo de um vetor custa quanto?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \foreach \x/\v in {0/30,1/20,2/10} {
+          \node[cel] (a\x) at (0.66*\x+0.66, 0) {\v};
+        }
+        \node[cel, fill=white] at (2.64, 0) {};
+        \node[celnova] (n) at (0, 0.9) {40};
+        \draw[setar] (n) -- (0, 0.25) -- (0.33,0.25);
+        \foreach \x in {0,1,2} {
+          \draw[setag] (0.66*\x+0.66, -0.3) to[bend right=40] (0.66*\x+1.32, -0.3);
+        }
+        \node[leg] at (1.6,-0.95) {cada um anda uma casa para a direita};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small Para pôr 40 na posição 0, os $k$ elementos que já estão lá
+        precisam se deslocar.
+
+        \medskip
+        Inserindo $n$ valores, sempre no começo, quantos deslocamentos são
+        feitos no total? E se $n$ dobrar, o tempo dobra?
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: medindo com \texttt{vetor\_vs\_lista.c}}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \begin{center}
+      \small
+      \begin{tabular}{@{}rrrr@{}}
+        \toprule
+        $n$ & deslocamentos & vetor & lista\\
+        \midrule
+        10\,000  & $5{,}0 \times 10^{7}$  & 0,008\,s & 0,000\,s\\
+        100\,000 & $5{,}0 \times 10^{9}$  & 0,365\,s & 0,001\,s\\
+        200\,000 & $2{,}0 \times 10^{10}$ & 1,838\,s & 0,002\,s\\
+        400\,000 & $8{,}0 \times 10^{10}$ & 6,109\,s & 0,003\,s\\
+        \bottomrule
+      \end{tabular}
+
+      \medskip
+      \scriptsize compilado com \texttt{-O2}; deslocamento com \texttt{memmove}
+      \end{center}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \small
+      $0 + 1 + \cdots + (n-1) = \frac{n(n-1)}{2}$ deslocamentos.
+
+      \medskip
+      Dobrou $n$, o vetor levou \textbf{4 vezes} mais tempo: o custo
+      cresce com $n^2$.
+
+      \medskip
+      A lista não desloca ninguém: cada inserção cria um nó e acerta
+      dois ponteiros.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.2~\cite{cormen2009introduction};
+    medido com \texttt{vetor\_vs\_lista.c}}
+\end{frame}
+
+\begin{frame}{E o \texttt{realloc}? O bloco pode mudar de endereço}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \foreach \x/\v in {0/7,1/3,2/9,3/4} {
+          \node[cel, draw=UFSGray, fill=black!5] at (0.66*\x, 1.2) {\v};
+        }
+        \node[rot, anchor=east] at (-0.45,1.2) {antigo};
+        \foreach \x/\v in {0/7,1/3,2/9,3/4,4/,5/,6/,7/} {
+          \node[cel] at (0.66*\x, 0) {\v};
+        }
+        \node[rot, anchor=east] at (-0.45,0) {novo};
+        \draw[setag] (1,0.9) -- (1,0.3);
+        \node[var] (q) at (3.6,1.9) {q};
+        \draw[setar] (q) -| (1.32,1.48);
+        \node[leg, text=UFSRed] at (3.6,1.35) {aponta para};
+        \node[leg, text=UFSRed] at (3.6,1.05) {área liberada};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small
+      Quando não há espaço logo depois do bloco, o \texttt{realloc}
+      copia tudo para outro lugar e libera o antigo. Inserindo 200 mil
+      valores, o bloco mudou de lugar \textbf{12 vezes}.
+
+      \medskip
+      Todo ponteiro guardado para dentro do vetor antigo (como
+      \texttt{q = \&v[2]}) passa a apontar para memória liberada.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.22.3.5~\cite{iso2018c17};
+    medido com \texttt{vetor\_vs\_lista.c}}
+\end{frame}
+
+\begin{frame}{Definição: lista encadeada}
+  \begin{block}{Lista encadeada}
+    \small Uma sequência de \textbf{nós}, cada um alocado separadamente.
+    Cada nó guarda um valor e o \textbf{endereço do próximo}; o último guarda
+    \texttt{NULL}. Basta conhecer o endereço do primeiro nó --- o
+    \textbf{início} --- para chegar a todos.
+  \end{block}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.9cm]
+    \node[var] (ini) {ini};
+    \node[no, right=0.8cm of ini] (a) {40 \nodepart{two} \phantom{xx}};
+    \node[no, right=of a] (b) {30 \nodepart{two} \phantom{xx}};
+    \node[no, right=of b] (c) {20 \nodepart{two} \phantom{xx}};
+    \node[no, right=of c] (d) {10 \nodepart{two} \phantom{xx}};
+    \node[nulo, right=0.7cm of d] (n) {NULL};
+    \draw[seta] (ini) -- (a);
+    \draw[seta] \ptr{a} -- (b);
+    \draw[seta] \ptr{b} -- (c);
+    \draw[seta] \ptr{c} -- (d);
+    \draw[seta] \ptr{d} -- (n);
+    \node[leg, anchor=north] at ($(a.south west)!0.5!(a.one split south)$) {valor};
+    \node[leg, anchor=north] at ($(a.one split south)!0.5!(a.south east)$) {prox};
+  \end{tikzpicture}
+  \end{center}
+  \begin{exampleblock}{Intuição}
+    \small Uma caça ao tesouro: cada pista diz onde está a próxima. A ordem
+    está nas \emph{setas}, não na posição de cada nó na memória.
+  \end{exampleblock}
+  \fonte{Knuth (1997), §2.2.3~\cite{knuth1997art};
+    Celes et al.\ (2004), cap.~10~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}{De onde veio a ideia}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \small
+      As listas encadeadas surgiram em 1955--56, com Allen Newell, Cliff
+      Shaw e Herbert Simon, na linguagem IPL, criada para o
+      \emph{Logic Theory Machine}: um programa que provava teoremas e
+      precisava de estruturas que crescessem e mudassem de forma durante a
+      execução.
+
+      \medskip
+      Antes disso, a memória de um programa era organizada em posições
+      fixas --- como um vetor.
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{block}{O que ficou}
+        \small A mesma ideia está por trás de pilhas, filas, árvores e
+        grafos --- os próximos temas do curso.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Newell \& Shaw (1957)~\cite{newell1957programming};
+    Knuth (1997), §2.2.3, notas históricas~\cite{knuth1997art}}
+\end{frame}
+
+\begin{frame}{Recapitulando: por que não basta um vetor}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item num vetor, os elementos ficam lado a lado: inserir no começo
+        desloca todos;
+      \item inserir $n$ valores no começo custa $\approx n^2/2$
+        deslocamentos;
+      \item o \texttt{realloc} pode mover o bloco e invalidar ponteiros
+        antigos;
+      \item numa lista encadeada, cada nó mora num bloco próprio e a ordem
+        é dada pelos ponteiros.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{O nó}
+% ==================================================================
+
+\begin{frame}[fragile]{Um registro que aponta para outro do mesmo tipo}
+  \begin{columns}[c]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=tinyC]
+typedef struct no {
+    int valor;
+    struct no *prox;
+} No;
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item Por que o campo é \texttt{struct no *prox}, e não
+            \texttt{struct no prox} (sem o \texttt{*})?
+          \item Por que não escrever \texttt{No *prox} lá dentro?
+          \item Por que o registro tem nome (\texttt{no}) se já existe o
+            apelido \texttt{No}?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Definição: estrutura auto-referenciada}
+  \begin{block}{Estrutura auto-referenciada}
+    \small Um registro com um campo que é \textbf{ponteiro} para o próprio
+    tipo do registro.
+  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small
+      \textbf{Sem o \texttt{*}:} um \texttt{no} conteria um \texttt{no}, que
+      conteria outro \texttt{no}\ldots{} O tamanho seria infinito, e o
+      compilador recusa.
+
+      \medskip
+      \textbf{Com o \texttt{*}:} o campo guarda só um endereço --- 8 bytes,
+      qualquer que seja o tamanho do nó.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small
+      \textbf{O nome \texttt{struct no}:} dentro das chaves, o apelido
+      \texttt{No} ainda não existe --- o \texttt{typedef} só termina no
+      \texttt{;}. Já \texttt{struct no} existe desde a primeira linha, como
+      um tipo \emph{incompleto}: não dá para criar um, mas dá para apontar
+      para um.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Ritchie (1989), §6.5 e §6.7~\cite{kernighan1989c};
+    ISO/IEC 9899:2018, §6.7.2.3~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}{Por que 16 bytes, e não 12?}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.36cm]
+        \foreach \i in {0,...,3} \node[cel, minimum width=0.36cm] at (\i,0) {};
+        \foreach \i in {4,...,7} \node[cel, minimum width=0.36cm,
+          draw=UFSGray, pattern=north east lines, pattern color=UFSGray!60] at (\i,0) {};
+        \foreach \i in {8,...,15} \node[cel, minimum width=0.36cm,
+          draw=UFSRed, fill=UFSRed!10] at (\i,0) {};
+        \draw[decorate, decoration={brace, amplitude=4pt}] (-0.5,0.35) -- (3.5,0.35)
+          node[midway, above=4pt, leg] {\texttt{valor}};
+        \draw[decorate, decoration={brace, amplitude=4pt}] (3.5,0.35) -- (7.5,0.35)
+          node[midway, above=4pt, leg] {enchimento};
+        \draw[decorate, decoration={brace, amplitude=4pt}] (7.5,0.35) -- (15.5,0.35)
+          node[midway, above=4pt, leg] {\texttt{prox}};
+        \foreach \i in {0,4,8,15} \node[rot, below] at (\i,-0.3) {\i};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \small
+      É o alinhamento da aula de registros: um ponteiro de 8 bytes precisa
+      começar num endereço múltiplo de 8. O compilador põe 4 bytes de
+      enchimento depois de \texttt{valor}.
+
+      \medskip
+      Numa lista de \texttt{int}, cada valor de 4 bytes custa
+      \textbf{16}: a lista troca memória por flexibilidade.
+    \end{column}
+  \end{columns}
+  \fonte{Bryant \& O'Hallaron (2015), §3.9.3~\cite{bryant2015computer};
+    ISO/IEC 9899:2018, §6.7.2.1~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}{Recapitulando: o nó}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item o nó é um registro com o valor e um ponteiro para o próximo nó;
+      \item o campo precisa ser ponteiro: um nó não pode conter um nó;
+      \item dentro das chaves, use \texttt{struct no}: o apelido ainda não
+        existe;
+      \item cada nó carrega o custo do ponteiro (e do enchimento).
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Montar e percorrer}
+% ==================================================================
+
+\begin{frame}[fragile]{Três nós montados à mão}
+  \begin{columns}[c]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=tinyC]
+No *a = malloc(sizeof *a);
+No *b = malloc(sizeof *b);
+No *c = malloc(sizeof *c);
+a->valor = 7;  a->prox = b;
+b->valor = 3;  b->prox = c;
+c->valor = 9;  c->prox = NULL;
+No *ini = a;
+\end{lstlisting}
+      \small
+      \texttt{p->campo} é o mesmo que \texttt{(*p).campo}: ``siga o ponteiro
+      e pegue o campo''.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[var] (ini) at (0,1.6) {ini};
+        \node[var] (va) at (1.2,1.6) {a};
+        \node[var] (vb) at (2.4,1.6) {b};
+        \node[var] (vc) at (3.6,1.6) {c};
+        \node[leg] at (4.6,1.6) {pilha};
+        \node[no] (na) at (0.9,0) {7 \nodepart{two} \phantom{xx}};
+        \node[no] (nc) at (2.0,-1.1) {9 \nodepart{two} \phantom{xx}};
+        \node[no] (nb) at (3.5,0.2) {3 \nodepart{two} \phantom{xx}};
+        \node[nulo] (nul) at (3.7,-1.1) {NULL};
+        \node[leg] at (4.6,-0.5) {heap};
+        \draw[setag] (ini) -- (na);
+        \draw[setag] (va) -- (na);
+        \draw[setag] (vb) -- (nb);
+        \draw[setag] (vc) -- (nc);
+        \draw[seta] \ptr{na} -- (nb.west);
+        \draw[seta] \ptr{nb} to[bend left=30] (nc.north);
+        \draw[seta] \ptr{nc} -- (nul);
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize Os nós ficam onde o \texttt{malloc} quiser; a ordem
+      $7, 3, 9$ está nas setas.
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §17.5~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{Percorrer: o que acontece com \texttt{p}?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=tinyC]
+for (const No *p = ini; p != NULL;
+     p = p->prox)
+    printf("%d -> ", p->valor);
+printf("NULL\n");
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small Com a lista $7 \to 3 \to 9$:
+        \begin{enumerate}
+          \item quantas vezes a condição \texttt{p != NULL} é testada?
+          \item que valores \texttt{p} assume?
+          \item o que acontece se a lista for vazia (\texttt{ini == NULL})?
+          \item e se o último nó tiver lixo no lugar de \texttt{NULL}?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: \texttt{p} anda de seta em seta}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \small
+      \begin{tabular}{@{}clc@{}}
+        \toprule
+        teste & \texttt{p} aponta para & imprime\\
+        \midrule
+        1 & nó 7 & \texttt{7 -> }\\
+        2 & nó 3 & \texttt{3 -> }\\
+        3 & nó 9 & \texttt{9 -> }\\
+        4 & \texttt{NULL} & sai do laço\\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small
+      $n$ nós, $n+1$ testes. Com a lista vazia, o primeiro teste já falha
+      e só sai \texttt{NULL}: o caso vazio funciona \emph{sem} \texttt{if}
+      especial.
+
+      \medskip
+      Sem o \texttt{NULL} no fim, \texttt{p} segue um endereço de lixo:
+      o programa imprime bobagem ou cai. O \texttt{NULL} é a única forma de
+      saber que a lista acabou.
+    \end{column}
+  \end{columns}
+  \fonte{Feofiloff (2009), cap.~4~\cite{feofiloff2009algoritmos};
+    Kernighan \& Ritchie (1989), §6.5~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}[fragile]{Uma lista é vazia, ou um nó seguido de uma lista}
+  \begin{columns}[c]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=tinyC]
+int conta(const No *ini)
+{
+    if (ini == NULL)      /* vazia */
+        return 0;
+    return 1 + conta(ini->prox);
+}
+\end{lstlisting}
+      \small A definição da lista já é recursiva --- e
+      \texttt{conta} só a segue: caso base na lista vazia, chamada no
+      resto.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[node distance=0.55cm]
+        \node[no] (a) {7 \nodepart{two} \phantom{xx}};
+        \node[no, right=of a] (b) {3 \nodepart{two} \phantom{xx}};
+        \node[no, right=of b] (c) {9 \nodepart{two} \phantom{xx}};
+        \node[nulo, right=0.45cm of c] (n) {NULL};
+        \draw[seta] \ptr{a} -- (b);
+        \draw[seta] \ptr{b} -- (c);
+        \draw[seta] \ptr{c} -- (n);
+        \node[draw=UFSRed, dashed, rounded corners, fit=(b)(c)(n),
+          inner sep=4pt] (r) {};
+        \node[leg, text=UFSRed, below=0.05cm of r] {o resto: outra lista};
+        \node[leg, text=UFSBlue, below=0.3cm of a] {um nó};
+      \end{tikzpicture}
+      \end{center}
+      \begin{alertblock}{Lembre da aula passada}
+        \small Um nó $=$ um registro na pilha. Com 300 mil nós, sem
+        \texttt{-O2}, \texttt{conta} estoura a pilha.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \fonte{Feofiloff (2009), cap.~4~\cite{feofiloff2009algoritmos};
+    medido com \texttt{lista.c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: montar e percorrer}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{p->campo} segue o ponteiro e acessa o campo;
+      \item percorrer é andar \texttt{p = p->prox} até \texttt{p == NULL};
+      \item o mesmo laço trata a lista vazia, sem caso especial;
+      \item a lista é uma definição recursiva --- mas a recursão gasta um
+        registro por nó.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Inserir no início}
+% ==================================================================
+
+\begin{frame}{Por que a ordem saiu invertida?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \small
+      \texttt{main} chamou, nesta ordem:\\[0.3em]
+      \texttt{\ \ insere\_inicio(lista, 10)}\\
+      \texttt{\ \ insere\_inicio(lista, 20)}\\
+      \texttt{\ \ insere\_inicio(lista, 30)}\\
+      \texttt{\ \ insere\_inicio(lista, 40)}
+
+      \medskip
+      e \texttt{imprime} mostrou \texttt{40 -> 30 -> 20 -> 10}.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item Desenhe a lista depois de cada chamada.
+          \item Por que \texttt{insere\_inicio} \emph{devolve} um ponteiro?
+          \item O que acontece se o \texttt{main} escrever só
+            \texttt{insere\_inicio(lista, 50);}, sem atribuir?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Inserir no início: dois ponteiros, nesta ordem}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+  \begin{tikzpicture}[node distance=0.55cm]
+    \node[leg, anchor=west] at (-0.4,0.75) {\textbf{1.} \texttt{novo->prox = ini;}};
+    \node[var] (ini1) at (0,0) {ini};
+    \node[no, right=0.55cm of ini1] (a1) {20 \nodepart{two} \phantom{xx}};
+    \node[no, right=of a1] (b1) {10 \nodepart{two} \phantom{xx}};
+    \node[nulo, right=0.45cm of b1] (n1) {NULL};
+    \node[var] (nv1) at (0,-0.85) {novo};
+    \node[nonovo, right=0.55cm of nv1] (x1) {30 \nodepart{two} \phantom{xx}};
+    \draw[seta] (ini1) -- (a1);
+    \draw[seta] \ptr{a1} -- (b1);
+    \draw[seta] \ptr{b1} -- (n1);
+    \draw[setag] (nv1) -- (x1);
+    \draw[setar] \ptr{x1} -- ++(0.5,0) |- ($(a1.south east)!0.5!(a1.south west)+(0.25,-0.18)$) -- ++(0,0.18);
+    \node[leg, anchor=west] at (-0.4,-1.75) {\textbf{2.} \texttt{return novo;} \quad e \texttt{lista = \ldots} no \texttt{main}};
+    \node[var] (ini2) at (0,-2.5) {lista};
+    \node[nonovo, right=0.55cm of ini2] (x2) {30 \nodepart{two} \phantom{xx}};
+    \node[no, right=of x2] (a2) {20 \nodepart{two} \phantom{xx}};
+    \node[no, right=of a2] (b2) {10 \nodepart{two} \phantom{xx}};
+    \node[nulo, right=0.45cm of b2] (n2) {NULL};
+    \draw[setar] (ini2) -- (x2);
+    \draw[seta] \ptr{x2} -- (a2);
+    \draw[seta] \ptr{a2} -- (b2);
+    \draw[seta] \ptr{b2} -- (n2);
+  \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \small
+      Na ordem contrária --- primeiro mudar o início, depois ligar --- o
+      endereço do antigo primeiro nó se perderia, e com ele a lista
+      inteira.
+
+      \medskip
+      São sempre os mesmos passos, com 3 ou 3 milhões de nós: custo
+      \textbf{constante}.
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~10~\cite{celes2004introducao};
+    Cormen et al.\ (2009), §10.2~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}[fragile]{A resposta: \texttt{ini} é uma cópia}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[style=tinyC]
+No *lista = NULL;
+insere_inicio(lista, 50);  /* ERRADO */
+imprime(lista);            /* NULL */
+\end{lstlisting}
+      \small A função recebe uma \textbf{cópia} de \texttt{lista}. Mudar
+      \texttt{ini} lá dentro não muda \texttt{lista} aqui fora --- a mesma
+      passagem por valor da aula de ponteiros.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Duas consequências}
+        \small
+        \begin{itemize}
+          \item \texttt{lista} continua \texttt{NULL};
+          \item o nó criado fica no heap sem ninguém apontando para ele:
+            um \textbf{vazamento}.
+        \end{itemize}
+      \end{block}
+      \small Por isso a função devolve o novo início, e quem chama
+      \emph{atribui}: \texttt{lista = insere\_inicio(lista, 50);}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan \& Ritchie (1989), §5.2~\cite{kernighan1989c};
+    King (2008), §17.5~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: inserir no início}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item o novo nó aponta para o antigo início; depois ele vira o início;
+      \item a ordem dos dois passos importa: ligar antes de mudar o início;
+      \item quem chama precisa guardar o ponteiro devolvido;
+      \item o custo não depende do tamanho da lista --- e por isso a ordem
+        sai invertida.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Liberar a lista}
+% ==================================================================
+
+\begin{frame}[fragile]{Um \texttt{libera} mais curto}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=tinyC]
+/* libera_errada.c */
+void libera(No *ini)
+{
+    for (No *p = ini; p != NULL;
+         p = p->prox)
+        free(p);
+}
+\end{lstlisting}
+      \small Três linhas, o mesmo laço do \texttt{imprime}, com
+      \texttt{free} no lugar do \texttt{printf}.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item Esta versão libera os quatro nós?
+          \item Em que momento é lido \texttt{p->prox}: antes ou depois do
+            \texttt{free(p)}?
+          \item O programa vai funcionar, cair, ou depende?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra libera_errada.c -o libera_errada     # nenhum aviso
+$ ./libera_errada
+Abort trap: 6
+$ gcc -g -fsanitize=address libera_errada.c -o libera_errada-asan
+$ ./libera_errada-asan
+==4117==ERROR: AddressSanitizer: heap-use-after-free on address 0x602000000158
+READ of size 8 at 0x602000000158 thread T0
+    #0 0x000102040950 in libera libera_errada.c:22
+0x602000000158 is located 8 bytes inside of 16-byte region
+freed by thread T0 here:
+    #1 0x000102040920 in libera libera_errada.c:23
+\end{lstlisting}
+  \begin{center}
+    \scriptsize\textcolor{UFSGray}{No macOS, o alocador derrubou o programa.
+    Em outro sistema, o mesmo código pode cair de outra forma --- ou parecer
+    funcionar.}
+  \end{center}
+\end{frame}
+
+\begin{frame}{A resposta: o \texttt{p->prox} vem depois do \texttt{free}}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[node distance=0.6cm]
+        \node[nolivre] (a) {\phantom{0}\nodepart{two}\phantom{xx}};
+        \node[no, right=of a] (b) {30 \nodepart{two} \phantom{xx}};
+        \node[no, right=of b] (c) {20 \nodepart{two} \phantom{xx}};
+        \node[var, above=0.5cm of a] (p) {p};
+        \draw[setag] (p) -- (a);
+        \draw[setar, dashed] \ptr{a} -- node[above, leg, text=UFSRed] {?} (b);
+        \draw[seta] \ptr{b} -- (c);
+        \node[leg, below=0.2cm of a] {já liberado};
+      \end{tikzpicture}
+      \end{center}
+      \small Depois de \texttt{free(p)}, o bloco volta para o alocador,
+      que pode reescrevê-lo. ``8 bytes dentro de uma região de 16'' é
+      exatamente o campo \texttt{prox}.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{A correção: guarde o caminho antes}
+        \small
+        \texttt{No *prox = ini->prox;}\\
+        \texttt{free(ini);}\\
+        \texttt{ini = prox;}
+      \end{block}
+      \small Usar um bloco depois do \texttt{free} é comportamento
+      indefinido: o padrão não promete nada. O \emph{sanitizer} transforma
+      ``depende'' em uma mensagem com a linha do erro.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.22.3.3~\cite{iso2018c17};
+    Serebryany et al.\ (2012)~\cite{serebryany2012asan}}
+\end{frame}
+
+\begin{frame}{Recapitulando: liberar a lista}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item cada \texttt{malloc} de nó precisa do seu \texttt{free}: um laço
+        que visita todos;
+      \item depois do \texttt{free}, o nó não pode mais ser lido --- nem o
+        \texttt{prox};
+      \item guarde o próximo numa variável \emph{antes} de liberar o atual;
+      \item o compilador não avisa; use \texttt{-fsanitize=address} para
+        encontrar o erro.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Vetor ou lista?}
+% ==================================================================
+
+\begin{frame}{Cada estrutura é boa em uma coisa}
+  \begin{center}
+    \small
+    \begin{tabular}{@{}lcc@{}}
+      \toprule
+      operação & vetor & lista encadeada\\
+      \midrule
+      acessar o $k$-ésimo elemento & imediato (\texttt{v[k]}) & percorre $k$ nós\\
+      inserir no começo & desloca $n$ & \textbf{constante}\\
+      inserir no fim & constante\textsuperscript{*} & percorre $n$ nós\\
+      memória por \texttt{int} & 4 bytes & 16 bytes\\
+      elementos vizinhos na memória & sim & não\\
+      \bottomrule
+    \end{tabular}
+
+    \smallskip
+    \scriptsize\textsuperscript{*} em média, com \texttt{realloc} dobrando a
+    capacidade
+  \end{center}
+  \small
+  Elementos vizinhos aproveitam melhor a \emph{cache} do processador: somar
+  10 milhões de \texttt{int} levou 0,005\,s no vetor e 0,025\,s na lista ---
+  5 vezes mais, mesmo com os nós alocados em sequência.
+  \fonte{Cormen et al.\ (2009), §10.2~\cite{cormen2009introduction};
+    Bryant \& O'Hallaron (2015), §6.2~\cite{bryant2015computer};
+    medido com \texttt{percorre.c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: vetor ou lista?}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item vetor: acesso direto por índice, mas inserir fora do fim
+        desloca elementos;
+      \item lista: inserir no começo é barato, mas chegar ao $k$-ésimo
+        exige percorrer;
+      \item a lista gasta mais memória por elemento e usa pior a cache;
+      \item a escolha depende das operações que o programa mais faz.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \small
+  \begin{block}{Tarefa 1}
+    Em \texttt{imprime}, mostre também o endereço de cada nó
+    (\texttt{\%p}, com \texttt{(void *) p}). Os nós estão lado a lado? A
+    distância entre eles é de 16 bytes?
+  \end{block}
+  \begin{block}{Tarefa 2}
+    Troque o \texttt{4} do laço do \texttt{main} por \texttt{1000000} e tire o
+    \texttt{imprime}. Preveja: \texttt{conta} funciona sem \texttt{-O2}? E
+    com? Depois reescreva \texttt{conta} com um laço.
+  \end{block}
+  \begin{block}{Tarefa 3}
+    Escreva \texttt{int soma(const No *ini)} duas vezes: com laço e
+    recursiva. Teste com a lista vazia.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Exercícios (1/2)}
+  \footnotesize
+  \begin{block}{Exercício 1 --- o maior valor}
+    \texttt{int maximo(const No *ini)} devolve o maior valor da lista.
+    O que fazer quando a lista é vazia? Escolha e documente no comentário.
+  \end{block}
+  \begin{block}{Exercício 2 --- do vetor para a lista}
+    \texttt{No *de\_vetor(const int *v, int n)} cria uma lista com os valores
+    de \texttt{v} \textbf{na mesma ordem}, usando só \texttt{insere\_inicio}.
+    Dica: por qual ponta do vetor começar?
+  \end{block}
+  \begin{block}{Exercício 3 --- imprimir de trás para frente}
+    \texttt{void imprime\_invertida(const No *ini)}, recursiva, sem criar
+    outra lista. Onde fica o \texttt{printf}: na ida ou na volta?
+  \end{block}
+  \fonte{Feofiloff (2009), cap.~4~\cite{feofiloff2009algoritmos};
+    Celes et al.\ (2004), cap.~10~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}{Exercícios (2/2)}
+  \footnotesize
+  \begin{block}{Exercício 4 --- listas iguais}
+    \texttt{int iguais(const No *a, const No *b)} devolve 1 se as duas listas
+    têm os mesmos valores, na mesma ordem, e 0 caso contrário. Cuidado com
+    listas de tamanhos diferentes.
+  \end{block}
+  \begin{block}{Exercício 5 --- uma cópia independente}
+    \texttt{No *copia(const No *ini)} devolve uma lista nova, na mesma ordem,
+    com nós próprios. Libere a original e mostre que a cópia continua
+    funcionando.
+  \end{block}
+  \begin{block}{Exercício 6 --- \texttt{k}-ésimo}
+    \texttt{const No *kesimo(const No *ini, int k)} devolve o nó da posição
+    \texttt{k} (a partir de 0), ou \texttt{NULL} se ela não existir.
+    Quantos nós são visitados para \texttt{k = n - 1}?
+  \end{block}
+  \fonte{King (2008), §17.5~\cite{king2008c};
+    Tenenbaum et al.\ (1995), cap.~4~\cite{tenenbaum1995estruturas}}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{block}{Contatos sem limite, com nomes do tamanho certo}
+    \small Leia nomes da entrada padrão, um por linha, até o fim do arquivo,
+    e guarde-os numa lista encadeada de
+    \begin{center}
+      \texttt{typedef struct contato \{ char *nome; struct contato *prox; \} Contato;}
+    \end{center}
+    \vspace{-0.6em}
+    \begin{itemize}
+      \item cada nome é lido num vetor local de 100 posições e
+        \textbf{copiado} para um bloco do \texttt{malloc} com o tamanho exato;
+      \item imprima os nomes em ordem inversa à da leitura e, depois, na
+        ordem da leitura;
+      \item no fim, libere tudo: dois \texttt{free} por nó --- em que ordem?
+    \end{itemize}
+    Com \texttt{-fsanitize=address}, nenhum erro e nenhum vazamento.
+  \end{block}
+  \fonte{King (2008), §17.2 e §17.5~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      \small A sequência deixou de depender da posição na memória: a ordem
+      agora está nos ponteiros. Inserir no começo ficou barato --- com 3 ou
+      3 milhões de nós.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O preço}\\[0.3em]
+      \small Mais memória por elemento, nada de acesso por índice, e um
+      \texttt{malloc} e um \texttt{free} para cada nó.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \small
+      \item o nó é um registro com valor e \texttt{struct no *prox};
+      \item percorrer: \texttt{p = p->prox} até \texttt{NULL};
+      \item inserir no início: ligar o novo nó, depois devolvê-lo como início;
+      \item liberar: guardar o próximo antes do \texttt{free}.
+    \end{itemize}
+  \end{block}
+  \small\textcolor{UFSGray}{Próxima aula: busca, remoção e inserção em
+  qualquer posição.}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}

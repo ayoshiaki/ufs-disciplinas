@@ -133,6 +133,15 @@ title: "COMP0512 — Programação C — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-c/2026-2-T02/aula-14-introducao-a-listas-encadeadas' | relative_url }}">
+    <div class="week-num">14</div>
+    <div class="week-body">
+      <div class="week-title">Listas encadeadas</div>
+      <div class="week-desc">Quando o vetor não basta: o nó que aponta para o próximo, percorrer até o <code>NULL</code>, inserir no início e liberar a lista sem perder o caminho.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'programacao-c/2026-2-T02/lista-de-exercicios' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📝</div>
     <div class="week-body">
