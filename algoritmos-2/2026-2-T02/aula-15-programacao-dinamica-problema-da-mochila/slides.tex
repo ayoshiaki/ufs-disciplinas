@@ -1,0 +1,774 @@
+% -*- coding: utf-8 -*-
+% Aula: Programacao dinamica -- o problema da mochila
+% Fontes principais: Kleinberg e Tardos (2006), sec. 6.4 (soma de subconjuntos e mochila);
+% Levitin (2012), sec. 8.2 (instancia condutora e funcoes com memoria);
+% Cormen et al. (2009), sec. 16.2 (guloso, Figura 16.2) e sec. 34.5.5;
+% Dasgupta et al. (2008), sec. 6.4; Garey e Johnson (1979), sec. 4.2.
+% Continua a aula "Programacao dinamica: memoization e subestrutura otima".
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, patterns}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    columns=fullflexible,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=6.6cm, minimum height=0.55cm, font=\scriptsize},
+  fase/.style={rectangle, rounded corners, draw=blue!60, fill=blue!10,
+               minimum width=2.3cm, minimum height=0.6cm, font=\scriptsize,
+               align=center},
+  cel/.style={draw=gray!70, minimum width=7.5mm, minimum height=5mm, inner sep=0pt,
+              font=\scriptsize},
+  arc/.style={-{Stealth}, thick},
+  item/.style={rectangle, draw=black!60, fill=#1, minimum width=7mm, inner sep=1pt,
+               font=\tiny, align=center},
+  item/.default=blue!15
+}
+
+% ---- tabela M da instancia condutora (Levitin, sec. 8.2) ----
+% celula (i,c) centrada em (0.75 c, -0.5 i)
+\newcommand{\marca}[3]{\fill[#3] ({#2*0.75-0.375},{-#1*0.5-0.25}) rectangle +(0.75,0.5);}
+\newcommand{\gradeMochila}[1]{%
+  \foreach \c in {0,...,5}
+    \node[font=\tiny\bfseries, gray!60!black] at ({\c*0.75},0.45) {$c{=}\c$};
+  \foreach \r/\rot in {0/{$i{=}0$}, 1/{$1\;(2,12)$}, 2/{$2\;(1,10)$}, 3/{$3\;(3,20)$},
+                       4/{$4\;(2,15)$}}
+    \node[font=\tiny, anchor=east] at (-0.42,{-\r*0.5}) {\rot};
+  \foreach \lin [count=\i from 0] in #1
+    \foreach \x [count=\c from 0] in \lin
+      \node[cel] at ({\c*0.75},{-\i*0.5}) {\x};%
+}
+\newcommand{\valoresM}{{0,0,0,0,0,0},{0,0,12,12,12,12},{0,10,12,22,22,22},%
+  {0,10,12,22,30,32},{0,10,15,25,30,37}}
+\newcommand{\valoresMemo}{{0,0,0,0,0,0},{0,0,12,12,12,12},{0,--,12,22,--,22},%
+  {--,--,--,22,--,32},{--,--,--,--,--,37}}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\title{Programação dinâmica}
+\subtitle{O problema da mochila}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=3mm]
+    \node[box] (t1) {1.\ Mochila 0/1: por que um índice só não basta};
+    \node[box, below=of t1] (t2) {2.\ Formulação: o subproblema $\mathrm{OPT}(i,c)$ e a recorrência};
+    \node[box, below=of t2] (t3) {3.\ A tabela $(n+1)\times(W+1)$, a reconstrução e a memoization};
+    \node[box, below=of t3, fill=orange!20, draw=orange!80!black] (t4)
+         {4.\ Custo pseudopolinomial: quando $\Theta(nW)$ não é ``rápido''};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+    \draw[-{Stealth}, thick, orange!80!black, dashed]
+      (t4.east) to[out=0, in=0, looseness=1.6]
+      node[right, xshift=1mm, font=\tiny, align=left]
+      {dois índices $\Rightarrow$ matriz\\matriz $\Rightarrow$ custo depende de $W$} (t1.east);
+  \end{tikzpicture}
+  \end{center}
+  \medskip
+  {\scriptsize\centering
+  Na aula anterior, $\mathrm{OPT}(j)$ tinha \textbf{um} índice. Hoje a última decisão muda
+  \textbf{dois} parâmetros: quais itens restam e quanto cabe.\par}
+\end{frame}
+
+% =====================================================================
+\section{Mochila 0/1}
+
+\begin{frame}{Por que precisamos de um algoritmo para a mochila?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize Há $n$ itens, cada um com \textbf{peso} $w_i$ e \textbf{valor} $v_i$, e uma
+      mochila que aguenta peso total $W$. Quais itens levar para maximizar o valor?
+      \medskip
+
+      Aparece como orçamento de projetos (custo $\times$ retorno), carga de caminhões e
+      contêineres, escolha de tarefas para uma janela de CPU.
+      \medskip
+
+      A força bruta testa $2^n$ subconjuntos: com $n=60$, $\approx 10^{18}$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2pt]
+      \scriptsize Programação dinâmica, com os mesmos quatro passos da aula anterior:
+      estrutura, recorrência, tabela, reconstrução.
+      \medskip
+
+      A novidade: o subproblema precisa lembrar \textbf{quais itens} ainda podem ser
+      usados e \textbf{quanta capacidade} sobrou. A tabela vira uma matriz
+      $(n+1)\times(W+1)$ e o tempo fica $\Theta(nW)$.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm};
+    Levitin (2012), \S 8.2~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Mochila 0/1: definição}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \begin{block}{Definição}
+        \scriptsize Dados pesos $w_1,\dots,w_n$, valores $v_1,\dots,v_n$ e capacidade $W$
+        (inteiros positivos), encontrar $S \subseteq \{1,\dots,n\}$ que
+        \[ \text{maximiza } \sum_{i\in S} v_i \quad\text{sujeito a}\quad \sum_{i\in S} w_i \le W. \]
+        \textbf{Soma de subconjuntos} (\emph{subset sum}): o caso $v_i = w_i$; encher a
+        mochila o máximo possível.
+      \end{block}
+      \begin{exampleblock}{Intuição}
+        \scriptsize ``0/1'': cada item entra inteiro ou não entra. Não dá para levar meio
+        item, nem duas cópias do mesmo.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \draw[thick, rounded corners=2pt, fill=gray!8] (0,0) rectangle (1.6,2.2);
+        \node[font=\tiny] at (0.8,-0.2) {capacidade $W=5$};
+        \node[item=orange!30, minimum height=4mm] at (0.8,0.25) {1: $w{=}2$};
+        \node[item=green!25, minimum height=4mm] at (0.8,0.7) {2: $w{=}1$};
+        \node[item=red!20, minimum height=4mm] at (0.8,1.15) {4: $w{=}2$};
+        \node[font=\tiny, align=left, anchor=west] at (1.9,1.6)
+          {fora:\\ item 3 ($w{=}3$, $v{=}20$)};
+        \node[font=\tiny, align=left, anchor=west] at (1.9,0.6)
+          {dentro: peso $5$,\\ valor $12+10+15 = 37$};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm};
+    Dantzig (1957)~\cite{dantzig1957discrete};
+    Feofiloff, \emph{Mochila booleana}~\cite{feofiloff2015mochila}.}
+\end{frame}
+
+\begin{frame}{Exemplo: o guloso por valor/peso falha na mochila 0/1}
+  \begin{center}
+  \begin{tikzpicture}[x=1cm, y=0.045cm]
+    % itens
+    \node[font=\tiny\bfseries] at (0.6,62) {itens ($W=50$)};
+    \node[item=orange!30, minimum height=4.5mm] at (0.6,45) {1: 10\,kg\\ R\$\,60};
+    \node[item=green!25, minimum height=9mm] at (0.6,25) {2: 20\,kg\\ R\$\,100};
+    \node[item=red!20, minimum height=13.5mm] at (0.6,-8) {3: 30\,kg\\ R\$\,120};
+    \node[font=\tiny, align=center] at (0.6,-32) {valor/peso:\\ 6 \;\; 5 \;\; 4};
+    % mochilas
+    \foreach \x/\tit in {3/{guloso: 160}, 5.4/{ótimo 0/1: 220}, 7.8/{fracionária: 240}}{
+      \draw[thick] (\x-0.55,-30) rectangle (\x+0.55,20);
+      \node[font=\tiny\bfseries, align=center] at (\x,26) {\tit};
+    }
+    % guloso: 1 + 2 (10 kg livres)
+    \node[item=orange!30, minimum height=4.5mm, minimum width=11mm] at (3,-25) {1};
+    \node[item=green!25, minimum height=9mm, minimum width=11mm] at (3,-10) {2};
+    \node[font=\tiny, gray, align=center] at (3,10) {10\,kg\\livres};
+    % otimo: 2 + 3
+    \node[item=green!25, minimum height=9mm, minimum width=11mm] at (5.4,-20) {2};
+    \node[item=red!20, minimum height=13.5mm, minimum width=11mm] at (5.4,5) {3};
+    % fracionaria: 1 + 2 + 2/3 de 3
+    \node[item=orange!30, minimum height=4.5mm, minimum width=11mm] at (7.8,-25) {1};
+    \node[item=green!25, minimum height=9mm, minimum width=11mm] at (7.8,-10) {2};
+    \node[item=red!20, minimum height=9mm, minimum width=11mm] at (7.8,10) {$\frac23$ de 3};
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize Escolher pela maior razão $v_i/w_i$ é \textbf{ótimo} na mochila
+  \emph{fracionária}, mas na 0/1 sobra espaço que nenhum item restante preenche bem.
+  Precisamos considerar as duas opções para cada item.\par}
+  \fonte{Cormen et al.\ (2009), \S 16.2, Figura 16.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Tentativa: um índice só, como nos intervalos}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \scriptsize Seja $\mathcal{O}$ uma solução ótima e $\mathrm{OPT}(j)$ o melhor valor com
+      os itens $\{1,\dots,j\}$. Olhe para a \textbf{última decisão}, o item $n$:
+      \begin{itemize}\scriptsize
+        \item $n \notin \mathcal{O}$: então $\mathrm{OPT}(n) = \mathrm{OPT}(n-1)$. \checkmark
+        \item $n \in \mathcal{O}$: sobram os itens $\{1,\dots,n-1\}$, mas agora só cabem
+              \alert{$W - w_n$}. $\mathrm{OPT}(n-1)$ foi calculado para capacidade $W$:
+              não serve.
+      \end{itemize}
+      Nos intervalos, aceitar $j$ só \emph{eliminava} itens (os incompatíveis). Aqui, aceitar
+      $n$ não elimina ninguém: muda a \textbf{capacidade}.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \centering
+      \begin{tikzpicture}[node distance=5mm and 3mm]
+        \node[fase, minimum width=3.6cm] (r) {itens $\{1..n\}$, capacidade $W$};
+        \node[fase, below left=8mm and -12mm of r, minimum width=2.4cm] (a)
+          {$\{1..n{-}1\}$, cap.\ $W$};
+        \node[fase, below right=8mm and -12mm of r, minimum width=2.4cm,
+              fill=orange!20, draw=orange!80!black] (b) {$\{1..n{-}1\}$, cap.\ $W{-}w_n$};
+        \draw[arc] (r) -- node[left, font=\tiny] {$n$ fora} (a);
+        \draw[arc] (r) -- node[right, font=\tiny] {$n$ dentro} (b);
+        \node[below=of b, font=\tiny, align=center, text width=3.2cm]
+          {subproblema \textbf{novo}: precisamos de um para cada capacidade $0,\dots,W$};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 6.4, ``Designing the algorithm: a false
+    start''~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: mochila 0/1}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Mochila 0/1: escolher itens de valor máximo com peso total $\le W$; soma de
+            subconjuntos é o caso $v_i = w_i$.
+      \item A força bruta testa $2^n$ subconjuntos.
+      \item O guloso por $v_i/w_i$ resolve a versão fracionária, mas falha na 0/1
+            (160 contra 220 no exemplo do Cormen).
+      \item Um índice só não basta: pôr o item $n$ na mochila reduz a capacidade, então o
+            subproblema precisa de um segundo parâmetro.
+    \end{itemize}
+  \end{block}
+  \fonte{Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm};
+    Cormen et al.\ (2009), \S 16.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Formulação}
+
+\begin{frame}{Por que dois índices resolvem?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize A decisão sobre o item $i$ deixa um problema do \emph{mesmo tipo}, com
+      menos itens e, possivelmente, menos capacidade. Com um índice só, não há como
+      nomear esse problema menor.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2pt]
+      \scriptsize Indexar o subproblema pelos dois parâmetros que mudam:
+      \begin{itemize}\scriptsize
+        \item $i$: só os itens $1,\dots,i$ estão disponíveis;
+        \item $c$: a capacidade disponível é $c$, com $0 \le c \le W$.
+      \end{itemize}
+      São $(n+1)(W+1)$ subproblemas, cada um resolvido em $O(1)$ a partir de dois
+      subproblemas da linha $i-1$.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm};
+    Levitin (2012), \S 8.2~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{O subproblema $\mathrm{OPT}(i,c)$ e a recorrência}
+  \begin{block}{Definição}
+    \scriptsize $\mathrm{OPT}(i,c)$ = maior valor de um subconjunto de $\{1,\dots,i\}$ com peso
+    total $\le c$. A resposta do problema é $\mathrm{OPT}(n,W)$.
+    \[
+      \mathrm{OPT}(i,c) =
+      \begin{cases}
+        0 & \text{se } i = 0,\\[2pt]
+        \mathrm{OPT}(i-1,c) & \text{se } w_i > c \quad\text{(o item $i$ não cabe)},\\[2pt]
+        \max\bigl(\underbrace{\mathrm{OPT}(i-1,c)}_{i\text{ fora}},\;
+                  \underbrace{v_i + \mathrm{OPT}(i-1,\,c-w_i)}_{i\text{ dentro}}\bigr)
+          & \text{caso contrário.}
+      \end{cases}
+    \]
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize Para cada item, as duas opções são testadas, e é isso que o guloso não
+    fazia. A tabela evita repetir o cálculo de cada combinação (itens, capacidade).
+  \end{exampleblock}
+  \fonte{Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm};
+    Levitin (2012), \S 8.2~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Subestrutura ótima: recorta e cola}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \scriptsize Seja $S$ ótimo para $(i,c)$, com $i \in S$. Afirmação: $S' = S\setminus\{i\}$ é
+      ótimo para $(i-1,\,c-w_i)$.
+      \medskip
+
+      \textbf{Prova.} $S'$ é viável: pesa $\le c - w_i$. Se existisse $T$ viável para
+      $(i-1,c-w_i)$ com valor maior que $S'$, então $T\cup\{i\}$
+      \begin{itemize}\scriptsize
+        \item pesa $\le (c-w_i)+w_i = c$ (viável para $(i,c)$), e
+        \item vale $v(T)+v_i > v(S')+v_i = v(S)$,
+      \end{itemize}
+      contradizendo a otimalidade de $S$. O caso $i\notin S$ é análogo, com $(i-1,c)$.
+      \hfill$\square$
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \draw[thick, fill=gray!8] (0,0) rectangle (3.4,0.6);
+        \fill[blue!15] (0,0) rectangle (2.4,0.6);
+        \fill[red!20] (2.4,0) rectangle (3.4,0.6);
+        \node[font=\tiny] at (1.2,0.3) {$S'$};
+        \node[font=\tiny] at (2.9,0.3) {item $i$};
+        \draw[decorate, decoration={brace, mirror, amplitude=3pt}] (0,-0.05) -- (2.4,-0.05)
+          node[midway, below=2pt, font=\tiny] {cap.\ $c-w_i$};
+        \draw[decorate, decoration={brace, amplitude=3pt}] (0,0.65) -- (3.4,0.65)
+          node[midway, above=2pt, font=\tiny] {cap.\ $c$};
+        \begin{scope}[yshift=-1.6cm]
+          \draw[thick, fill=gray!8] (0,0) rectangle (3.4,0.6);
+          \fill[green!25] (0,0) rectangle (2.4,0.6);
+          \fill[red!20] (2.4,0) rectangle (3.4,0.6);
+          \node[font=\tiny] at (1.2,0.3) {$T$, valor maior};
+          \node[font=\tiny] at (2.9,0.3) {item $i$};
+        \end{scope}
+        \draw[arc, green!50!black] (1.2,-0.45) -- node[right, font=\tiny] {troca $S'$ por $T$}
+          (1.2,-0.95);
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 16.2 (subestrutura ótima da mochila 0/1)
+    e \S 15.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{O grafo de subproblemas e a ordem de preenchimento}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \foreach \i in {0,...,4}
+          \foreach \c in {0,...,6}
+            \draw[gray!60] ({\c*0.55-0.275},{-\i*0.45-0.225}) rectangle +(0.55,0.45);
+        \fill[orange!35] ({5*0.55-0.275},{-3*0.45-0.225}) rectangle +(0.55,0.45);
+        \fill[blue!20] ({5*0.55-0.275},{-2*0.45-0.225}) rectangle +(0.55,0.45);
+        \fill[green!25] ({2*0.55-0.275},{-2*0.45-0.225}) rectangle +(0.55,0.45);
+        \node[font=\tiny] at ({5*0.55},{-3*0.45}) {$i,c$};
+        \draw[arc, blue!60!black] ({5*0.55},{-2*0.45}) -- ({5*0.55},{-3*0.45+0.15});
+        \draw[arc, green!50!black] ({2*0.55},{-2*0.45}) -- ({5*0.55-0.2},{-3*0.45+0.1});
+        \draw[decorate, decoration={brace, amplitude=3pt}] ({2*0.55},{-2*0.45+0.28})
+          -- ({5*0.55},{-2*0.45+0.28}) node[midway, above=2pt, font=\tiny] {$w_i$};
+        \node[font=\tiny, anchor=east] at (-0.35,0) {$i{=}0$};
+        \node[font=\tiny, anchor=east] at (-0.35,{-4*0.45}) {$i{=}n$};
+        \node[font=\tiny] at (0,0.38) {$c{=}0$};
+        \node[font=\tiny] at ({6*0.55},0.38) {$c{=}W$};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize A célula $(i,c)$ depende só da \textbf{linha de cima}:
+      \begin{itemize}\scriptsize
+        \item \textcolor{blue!60!black}{$(i-1,c)$}: o item $i$ fica fora;
+        \item \textcolor{green!50!black}{$(i-1,c-w_i)$}: o item $i$ entra.
+      \end{itemize}
+      O grafo de subproblemas é um DAG; preencher \textbf{linha por linha} ($i = 0,1,\dots,n$)
+      respeita todas as dependências. Dentro da linha, qualquer ordem de $c$ serve.
+      \medskip
+
+      Tempo: $(n+1)(W+1)$ células $\times$ $O(1)$ por célula $=\Theta(nW)$.\\
+      Espaço: $\Theta(nW)$ para a matriz.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm};
+    Cormen et al.\ (2009), \S 15.1, ``Subproblem graphs''~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: formulação}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Subproblema com dois índices: $\mathrm{OPT}(i,c)$, os itens $1..i$ com
+            capacidade $c$.
+      \item Recorrência: $\mathrm{OPT}(i,c) = \max(\mathrm{OPT}(i-1,c),\ v_i +
+            \mathrm{OPT}(i-1,c-w_i))$, com o segundo termo só quando $w_i \le c$.
+      \item A subestrutura ótima sai do recorta e cola, exatamente como em intervalos.
+      \item Cada célula depende da linha anterior; linha por linha dá $\Theta(nW)$ de
+            tempo e de espaço.
+    \end{itemize}
+  \end{block}
+  \fonte{Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{Tabela e reconstrução}
+
+\begin{frame}[fragile]{Bottom-up em C}
+  \begin{columns}[T]
+    \begin{column}{0.36\textwidth}
+      \scriptsize \textbf{Instância condutora} ($W=5$):\\[3pt]
+      \centering
+      \begin{tabular}{ccc}
+        \toprule
+        item $i$ & peso $w_i$ & valor $v_i$ \\
+        \midrule
+        1 & 2 & 12 \\
+        2 & 1 & 10 \\
+        3 & 3 & 20 \\
+        4 & 2 & 15 \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      \raggedright
+      O guloso por $v_i/w_i$ acerta nesta instância (itens 2, 4, 1); a PD acerta
+      \emph{sempre}.
+    \end{column}
+    \begin{column}{0.6\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* M[i][c]: melhor valor com itens 1..i, capacidade c */
+int mochila( int n, int W, int w[], int v[]) {
+   for (int c = 0; c <= W; ++c) M[0][c] = 0;
+   for (int i = 1; i <= n; ++i)
+      for (int c = 0; c <= W; ++c) {
+         M[i][c] = M[i-1][c];              /* i fora   */
+         if (w[i] <= c && v[i] + M[i-1][c-w[i]] > M[i][c])
+            M[i][c] = v[i] + M[i-1][c-w[i]]; /* i dentro */
+      }
+   return M[n][W];
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 8.2~\cite{levitin2012introduction};
+    Kleinberg e Tardos (2006), \S 6.4, \textsc{Subset-Sum}$(n,W)$~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: a tabela $M$ preenchida}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \marca{3}{5}{blue!20}
+        \marca{3}{3}{green!25}
+        \marca{4}{5}{orange!40}
+        \gradeMochila{\valoresM}
+        \node[font=\tiny, anchor=east] at (-1.3,0.45) {item $(w_i,v_i)$};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \scriptsize Célula \colorbox{orange!40}{$(4,5)$}, item 4 com $w_4=2$, $v_4=15$:
+      \[
+        \max\bigl(\underbrace{\colorbox{blue!20}{$32$}}_{M[3][5]},\;
+          15 + \underbrace{\colorbox{green!25}{$22$}}_{M[3][3]}\bigr) = 37.
+      \]
+      Linha 1: só o item 1 ($w=2$) $\Rightarrow$ 12 a partir de $c=2$.\\[2pt]
+      Linha 3, $c=4$: $\max(22,\ 20 + M[2][1]) = \max(22, 30) = 30$.
+      \medskip
+
+      Resposta: $\mathrm{OPT}(4,5) = M[4][5] = 37$.
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 8.2 (mesma instância)~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{Reconstruindo a solução}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \marca{4}{5}{orange!40}
+        \marca{3}{3}{gray!20}
+        \marca{2}{3}{orange!40}
+        \marca{1}{2}{orange!40}
+        \marca{0}{0}{gray!20}
+        \gradeMochila{\valoresM}
+        \draw[arc, red!70!black] ({5*0.75},-2) -- ({3*0.75+0.2},-1.6);
+        \draw[arc, gray] ({3*0.75},-1.5) -- ({3*0.75},-1.15);
+        \draw[arc, red!70!black] ({3*0.75},-1) -- ({2*0.75+0.2},-0.6);
+        \draw[arc, red!70!black] ({2*0.75},-0.5) -- ({0.2},-0.1);
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+int c = W;
+for (int i = n; i >= 1; --i)
+   if (M[i][c] != M[i-1][c]) {  /* i entrou */
+      printf( " %d", i);
+      c -= w[i];
+   }
+\end{lstlisting}
+      \scriptsize
+      $M[4][5]=37 \ne 32$: \textbf{4 entra}, $c=3$.\\
+      $M[3][3]=22 = M[2][3]$: 3 fica fora.\\
+      $M[2][3]=22 \ne 12$: \textbf{2 entra}, $c=2$.\\
+      $M[1][2]=12 \ne 0$: \textbf{1 entra}, $c=0$.\\[2pt]
+      Solução $\{1,2,4\}$, peso 5, valor 37. Custo $O(n)$.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm};
+    Levitin (2012), \S 8.2~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{Memoization: só as células necessárias}
+  \begin{columns}[c]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* M[i][c] == -1: ainda nao calculado */
+int memo( int i, int c) {
+   if (i == 0) return 0;
+   if (M[i][c] < 0) {
+      int r = memo( i-1, c);
+      if (w[i] <= c && v[i] + memo( i-1, c-w[i]) > r)
+         r = v[i] + memo( i-1, c-w[i]);
+      M[i][c] = r;
+   }
+   return M[i][c];
+}
+\end{lstlisting}
+      \scriptsize A mesma recorrência, de cima para baixo, a partir de $(n,W)$.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \marca{4}{5}{orange!40}
+        \gradeMochila{\valoresMemo}
+      \end{tikzpicture}
+      \medskip
+
+      \scriptsize Só \textbf{13 das 24} células com $i \ge 1$ são calculadas: as
+      alcançáveis a partir de $(4,5)$ no grafo de subproblemas (a linha $i=0$ é caso base). Com pesos grandes e $W$ grande, a economia
+      cresce; o pior caso continua $\Theta(nW)$.
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 8.2, ``Memory functions''~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: tabela e reconstrução}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Bottom-up: dois laços aninhados, linha $i$ calculada a partir da linha $i-1$;
+            $\Theta(nW)$.
+      \item Na instância condutora, $M[4][5] = 37$ com a solução $\{1,2,4\}$.
+      \item Reconstrução em $O(n)$: se $M[i][c] \ne M[i-1][c]$, o item $i$ entrou e
+            $c$ diminui de $w_i$.
+      \item Memoization calcula só as células alcançáveis a partir de $(n,W)$
+            (13 de 24 no exemplo).
+    \end{itemize}
+  \end{block}
+  \fonte{Levitin (2012), \S 8.2~\cite{levitin2012introduction};
+    Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{Custo pseudopolinomial}
+
+\begin{frame}{$\Theta(nW)$ é um algoritmo polinomial?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize Com $n=100$ itens e $W = 10^{18}$ (pesos em miligramas, valores em
+      centavos\dots), a tabela teria $10^{20}$ células. A entrada, porém, cabe em poucos
+      quilobytes: $W$ ocupa só 60 bits.
+      \medskip
+
+      O tempo cresce com o \textbf{valor} de $W$, não com o \textbf{número de bits} usados
+      para escrevê-lo.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:} medir corretamente.\\[2pt]
+      \scriptsize O tamanho da entrada é
+      $N \approx \log_2 W + \sum_i(\log_2 w_i + \log_2 v_i)$ bits. Se $W \approx 2^k$,
+      o algoritmo gasta $n\cdot 2^k$: \textbf{exponencial em $k$}.
+      \medskip
+
+      Algoritmos assim se chamam \textbf{pseudopolinomiais}: ótimos quando $W$ é pequeno,
+      inviáveis quando $W$ é grande.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm};
+    Garey e Johnson (1979), \S 4.2~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{Tempo pseudopolinomial: definição}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Definição}
+        \scriptsize Um algoritmo é \alert{pseudopolinomial} se seu tempo é limitado por um
+        polinômio no tamanho da entrada \textbf{e} na \textbf{magnitude} do maior número da
+        entrada (aqui, $W$), e não só no tamanho em bits.
+      \end{block}
+      \begin{exampleblock}{Intuição}
+        \scriptsize Escrever $W$ em \textbf{unário} (cinco como $11111$) tornaria $\Theta(nW)$
+        polinomial. Em binário, cada bit a mais em $W$ \textbf{dobra} o tempo.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering\scriptsize
+      $n = 100$ itens, $W \approx 2^k$:\\[3pt]
+      \begin{tabular}{rrr}
+        \toprule
+        bits $k$ & $W$ & células $nW$ \\
+        \midrule
+        10 & $\approx 10^3$ & $10^5$ \\
+        20 & $\approx 10^6$ & $10^8$ \\
+        30 & $\approx 10^9$ & $10^{11}$ \\
+        40 & $\approx 10^{12}$ & $10^{14}$ \\
+        64 & $\approx 1{,}8\cdot 10^{19}$ & $1{,}8\cdot 10^{21}$ \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      Somar 10 bits a $W$ multiplica o tempo por $\approx 1000$.
+    \end{column}
+  \end{columns}
+  \fonte{Garey e Johnson (1979), \S 4.2~\cite{garey1979computers};
+    Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}[fragile]{Economia de espaço: uma linha só}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* m[c] guarda a linha atual da tabela */
+for (int c = 0; c <= W; ++c) m[c] = 0;
+for (int i = 1; i <= n; ++i)
+   for (int c = W; c >= w[i]; --c)  /* decrescente! */
+      if (v[i] + m[c-w[i]] > m[c])
+         m[c] = v[i] + m[c-w[i]];
+return m[W];
+\end{lstlisting}
+      \scriptsize Espaço $\Theta(W)$ em vez de $\Theta(nW)$; o tempo continua $\Theta(nW)$.
+      Sem a matriz, porém, a reconstrução da página anterior não funciona.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \foreach \x [count=\c from 0] in {0,10,12,22,30,32}
+          \node[cel, fill=blue!10] (m\c) at ({\c*0.75},0) {\x};
+        \node[font=\tiny, anchor=east] at (-0.42,0) {$m$ (linha 3)};
+        \draw[arc, green!50!black] (m3.north) to[bend left=50]
+          node[above, font=\tiny] {$m[5] = \max(32,\ 15+m[3])$} (m5.north);
+        \draw[arc, red!70!black, dashed] (m5.south) to[bend left=50]
+          node[below, font=\tiny] {$c$ decresce: $m[3]$ ainda é da linha 3} (m3.south);
+      \end{tikzpicture}
+      \medskip
+
+      \scriptsize Processando $c$ de $W$ para baixo, $m[c-w_i]$ ainda tem o valor da linha
+      $i-1$ quando é lido. Em ordem \textbf{crescente}, ele já teria sido atualizado
+      e o item $i$ poderia entrar \textbf{duas vezes}. Isso é outro problema (o desafio do
+      tutorial).
+    \end{column}
+  \end{columns}
+  \fonte{Dasgupta et al.\ (2008), \S 6.4~\cite{dasgupta2008algorithms};
+    Feofiloff, \emph{Mochila booleana}~\cite{feofiloff2015mochila}.}
+\end{frame}
+
+\begin{frame}{A mochila é NP-difícil}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \scriptsize
+      \begin{itemize}\scriptsize
+        \item A versão de decisão (``existe $S$ com peso $\le W$ e valor $\ge K$?'') está na
+              lista de 21 problemas NP-completos de Karp (1972).
+        \item Soma de subconjuntos é NP-completo: Cormen et al., \S 34.5.5.
+        \item Não se conhece algoritmo \textbf{polinomial em $N$}; se existisse, teríamos
+              $\mathrm{P}=\mathrm{NP}$.
+        \item O $\Theta(nW)$ não contradiz nada disso, porque é pseudopolinomial.
+              Problemas assim são chamados \textbf{fracamente} NP-completos.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \centering
+      \begin{tikzpicture}[node distance=4mm]
+        \node[fase, minimum width=3.6cm] (a) {$W$ pequeno\\ (até $\sim 10^7$)};
+        \node[fase, below=of a, minimum width=3.6cm, fill=green!12, draw=green!50!black] (b)
+          {PD $\Theta(nW)$: exato e rápido};
+        \node[fase, below=of b, minimum width=3.6cm, fill=red!12, draw=red!60!black] (c)
+          {$W$ enorme: exato só com\\ busca exponencial ou aproximação};
+        \draw[arc] (a) -- (b);
+        \draw[arc, dashed] (b) -- (c);
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize NP-completude e reduções são o assunto da Unidade 3.\par}
+  \fonte{Karp (1972)~\cite{karp1972reducibility}; Cormen et al.\ (2009),
+    \S 34.5.5~\cite{cormen2009introduction}; Garey e Johnson (1979),
+    \S 4.2~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: custo pseudopolinomial}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item $\Theta(nW)$ é polinomial no \emph{valor} de $W$, mas exponencial no número de
+            bits de $W$: o algoritmo é \textbf{pseudopolinomial}.
+      \item Na prática: excelente para $W$ até alguns milhões, inviável para $W \sim 10^{18}$.
+      \item Uma linha só basta para o valor: espaço $\Theta(W)$, com $c$ \textbf{decrescente}.
+      \item A mochila 0/1 é NP-difícil; a PD não contradiz isso.
+    \end{itemize}
+  \end{block}
+  \fonte{Garey e Johnson (1979), \S 4.2~\cite{garey1979computers};
+    Dasgupta et al.\ (2008), \S 6.4~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Fechando o ciclo}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{lccc}
+    \toprule
+    & intervalos ponderados & mochila 0/1 & próxima: LCS \\
+    \midrule
+    subproblema & $\mathrm{OPT}(j)$ & $\mathrm{OPT}(i,c)$ & $\mathrm{OPT}(i,j)$ \\
+    última decisão & $j$ entra ou não & $i$ entra ou não & casa $x_i$ com $y_j$? \\
+    tabela & vetor $n+1$ & matriz $(n{+}1)\times(W{+}1)$ & matriz $(m{+}1)\times(n{+}1)$ \\
+    tempo & $O(n\log n)$ & $\Theta(nW)$, pseudopolinomial & $\Theta(mn)$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  {\scriptsize
+  \textbf{Próxima aula:} maior subsequência comum e distância de edição. Também haverá dois
+  índices, agora as posições em duas sequências, e o tempo será polinomial de verdade.
+  \smallskip
+
+  \textbf{Para estudar:} Kleinberg e Tardos, \S 6.4; Levitin, \S 8.2 (exercícios); a mochila
+  \emph{com repetição} (Dasgupta, \S 6.4) é o desafio do tutorial.}
+  \fonte{Kleinberg e Tardos (2006), \S\S 6.4 e 6.6~\cite{kleinberg2006algorithm};
+    Dasgupta et al.\ (2008), \S 6.4~\cite{dasgupta2008algorithms};
+    Cormen et al.\ (2009), \S 15.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{kleinberg2006algorithm,levitin2012introduction,cormen2009introduction,cormen2012algoritmos,dasgupta2008algorithms,feofiloff2015mochila,garey1979computers,karp1972reducibility,dantzig1957discrete}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

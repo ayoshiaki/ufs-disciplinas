@@ -145,6 +145,15 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-15-programacao-dinamica-problema-da-mochila' | relative_url }}">
+    <div class="week-num">15</div>
+    <div class="week-body">
+      <div class="week-title">Programação dinâmica: o problema da mochila</div>
+      <div class="week-desc">Mochila 0/1, onde o guloso por valor/peso falha; recorrência de OPT(i, c), memoization e tabela bottom-up com reconstrução; custo O(nW) pseudopolinomial e NP-completude.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/lista-de-exercicios' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📝</div>
     <div class="week-body">
