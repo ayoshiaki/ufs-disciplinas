@@ -1,0 +1,1012 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, shapes.multipart, arrows.meta, positioning,
+  matrix, fit, backgrounds, decorations.pathreplacing, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{codC}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7.5}{8.6}\selectfont\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  no/.style={rectangle split, rectangle split horizontal, rectangle split parts=2,
+    draw=UFSBlue, fill=UFSBlue!8, minimum height=0.55cm,
+    font=\scriptsize\ttfamily, inner sep=3pt,
+    rectangle split part fill={UFSBlue!8, white}},
+  nonovo/.style={no, draw=UFSRed, rectangle split part fill={UFSRed!8, white}},
+  nolivre/.style={no, draw=UFSGray, dashed, rectangle split part fill={black!5, black!5}},
+  var/.style={rectangle, draw=UFSGray, fill=black!5, minimum width=0.7cm,
+    minimum height=0.55cm, font=\scriptsize\ttfamily},
+  varr/.style={var, draw=UFSRed, fill=UFSRed!8},
+  nulo/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={-{Stealth[length=2mm]}, thick, UFSBlue},
+  setar/.style={-{Stealth[length=2mm]}, thick, UFSRed},
+  setag/.style={-{Stealth[length=2mm]}, thick, UFSGray},
+}
+
+% Centro da parte "prox" de um no (ponto de partida da seta)
+\newcommand{\ptr}[1]{($(#1.one split north)!0.5!(#1.south east)$)}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% --- Metadados ---
+\title{Lista encadeada: busca, inserção e remoção}
+\subtitle{Achar, pôr e tirar um nó em qualquer ponto da lista}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10.4cm, minimum height=0.55cm, font=\small}
+  ]
+    \node[item] (t1) at (0, 0)    {Buscar: andar até achar --- ou até o \texttt{NULL}};
+    \node[item] (t2) at (0,-0.72) {Inserir em qualquer posição: a lista em ordem};
+    \node[item] (t3) at (0,-1.44) {Remover: desligar o nó sem quebrar a corrente};
+    \node[item] (t4) at (0,-2.16) {Ponteiro para ponteiro: um código sem casos especiais};
+    \node[item] (t5) at (0,-2.88) {Quanto custa cada operação};
+    \node[item] (t6) at (0,-3.60) {Exercícios};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+    \draw[seta] (t5) -- (t6);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{A pergunta de hoje}
+% ==================================================================
+
+\begin{frame}{O problema: uma lista que não é só uma pilha de valores}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Até aqui}\\[0.3em]
+      \small
+      A \texttt{lista.c} da aula passada só sabia inserir \emph{no início},
+      percorrer e liberar. A ordem saía invertida, e não havia como
+      perguntar ``o 20 está aí?'' nem tirar um valor do meio.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que vamos descobrir}\\[0.3em]
+      \small
+      Para achar, pôr e tirar em qualquer ponto, basta andar pelas setas
+      --- mas cada operação esconde um \textbf{caso especial} que derruba
+      o programa se for esquecido.
+    \end{column}
+  \end{columns}
+  \begin{block}{A pergunta de hoje}
+    Como buscar, inserir e remover em qualquer posição de uma lista
+    encadeada --- e quais casos especiais aparecem no caminho?
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{lista.c}, versão 2 (1/3)}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+\begin{lstlisting}[style=codC]
+/* lista.c --- lista em ordem crescente:
+   busca, insercao e remocao */
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct no {
+    int valor;
+    struct no *prox;
+} No;
+\end{lstlisting}
+      \small \texttt{imprime} e \texttt{libera} continuam iguais aos da aula
+      passada.
+    \end{column}
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=codC]
+/* devolve o primeiro no com valor x,
+   ou NULL */
+No *busca(No *ini, int x)
+{
+    No *p = ini;
+    while (p != NULL && p->valor != x)
+        p = p->prox;
+    return p;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{lista.c} (2/3): inserir em ordem e remover}
+  \vspace{-0.5em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+No *insere_ordenado(No *ini, int x)
+{
+    No *novo = malloc(sizeof *novo);
+    if (novo == NULL) { perror("malloc"); exit(1); }
+    novo->valor = x;
+    if (ini == NULL || x < ini->valor) {
+        novo->prox = ini;  /* 1o */
+        return novo;
+    }
+    No *ant = ini;
+    while (ant->prox != NULL &&
+           ant->prox->valor < x)
+        ant = ant->prox;
+    novo->prox = ant->prox;
+    ant->prox = novo;
+    return ini;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=codC]
+No *remove_valor(No *ini, int x)
+{
+    No *ant = NULL, *p = ini;
+    while (p != NULL && p->valor != x) {
+        ant = p;
+        p = p->prox;
+    }
+    if (p == NULL)     /* nao achou */
+        return ini;
+    if (ant == NULL)   /* 1o */
+        ini = p->prox;
+    else
+        ant->prox = p->prox;
+    free(p);
+    return ini;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{lista.c} (3/3): o \texttt{main}}
+  \vspace{-0.5em}
+  \begin{columns}[c]
+    \begin{column}{0.62\textwidth}
+\begin{lstlisting}[style=codC]
+int main(void)
+{
+    int entrada[] = {30, 10, 40, 20};
+    No *lista = NULL;
+    for (int i = 0; i < 4; i++)
+        lista = insere_ordenado(lista, entrada[i]);
+    imprime(lista);
+    printf("busca 20: %s\n", busca(lista, 20) ? "achou" : "nao achou");
+    printf("busca 25: %s\n", busca(lista, 25) ? "achou" : "nao achou");
+    lista = remove_valor(lista, 10);
+    lista = remove_valor(lista, 40);
+    lista = remove_valor(lista, 99);
+    imprime(lista);
+    libera(lista);
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.34\textwidth}
+      \small
+      Os valores chegam fora de ordem: 30, 10, 40, 20.
+
+      \medskip
+      Depois de duas buscas, o programa tenta remover três valores --- um
+      deles não está na lista.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item Em que ordem os valores aparecem na primeira linha? Compare com a
+        aula passada.
+      \item O que as duas buscas respondem?
+      \item Qual é a última linha impressa?
+      \item Dos três \texttt{remove\_valor}, qual passa pelo
+        \texttt{if (ant == NULL)}? E qual não chega a chamar
+        \texttt{free}?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra lista.c -o lista
+$ ./lista
+10 -> 20 -> 30 -> 40 -> NULL
+busca 20: achou
+busca 25: nao achou
+20 -> 30 -> NULL
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{O que mudou}
+        \small A lista saiu \textbf{em ordem}, embora os valores tenham
+        chegado embaralhados: cada um foi encaixado no lugar certo.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Remover o 10 mudou o início; remover o 99 não fez nada. Cada
+      função trata esses casos com um \texttt{if} --- e é deles que esta
+      aula trata.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{Buscar}
+% ==================================================================
+
+\begin{frame}{Definição: busca sequencial}
+  \begin{block}{Busca sequencial numa lista}
+    \small Começando no início, compare cada nó com o valor procurado e siga
+    o \texttt{prox}. Pare ao \textbf{achar} (devolva o nó) ou ao chegar ao
+    \textbf{\texttt{NULL}} (devolva \texttt{NULL}: não está na lista).
+  \end{block}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.85cm]
+    \node[var] (ini) {lista};
+    \node[no, right=0.7cm of ini] (a) {10 \nodepart{two} \phantom{xx}};
+    \node[no, right=of a] (b) {20 \nodepart{two} \phantom{xx}};
+    \node[nonovo, right=of b] (c) {30 \nodepart{two} \phantom{xx}};
+    \node[no, right=of c] (d) {40 \nodepart{two} \phantom{xx}};
+    \node[nulo, right=0.6cm of d] (n) {NULL};
+    \draw[seta] (ini) -- (a);
+    \draw[seta] \ptr{a} -- (b);
+    \draw[seta] \ptr{b} -- (c);
+    \draw[seta] \ptr{c} -- (d);
+    \draw[seta] \ptr{d} -- (n);
+    \foreach \q/\t in {a/1, b/2, c/3} {
+      \node[rot, above=0.12cm of \q] {p (\t)};
+    }
+    \node[leg, text=UFSRed, right=0.3cm of n] {busca 30: 3 passos};
+  \end{tikzpicture}
+  \end{center}
+  \begin{exampleblock}{Intuição}
+    \small Não há índice: a lista só se deixa ler na ordem das setas. Para
+    saber que 25 \emph{não} está lá, é preciso olhar todos os nós.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), §10.2, \textsc{List-Search}~\cite{cormen2009introduction};
+    Celes et al.\ (2004), cap.~10~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}[fragile]{E se a condição vier na outra ordem?}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=tinyC]
+/* busca_errada.c */
+No *busca(No *ini, int x)
+{
+    No *p = ini;
+    while (p->valor != x && p != NULL)
+        p = p->prox;
+    return p;
+}
+\end{lstlisting}
+      \small A mesma condição, só que com os dois testes trocados de lugar.
+      O \texttt{\&\&} não é comutativo?
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item \texttt{busca(lista, 20)} ainda funciona?
+          \item E \texttt{busca(lista, 25)}? Siga \texttt{p} até o fim.
+          \item Faz diferença compilar com \texttt{-O2}?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+  \vspace{-0.5em}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra busca_errada.c -o busca_errada     # nenhum aviso
+$ ./busca_errada
+10 -> 20 -> 30 -> 40 -> NULL
+busca 20: achou
+Segmentation fault: 11
+$ gcc -O2 -Wall -Wextra busca_errada.c -o busca_errada-O2
+$ ./busca_errada-O2
+10 -> 20 -> 30 -> 40 -> NULL
+busca 20: achou
+busca 25: achou
+20 -> 30 -> NULL
+\end{lstlisting}
+  \vspace{-0.6em}
+  \centering\scriptsize\textcolor{UFSGray}{Sem otimização, o programa cai. Com
+  \texttt{-O2}, ele não cai --- e afirma que 25 está na lista.}
+\end{frame}
+
+\begin{frame}{A resposta: o \texttt{\&\&} para no primeiro falso}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small
+      \texttt{a \&\& b} avalia \texttt{a} primeiro; se \texttt{a} é falso,
+      \texttt{b} \textbf{nem é avaliado} (curto-circuito). A ordem dos
+      testes é parte do significado.
+
+      \medskip
+      Na busca por 25, \texttt{p} chega a \texttt{NULL}. Na versão certa,
+      \texttt{p != NULL} falha e \texttt{p->valor} nunca é lido. Na
+      trocada, \texttt{p->valor} lê o endereço 0: \emph{segmentation
+      fault}.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{E o \texttt{-O2}?}
+        \small Ler \texttt{p->valor} com \texttt{p == NULL} é comportamento
+        indefinido. O compilador pode supor que isso nunca acontece --- e,
+        se \texttt{p} nunca é \texttt{NULL}, o teste \texttt{p != NULL} e o
+        ``não achou'' podem ser descartados.
+      \end{alertblock}
+      \small Proteja sempre o acesso: \texttt{p != NULL \&\&
+      p->\ldots} --- nessa ordem.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §6.5.13 e §3.4.3~\cite{iso2018c17};
+    Kernighan \& Ritchie (1989), §2.6~\cite{kernighan1989c};
+    medido com \texttt{busca\_errada.c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: buscar}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item buscar é percorrer até achar o valor ou chegar ao \texttt{NULL};
+      \item a função devolve o nó encontrado --- ou \texttt{NULL};
+      \item \texttt{p != NULL} vem \emph{antes} de \texttt{p->valor}: o
+        \texttt{\&\&} para no primeiro falso;
+      \item com um ponteiro nulo, o programa pode cair --- ou, otimizado,
+        dar uma resposta errada sem aviso.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Inserir em qualquer posição}
+% ==================================================================
+
+\begin{frame}[fragile]{Onde encaixar o 25?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=tinyC]
+No *ant = ini;
+while (ant->prox != NULL &&
+       ant->prox->valor < x)
+    ant = ant->prox;
+novo->prox = ant->prox;
+ant->prox = novo;
+\end{lstlisting}
+      \small A lista é \texttt{10 -> 20 -> 30 -> 40} e \texttt{x} vale 25.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item Em que nó \texttt{ant} para?
+          \item Por que o laço olha \texttt{ant->prox->valor}, um nó
+            \emph{à frente}, e não o próprio \texttt{ant}?
+          \item E se \texttt{x} for 50? E 5?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: parar no nó \emph{anterior}}
+  \begin{columns}[c]
+    \begin{column}{0.58\textwidth}
+  \begin{tikzpicture}[node distance=0.55cm]
+    \node[no] (a) {10 \nodepart{two} \phantom{xx}};
+    \node[no, right=of a] (b) {20 \nodepart{two} \phantom{xx}};
+    \node[no, right=1.3cm of b] (c) {30 \nodepart{two} \phantom{xx}};
+    \node[no, right=of c] (d) {40 \nodepart{two} \phantom{xx}};
+    \node[nulo, right=0.4cm of d] (n) {NULL};
+    \node[varr, above=0.45cm of b] (ant) {ant};
+    \draw[setar] (ant) -- (b);
+    \draw[seta] \ptr{a} -- (b);
+    \draw[setag, dashed] \ptr{b} -- (c);
+    \draw[seta] \ptr{c} -- (d);
+    \draw[seta] \ptr{d} -- (n);
+    \node[nonovo] (x) at ($(b.east)!0.5!(c.west)+(0,-1.25)$) {25 \nodepart{two} \phantom{xx}};
+    \draw[setar] \ptr{x} to[out=0, in=-90] node[right, leg, text=UFSRed, pos=0.6] {1} (c.south);
+    \draw[setar] \ptr{b} to[out=-60, in=180] node[left, leg, text=UFSRed, pos=0.4] {2} (x.west);
+    \node[leg, anchor=west] at (-0.3,-2.2) {\textbf{1.} \texttt{novo->prox = ant->prox;}\quad \textbf{2.} \texttt{ant->prox = novo;}};
+  \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \small
+      A lista só tem setas para a frente: ao chegar ao 30, já não dá para
+      voltar ao 20 e mudar o \texttt{prox} dele. Por isso o laço espia um
+      nó à frente e para no \textbf{anterior}.
+
+      \medskip
+      A ordem 1--2 é a mesma da aula passada: ligar o novo antes de
+      desviar a seta antiga.
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~10~\cite{celes2004introducao};
+    Feofiloff (2009), cap.~4~\cite{feofiloff2009algoritmos}}
+\end{frame}
+
+\begin{frame}{Quatro situações, dois caminhos no código}
+  \begin{center}
+    \small
+    \begin{tabular}{@{}llll@{}}
+      \toprule
+      situação & exemplo & quem trata & muda o início?\\
+      \midrule
+      lista vazia & 25 em \texttt{NULL} & \texttt{if (ini == NULL || \ldots)} & sim\\
+      antes do primeiro & 5 em \texttt{10 -> \ldots} & \texttt{if (\ldots\ || x < ini->valor)} & sim\\
+      no meio & 25 & laço + passos 1 e 2 & não\\
+      no fim & 50 & laço + passos 1 e 2 & não\\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \small
+  No fim, o laço para no último nó porque \texttt{ant->prox == NULL}; o
+  passo 1 copia esse \texttt{NULL} para o novo nó, que vira o último
+  \emph{sem} caso especial.
+
+  \medskip
+  Só o primeiro nó precisa de tratamento à parte: \textbf{não existe nó
+  anterior} a ele --- quem aponta para o primeiro é a variável
+  \texttt{lista} do \texttt{main}.
+  \fonte{Celes et al.\ (2004), cap.~10~\cite{celes2004introducao};
+    King (2008), §17.5~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{E inserir sempre no fim, quanto custa?}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{center}
+      \small
+      \begin{tabular}{@{}rrr@{}}
+        \toprule
+        $n$ & no início & no fim\\
+        \midrule
+        10\,000  & 0,0003\,s & 0,058\,s\\
+        20\,000  & 0,0002\,s & 0,147\,s\\
+        40\,000  & 0,0004\,s & 0,625\,s\\
+        80\,000  & 0,0007\,s & 2,479\,s\\
+        160\,000 & 0,0029\,s & 10,27\,s\\
+        \bottomrule
+      \end{tabular}
+
+      \medskip
+      \scriptsize compilado com \texttt{-O2}
+      \end{center}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \small
+      Para pôr no fim, \texttt{insere\_fim} percorre a lista inteira a
+      cada chamada: $0 + 1 + \cdots + (n-1) \approx n^2/2$ passos.
+
+      \medskip
+      Dobrou $n$, o tempo \textbf{quadruplicou} --- o mesmo $n^2$ que o
+      vetor pagava para inserir no começo.
+
+      \medskip
+      Guardar também um ponteiro para o \textbf{último} nó elimina a
+      caminhada (Exercício 1).
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.2~\cite{cormen2009introduction};
+    medido com \texttt{fim\_vs\_inicio.c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: inserir em qualquer posição}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item para inserir, é preciso parar no nó \emph{anterior} à posição;
+      \item dois ponteiros, nesta ordem: \texttt{novo->prox = ant->prox;
+        ant->prox = novo;}
+      \item o fim não é especial; o início é, porque não tem anterior;
+      \item inserir no fim percorrendo a lista custa $n$ passos por
+        inserção.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Remover}
+% ==================================================================
+
+\begin{frame}{Remover: desviar a seta, depois liberar}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+  \begin{tikzpicture}[node distance=0.65cm]
+    \node[no] (a) {10 \nodepart{two} \phantom{xx}};
+    \node[nolivre, right=of a] (b) {20 \nodepart{two} \phantom{xx}};
+    \node[no, right=of b] (c) {30 \nodepart{two} \phantom{xx}};
+    \node[nulo, right=0.45cm of c] (n) {NULL};
+    \node[var, above=0.45cm of a] (ant) {ant};
+    \node[varr, above=0.45cm of b] (p) {p};
+    \draw[setag] (ant) -- (a);
+    \draw[setar] (p) -- (b);
+    \draw[setag, dashed] \ptr{a} -- (b);
+    \draw[setag, dashed] \ptr{b} -- (c);
+    \draw[seta] \ptr{c} -- (n);
+    \draw[setar] \ptr{a} to[out=-60, in=-120] node[below, leg, text=UFSRed] {1} (c.south);
+    \node[leg, anchor=west] at (-0.4,-1.55) {\textbf{1.} \texttt{ant->prox = p->prox;}};
+    \node[leg, anchor=west] at (-0.4,-1.95) {\textbf{2.} \texttt{free(p);}};
+  \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \small
+      Para tirar o 20, o 10 tem de passar a apontar para o 30. Por isso a
+      busca anda com \textbf{dois} ponteiros: \texttt{p}, no nó procurado,
+      e \texttt{ant}, um passo atrás.
+
+      \medskip
+      Na ordem contrária --- \texttt{free} antes --- \texttt{p->prox} seria
+      lido de um bloco já liberado.
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~10~\cite{celes2004introducao};
+    Cormen et al.\ (2009), §10.2, \textsc{List-Delete}~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}[fragile]{Um \texttt{remove\_valor} mais curto}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=tinyC]
+/* remove_errada.c */
+No *remove_valor(No *ini, int x)
+{
+    No *ant = NULL, *p = ini;
+    while (p != NULL && p->valor != x) {
+        ant = p;
+        p = p->prox;
+    }
+    if (p == NULL)
+        return ini;
+    ant->prox = p->prox;
+    free(p);
+    return ini;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small Sumiu o \texttt{if (ant == NULL)}.
+        \begin{enumerate}
+          \item Remover o 40 (último) funciona?
+          \item E remover o 99, que não está lá?
+          \item E remover o 10? Quanto vale \texttt{ant} nessa hora?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ ./remove_errada
+10 -> 20 -> 30 -> 40 -> NULL
+busca 20: achou
+busca 25: nao achou
+Segmentation fault: 11
+$ gcc -g -fsanitize=address remove_errada.c -o remove_errada-asan
+$ ./remove_errada-asan
+==36265==ERROR: AddressSanitizer: SEGV on unknown address 0x000000000008
+==36265==The signal is caused by a WRITE memory access.
+==36265==Hint: address points to the zero page.
+    #0 0x0001041f8e3c in remove_valor remove_errada.c:50
+    #1 0x0001041f925c in main remove_errada.c:80
+\end{lstlisting}
+  \begin{center}
+    \scriptsize\textcolor{UFSGray}{A linha 80 é \texttt{lista =
+    remove\_valor(lista, 10);} --- a primeira remoção.}
+  \end{center}
+\end{frame}
+
+\begin{frame}{A resposta: o primeiro nó não tem anterior}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[node distance=0.8cm]
+        \node[var] (l) {lista};
+        \node[nolivre, right=0.9cm of l] (a) {10 \nodepart{two} \phantom{xx}};
+        \node[no, right=of a] (b) {20 \nodepart{two} \phantom{xx}};
+        \node[nulo, right=0.45cm of b] (n) {\ldots};
+        \node[varr, above=0.5cm of a] (p) {p};
+        \node[varr, minimum width=1.6cm, above=0.5cm of l] (ant) {ant = NULL};
+        \draw[setar] (p) -- (a);
+        \draw[setag, dashed] (l) -- (a);
+        \draw[seta] \ptr{a} -- (b);
+        \draw[seta] \ptr{b} -- (n);
+        \draw[setar] (l.south) to[out=-35, in=-145] (b.south);
+        \node[leg, text=UFSRed, align=center] at ($(a.south)+(0,-1.25)$)
+          {a seta que precisa mudar\\ é a de \texttt{lista}};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small
+      Se o 10 é achado de cara, o laço não roda e \texttt{ant} continua
+      \texttt{NULL}. \texttt{ant->prox} escreve em
+      \texttt{NULL} $+ 8$ --- o endereço \texttt{0x8} do relatório, pois
+      \texttt{prox} fica 8 bytes depois do início do nó.
+
+      \medskip
+      Quem aponta para o primeiro nó não é um \texttt{prox}: é a variável
+      \texttt{lista} do \texttt{main}. Por isso a função muda \texttt{ini}
+      e \textbf{devolve} o novo início.
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §17.5~\cite{king2008c};
+    Serebryany et al.\ (2012)~\cite{serebryany2012asan};
+    medido com \texttt{remove\_errada.c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: remover}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item remover é desviar a seta do anterior e só então liberar o nó;
+      \item a busca anda com dois ponteiros: \texttt{ant} um passo atrás de
+        \texttt{p};
+      \item três casos: não achou, achou o primeiro, achou outro;
+      \item remover o primeiro muda o início --- quem chama precisa guardar
+        o ponteiro devolvido.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Ponteiro para ponteiro}
+% ==================================================================
+
+\begin{frame}{O caso especial é sempre o mesmo}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small
+      Na inserção e na remoção, o \texttt{if} extra existe pela mesma razão:
+      a seta que precisa mudar às vezes é a variável \texttt{lista},
+      às vezes o \texttt{prox} de um nó.
+
+      \medskip
+      Mas as duas coisas têm o \textbf{mesmo tipo}: \texttt{No *}. Um
+      ponteiro do tipo \texttt{No **} pode apontar para qualquer uma delas.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Ponteiro para ponteiro}
+        \small Uma variável \texttt{No **pp} guarda o endereço de um
+        \texttt{No *}. \texttt{*pp} é esse ponteiro --- dá para ler e
+        \emph{mudar} para onde ele aponta.
+      \end{block}
+      \small Em vez de ``o nó anterior'', a busca guarda ``o endereço da
+      seta que chega ao nó atual''.
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §17.6~\cite{king2008c};
+    Kernighan \& Ritchie (1989), §5.6~\cite{kernighan1989c}}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{ponteiro\_duplo.c}: sem \texttt{if} para o primeiro}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+void insere_ordenado(No **pp, int x)
+{
+    while (*pp != NULL && (*pp)->valor < x)
+        pp = &(*pp)->prox;
+    No *novo = malloc(sizeof *novo);
+    if (novo == NULL) {
+        perror("malloc");
+        exit(1);
+    }
+    novo->valor = x;
+    novo->prox = *pp;
+    *pp = novo;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=codC]
+void remove_valor(No **pp, int x)
+{
+    while (*pp != NULL && (*pp)->valor != x)
+        pp = &(*pp)->prox;
+    if (*pp != NULL) {
+        No *p = *pp;
+        *pp = p->prox;
+        free(p);
+    }
+}
+\end{lstlisting}
+\begin{lstlisting}[style=codC]
+/* no main */
+insere_ordenado(&lista, 30);
+remove_valor(&lista, 10);
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Pense antes de passar o slide}
+  \begin{block}{Leia o código com calma}
+    \begin{enumerate}
+      \item Por que o \texttt{main} passa \texttt{\&lista}, e não
+        \texttt{lista}? E por que as funções agora são \texttt{void}?
+      \item No começo, para onde \texttt{pp} aponta? E depois de uma volta
+        do laço?
+      \item Por que \texttt{(*pp)->valor} precisa dos parênteses? E o que
+        é \texttt{\&(*pp)->prox}?
+      \item Remover o 10 (primeiro) e o 40 (último): siga \texttt{pp} nos
+        dois casos.
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}{A resposta: \texttt{pp} aponta para a seta, não para o nó}
+  \begin{center}
+  \begin{tikzpicture}[node distance=1.5cm]
+    \node[var] (l) {lista};
+    \node[no, right=1.2cm of l] (a) {10 \nodepart{two} \phantom{xx}};
+    \node[no, right=of a] (b) {20 \nodepart{two} \phantom{xx}};
+    \node[no, right=of b] (c) {30 \nodepart{two} \phantom{xx}};
+    \node[nulo, right=0.6cm of c] (n) {NULL};
+    \draw[seta] (l) -- (a);
+    \draw[seta] \ptr{a} -- (b);
+    \draw[seta] \ptr{b} -- (c);
+    \draw[seta] \ptr{c} -- (n);
+    \node[varr] (p0) at ($(l)+(0,-1.0)$) {pp};
+    \draw[setar] (p0) -- (l);
+    \node[leg, below=0.05cm of p0, align=center] {início\\ \texttt{\&lista}};
+    \node[varr] (p1) at ($(a.two south)+(0,-1.0)$) {pp};
+    \draw[setar] (p1) -- (a.two south);
+    \node[leg, below=0.05cm of p1, align=center] {1 volta\\ \texttt{\&}(prox do 10)};
+    \node[varr] (p2) at ($(b.two south)+(0,-1.0)$) {pp};
+    \draw[setar] (p2) -- (b.two south);
+    \node[leg, below=0.05cm of p2, align=center] {2 voltas\\ \texttt{\&}(prox do 20)};
+  \end{tikzpicture}
+  \end{center}
+  \small
+  \texttt{*pp = p->prox} muda \emph{a seta para onde \texttt{pp} aponta} ---
+  seja ela \texttt{lista} ou um \texttt{prox}. Por isso não há caso
+  especial, e a função não precisa devolver nada: ela mexe no
+  \texttt{lista} do \texttt{main} pelo endereço. Os parênteses são
+  necessários porque \texttt{->} tem precedência maior que \texttt{*} e
+  \texttt{\&}: \texttt{\&(*pp)->prox} é ``o endereço do campo
+  \texttt{prox} do nó atual''.
+  \fonte{King (2008), §17.6~\cite{king2008c};
+    Kernighan \& Ritchie (1989), §2.12~\cite{kernighan1989c};
+    medido com \texttt{ponteiro\_duplo.c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: ponteiro para ponteiro}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item o caso especial vem de a seta do primeiro nó morar fora da
+        lista, na variável \texttt{lista};
+      \item \texttt{No **pp} aponta para uma seta qualquer, de dentro ou de
+        fora da lista;
+      \item avançar é \texttt{pp = \&(*pp)->prox}; mudar a seta é
+        \texttt{*pp = \ldots};
+      \item quem chama passa \texttt{\&lista}, e a função não devolve o
+        início.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Quanto custa cada operação}
+% ==================================================================
+
+\begin{frame}{Custo das operações numa lista de $n$ nós}
+  \begin{center}
+    \footnotesize
+    \begin{tabular}{@{}lll@{}}
+      \toprule
+      operação & nós visitados (pior caso) & por quê\\
+      \midrule
+      buscar & $n$ & só se lê na ordem das setas\\
+      inserir no início & constante & não percorre\\
+      inserir no fim & $n$ (constante guardando o último) & acha o último\\
+      inserir em ordem & $n$ & acha o anterior\\
+      remover um valor & $n$ & busca, depois desvio\\
+      remover um nó já conhecido & $n$ & precisa achar o anterior\\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \small
+  Encaixar e desligar um nó é barato: dois ponteiros. O caro é
+  \textbf{chegar} ao lugar. A lista ordenada não ajuda tanto quanto o vetor
+  ordenado: sem acesso por índice, não há busca binária.
+  \fonte{Cormen et al.\ (2009), §10.2~\cite{cormen2009introduction};
+    Knuth (1997), §2.2.3~\cite{knuth1997art}}
+\end{frame}
+
+\begin{frame}{Recapitulando: quanto custa cada operação}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item ligar e desligar um nó custa o mesmo com 3 ou 3 milhões de nós;
+      \item achar a posição custa até $n$ passos;
+      \item uma lista ordenada não permite busca binária;
+      \item remover um nó conhecido ainda exige achar o anterior --- o
+        problema que a próxima aula resolve.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \small
+  \begin{block}{Tarefa 1}
+    A lista está em ordem: ao passar de \texttt{x}, a busca já pode
+    desistir. Altere \texttt{busca} para isso. Quantos nós ela visita agora
+    em \texttt{busca(lista, 25)}? E antes?
+  \end{block}
+  \begin{block}{Tarefa 2}
+    Insira o 20 uma segunda vez. O novo 20 entra antes ou depois do antigo?
+    Troque \texttt{<} por \texttt{<=} no laço e preveja o que muda antes de
+    executar.
+  \end{block}
+  \begin{block}{Tarefa 3}
+    Em \texttt{ponteiro\_duplo.c}, escreva \texttt{void remove\_todos(No
+    **pp, int x)}, que tira \emph{todas} as ocorrências de \texttt{x}. Teste
+    com \texttt{10 -> 10 -> 20 -> 10}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Exercícios (1/2)}
+  \footnotesize
+  \begin{block}{Exercício 1 --- inserir no fim sem percorrer}
+    Crie \texttt{typedef struct \{ No *ini, *fim; \} Lista;} e escreva
+    \texttt{insere\_fim(Lista *l, int x)} com custo constante. Que funções
+    precisam atualizar \texttt{fim}? Refaça a tabela de tempos.
+  \end{block}
+  \begin{block}{Exercício 2 --- remover por posição}
+    \texttt{No *remove\_pos(No *ini, int k)} remove o nó da posição
+    \texttt{k} (a partir de 0), se existir. Escreva também a versão com
+    \texttt{No **}.
+  \end{block}
+  \begin{block}{Exercício 3 --- busca recursiva}
+    \texttt{No *busca\_rec(No *ini, int x)}. Quais são os dois casos base?
+    Com 1 milhão de nós, ela funciona sem \texttt{-O2}? E com?
+  \end{block}
+  \fonte{Feofiloff (2009), cap.~4~\cite{feofiloff2009algoritmos};
+    Celes et al.\ (2004), cap.~10~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}{Exercícios (2/2)}
+  \footnotesize
+  \begin{block}{Exercício 4 --- mover para a frente}
+    \texttt{No *busca\_mtf(No *ini, int x)}: ao achar \texttt{x}, move o
+    nó para o início e devolve o novo início. Quais ponteiros mudam?
+  \end{block}
+  \begin{block}{Exercício 5 --- intercalar}
+    \texttt{No *intercala(No *a, No *b)} junta duas listas ordenadas numa
+    só, ordenada, \textbf{sem} \texttt{malloc}: só religando os nós
+    existentes.
+  \end{block}
+  \begin{block}{Exercício 6 --- inverter no lugar}
+    \texttt{No *inverte(No *ini)} inverte a lista mudando apenas os
+    \texttt{prox}, sem criar nós. Quantos ponteiros auxiliares são
+    necessários?
+  \end{block}
+  \fonte{King (2008), §17.5--17.6~\cite{king2008c};
+    Tenenbaum et al.\ (1995), cap.~4~\cite{tenenbaum1995estruturas}}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{block}{Uma agenda sempre em ordem alfabética}
+    \small Leia comandos da entrada padrão até o fim do arquivo e mantenha
+    uma lista de
+    \begin{center}
+      \texttt{typedef struct contato \{ char *nome; struct contato *prox; \} Contato;}
+    \end{center}
+    \vspace{-0.6em}
+    \begin{itemize}
+      \item \texttt{+ nome} insere em ordem alfabética (\texttt{strcmp}),
+        sem repetir nomes;
+      \item \texttt{- nome} remove; \texttt{? nome} responde ``sim'' ou
+        ``não''; \texttt{=} lista todos;
+      \item cada nome mora num bloco do \texttt{malloc} com o tamanho exato
+        --- e é liberado junto com o nó.
+    \end{itemize}
+    Use \texttt{Contato **} para não ter caso especial. Com
+    \texttt{-fsanitize=address}, nenhum erro e nenhum vazamento.
+  \end{block}
+  \fonte{King (2008), §17.5 e §17.6~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      \small A lista deixou de crescer só pela frente: agora dá para achar
+      um valor, encaixar um nó em qualquer ponto e tirar um nó do meio.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que ficou}\\[0.3em]
+      \small Para mexer num nó, é preciso o \emph{anterior} --- e a lista só
+      anda para a frente.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \small
+      \item buscar: \texttt{p != NULL \&\& p->valor != x}, nessa ordem;
+      \item inserir: \texttt{novo->prox = ant->prox; ant->prox = novo;}
+      \item remover: \texttt{ant->prox = p->prox; free(p);}
+      \item o primeiro nó é especial --- a menos que se use \texttt{No **}.
+    \end{itemize}
+  \end{block}
+  \small\textcolor{UFSGray}{Próxima aula: um nó que aponta também para o
+  anterior --- a lista duplamente encadeada.}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}
