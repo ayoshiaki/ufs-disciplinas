@@ -1,0 +1,805 @@
+% -*- coding: utf-8 -*-
+% Aula: Programacao dinamica -- maior subsequencia comum e distancia de edicao
+% Fontes principais: Cormen et al. (2009), sec. 15.4 (LCS, Teorema 15.1, Figura 15.8) e
+% Problema 15-5; Dasgupta et al. (2008), sec. 6.3 (distancia de edicao, SNOWY/SUNNY);
+% Kleinberg e Tardos (2006), sec. 6.6-6.7 (alinhamento); Levenshtein (1966);
+% Wagner e Fischer (1974); Needleman e Wunsch (1970); Hirschberg (1975).
+% Continua a aula "Programacao dinamica: o problema da mochila".
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, patterns}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    columns=fullflexible,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=6.6cm, minimum height=0.55cm, font=\scriptsize},
+  fase/.style={rectangle, rounded corners, draw=blue!60, fill=blue!10,
+               minimum width=2.3cm, minimum height=0.6cm, font=\scriptsize,
+               align=center},
+  cel/.style={draw=gray!70, minimum width=5.5mm, minimum height=3.6mm, inner sep=0pt,
+              font=\tiny},
+  letra/.style={draw=black!50, fill=#1, minimum width=4.6mm, minimum height=4.6mm,
+                inner sep=0pt, font=\scriptsize\ttfamily},
+  letra/.default=blue!8,
+  arc/.style={-{Stealth}, thick}
+}
+
+% ---- grade de uma tabela de PD: celula (i,j) centrada em (0.55 j, -0.36 i) ----
+% #1: rotulos das linhas (x_i), #2: rotulos das colunas (y_j), #3: valores linha a linha
+\newcommand{\gradePD}[3]{%
+  \foreach \y [count=\j from 1] in #2
+    \node[font=\tiny\ttfamily\bfseries, gray!60!black] at ({\j*0.55},0.36) {\y};
+  \foreach \x [count=\i from 1] in #1
+    \node[font=\tiny\ttfamily\bfseries, gray!60!black] at (-0.45,{-\i*0.36}) {\x};
+  \foreach \lin [count=\i from 0] in #3
+    \foreach \v [count=\j from 0] in \lin
+      \node[cel] at ({\j*0.55},{-\i*0.36}) {\v};%
+}
+\newcommand{\marca}[3]{\fill[#3] ({#2*0.55-0.275},{-#1*0.36-0.18}) rectangle +(0.55,0.36);}
+\newcommand{\passo}[4]{\draw[-{Stealth[length=1.3mm]}, red!70!black, semithick, shorten <=1.5mm, shorten >=1.5mm]
+  ({#2*0.55},{-#1*0.36}) -- ({#4*0.55},{-#3*0.36});}
+
+% LCS de X = ABCBDAB e Y = BDCABA (Cormen et al., Figura 15.8)
+\newcommand{\rotX}{A,B,C,B,D,A,B}
+\newcommand{\rotY}{B,D,C,A,B,A}
+\newcommand{\valoresC}{{0,0,0,0,0,0,0},{0,0,0,0,1,1,1},{0,1,1,1,1,2,2},{0,1,1,2,2,2,2},%
+  {0,1,1,2,2,3,3},{0,1,2,2,2,3,3},{0,1,2,2,3,3,4},{0,1,2,2,3,4,4}}
+
+% distancia de edicao de SNOWY para SUNNY (Dasgupta et al., sec. 6.3)
+\newcommand{\rotS}{S,N,O,W,Y}
+\newcommand{\rotU}{S,U,N,N,Y}
+\newcommand{\valoresE}{{0,1,2,3,4,5},{1,0,1,2,3,4},{2,1,1,1,2,3},{3,2,2,2,2,3},%
+  {4,3,3,3,3,3},{5,4,4,4,4,3}}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\title{Programação dinâmica}
+\subtitle{Maior subsequência comum e distância de edição}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=3mm]
+    \node[box] (t1) {1.\ Maior subsequência comum (LCS): o problema};
+    \node[box, below=of t1] (t2) {2.\ Prefixos, subestrutura ótima e a recorrência $c[i,j]$};
+    \node[box, below=of t2] (t3) {3.\ A tabela $(m+1)\times(n+1)$ e a reconstrução};
+    \node[box, below=of t3, fill=orange!20, draw=orange!80!black] (t4)
+         {4.\ Distância de edição e alinhamento de sequências};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+    \draw[-{Stealth}, thick, orange!80!black, dashed]
+      (t4.east) to[out=0, in=0, looseness=1.6]
+      node[right, xshift=1mm, font=\tiny, align=left]
+      {mesma tabela,\\outras operações} (t2.east);
+  \end{tikzpicture}
+  \end{center}
+  \medskip
+  {\scriptsize\centering
+  Na mochila, os dois índices eram \emph{item} e \emph{capacidade}. Hoje são duas
+  \textbf{posições}, uma em cada sequência, e o tempo $\Theta(mn)$ é polinomial de verdade.\par}
+\end{frame}
+
+% =====================================================================
+\section{Maior subsequência comum}
+
+\begin{frame}{Por que comparar duas sequências?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize Quanto duas sequências se parecem, e onde elas concordam?
+      \begin{itemize}\scriptsize
+        \item \texttt{diff} e \texttt{git}: que linhas de um arquivo foram mantidas na
+              nova versão?
+        \item Bioinformática: dois trechos de DNA (\texttt{ACCGGTCG\dots}) vêm de um
+              ancestral comum?
+        \item Corretor ortográfico: qual palavra do dicionário está mais perto de
+              ``\texttt{algoritimo}''?
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2pt]
+      \scriptsize Medir a semelhança pela \textbf{maior subsequência comum}: o maior
+      conjunto de símbolos que aparecem nas duas sequências \emph{na mesma ordem},
+      não necessariamente colados.
+      \medskip
+
+      A força bruta é exponencial. A programação dinâmica resolve em $\Theta(mn)$, com
+      os mesmos quatro passos de sempre: estrutura, recorrência, tabela, reconstrução.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 15.4~\cite{cormen2009introduction};
+    Hunt e McIlroy (1976)~\cite{hunt1976algorithm}.}
+\end{frame}
+
+\begin{frame}{Subsequência e LCS: definição}
+  \begin{block}{Definição}
+    \scriptsize $Z = \langle z_1,\dots,z_k\rangle$ é \textbf{subsequência} de
+    $X = \langle x_1,\dots,x_m\rangle$ se existem índices
+    $i_1 < i_2 < \dots < i_k$ com $x_{i_j} = z_j$. Uma \textbf{subsequência comum} de $X$ e
+    $Y$ é subsequência das duas; o problema da \textbf{LCS} pede uma de comprimento máximo.
+  \end{block}
+  \begin{center}
+  \begin{tikzpicture}[x=6mm]
+    \node[font=\scriptsize, anchor=east] at (-0.6,0) {$X$};
+    \node[font=\scriptsize, anchor=east] at (-0.6,-1.1) {$Y$};
+    \foreach \c [count=\k] in {A,B,C,B,D,A,B}
+      \node[letra] (x\k) at (\k-1,0) {\c};
+    \foreach \c [count=\k] in {B,D,C,A,B,A}
+      \node[letra] (y\k) at (\k-1,-1.1) {\c};
+    \foreach \k in {2,3,4,6} \node[letra=orange!35] at (\k-1,0) {};
+    \foreach \k [count=\c] in {2,3,4,6} \node[font=\scriptsize\ttfamily] at (\k-1,0)
+      {\ifcase\c\or B\or C\or B\or A\fi};
+    \foreach \k in {1,3,5,6} \node[letra=orange!35] at (\k-1,-1.1) {};
+    \foreach \k [count=\c] in {1,3,5,6} \node[font=\scriptsize\ttfamily] at (\k-1,-1.1)
+      {\ifcase\c\or B\or C\or B\or A\fi};
+    \foreach \a/\b in {2/1, 3/3, 4/5, 6/6}
+      \draw[orange!80!black, thick] (x\a.south) -- (y\b.north);
+    \node[font=\scriptsize, anchor=west, align=left] at (7.2,-0.55)
+      {$\langle B,C,B,A\rangle$: comprimento 4,\\ uma LCS (não é a única:
+       $\langle B,D,A,B\rangle$ também é)};
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize Subsequência \emph{não} é subcadeia: os símbolos podem ter ``buracos'' entre si,
+  mas as linhas que os ligam nunca se cruzam.\par}
+  \fonte{Cormen et al.\ (2009), \S 15.4, exemplo da Figura 15.8~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Força bruta: $2^m$ candidatos}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \scriptsize Enumerar todas as subsequências de $X$ e testar cada uma contra $Y$:
+      \begin{itemize}\scriptsize
+        \item cada subconjunto de índices de $X$ é uma subsequência: $2^m$ candidatos;
+        \item testar se $Z$ é subsequência de $Y$ custa $O(n)$, com uma varredura gulosa
+              (Exercício 1 do tutorial);
+        \item total $O(n\,2^m)$.
+      \end{itemize}
+      Para comparar dois genes com $m = n = 1000$ bases, $2^{1000}\approx 10^{301}$
+      candidatos. A PD fará $10^6$ passos.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering\scriptsize
+      \begin{tabular}{rrr}
+        \toprule
+        $m=n$ & força bruta $n\,2^m$ & PD $mn$ \\
+        \midrule
+        10 & $\approx 10^4$ & $10^2$ \\
+        30 & $\approx 3\cdot 10^{10}$ & $9\cdot 10^2$ \\
+        60 & $\approx 7\cdot 10^{19}$ & $3{,}6\cdot 10^3$ \\
+        1000 & $\approx 10^{304}$ & $10^6$ \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 15.4, ``Step 1''~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: o problema da LCS}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Subsequência: símbolos de $X$ na mesma ordem, com buracos permitidos.
+      \item LCS: subsequência comum de comprimento máximo; pode haver várias.
+      \item No exemplo do Cormen, $X=\texttt{ABCBDAB}$ e $Y=\texttt{BDCABA}$ têm LCS de
+            comprimento 4, por exemplo \texttt{BCBA}.
+      \item A força bruta testa $2^m$ subsequências: inviável já para $m \approx 60$.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 15.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Formulação}
+
+\begin{frame}{Por que prefixos?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize Para aplicar PD, precisamos de uma família pequena de subproblemas do
+      \emph{mesmo tipo}. Pares arbitrários de subsequências de $X$ e $Y$ são
+      $2^m\cdot 2^n$: não serve.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2pt]
+      \scriptsize Olhar para o \textbf{último símbolo} de cada sequência, como olhávamos para
+      o último item da mochila. Decidir sobre $x_m$ e $y_n$ deixa sempre um par de
+      \textbf{prefixos}:
+      \[ X_i = \langle x_1,\dots,x_i\rangle,\qquad Y_j = \langle y_1,\dots,y_j\rangle. \]
+      São só $(m+1)(n+1)$ pares $(X_i, Y_j)$.
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{center}
+  \begin{tikzpicture}[x=5mm]
+    \foreach \c [count=\k] in {A,B,C,B,D,A,B}
+      \node[letra=\ifnum\k<5 blue!15\else gray!8\fi] at (\k-1,0) {\c};
+    \draw[decorate, decoration={brace, mirror, amplitude=3pt}] (-0.45,-0.35) -- (3.45,-0.35)
+      node[midway, below=2pt, font=\tiny] {$X_4 = \texttt{ABCB}$};
+    \node[font=\tiny, anchor=west] at (7,0) {o prefixo $X_0$ é a sequência vazia};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{Cormen et al.\ (2009), \S 15.4, ``Step 1: Characterizing a longest common
+    subsequence''~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Subestrutura ótima da LCS}
+  \begin{block}{Teorema (Cormen et al., Teorema 15.1)}
+    \scriptsize Seja $Z = \langle z_1,\dots,z_k\rangle$ uma LCS de $X_m$ e $Y_n$.
+    \begin{enumerate}\scriptsize
+      \item Se $x_m = y_n$, então $z_k = x_m = y_n$ e $Z_{k-1}$ é LCS de $X_{m-1}$ e
+            $Y_{n-1}$.
+      \item Se $x_m \ne y_n$ e $z_k \ne x_m$, então $Z$ é LCS de $X_{m-1}$ e $Y_n$.
+      \item Se $x_m \ne y_n$ e $z_k \ne y_n$, então $Z$ é LCS de $X_m$ e $Y_{n-1}$.
+    \end{enumerate}
+  \end{block}
+  \scriptsize\textbf{Ideia da prova (caso 1, recorta e cola).} Se $z_k \ne x_m$, acrescentar
+  $x_m = y_n$ ao fim de $Z$ daria uma subsequência comum de comprimento $k+1$: absurdo.
+  Logo $z_k = x_m$. Se houvesse uma subsequência comum $W$ de $X_{m-1}$ e $Y_{n-1}$ maior
+  que $Z_{k-1}$, então $W$ seguida de $x_m$ seria maior que $Z$: absurdo de novo.
+  Os casos 2 e 3: $Z$ não usa o último símbolo de uma das sequências, então é subsequência
+  comum do par menor; se não fosse a maior lá, também não seria aqui.
+  \fonte{Cormen et al.\ (2009), \S 15.4, Teorema 15.1~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A recorrência}
+  \begin{block}{Definição}
+    \scriptsize $c[i,j]$ = comprimento de uma LCS de $X_i$ e $Y_j$. A resposta é $c[m,n]$.
+    \[
+      c[i,j] =
+      \begin{cases}
+        0 & \text{se } i = 0 \text{ ou } j = 0,\\[2pt]
+        c[i-1,j-1] + 1 & \text{se } i,j > 0 \text{ e } x_i = y_j,\\[2pt]
+        \max\bigl(\underbrace{c[i-1,j]}_{\text{descarta } x_i},\;
+                  \underbrace{c[i,j-1]}_{\text{descarta } y_j}\bigr)
+          & \text{se } i,j > 0 \text{ e } x_i \ne y_j.
+      \end{cases}
+    \]
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize Se os últimos símbolos são iguais, vale a pena casá-los (Teorema 15.1, caso
+    1). Se são diferentes, pelo menos um deles fica de fora da LCS; como não sabemos qual,
+    testamos os dois, exatamente como na mochila (item dentro ou fora).
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 15.4, equação (15.9)~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Grafo de subproblemas e ordem de preenchimento}
+  \begin{columns}[c]
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \foreach \i in {0,...,4}
+          \foreach \j in {0,...,5}
+            \draw[gray!60] ({\j*0.6-0.3},{-\i*0.45-0.225}) rectangle +(0.6,0.45);
+        \fill[orange!35] ({3*0.6-0.3},{-3*0.45-0.225}) rectangle +(0.6,0.45);
+        \fill[blue!20] ({3*0.6-0.3},{-2*0.45-0.225}) rectangle +(0.6,0.45);
+        \fill[green!25] ({2*0.6-0.3},{-3*0.45-0.225}) rectangle +(0.6,0.45);
+        \fill[red!20] ({2*0.6-0.3},{-2*0.45-0.225}) rectangle +(0.6,0.45);
+        \node[font=\tiny] at ({3*0.6},{-3*0.45}) {$i,j$};
+        \draw[arc, blue!60!black] ({3*0.6},{-2*0.45}) -- ({3*0.6},{-3*0.45+0.15});
+        \draw[arc, green!50!black] ({2*0.6},{-3*0.45}) -- ({3*0.6-0.2},{-3*0.45});
+        \draw[arc, red!70!black] ({2*0.6},{-2*0.45}) -- ({3*0.6-0.15},{-3*0.45+0.1});
+        \node[font=\tiny, anchor=east] at (-0.35,0) {$i{=}0$};
+        \node[font=\tiny, anchor=east] at (-0.35,{-4*0.45}) {$i{=}m$};
+        \node[font=\tiny] at (0,0.38) {$j{=}0$};
+        \node[font=\tiny] at ({5*0.6},0.38) {$j{=}n$};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \scriptsize A célula $(i,j)$ depende de três vizinhas:
+      \begin{itemize}\scriptsize
+        \item \textcolor{red!70!black}{$(i-1,j-1)$}, a diagonal, quando $x_i = y_j$;
+        \item \textcolor{blue!60!black}{$(i-1,j)$}, acima, e
+              \textcolor{green!50!black}{$(i,j-1)$}, à esquerda, quando $x_i \ne y_j$.
+      \end{itemize}
+      Preencher \textbf{linha por linha, da esquerda para a direita} respeita todas as
+      dependências. Tempo $\Theta(mn)$, espaço $\Theta(mn)$.
+      \medskip
+
+      A recursão direta, sem tabela, repete subproblemas: no exemplo do Cormen
+      ($m=7$, $n=6$) já são 152 chamadas para 42 células, e o número cresce
+      exponencialmente quando $X$ e $Y$ não têm símbolos em comum.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 15.4, ``Step 3''~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: formulação}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Subproblemas: pares de prefixos $(X_i, Y_j)$, só $(m+1)(n+1)$ deles.
+      \item Subestrutura ótima (Teorema 15.1): ou os últimos símbolos casam, ou um deles
+            fica de fora.
+      \item Recorrência: $c[i,j] = c[i-1,j-1]+1$ se $x_i = y_j$; senão
+            $\max(c[i-1,j],\,c[i,j-1])$.
+      \item Cada célula depende de três vizinhas (acima, esquerda, diagonal); linha por
+            linha dá $\Theta(mn)$.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 15.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Tabela e reconstrução}
+
+\begin{frame}[fragile]{Bottom-up em C}
+  \begin{columns}[T]
+    \begin{column}{0.36\textwidth}
+      \scriptsize\textbf{Exemplo condutor} (Cormen, Figura 15.8):\\[3pt]
+      $X = \texttt{ABCBDAB}$, $m = 7$\\
+      $Y = \texttt{BDCABA}$, $n = 6$\\[4pt]
+      As cadeias são indexadas a partir de 1 nos slides; em C, $x_i$ é \texttt{x[i-1]}.
+      \medskip
+
+      Os dois laços preenchem $(m+1)(n+1) = 56$ células, cada uma em $O(1)$.
+    \end{column}
+    \begin{column}{0.6\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* c[i][j]: comprimento de uma LCS de x[0..i-1] e y[0..j-1] */
+int lcs( const char x[], int m, const char y[], int n) {
+   for (int i = 0; i <= m; ++i) c[i][0] = 0;
+   for (int j = 0; j <= n; ++j) c[0][j] = 0;
+   for (int i = 1; i <= m; ++i)
+      for (int j = 1; j <= n; ++j)
+         if (x[i-1] == y[j-1])
+            c[i][j] = c[i-1][j-1] + 1;      /* casa x_i com y_j */
+         else if (c[i-1][j] >= c[i][j-1])
+            c[i][j] = c[i-1][j];            /* descarta x_i     */
+         else
+            c[i][j] = c[i][j-1];            /* descarta y_j     */
+   return c[m][n];
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 15.4, \textsc{LCS-Length}~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplo: a tabela $c$ preenchida}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \marca{4}{5}{red!20}
+        \marca{5}{5}{orange!40}
+        \marca{5}{4}{green!25}
+        \marca{6}{6}{orange!40}
+        \marca{5}{5}{orange!40}
+        \gradePD{\rotX}{\rotY}{\valoresC}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize Célula \colorbox{orange!40}{$(6,6)$}: $x_6 = \texttt{A} = y_6$, diagonal:
+      \[ c[6,6] = c[5,5] + 1 = 3 + 1 = 4. \]
+      Célula \colorbox{orange!40}{$(5,5)$}: $x_5 = \texttt{D} \ne \texttt{B} = y_5$:
+      \[ c[5,5] = \max\bigl(\underbrace{\colorbox{red!20}{$3$}}_{c[4,5]},\;
+         \underbrace{\colorbox{green!25}{$2$}}_{c[5,4]}\bigr) = 3. \]
+      Linha 0 e coluna 0: um prefixo vazio, LCS vazia.
+      \medskip
+
+      Resposta: $c[7,6] = 4$.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 15.4, Figura 15.8~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{Reconstruindo uma LCS}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \foreach \i/\j in {7/6, 5/5, 3/4, 2/2}
+          {\marca{\i}{\j}{gray!20}}
+        \foreach \i/\j in {6/6, 4/5, 3/3, 2/1}
+          {\marca{\i}{\j}{orange!45}}
+        \gradePD{\rotX}{\rotY}{\valoresC}
+        \passo{7}{6}{6}{6} \passo{6}{6}{5}{5} \passo{5}{5}{4}{5} \passo{4}{5}{3}{4}
+        \passo{3}{4}{3}{3} \passo{3}{3}{2}{2} \passo{2}{2}{2}{1} \passo{2}{1}{1}{0}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* imprime uma LCS de x[0..i-1] e y[0..j-1] */
+void imprime( const char x[], const char y[], int i, int j) {
+   if (i == 0 || j == 0) return;
+   if (x[i-1] == y[j-1]) {
+      imprime( x, y, i-1, j-1);
+      putchar( x[i-1]);               /* casou */
+   } else if (c[i-1][j] >= c[i][j-1])
+      imprime( x, y, i-1, j);         /* sobe  */
+   else
+      imprime( x, y, i, j-1);         /* esquerda */
+}
+\end{lstlisting}
+      \scriptsize Partindo de $(7,6)$, cada passo refaz a decisão da recorrência. As células
+      \colorbox{orange!45}{laranja} são os casamentos: \texttt{B}, \texttt{C}, \texttt{B},
+      \texttt{A}. Custo $O(m+n)$.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 15.4, \textsc{Print-LCS} e Figura 15.8~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Economia de espaço}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \scriptsize Para obter só o \textbf{comprimento} $c[m,n]$, a linha $i$ depende apenas da
+      linha $i-1$:
+      \begin{itemize}\scriptsize
+        \item duas linhas bastam: espaço $\Theta(n)$;
+        \item escolhendo a sequência menor como colunas: $\Theta(\min(m,n))$
+              (Cormen, Exercício 15.4-4);
+        \item o tempo continua $\Theta(mn)$.
+      \end{itemize}
+      Mas sem a tabela inteira a reconstrução da página anterior não funciona. Hirschberg
+      (1975) combina PD com divisão e conquista e reconstrói a LCS em espaço linear,
+      gastando só o dobro do tempo.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \foreach \v [count=\j from 0] in {0,1,2,2,2,3,3}
+          \node[cel, fill=blue!10] at ({\j*0.55},0) {\v};
+        \foreach \v [count=\j from 0] in {0,1,2,2,3,3,4}
+          \node[cel, fill=orange!20] at ({\j*0.55},-0.5) {\v};
+        \node[font=\tiny, anchor=east] at (-0.35,0) {ant (linha 5)};
+        \node[font=\tiny, anchor=east] at (-0.35,-0.5) {atu (linha 6)};
+        \draw[arc, red!70!black] ({5*0.55},-0.1) -- ({6*0.55-0.1},-0.42);
+        \node[font=\tiny, align=center] at ({3*0.55},-1.3)
+          {ao fim de cada linha, \texttt{ant} e \texttt{atu}\\ trocam de papel};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), Exercício 15.4-4~\cite{cormen2009introduction};
+    Hirschberg (1975)~\cite{hirschberg1975linear}; Kleinberg e Tardos (2006),
+    \S 6.7~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: tabela e reconstrução}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Bottom-up: dois laços aninhados sobre $(m+1)(n+1)$ células, $\Theta(mn)$.
+      \item No exemplo do Cormen, $c[7,6] = 4$ e a reconstrução encontra \texttt{BCBA}.
+      \item Reconstrução em $O(m+n)$: casou, sobe ou vai à esquerda, refazendo a
+            recorrência a partir de $(m,n)$.
+      \item Só o comprimento: espaço $\Theta(\min(m,n))$; a sequência em espaço linear
+            exige o algoritmo de Hirschberg.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 15.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Distância de edição}
+
+\begin{frame}{Por que medir distância entre cadeias?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize O usuário digita ``\texttt{algoritimo}''. Que palavra ele quis escrever?
+      Um gene sofreu mutações: quantas, no mínimo?
+      \medskip
+
+      A LCS só diz o que \emph{coincide}. Queremos contar o que precisa \textbf{mudar},
+      e uma troca de letra deve custar menos que apagar uma e inserir outra.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2pt]
+      \scriptsize A \textbf{distância de edição} (Levenshtein, 1966): o menor número de
+      inserções, remoções e substituições de um símbolo que transformam $X$ em $Y$.
+      \medskip
+
+      Wagner e Fischer (1974) deram a PD: a mesma tabela de prefixos da LCS, com $\min$
+      no lugar de $\max$ e uma terceira opção, a substituição.
+    \end{column}
+  \end{columns}
+  \fonte{Levenshtein (1966)~\cite{levenshtein1966binary};
+    Wagner e Fischer (1974)~\cite{wagner1974string};
+    Dasgupta et al.\ (2008), \S 6.3~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Distância de edição: definição}
+  \begin{block}{Definição}
+    \scriptsize A \textbf{distância de edição} $d(X,Y)$ é o menor custo de uma sequência de
+    operações que transforma $X$ em $Y$, cada uma de custo 1: \textbf{inserir} um símbolo,
+    \textbf{remover} um símbolo ou \textbf{substituir} um símbolo por outro.
+  \end{block}
+  \begin{exampleblock}{Intuição: alinhamento}
+    \scriptsize Escreva $X$ sobre $Y$, com lacunas (\texttt{-}). Cada coluna é um casamento
+    (custo 0), uma substituição, uma remoção (\texttt{-} embaixo) ou uma inserção
+    (\texttt{-} em cima). O custo do alinhamento é o número de colunas diferentes.
+  \end{exampleblock}
+  \begin{center}
+  \begin{tikzpicture}[x=6mm]
+    \foreach \c [count=\k] in {S,-,N,O,W,Y}
+      \node[letra] at (\k,0) {\c};
+    \foreach \c [count=\k] in {S,U,N,N,-,Y}
+      \node[letra] at (\k,-0.6) {\c};
+    \foreach \k/\t in {2/ins, 4/sub, 5/rem}
+      \node[font=\tiny, red!70!black] at (\k,-1.1) {\t};
+    \foreach \k in {2,4,5} \draw[red!70!black, thick] (\k-0.3,-0.9) -- (\k+0.3,-0.9);
+    \node[font=\scriptsize, anchor=west, align=left] at (7,-0.3)
+      {$d(\texttt{SNOWY},\texttt{SUNNY}) = 3$:\\ insere \texttt{U}, troca \texttt{O}
+       por \texttt{N}, remove \texttt{W}};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{Dasgupta et al.\ (2008), \S 6.3~\cite{dasgupta2008algorithms};
+    Levenshtein (1966)~\cite{levenshtein1966binary}.}
+\end{frame}
+
+\begin{frame}{A recorrência da distância de edição}
+  \begin{columns}[c]
+    \begin{column}{0.6\textwidth}
+      \scriptsize $E[i,j]$ = distância de edição entre os prefixos $X_i$ e $Y_j$.
+      A \textbf{última coluna} de um alinhamento ótimo é uma de três:
+      \[
+        E[i,j] = \min
+        \begin{cases}
+          E[i-1,j] + 1 & x_i \text{ sobre } \texttt{-}\ \ \text{(remove $x_i$)},\\[2pt]
+          E[i,j-1] + 1 & \texttt{-} \text{ sobre } y_j\ \ \text{(insere $y_j$)},\\[2pt]
+          E[i-1,j-1] + \mathrm{dif}(x_i,y_j) & x_i \text{ sobre } y_j,
+        \end{cases}
+      \]
+      com $\mathrm{dif}(a,b) = 0$ se $a = b$ e $1$ caso contrário.
+      \smallskip
+
+      Casos base: $E[i,0] = i$ (remover tudo) e $E[0,j] = j$ (inserir tudo).
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      \centering
+      \begin{tikzpicture}[x=6mm]
+        \foreach \c/\d [count=\k] in {{x_i}/{-}, {-}/{y_j}, {x_i}/{y_j}} {
+          \node[letra=blue!10, minimum width=6mm, font=\tiny] at (0,{-\k*1.2}) {$\c$};
+          \node[letra=orange!20, minimum width=6mm, font=\tiny] at (0,{-\k*1.2-0.47}) {$\d$};
+          \node[font=\tiny, gray!60!black] at (-1.1,{-\k*1.2-0.23}) {$\cdots$};
+        }
+        \node[font=\tiny, anchor=west] at (0.8,-1.43) {$(i-1,j)$};
+        \node[font=\tiny, anchor=west] at (0.8,-2.63) {$(i,j-1)$};
+        \node[font=\tiny, anchor=west] at (0.8,-3.83) {$(i-1,j-1)$};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Dasgupta et al.\ (2008), \S 6.3~\cite{dasgupta2008algorithms};
+    Wagner e Fischer (1974)~\cite{wagner1974string};
+    Cormen et al.\ (2009), Problema 15-5~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplo: a tabela de \texttt{SNOWY} para \texttt{SUNNY}}
+  \begin{columns}[c]
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \foreach \i/\j in {5/5, 4/4, 3/4, 2/3, 1/2, 1/1, 0/0}
+          {\marca{\i}{\j}{orange!40}}
+        \gradePD{\rotS}{\rotU}{\valoresE}
+        \passo{5}{5}{4}{4} \passo{4}{4}{3}{4} \passo{3}{4}{2}{3} \passo{2}{3}{1}{2}
+        \passo{1}{2}{1}{1} \passo{1}{1}{0}{0}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \scriptsize Célula $(3,4)$, $x_3=\texttt{O}$, $y_4=\texttt{N}$:
+      \[ E[3,4] = \min(\underbrace{2{+}1}_{\text{remove}},\ \underbrace{2{+}1}_{\text{insere}},\ \underbrace{1{+}1}_{\text{troca}}) = 2. \]
+      Caminho de volta a partir de $(5,5)$, lido de trás para frente:
+      \begin{itemize}\scriptsize
+        \item diagonal com custo 0: casamento (\texttt{S}, \texttt{N}, \texttt{Y});
+        \item diagonal com custo 1: substituição (\texttt{O}$\to$\texttt{N});
+        \item para cima: remove \texttt{W}; para a esquerda: insere \texttt{U}.
+      \end{itemize}
+      Resposta: $E[5,5] = 3$, o alinhamento da página anterior.
+    \end{column}
+  \end{columns}
+  \fonte{Dasgupta et al.\ (2008), \S 6.3, Figura 6.4~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}[fragile]{Distância de edição em C}
+  \begin{columns}[T]
+    \begin{column}{0.6\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* E[i][j]: distancia de edicao entre x[0..i-1] e y[0..j-1] */
+int edicao( const char x[], int m, const char y[], int n) {
+   for (int i = 0; i <= m; ++i) E[i][0] = i;   /* remove tudo */
+   for (int j = 0; j <= n; ++j) E[0][j] = j;   /* insere tudo */
+   for (int i = 1; i <= m; ++i)
+      for (int j = 1; j <= n; ++j) {
+         int r = E[i-1][j] + 1;                         /* remove x_i */
+         if (E[i][j-1] + 1 < r) r = E[i][j-1] + 1;      /* insere y_j */
+         int d = E[i-1][j-1] + (x[i-1] != y[j-1]);      /* casa/troca */
+         E[i][j] = d < r ? d : r;
+      }
+   return E[m][n];
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      \scriptsize A estrutura é a do \texttt{lcs}: só mudam os casos base, o $\min$ e o
+      custo da diagonal.
+      \medskip
+
+      Tempo e espaço $\Theta(mn)$; com duas linhas, espaço $\Theta(\min(m,n))$
+      (Exercício 4 do tutorial).
+      \medskip
+
+      A reconstrução do alinhamento segue o mesmo padrão: de $(m,n)$ até $(0,0)$,
+      escolhendo a vizinha que produziu o mínimo.
+    \end{column}
+  \end{columns}
+  \fonte{Wagner e Fischer (1974)~\cite{wagner1974string};
+    Dasgupta et al.\ (2008), \S 6.3~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{LCS e edição: a mesma tabela}
+  \begin{columns}[c]
+    \begin{column}{0.54\textwidth}
+      \scriptsize Proíba a substituição: só inserções e remoções. Num alinhamento, as colunas
+      com casamento formam uma subsequência comum; todo o resto é lacuna. Então
+      \[ d_{\text{ins/rem}}(X,Y) = m + n - 2\,|\mathrm{LCS}(X,Y)|. \]
+      \begin{itemize}\scriptsize
+        \item Cormen: $7 + 6 - 2\cdot 4 = 5$.
+        \item \texttt{SNOWY}/\texttt{SUNNY}: LCS \texttt{SNY}, $5+5-2\cdot 3 = 4$, contra
+              $3$ quando a substituição é permitida.
+      \end{itemize}
+      É essa a distância que o \texttt{diff} mede entre dois arquivos, tomando cada
+      \textbf{linha} como um símbolo.
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \centering\scriptsize
+      \begin{tabular}{lcc}
+        \toprule
+        & LCS & edição \\
+        \midrule
+        objetivo & $\max$ & $\min$ \\
+        casos base & $0$ & $i$ e $j$ \\
+        diagonal & se $x_i = y_j$ & sempre, $+\mathrm{dif}$ \\
+        acima/esq. & $+0$ & $+1$ \\
+        tempo & $\Theta(mn)$ & $\Theta(mn)$ \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 15.4 e Problema 15-5~\cite{cormen2009introduction};
+    Hunt e McIlroy (1976)~\cite{hunt1976algorithm}.}
+\end{frame}
+
+\begin{frame}{Alinhamento de sequências com custos}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \scriptsize Em biologia, nem toda diferença custa igual: trocar \texttt{A} por
+      \texttt{G} (ambas purinas) é mais comum que trocar \texttt{A} por \texttt{C}. O
+      alinhamento de Kleinberg e Tardos usa
+      \begin{itemize}\scriptsize
+        \item $\delta$: custo de cada lacuna;
+        \item $\alpha_{pq}$: custo de alinhar $p$ com $q$ ($\alpha_{pp} = 0$).
+      \end{itemize}
+      \[
+        \mathrm{OPT}(i,j) = \min
+        \begin{cases}
+          \alpha_{x_i y_j} + \mathrm{OPT}(i-1,j-1),\\
+          \delta + \mathrm{OPT}(i-1,j),\\
+          \delta + \mathrm{OPT}(i,j-1).
+        \end{cases}
+      \]
+      Com $\delta = 1$ e $\alpha_{pq} = 1$ para $p \ne q$, é a distância de edição.
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \centering
+      \begin{tikzpicture}[node distance=4mm]
+        \node[fase, minimum width=3.6cm] (a) {Needleman e Wunsch (1970)\\ proteínas};
+        \node[fase, below=of a, minimum width=3.6cm] (b) {Wagner e Fischer (1974)\\ cadeias};
+        \node[fase, below=of b, minimum width=3.6cm, fill=orange!20, draw=orange!80!black]
+          (c) {mesma PD $\Theta(mn)$,\\ custos diferentes};
+        \draw[arc] (a) -- (b);
+        \draw[arc] (b) -- (c);
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 6.6~\cite{kleinberg2006algorithm};
+    Needleman e Wunsch (1970)~\cite{needleman1970general}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: distância de edição}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Distância de edição: mínimo de inserções, remoções e substituições;
+            $d(\texttt{SNOWY},\texttt{SUNNY}) = 3$.
+      \item Recorrência pela última coluna do alinhamento: remove, insere ou casa/troca.
+      \item Mesma tabela de prefixos da LCS, com $\min$, casos base $i$ e $j$ e custo na
+            diagonal; $\Theta(mn)$.
+      \item Sem substituição, $d = m + n - 2|\mathrm{LCS}|$; com custos $\delta$ e
+            $\alpha$, é o alinhamento usado em bioinformática.
+    \end{itemize}
+  \end{block}
+  \fonte{Dasgupta et al.\ (2008), \S 6.3~\cite{dasgupta2008algorithms};
+    Kleinberg e Tardos (2006), \S 6.6~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Fechando o ciclo}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{lcccc}
+    \toprule
+    & intervalos & mochila 0/1 & LCS & edição \\
+    \midrule
+    subproblema & $\mathrm{OPT}(j)$ & $\mathrm{OPT}(i,c)$ & $c[i,j]$ & $E[i,j]$ \\
+    última decisão & $j$ entra? & $i$ entra? & $x_i = y_j$? & última coluna \\
+    dependências & 2 & 2 & 3 & 3 \\
+    tabela & vetor & $(n{+}1)\times(W{+}1)$ & $(m{+}1)\times(n{+}1)$ & $(m{+}1)\times(n{+}1)$ \\
+    tempo & $O(n\log n)$ & $\Theta(nW)$, pseudopol. & $\Theta(mn)$ & $\Theta(mn)$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  {\scriptsize
+  \textbf{Próxima aula:} Warshall e Floyd. A PD agora trabalha sobre grafos: o subproblema
+  é ``caminhos que usam só os vértices $1,\dots,k$ como intermediários''.
+  \smallskip
+
+  \textbf{Para estudar:} Cormen, \S 15.4 e Problema 15-5; Dasgupta, \S 6.3; Kleinberg e
+  Tardos, \S 6.6. O desafio do tutorial é o alinhamento de DNA com custos.}
+  \fonte{Cormen et al.\ (2009), \S\S 15.4 e 25.2~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 6.6~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{cormen2009introduction,cormen2012algoritmos,dasgupta2008algorithms,kleinberg2006algorithm,levenshtein1966binary,wagner1974string,needleman1970general,hirschberg1975linear,hunt1976algorithm}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
