@@ -1,0 +1,874 @@
+% -*- coding: utf-8 -*-
+% Aula: Programacao dinamica em grafos -- algoritmos de Warshall e de Floyd
+% Fontes principais: Cormen et al. (2009), sec. 25.2 (Floyd-Warshall e fecho transitivo,
+% Figura 25.4, Exercicios 25.2-4 e 25.2-6), sec. 25.1 e 25.3, Lema 24.1;
+% Levitin (2012), sec. 8.4 (exemplo de Floyd com os vertices a, b, c, d);
+% Dasgupta et al. (2008), sec. 6.6; Warshall (1962); Floyd (1962); Roy (1959); Johnson (1977).
+% Exemplo de Warshall: o digrafo 0-1 0-5 1-0 1-5 2-4 3-1 5-3 (Feofiloff), condutor das
+% aulas de grafos. Continua a aula "Programacao dinamica: LCS e distancia de edicao".
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, decorations.pathmorphing, backgrounds, patterns}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    columns=fullflexible,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=6.6cm, minimum height=0.55cm, font=\scriptsize},
+  fase/.style={rectangle, rounded corners, draw=blue!60, fill=blue!10,
+               minimum width=2.3cm, minimum height=0.6cm, font=\scriptsize,
+               align=center},
+  vert/.style={circle, draw=blue!60!black, fill=blue!10, minimum size=5mm, inner sep=0pt,
+               font=\scriptsize},
+  cel/.style={draw=gray!70, minimum width=4mm, minimum height=3.2mm, inner sep=0pt,
+              font=\tiny},
+  arc/.style={-{Stealth}, thick},
+  peso/.style={font=\tiny, fill=white, inner sep=1pt}
+}
+
+% ---- matriz n x n: celula (i,j) centrada em (0.4 j, -0.32 i), i,j a partir de 0 ----
+% #1: rotulos dos vertices, #2: valores linha a linha
+\newcommand{\matriz}[2]{%
+  \foreach \r [count=\j from 0] in #1 {
+    \node[font=\tiny\bfseries, gray!60!black] at ({\j*0.4},0.3) {\r};
+    \node[font=\tiny\bfseries, gray!60!black] at (-0.36,{-\j*0.32}) {\r};
+  }
+  \foreach \lin [count=\i from 0] in #2
+    \foreach \v [count=\j from 0] in \lin
+      \node[cel] at ({\j*0.4},{-\i*0.32}) {\v};%
+}
+\newcommand{\marca}[3]{\fill[#3] ({#2*0.4-0.2},{-#1*0.32-0.16}) rectangle +(0.4,0.32);}
+\newcommand{\titmat}[2]{\node[font=\scriptsize] at ({#1*0.2-0.2},0.72) {#2};}
+
+% digrafo de Feofiloff: 0-1 0-5 1-0 1-5 2-4 3-1 5-3
+\newcommand{\rotF}{0,1,2,3,4,5}
+\newcommand{\Rzero}{{0,1,0,0,0,1},{1,0,0,0,0,1},{0,0,0,0,1,0},{0,1,0,0,0,0},%
+  {0,0,0,0,0,0},{0,0,0,1,0,0}}
+\newcommand{\Rdois}{{1,1,0,0,0,1},{1,1,0,0,0,1},{0,0,0,0,1,0},{1,1,0,0,0,1},%
+  {0,0,0,0,0,0},{0,0,0,1,0,0}}
+\newcommand{\Rquatro}{{1,1,0,0,0,1},{1,1,0,0,0,1},{0,0,0,0,1,0},{1,1,0,0,0,1},%
+  {0,0,0,0,0,0},{1,1,0,1,0,1}}
+\newcommand{\Rseis}{{1,1,0,1,0,1},{1,1,0,1,0,1},{0,0,0,0,1,0},{1,1,0,1,0,1},%
+  {0,0,0,0,0,0},{1,1,0,1,0,1}}
+
+\newcommand{\grafoF}{%
+  \node[vert] (v0) at (0,0) {0};
+  \node[vert] (v1) at (1.5,0) {1};
+  \node[vert] (v2) at (3,0) {2};
+  \node[vert] (v5) at (0,-1.3) {5};
+  \node[vert] (v3) at (1.5,-1.3) {3};
+  \node[vert] (v4) at (3,-1.3) {4};
+  \draw[arc] (v0) to[bend left=18] (v1);
+  \draw[arc] (v1) to[bend left=18] (v0);
+  \draw[arc] (v0) -- (v5);
+  \draw[arc] (v1) -- (v5);
+  \draw[arc] (v5) -- (v3);
+  \draw[arc] (v3) -- (v1);
+  \draw[arc] (v2) -- (v4);
+}
+
+% exemplo de Floyd (Levitin, 2012, sec. 8.4)
+\newcommand{\rotL}{a,b,c,d}
+\newcommand{\Dzero}{{0,$\infty$,3,$\infty$},{2,0,$\infty$,$\infty$},{$\infty$,7,0,1},{6,$\infty$,$\infty$,0}}
+\newcommand{\Dum}{{0,$\infty$,3,$\infty$},{2,0,5,$\infty$},{$\infty$,7,0,1},{6,$\infty$,9,0}}
+\newcommand{\Ddois}{{0,$\infty$,3,$\infty$},{2,0,5,$\infty$},{9,7,0,1},{6,$\infty$,9,0}}
+\newcommand{\Dtres}{{0,10,3,4},{2,0,5,6},{9,7,0,1},{6,16,9,0}}
+\newcommand{\Dquatro}{{0,10,3,4},{2,0,5,6},{7,7,0,1},{6,16,9,0}}
+
+\newcommand{\grafoL}{%
+  \node[vert] (a) at (0,0) {a};
+  \node[vert] (b) at (1.8,0) {b};
+  \node[vert] (d) at (0,-1.5) {d};
+  \node[vert] (c) at (1.8,-1.5) {c};
+  \draw[arc] (a) -- node[peso] {3} (c);
+  \draw[arc] (b) -- node[peso, above] {2} (a);
+  \draw[arc] (c) -- node[peso, right] {7} (b);
+  \draw[arc] (c) -- node[peso, below] {1} (d);
+  \draw[arc] (d) -- node[peso, left] {6} (a);
+}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\title{Programação dinâmica em grafos}
+\subtitle{Os algoritmos de Warshall e de Floyd}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=3mm]
+    \node[box] (t1) {1.\ Alcançabilidade e fecho transitivo};
+    \node[box, below=of t1] (t2) {2.\ Warshall: intermediários em $\{0,\dots,k-1\}$};
+    \node[box, below=of t2] (t3) {3.\ Floyd: caminhos mínimos entre todos os pares};
+    \node[box, below=of t3, fill=orange!20, draw=orange!80!black] (t4)
+         {4.\ Reconstrução, pesos negativos e a ordem dos laços};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+    \draw[-{Stealth}, thick, orange!80!black, dashed]
+      (t3.east) to[out=0, in=0, looseness=1.6]
+      node[right, xshift=1mm, font=\tiny, align=left]
+      {mesmo laço triplo,\\$\min$ e $+$ no lugar\\de \textsc{ou} e \textsc{e}} (t2.east);
+  \end{tikzpicture}
+  \end{center}
+  \medskip
+  {\scriptsize\centering
+  Na LCS, o subproblema encolhia as \emph{sequências} (prefixos). Hoje o que encolhe é o
+  \textbf{conjunto de vértices} que um caminho pode atravessar.\par}
+\end{frame}
+
+% =====================================================================
+\section{Fecho transitivo}
+
+\begin{frame}{Por que perguntar quem alcança quem?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize Para \emph{todo} par $(i,j)$ de vértices de um digrafo, existe caminho de
+      $i$ até $j$?
+      \begin{itemize}\scriptsize
+        \item Pré-requisitos: cursar AED~I libera, direta ou indiretamente, quais disciplinas?
+        \item Compilação: mudar um módulo obriga a recompilar quais outros?
+        \item Bancos de dados: consultas recursivas (``quem é ancestral de quem'').
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2pt]
+      \scriptsize Uma busca (DFS ou BFS) a partir de cada vértice resolve em $O(n(n+m))$.
+      \medskip
+
+      Warshall (1962) dá outra resposta, só com a matriz de adjacência e três laços
+      aninhados: $\Theta(n^3)$, competitivo em grafos densos ($m \approx n^2$) e com um
+      código de quatro linhas. A ideia é de programação dinâmica, e a mesma ideia, com outras
+      operações, dará os caminhos mínimos de Floyd.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 25.2, ``Transitive closure of a directed
+    graph''~\cite{cormen2009introduction}; Warshall (1962)~\cite{warshall1962theorem}.}
+\end{frame}
+
+\begin{frame}{Fecho transitivo: definição}
+  \begin{block}{Definição}
+    \scriptsize O \textbf{fecho transitivo} de um digrafo $G$ com vértices $0,\dots,n-1$ é a
+    matriz $R$ com $R[i][j] = 1$ se existe um caminho (com pelo menos um arco) de $i$ até $j$
+    em $G$, e $R[i][j] = 0$ caso contrário.
+  \end{block}
+  \begin{columns}[c]
+    \begin{column}{0.3\textwidth}
+      \centering
+      \begin{tikzpicture}[scale=0.85, transform shape]
+        \grafoF
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.34\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \titmat{6}{adjacência $A$}
+        \matriz{\rotF}{\Rzero}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.34\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \foreach \i/\j in {0/0,0/3,1/1,1/3,3/0,3/3,3/5,5/0,5/1,5/5} {\marca{\i}{\j}{orange!40}}
+        \titmat{6}{fecho $R$}
+        \matriz{\rotF}{\Rseis}
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize Em \colorbox{orange!40}{laranja}, os pares alcançáveis que não são arcos. A
+  diagonal $R[i][i] = 1$ diz que $i$ está num ciclo: $0,1,3,5$ formam uma componente forte.\par}
+  \fonte{Levitin (2012), \S 8.4~\cite{levitin2012introduction}; grafo
+    \texttt{0-1 0-5 1-0 1-5 2-4 3-1 5-3} das aulas de grafos (Feofiloff).}
+\end{frame}
+
+\begin{frame}{Recapitulando: fecho transitivo}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item O fecho transitivo responde ``existe caminho de $i$ até $j$?'' para os $n^2$ pares.
+      \item É uma matriz $n\times n$ de bits; a diagonal marca os vértices que estão em ciclos.
+      \item Com uma busca por vértice, custa $O(n(n+m))$; no grafo de exemplo,
+            $\{0,1,3,5\}$ se alcançam mutuamente e $2$ só alcança $4$.
+      \item Falta um algoritmo que trabalhe direto na matriz: é o de Warshall.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 25.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{O algoritmo de Warshall}
+
+\begin{frame}{Qual é o subproblema?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize Um caminho de $i$ até $j$ pode passar por qualquer vértice. Que família
+      \emph{pequena} de subproblemas do mesmo tipo vai crescendo até o problema todo?
+      \medskip
+
+      ``Caminhos com até $\ell$ arcos'' funciona, mas cada passo é um produto de matrizes:
+      $\Theta(n^3)$ por passo, $\Theta(n^3\log n)$ no total (Cormen, \S 25.1).
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2pt]
+      \scriptsize Restringir os vértices \textbf{intermediários}: só podem ser usados, no meio do
+      caminho, os vértices $0,1,\dots,k-1$. Começa com nenhum ($k=0$, só arcos diretos) e libera
+      um vértice por rodada.
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{center}
+  \begin{tikzpicture}
+    \node[vert] (i) at (0,0) {$i$};
+    \node[vert] (j) at (6,0) {$j$};
+    \draw[decorate, decoration={snake, amplitude=1mm, segment length=4mm}, thick,
+          blue!60!black] (i) -- node[above=2mm, font=\tiny]
+          {só vértices de $\{0,\dots,k-1\}$ por dentro} (j);
+    \node[font=\tiny, gray!60!black, anchor=west] at (6.4,0) {(as pontas $i$ e $j$ são livres)};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{Cormen et al.\ (2009), \S\S 25.1--25.2~\cite{cormen2009introduction};
+    Levitin (2012), \S 8.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Warshall: definição do subproblema}
+  \begin{block}{Definição}
+    \scriptsize Para $k = 0,1,\dots,n$, seja $R^{(k)}[i][j] = 1$ se existe caminho de $i$ até
+    $j$ cujos vértices \textbf{intermediários} estão todos em $\{0,\dots,k-1\}$, e $0$ caso
+    contrário.
+    \begin{itemize}\scriptsize
+      \item $R^{(0)} = A$: sem intermediários, só os arcos.
+      \item $R^{(n)} = R$: todos os vértices liberados, é o fecho transitivo.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize A rodada $k$ responde: ``agora que o vértice $k$ pode ser usado como escala,
+    quais novos pares ficam ligados?''. Como numa malha aérea em que cada rodada abre um novo
+    aeroporto para conexões.
+  \end{exampleblock}
+  \fonte{Warshall (1962)~\cite{warshall1962theorem}; Cormen et al.\ (2009), \S 25.2,
+    ``Transitive closure''~\cite{cormen2009introduction}. Usamos vértices $0,\dots,n-1$, como em C;
+    o Cormen numera de $1$ a $n$.}
+\end{frame}
+
+\begin{frame}{A recorrência de Warshall}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \scriptsize Considere um caminho de $i$ até $j$ com intermediários em $\{0,\dots,k\}$.
+      Há dois casos:
+      \begin{itemize}\scriptsize
+        \item \textbf{não passa por $k$}: já existia na rodada anterior;
+        \item \textbf{passa por $k$}: podemos supor que passa \emph{uma vez só} (cortamos
+              o ciclo); então ele é um caminho $i \leadsto k$ seguido de $k \leadsto j$, os
+              dois com intermediários em $\{0,\dots,k-1\}$.
+      \end{itemize}
+      \[
+        R^{(k+1)}[i][j] = R^{(k)}[i][j] \;\lor\; \bigl(R^{(k)}[i][k] \land R^{(k)}[k][j]\bigr)
+      \]
+      Cada célula depende de \textbf{três} células da matriz anterior.
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \node[vert] (i) at (0,0) {$i$};
+        \node[vert] (j) at (3.4,0) {$j$};
+        \node[vert, fill=orange!30, draw=orange!80!black] (k) at (1.7,1.5) {$k$};
+        \draw[decorate, decoration={snake, amplitude=0.8mm, segment length=3.5mm}, thick,
+              blue!60!black] (i) -- (j);
+        \draw[decorate, decoration={snake, amplitude=0.8mm, segment length=3.5mm}, thick,
+              orange!80!black] (i) -- (k);
+        \draw[decorate, decoration={snake, amplitude=0.8mm, segment length=3.5mm}, thick,
+              orange!80!black] (k) -- (j);
+        \node[font=\tiny, below=1mm] at (1.7,0) {$R^{(k)}[i][j]$};
+        \node[font=\tiny, anchor=east] at (0.65,0.95) {$R^{(k)}[i][k]$};
+        \node[font=\tiny, anchor=west] at (2.75,0.95) {$R^{(k)}[k][j]$};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 25.2, ``Transitive closure''~\cite{cormen2009introduction};
+    Levitin (2012), \S 8.4, algoritmo de Warshall~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplo: Warshall no grafo das aulas de grafos}
+  \begin{center}
+  \begin{tikzpicture}
+    \begin{scope}
+      \titmat{6}{$R^{(0)} = A$}
+      \matriz{\rotF}{\Rzero}
+    \end{scope}
+    \begin{scope}[xshift=3.3cm]
+      \foreach \i/\j in {1/1,0/0,3/0,3/5} {\marca{\i}{\j}{orange!40}}
+      \titmat{6}{$R^{(2)}$: libera $0,1$}
+      \matriz{\rotF}{\Rdois}
+    \end{scope}
+    \begin{scope}[xshift=6.6cm]
+      \foreach \i/\j in {5/0,5/1,5/5} {\marca{\i}{\j}{orange!40}}
+      \titmat{6}{$R^{(4)}$: libera $2,3$}
+      \matriz{\rotF}{\Rquatro}
+    \end{scope}
+    \begin{scope}[xshift=9.9cm]
+      \foreach \i/\j in {0/3,1/3,3/3} {\marca{\i}{\j}{orange!40}}
+      \titmat{6}{$R^{(6)} = R$: libera $4,5$}
+      \matriz{\rotF}{\Rseis}
+    \end{scope}
+  \end{tikzpicture}
+  \end{center}
+  \begin{itemize}\scriptsize
+    \item Libera \textbf{0}: $1 \to 0 \to 1$ dá $R[1][1]$. Libera \textbf{1}: $0\to1\to0$,
+          $3 \to 1 \to 0$ e $3 \to 1 \to 5$.
+    \item Libera \textbf{2}: nada muda, ninguém chega em $2$. Libera \textbf{3}:
+          $5 \to 3$ herda a linha $3$ inteira.
+    \item Libera \textbf{4}: nada, $4$ não tem saída. Libera \textbf{5}: quem chega em $5$
+          (linhas $0,1,3$) passa a chegar em $3$.
+  \end{itemize}
+  \fonte{Levitin (2012), \S 8.4 (mesmo procedimento, outro
+    grafo)~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{Warshall em C}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* r[][] comeca com a matriz de adjacencia e
+   termina com o fecho transitivo */
+void warshall( int n) {
+   for (int k = 0; k < n; ++k)        /* libera k */
+      for (int i = 0; i < n; ++i)
+         if (r[i][k])                 /* i chega em k */
+            for (int j = 0; j < n; ++j)
+               if (r[k][j])           /* k chega em j */
+                  r[i][j] = 1;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \scriptsize\textbf{Uma matriz só basta.} A recorrência pede $R^{(k)}$ e $R^{(k+1)}$
+      separadas, mas na rodada $k$ a linha $k$ e a coluna $k$ não mudam:
+      $R[k][j] \lor (R[k][k] \land R[k][j]) = R[k][j]$. Atualizar no lugar não altera o que
+      ainda vai ser lido.
+      \medskip
+
+      Tempo $\Theta(n^3)$, espaço $\Theta(n^2)$. Com bits empacotados em palavras de 64 bits,
+      o laço em $j$ vira um \texttt{OU} de linhas inteiras: $\Theta(n^3/64)$.
+    \end{column}
+  \end{columns}
+  \fonte{Warshall (1962)~\cite{warshall1962theorem}; Cormen et al.\ (2009), \S 25.2,
+    \textsc{Transitive-Closure}~\cite{cormen2009introduction}; Levitin (2012),
+    \S 8.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: Warshall}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Subproblema: $R^{(k)}[i][j]$, caminhos com intermediários em $\{0,\dots,k-1\}$.
+      \item Recorrência: ou o caminho evita $k$, ou passa por $k$ uma vez só, $i \leadsto k
+            \leadsto j$.
+      \item $n$ rodadas, cada uma atualizando $n^2$ células: $\Theta(n^3)$ com uma única matriz.
+      \item No grafo das aulas de grafos, o fecho mostra a componente forte $\{0,1,3,5\}$.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 25.2~\cite{cormen2009introduction};
+    Levitin (2012), \S 8.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{O algoritmo de Floyd}
+
+\begin{frame}{Por que caminhos mínimos entre todos os pares?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize Agora os arcos têm pesos (distâncias, tempos, custos) e queremos a
+      \textbf{distância} $\delta(i,j)$ para todos os pares: a tabela de distâncias de um mapa
+      rodoviário, o roteamento numa rede, o diâmetro de um grafo.
+      \medskip
+
+      Rodar Dijkstra a partir de cada vértice exige pesos \textbf{não negativos}; Bellman-Ford
+      a partir de cada vértice aceita negativos, mas custa $O(n^2 m)$, até $O(n^4)$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2pt]
+      \scriptsize O algoritmo de Floyd (1962) é a recorrência de Warshall com $\min$ no lugar
+      de $\lor$ e $+$ no lugar de $\land$:
+      \begin{itemize}\scriptsize
+        \item $\Theta(n^3)$, independente do número de arcos;
+        \item aceita pesos negativos, desde que não haja ciclo negativo;
+        \item e ainda \emph{detecta} ciclos negativos.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Floyd (1962)~\cite{floyd1962algorithm}; Cormen et al.\ (2009), introdução do
+    Cap.\ 25~\cite{cormen2009introduction}; Dasgupta et al.\ (2008),
+    \S 6.6~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Floyd: definição do subproblema}
+  \begin{block}{Definição}
+    \scriptsize Seja $G$ um digrafo com pesos $w(i,j)$ e \textbf{sem ciclos negativos}. Para
+    $k = 0,\dots,n$, $d^{(k)}_{ij}$ é o menor peso de um caminho de $i$ até $j$ com
+    intermediários em $\{0,\dots,k-1\}$ ($\infty$ se não há nenhum). Começamos com
+    \[
+      d^{(0)}_{ij} = \begin{cases} 0 & i = j,\\ w(i,j) & (i,j) \text{ é arco},\\
+        \infty & \text{caso contrário},\end{cases}
+      \qquad\text{e a resposta é } d^{(n)}_{ij} = \delta(i,j).
+    \]
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize É o mesmo $R^{(k)}$ de Warshall, só que cada célula guarda o \emph{melhor}
+    caminho com aquelas escalas, e não apenas se ele existe.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 25.2, equação (25.5)~\cite{cormen2009introduction};
+    Dasgupta et al.\ (2008), \S 6.6~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Subestrutura ótima e recorrência}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \scriptsize Seja $p$ um caminho mínimo de $i$ até $j$ com intermediários em
+      $\{0,\dots,k\}$. Sem ciclos negativos, podemos tomar $p$ simples. Então:
+      \begin{itemize}\scriptsize
+        \item se $k \notin p$: $p$ é ótimo para $\{0,\dots,k-1\}$;
+        \item se $k \in p$: $p = i \leadsto k \leadsto j$, e cada pedaço é \textbf{mínimo}
+              com intermediários em $\{0,\dots,k-1\}$ (subcaminhos de caminhos mínimos são
+              mínimos, Cormen Lema 24.1).
+      \end{itemize}
+      \[
+        d^{(k+1)}_{ij} = \min\bigl(d^{(k)}_{ij},\; d^{(k)}_{ik} + d^{(k)}_{kj}\bigr)
+      \]
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{alertblock}{Por que isso não vale para caminho \emph{mais longo}?}
+        \scriptsize Na aula de memoization vimos o contraexemplo: os pedaços de um caminho
+        simples mais longo não são independentes, eles disputam os mesmos vértices. Para
+        caminhos mínimos, cortar ciclos nunca piora (sem ciclos negativos), e os pedaços
+        $i \leadsto k$ e $k \leadsto j$ podem ser escolhidos separadamente.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 25.2, equação (25.5), Lema 24.1 e \S 15.3, Figura
+    15.6~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplo: as primeiras rodadas}
+  \begin{columns}[c]
+    \begin{column}{0.26\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \grafoL
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.72\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{scope}
+          \titmat{4}{$D^{(0)} = W$}
+          \matriz{\rotL}{\Dzero}
+        \end{scope}
+        \begin{scope}[xshift=2.5cm]
+          \foreach \i/\j in {1/2,3/2} {\marca{\i}{\j}{orange!40}}
+          \titmat{4}{libera $a$}
+          \matriz{\rotL}{\Dum}
+        \end{scope}
+        \begin{scope}[xshift=5cm]
+          \foreach \i/\j in {2/0} {\marca{\i}{\j}{orange!40}}
+          \titmat{4}{libera $b$}
+          \matriz{\rotL}{\Ddois}
+        \end{scope}
+      \end{tikzpicture}
+      \medskip
+
+      \scriptsize
+      \begin{itemize}\scriptsize
+        \item Libera $a$: $d_{bc} = \min(\infty,\ d_{ba} + d_{ac}) = 2 + 3 = 5$ e
+              $d_{dc} = 6 + 3 = 9$.
+        \item Libera $b$: $d_{ca} = \min(\infty,\ d_{cb} + d_{ba}) = 7 + 2 = 9$.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 8.4, exemplo do algoritmo de Floyd~\cite{levitin2012introduction}
+    (em C, $a,b,c,d$ são os vértices $0,1,2,3$).}
+\end{frame}
+
+\begin{frame}{Exemplo: as últimas rodadas}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \begin{scope}
+          \foreach \i/\j in {0/1,0/3,1/3,3/1} {\marca{\i}{\j}{orange!40}}
+          \titmat{4}{libera $c$}
+          \matriz{\rotL}{\Dtres}
+        \end{scope}
+        \begin{scope}[xshift=2.6cm]
+          \foreach \i/\j in {2/0} {\marca{\i}{\j}{orange!40}}
+          \titmat{4}{libera $d$: $D^{(4)}$}
+          \matriz{\rotL}{\Dquatro}
+        \end{scope}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize Libera $c$, o vértice mais ``central'': quatro células melhoram, por exemplo
+      \[ d_{ab} = d_{ac} + d_{cb} = 3 + 7 = 10,\qquad d_{db} = 9 + 7 = 16. \]
+      Libera $d$: $d_{ca}$ cai de $9$ (via $b$) para
+      \[ d_{cd} + d_{da} = 1 + 6 = 7. \]
+      Uma célula pode melhorar mais de uma vez: $d_{ca}$ foi $\infty \to 9 \to 7$.
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 8.4, exemplo do algoritmo de Floyd~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{Floyd em C}
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+#define INF INT_MAX     /* sem arco / sem caminho */
+
+/* d[][] comeca com D(0) e termina com as distancias */
+void floyd( int n) {
+   for (int k = 0; k < n; ++k)              /* libera k */
+      for (int i = 0; i < n; ++i) {
+         if (d[i][k] == INF) continue;      /* i nao chega em k */
+         for (int j = 0; j < n; ++j)
+            if (d[k][j] != INF && d[i][k] + d[k][j] < d[i][j])
+               d[i][j] = d[i][k] + d[k][j];
+      }
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \scriptsize O laço é o de \texttt{warshall}, trocando ``\texttt{if (r[i][k])}'' por
+      ``$d_{ik}$ finito'' e a atribuição de 1 por um $\min$.
+      \medskip
+
+      \textbf{Cuidado com o $\infty$:} \texttt{INF + w} estoura o \texttt{int}, e com
+      $w < 0$ ``$\infty - 5$'' parece um caminho. Por isso testamos as duas parcelas antes de
+      somar.
+      \medskip
+
+      Também basta uma matriz: na rodada $k$, $d_{ik}$ e $d_{kj}$ não mudam porque
+      $d_{kk} = 0$ (Cormen, Exercício 25.2-4).
+    \end{column}
+  \end{columns}
+  \fonte{Floyd (1962)~\cite{floyd1962algorithm}; Cormen et al.\ (2009), \S 25.2,
+    \textsc{Floyd-Warshall} e Exercício 25.2-4~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: Floyd}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item $d^{(k)}_{ij}$: menor peso com intermediários em $\{0,\dots,k-1\}$;
+            $d^{(n)}_{ij} = \delta(i,j)$.
+      \item Recorrência: $d^{(k+1)}_{ij} = \min(d^{(k)}_{ij},\ d^{(k)}_{ik} + d^{(k)}_{kj})$,
+            justificada pela subestrutura ótima dos caminhos mínimos.
+      \item $\Theta(n^3)$ de tempo, $\Theta(n^2)$ de espaço, uma única matriz.
+      \item No exemplo do Levitin, $d_{ca}$ passou por $\infty$, $9$ e $7$ até a distância.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 25.2~\cite{cormen2009introduction};
+    Levitin (2012), \S 8.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Reconstrução, pesos negativos e ordem dos laços}
+
+\begin{frame}{Por que só a distância não basta?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:}\\[2pt]
+      \scriptsize Um GPS precisa da \emph{rota}, não só do número de quilômetros. E duas
+      perguntas ficaram em aberto:
+      \begin{itemize}\scriptsize
+        \item o que acontece se houver um ciclo de peso negativo?
+        \item a ordem dos três laços importa?
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:}\\[2pt]
+      \scriptsize Como na LCS, guardar a \textbf{decisão} junto do valor: uma matriz
+      $\mathit{prox}[i][j]$ com o primeiro vértice depois de $i$ no melhor caminho até $j$.
+      \medskip
+
+      Ciclos negativos aparecem como $d_{ii} < 0$ na diagonal. E a ordem importa: o laço de
+      $k$ precisa ser o \textbf{externo}.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 25.2, ``Constructing a shortest path'' e Exercício
+    25.2-6~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{Reconstruindo caminhos com a matriz \textit{prox}}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* inicio: prox[i][j] = j se (i,j) e arco, -1 senao */
+/* dentro do floyd, quando melhora pelo vertice k:  */
+      d[i][j] = d[i][k] + d[k][j];
+      prox[i][j] = prox[i][k];   /* sai como para k */
+
+/* imprime um caminho minimo de i ate j */
+void caminho( int i, int j) {
+   if (prox[i][j] == -1) { printf( "sem caminho\n"); return; }
+   printf( "%d", i);
+   while (i != j) {
+      i = prox[i][j];
+      printf( " -> %d", i);
+   }
+   printf( "\n");
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \scriptsize No exemplo do Levitin, ao final:
+      \[
+        \mathit{prox}[b][d] = a,\quad \mathit{prox}[a][d] = c,
+      \]
+      \[ \mathit{prox}[c][d] = d, \]
+      então o caminho de $b$ até $d$ é
+      \[ b \xrightarrow{2} a \xrightarrow{3} c \xrightarrow{1} d,\quad\text{peso } 6 = d_{bd}. \]
+      Uma matriz $n\times n$ a mais guarda \emph{todos} os $n^2$ caminhos mínimos; cada um sai
+      em tempo proporcional ao número de arcos.
+      \medskip
+
+      O Cormen usa a matriz de \emph{predecessores} $\Pi$, que reconstrói de trás para
+      frente; \textit{prox} é a mesma ideia de frente para trás.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 25.2, equações (25.6)--(25.7) e Figura
+    25.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Pesos negativos e ciclos negativos}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \scriptsize\textbf{Pesos negativos são permitidos.} No exemplo do Cormen (Figura 25.4),
+      com arcos de peso $-4$ e $-5$, Floyd obtém, entre outras, $\delta(1,3) = -3$. Dijkstra
+      erraria esse grafo.
+      \medskip
+
+      \textbf{Ciclos negativos não.} Se $C$ é um ciclo de peso negativo, dar mais uma volta
+      sempre diminui o peso: a ``distância'' não existe. Mas Floyd percebe:
+      \begin{itemize}\scriptsize
+        \item $d_{ii}$ começa em $0$ e só diminui;
+        \item quando o último vértice de $C$ é liberado, $d_{ii} < 0$ para todo $i \in C$;
+        \item basta olhar a diagonal ao final: $\exists\, i: d_{ii} < 0$.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \centering
+      \begin{tikzpicture}
+        \node[vert] (x) at (0,0) {0};
+        \node[vert] (y) at (2,0) {1};
+        \node[vert] (z) at (1,-1.5) {2};
+        \draw[arc] (x) -- node[peso, above] {2} (y);
+        \draw[arc] (y) -- node[peso, right] {$-4$} (z);
+        \draw[arc] (z) -- node[peso, left] {1} (x);
+        \node[font=\tiny, align=center] at (1,-2.3)
+          {ciclo de peso $2 - 4 + 1 = -1$:\\ ao final, $d_{00} = d_{11} = -1$ e $d_{22} = -2$\\ (valores sem sentido, mas negativos)};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 25.2, Figura 25.4 e Exercício
+    25.2-6~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A ordem dos laços importa}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \scriptsize Um erro comum é escrever os laços na ordem ``natural'' \texttt{i}, \texttt{j},
+      \texttt{k}, com o $k$ por dentro:
+      \[ d_{ij} \leftarrow \min_k\,(d_{ik} + d_{kj}). \]
+      Isso calcula cada $d_{ij}$ \textbf{uma vez só}, olhando pares de pedaços que podem ainda
+      não estar prontos. Não é a recorrência de Floyd.
+      \medskip
+
+      Na recorrência, $d^{(k+1)}$ depende de $d^{(k)}$ \emph{inteira}: a rodada $k$ tem de
+      terminar para todos os pares $(i,j)$ antes de liberar $k+1$. Por isso $k$ é o laço
+      externo. É a mesma regra das aulas anteriores: preencher a tabela respeitando as
+      dependências.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}[node distance=4mm]
+        \node[fase, minimum width=3.6cm] (a) {$D^{(0)}$ completa};
+        \node[fase, below=of a, minimum width=3.6cm] (b) {$D^{(1)}$ completa};
+        \node[font=\scriptsize, below=1mm of b] (r) {$\vdots$};
+        \node[fase, below=1mm of r, minimum width=3.6cm, fill=orange!20,
+              draw=orange!80!black] (c) {$D^{(n)}$: distâncias};
+        \draw[arc] (a) -- node[right, font=\tiny] {rodada $k=0$, todos os $(i,j)$} (b);
+      \end{tikzpicture}
+      \medskip
+
+      {\tiny No tutorial, o Exercício 4 pede um grafo pequeno em que a ordem errada dá a
+      resposta errada.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 25.2, \textsc{Floyd-Warshall}~\cite{cormen2009introduction};
+    Dasgupta et al.\ (2008), \S 6.6~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: reconstrução e cuidados}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}\scriptsize
+      \item Uma matriz \textit{prox} atualizada junto com $d$ guarda todos os caminhos mínimos.
+      \item Pesos negativos funcionam; um ciclo negativo deixa $d_{ii} < 0$ na diagonal.
+      \item O laço de $k$ é sempre o externo; ``$\infty + w$'' precisa ser evitado no código.
+      \item No exemplo do Levitin, o caminho mínimo de $b$ até $d$ é $b\,a\,c\,d$, de peso $6$.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 25.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Fechando}
+
+\begin{frame}{Warshall e Floyd são o mesmo algoritmo}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \scriptsize Os dois calculam, para todos os pares, a ``melhor combinação'' sobre todos os
+      caminhos, trocando só as duas operações:
+      \[ x_{ij} \leftarrow x_{ij} \oplus (x_{ik} \otimes x_{kj}) \]
+      Qualquer par $(\oplus, \otimes)$ com as propriedades de um \textbf{semianel} serve. Um
+      exemplo é o \textbf{caminho de maior gargalo}: a rota cujo arco mais estreito é o mais
+      largo possível, com $\oplus = \max$ e $\otimes = \min$.
+      \medskip
+
+      O desafio do tutorial é esse problema.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering\scriptsize
+      \begin{tabular}{lccc}
+        \toprule
+        problema & $\oplus$ & $\otimes$ & sem arco \\
+        \midrule
+        fecho (Warshall) & $\lor$ & $\land$ & $0$ \\
+        distância (Floyd) & $\min$ & $+$ & $\infty$ \\
+        gargalo & $\max$ & $\min$ & $0$ \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      {\tiny Roy (1959) publicou o fecho transitivo antes de Warshall; por isso o
+      algoritmo também aparece como Roy-Warshall ou Roy-Floyd-Warshall.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 25.2 e notas do Cap.\ 25~\cite{cormen2009introduction};
+    Roy (1959)~\cite{roy1959transitivite}.}
+\end{frame}
+
+\begin{frame}{Qual algoritmo usar para todos os pares?}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{llll}
+    \toprule
+    algoritmo & pesos & tempo & melhor quando \\
+    \midrule
+    $n\times$ BFS/DFS & sem pesos & $O(n(n+m))$ & alcançabilidade, grafo esparso \\
+    Warshall & sem pesos & $\Theta(n^3)$ & alcançabilidade, grafo denso \\
+    $n\times$ Dijkstra (heap) & $w \ge 0$ & $O(nm\log n)$ & esparso, sem negativos \\
+    Floyd & sem ciclo negativo & $\Theta(n^3)$ & denso, ou código simples \\
+    produto de matrizes & sem ciclo negativo & $\Theta(n^3\log n)$ & (só pela ideia) \\
+    Johnson & sem ciclo negativo & $O(nm\log n)$ & esparso, com negativos \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  {\scriptsize Com $m \approx n^2$ arcos, $n\times$ Dijkstra custa $O(n^3\log n)$: Floyd ganha,
+  e ganha também pela constante pequena e pelo acesso sequencial à memória.\par}
+  \fonte{Cormen et al.\ (2009), Cap.\ 25 (\S\S 25.1--25.3)~\cite{cormen2009introduction};
+    Johnson (1977)~\cite{johnson1977efficient}.}
+\end{frame}
+
+\begin{frame}{Fechando o ciclo da programação dinâmica}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{lccccc}
+    \toprule
+    & intervalos & mochila 0/1 & LCS & edição & Floyd \\
+    \midrule
+    subproblema & $\mathrm{OPT}(j)$ & $\mathrm{OPT}(i,c)$ & $c[i,j]$ & $E[i,j]$ & $d^{(k)}_{ij}$ \\
+    o que encolhe & intervalos & itens, capac. & prefixos & prefixos & intermediários \\
+    dependências & 2 & 2 & 3 & 3 & 3 \\
+    tabela & vetor & $(n{+}1)\times(W{+}1)$ & $(m{+}1)\times(n{+}1)$ & $(m{+}1)\times(n{+}1)$
+      & $n\times n$ ($\times n$) \\
+    tempo & $O(n\log n)$ & $\Theta(nW)$ & $\Theta(mn)$ & $\Theta(mn)$ & $\Theta(n^3)$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  {\scriptsize
+  Em Floyd, a tabela ``verdadeira'' tem três índices, $n \times n \times (n+1)$; a observação
+  de que a rodada $k$ não altera a linha e a coluna $k$ derruba o espaço para $n^2$, como as
+  duas linhas da LCS e o vetor único da mochila.
+  \smallskip
+
+  \textbf{Para estudar:} Cormen, \S 25.2; Levitin, \S 8.4; Dasgupta, \S 6.6. A Prova 2 (29/10)
+  cobre a Unidade 2: divisão e conquista (método mestre, par mais próximo, Karatsuba,
+  Strassen) e programação dinâmica.}
+  \fonte{Cormen et al.\ (2009), \S 25.2~\cite{cormen2009introduction};
+    Levitin (2012), \S 8.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{cormen2009introduction,cormen2012algoritmos,levitin2012introduction,dasgupta2008algorithms,warshall1962theorem,floyd1962algorithm,roy1959transitivite,johnson1977efficient}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
