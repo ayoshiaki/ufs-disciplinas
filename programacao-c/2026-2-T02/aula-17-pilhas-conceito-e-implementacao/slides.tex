@@ -1,0 +1,1134 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, shapes.multipart, arrows.meta, positioning,
+  matrix, fit, backgrounds, decorations.pathreplacing, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{codC}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7.5}{8.6}\selectfont\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=0.55cm,
+    minimum height=0.42cm, inner sep=0pt, font=\scriptsize\ttfamily},
+  celvazia/.style={cel, fill=white, draw=UFSGray!60, text=UFSGray},
+  celr/.style={cel, draw=UFSRed, fill=UFSRed!10},
+  var/.style={rectangle, draw=UFSGray, fill=black!5, minimum width=0.7cm,
+    minimum height=0.5cm, font=\scriptsize\ttfamily},
+  varr/.style={var, draw=UFSRed, fill=UFSRed!8},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={-{Stealth[length=1.8mm]}, thick, UFSBlue},
+  setar/.style={-{Stealth[length=1.8mm]}, thick, UFSRed},
+  setag/.style={-{Stealth[length=1.8mm]}, thick, UFSGray},
+}
+
+% Pilha desenhada de baixo para cima: \pilha{x}{y}{{a},{b},{c}} (c no topo)
+\newcommand{\pilha}[3]{%
+  \foreach \e [count=\k from 0] in {#3} {
+    \node[cel] at (#1, #2+0.42*\k) {\e};
+  }
+  \draw[UFSGray, thick] (#1-0.36, #2+1.5) -- (#1-0.36, #2-0.24)
+    -- (#1+0.36, #2-0.24) -- (#1+0.36, #2+1.5);
+}
+\newcommand{\pilhavazia}[2]{%
+  \draw[UFSGray, thick] (#1-0.36, #2+1.5) -- (#1-0.36, #2-0.24)
+    -- (#1+0.36, #2-0.24) -- (#1+0.36, #2+1.5);
+}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% --- Metadados ---
+\title{Pilhas: conceito e implementação}
+\subtitle{Só se põe e se tira por uma das pontas}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10.4cm, minimum height=0.5cm, font=\small}
+  ]
+    \node[item] (t1) at (0, 0)    {Pilha: o último a entrar é o primeiro a sair};
+    \node[item] (t2) at (0,-0.64) {Pilha num vetor: o topo é \texttt{v[n-1]}};
+    \node[item] (t3) at (0,-1.28) {Pilha vazia, pilha cheia: os dois erros que não avisam};
+    \node[item] (t4) at (0,-1.92) {Quando o vetor enche: dobrar, não somar um};
+    \node[item] (t5) at (0,-2.56) {Pilha numa lista: o topo é o primeiro nó};
+    \node[item] (t6) at (0,-3.20) {Quanto custa: vetor $\times$ lista};
+    \node[item] (t7) at (0,-3.84) {Exercícios};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+    \draw[seta] (t5) -- (t6);
+    \draw[seta] (t6) -- (t7);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{A pergunta de hoje}
+% ==================================================================
+
+\begin{frame}{O problema: quem fecha quem?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Até aqui}\\[0.3em]
+      \small
+      Com \texttt{ini} e \texttt{fim}, inserir e remover nas pontas da lista
+      ficou barato. E na aula de recursão, a pilha de execução guardava cada
+      chamada até ela terminar --- a última a começar era a primeira a acabar.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que vamos descobrir}\\[0.3em]
+      \small
+      Muitos problemas só precisam de \textbf{uma} ponta: guardar coisas e
+      depois pegá-las na ordem inversa. Uma estrutura que só faz isso é mais
+      simples --- e mais rápida --- do que uma lista.
+    \end{column}
+  \end{columns}
+  \begin{block}{A pergunta de hoje}
+    O compilador recusa \texttt{v[f(x)]} se faltar um \texttt{]}. Como um
+    programa decide se \texttt{( [ \{ \} ] )} fecham na ordem certa --- e o
+    que ele precisa guardar enquanto lê?
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{balanco.c} (1/2)}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=codC]
+/* balanco.c --- ( [ { fecham
+   na ordem certa? */
+#include <stdio.h>
+
+#define MAX 100
+
+typedef struct {
+    char v[MAX]; /* topo: v[n-1] */
+    int n;       /* quantos ha */
+} Pilha;
+
+void empilha(Pilha *p, char c)
+{
+    p->v[p->n] = c;
+    p->n++;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+char desempilha(Pilha *p)
+{
+    p->n--;
+    return p->v[p->n];
+}
+
+int vazia(const Pilha *p)
+{
+    return p->n == 0;
+}
+
+int combina(char abre, char fecha)
+{
+    return (abre == '(' && fecha == ')') ||
+           (abre == '[' && fecha == ']') ||
+           (abre == '{' && fecha == '}');
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{balanco.c} (2/2): a verificação e o \texttt{main}}
+  \vspace{-0.4em}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=codC]
+int balanceada(const char *s)
+{
+    Pilha p = {.n = 0};
+    for (int i = 0; s[i] != '\0'; i++) {
+        char c = s[i];
+        if (c == '(' || c == '[' || c == '{')
+            empilha(&p, c);
+        else if (c == ')' || c == ']' || c == '}') {
+            if (vazia(&p))
+                return 0;  /* fechou sem abrir */
+            if (!combina(desempilha(&p), c))
+                return 0;  /* fechou o par errado */
+        }
+    }
+    return vazia(&p);      /* sobrou aberto? */
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+\begin{lstlisting}[style=codC]
+int main(void)
+{
+    const char *testes[] = {
+        "v[f(x)] = {1, 2}",
+        "([)]",
+        "(()",
+        "())",
+        "",
+    };
+    for (int i = 0; i < 5; i++)
+        printf("%-18s %s\n", testes[i],
+               balanceada(testes[i])
+                   ? "sim" : "nao");
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item Para cada uma das cinco cadeias, \texttt{sim} ou \texttt{nao}?
+      \item Em \texttt{"([)]"}, o que está no topo da pilha quando chega o
+        \texttt{)}?
+      \item Em \texttt{"(()"} e em \texttt{"())"}, qual dos três
+        \texttt{return} encerra a função?
+      \item E a cadeia vazia, que não tem nada para fechar?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra balanco.c -o balanco
+$ ./balanco
+v[f(x)] = {1, 2}   sim
+([)]               nao
+(()                nao
+())                nao
+                   sim
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{O que o programa guarda}
+        \small Só os \textbf{abertos que ainda não fecharam} --- e o único
+        que interessa a cada fechamento é o mais recente.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Três maneiras de errar, três \texttt{return}: fechar o par
+      errado (\texttt{([)]}), sobrar aberto (\texttt{(()}) e fechar sem ter
+      aberto (\texttt{())}). A cadeia vazia é balanceada.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{O que é uma pilha}
+% ==================================================================
+
+\begin{frame}{Definição: pilha}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \begin{block}{Pilha}
+        \small Uma sequência em que inserções e remoções acontecem
+        \textbf{só numa das pontas}, o \emph{topo}. O último a entrar é o
+        primeiro a sair: \emph{LIFO}, \emph{last in, first out}.
+      \end{block}
+      \small
+      \begin{tabular}{@{}ll@{}}
+        \texttt{empilha(p, x)} & põe \texttt{x} no topo\\
+        \texttt{desempilha(p)} & tira e devolve o topo\\
+        \texttt{topo(p)}       & devolve o topo sem tirar\\
+        \texttt{vazia(p)}      & a pilha não tem nada?
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \pilha{0}{0}{{(},{[},{\{}}
+        \node[leg, anchor=west] at (0.5,0.84) {$\leftarrow$ topo};
+        \node[celr] (novo) at (-1.4,1.9) {\}};
+        \draw[setar] (novo.east) to[out=0, in=90] (0,1.25);
+        \node[leg] at (-1.4,1.5) {empilha};
+        \draw[seta] (0.15,1.25) to[out=90, in=180] (1.2,1.9);
+        \node[leg] at (1.5,1.5) {desempilha};
+        \node[leg] at (0,-0.6) {fundo};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.1~\cite{cormen2009introduction};
+    Celes et al.\ (2004), cap.~11~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}{Seguindo a pilha caractere a caractere}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[leg, anchor=east] at (-0.8,0.5) {\texttt{([)]}};
+    \pilha{0}{0}{{(}}         \node[leg] at (0,-0.5) {\texttt{(}};
+    \pilha{1.2}{0}{{(},{[}}     \node[leg] at (1.2,-0.5) {\texttt{[}};
+    \node[celr] at (2.4,0.42) {[};
+    \pilha{2.4}{0}{{(}}
+    \node[leg] at (2.4,-0.5) {\texttt{)}};
+    \node[leg, text=UFSRed, anchor=west] at (2.9,0.42)
+      {sai \texttt{[}, chegou \texttt{)}: não combina};
+
+    \node[leg, anchor=east] at (-0.8,-1.7) {\texttt{v[f(x)]}};
+    \pilha{0}{-2.2}{{[}}      \node[leg] at (0,-2.7) {\texttt{[}};
+    \pilha{1.2}{-2.2}{{[},{(}}  \node[leg] at (1.2,-2.7) {\texttt{(}};
+    \pilha{2.4}{-2.2}{{[}}    \node[leg] at (2.4,-2.7) {\texttt{)}};
+    \pilhavazia{3.6}{-2.2}  \node[leg] at (3.6,-2.7) {\texttt{]}};
+    \node[leg, anchor=west] at (4.1,-1.8) {letras e \texttt{=} passam direto;};
+    \node[leg, anchor=west] at (4.1,-2.15) {no fim, pilha vazia: \texttt{sim}};
+  \end{tikzpicture}
+  \end{center}
+  \small Cada fechamento só confere o \textbf{topo}: o aberto mais recente
+  ainda sem par. Os de baixo esperam a vez --- nenhum precisa ser procurado.
+  \fonte{Tenenbaum et al.\ (1995), cap.~2~\cite{tenenbaum1995estruturas};
+    Feofiloff (2009), cap.~6~\cite{feofiloff2009algoritmos}}
+\end{frame}
+
+\begin{frame}{Pilhas que você já usou}
+  \begin{columns}[T]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Pilha de execução}
+        \small Cada chamada empilha um registro de ativação; cada
+        \texttt{return} desempilha. Foi assim que \texttt{fatorial(4)}
+        voltou na ordem inversa.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Desfazer}
+        \small Cada edição vai para uma pilha; \textsf{Ctrl+Z} tira a mais
+        recente. Desfazer duas vezes desfaz as duas últimas, na ordem
+        inversa.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Voltar no navegador}
+        \small Cada página visitada é empilhada; ``voltar'' desempilha.
+        Abrir um link novo depois de voltar descarta o que estava acima.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  \small Em todos, a pergunta é a mesma: \emph{qual foi a última coisa que
+  ainda não terminou?}
+  \fonte{Knuth (1997), §2.2.1~\cite{knuth1997art};
+    Tenenbaum et al.\ (1995), cap.~2~\cite{tenenbaum1995estruturas}}
+\end{frame}
+
+\begin{frame}{Recapitulando: o que é uma pilha}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item pilha: inserir e remover só no topo --- o último a entrar é o
+        primeiro a sair;
+      \item quatro operações: \texttt{empilha}, \texttt{desempilha},
+        \texttt{topo} e \texttt{vazia};
+      \item para balancear, basta guardar os abertos ainda sem par: cada
+        fechamento confere só o topo;
+      \item a pilha de execução da recursão é uma pilha no mesmo sentido.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Pilha num vetor}
+% ==================================================================
+
+\begin{frame}{O topo é \texttt{v[n-1]}}
+  \begin{center}
+  \begin{tikzpicture}
+    \foreach \c [count=\k from 0] in {{(},{[},{\{}} {
+      \node[cel, minimum width=0.7cm] (v\k) at (0.7*\k,0) {\c};
+      \node[leg] at (0.7*\k,-0.4) {\k};
+    }
+    \foreach \k in {3,...,7} {
+      \node[celvazia, minimum width=0.7cm] (v\k) at (0.7*\k,0) {?};
+      \node[leg] at (0.7*\k,-0.4) {\k};
+    }
+    \node[var] (n) at (-1.6,0) {n = 3};
+    \draw[setar] (v2.north) ++(0,0.5) node[above left=0pt and -6pt, leg, text=UFSRed] {topo: \texttt{v[n-1]}} -- (v2.north);
+    \draw[seta] (v3.north) ++(0,0.5) node[above right=0pt and -6pt, leg, text=UFSBlue] {próximo: \texttt{v[n]}} -- (v3.north);
+    \node[leg, anchor=west] at (5.3,0) {\ldots\ \texttt{MAX-1}};
+  \end{tikzpicture}
+  \end{center}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small
+      \texttt{empilha}: escreve em \texttt{v[n]}, depois \texttt{n++}.\\
+      \texttt{desempilha}: \texttt{n-{}-}, depois lê \texttt{v[n]}.\\
+      \texttt{vazia}: \texttt{n == 0}.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Nenhuma operação tem laço: cada uma custa um número fixo de
+      passos. O fundo nunca se move --- é o topo que anda. Desempilhar não
+      apaga nada: o valor continua lá, fora da pilha.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.1, \textsc{Push} e \textsc{Pop}~\cite{cormen2009introduction};
+    Celes et al.\ (2004), cap.~11~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}[fragile]{E se não conferir a pilha vazia?}
+  \begin{columns}[c]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=tinyC]
+/* balanco_errada.c: o laco de balanceada */
+    for (int i = 0; s[i] != '\0'; i++) {
+        char c = s[i];
+        if (c == '(' || c == '[' || c == '{')
+            empilha(&p, c);
+        else if (c == ')' || c == ']' || c == '}') {
+            /* sumiu: if (vazia(&p)) return 0; */
+            if (!combina(desempilha(&p), c))
+                return 0;
+        }
+    }
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small O \texttt{main} é o mesmo.
+        \begin{enumerate}
+          \item Qual das cinco cadeias chega a desempilhar a pilha vazia?
+          \item Quanto vale \texttt{p->n} depois, e que posição de
+            \texttt{v} é lida?
+          \item A resposta impressa muda?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ ./balanco_errada
+v[f(x)] = {1, 2}   sim
+([)]               nao
+(()                nao
+())                nao
+                   sim
+$ gcc -g -fsanitize=address balanco_errada.c -o balanco_errada-asan
+$ ./balanco_errada-asan
+==95953==ERROR: AddressSanitizer: stack-buffer-underflow on address 0x00016f39245f
+READ of size 1 at 0x00016f39245f thread T0
+    #0 0x000100a6cab4 in desempilha balanco_errada.c:20
+    #1 0x000100a6cea0 in balanceada balanco_errada.c:44
+  This frame has 1 object(s):
+    [32, 136) 'p' (line 38) <== Memory access at offset 31 underflows this variable
+\end{lstlisting}
+  \begin{center}
+    \scriptsize\textcolor{UFSGray}{A linha 20 é o \texttt{return p->v[p->n];}
+    de \texttt{desempilha}. Saída do relatório resumida.}
+  \end{center}
+\end{frame}
+
+\begin{frame}{A resposta: certo por sorte é errado}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[celr, minimum width=0.7cm] (m1) at (0,0) {??};
+        \node[leg] at (0,-0.4) {-1};
+        \foreach \k in {0,...,3} {
+          \node[celvazia, minimum width=0.7cm] at (0.7+0.7*\k,0) {};
+          \node[leg] at (0.7+0.7*\k,-0.4) {\k};
+        }
+        \draw[UFSBlue, thick, decorate, decoration={brace, amplitude=4pt}]
+          (0.35,0.3) -- (3.15,0.3) node[midway, above=3pt, leg, text=UFSBlue] {\texttt{p.v}};
+        \node[var] at (1.75,-1.1) {n: 0 $\to$ -1};
+        \draw[setar] (0,1.0) node[above, leg, text=UFSRed] {\texttt{v[-1]}: fora da pilha} -- (m1.north);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small
+      Em \texttt{"())"}, o segundo \texttt{)} encontra a pilha vazia:
+      \texttt{n} vira $-1$ e \texttt{desempilha} lê \texttt{v[-1]}, um byte
+      \textbf{antes} do vetor.
+
+      \medskip
+      O byte lido era lixo, \texttt{combina} devolveu 0 e a resposta saiu
+      \texttt{nao} --- a certa, por acaso. Ler fora do vetor é comportamento
+      indefinido: outro compilador, outra resposta.
+
+      \medskip
+      Desempilhar a pilha vazia tem nome: \emph{underflow}. Quem chama
+      precisa perguntar \texttt{vazia} antes.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.1, \emph{underflow}~\cite{cormen2009introduction};
+    ISO/IEC 9899:2018, §6.5.6~\cite{iso2018c17}; Serebryany et al.\ (2012)~\cite{serebryany2012asan}}
+\end{frame}
+
+\begin{frame}[fragile]{E se a pilha encher?}
+  \begin{columns}[c]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=tinyC]
+/* transborda.c: k vezes '(', depois ')' */
+int niveis[] = {99, 100, 101, 150};
+for (int i = 0; i < 4; i++) {
+    Pilha p = {.n = 0};
+    int k = niveis[i], fechou = 0;
+    for (int j = 0; j < k; j++)
+        empilha(&p, '(');
+    printf("%3d abertos: n = %3d", k, p.n);
+    while (!vazia(&p) && fechou < k) {
+        desempilha(&p);
+        fechou++;
+    }
+    int ok = fechou == k && vazia(&p);
+    printf(", fechou %3d -> %s\n", fechou,
+           ok ? "sim" : "nao");
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small \texttt{MAX} continua 100.
+        \begin{enumerate}
+          \item Para \texttt{k = 101}, onde o último \texttt{(} é escrito?
+          \item Que valor de \texttt{n} você espera ver impresso?
+          \item O \texttt{-fsanitize=address} vai reclamar?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ ./transborda
+ 99 abertos: n =  99, fechou  99 -> sim
+100 abertos: n = 100, fechou 100 -> sim
+101 abertos: n =  41, fechou  41 -> nao
+150 abertos: n =  90, fechou  90 -> nao
+$ gcc -g -fsanitize=address transborda.c -o transborda-asan && ./transborda-asan
+ 99 abertos: n =  99, fechou  99 -> sim
+100 abertos: n = 100, fechou 100 -> sim
+101 abertos: n =  41, fechou  41 -> nao
+150 abertos: n =  90, fechou  90 -> nao
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Empilhou 101, mas \texttt{n} diz 41. E nem o
+      \emph{sanitizer} viu nada.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Para 150, \texttt{n} termina em 90: os 49 \texttt{(} depois do
+      estrago foram escritos \emph{dentro} do vetor, por cima dos antigos.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: \texttt{v[100]} é o primeiro byte de \texttt{n}}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cel, minimum width=0.7cm] (a) at (0,0) {(};
+    \node[leg] at (0,-0.4) {0};
+    \node[leg] at (0.75,0) {\ldots};
+    \node[cel, minimum width=0.7cm] (b) at (1.5,0) {(};
+    \node[leg] at (1.5,-0.4) {99};
+    \node[celr, minimum width=0.7cm] (c) at (2.2,0) {40};
+    \foreach \k in {1,2,3} \node[cel, fill=black!5, draw=UFSGray, minimum width=0.7cm] at (2.2+0.7*\k,0) {0};
+    \draw[UFSBlue, thick, decorate, decoration={brace, amplitude=4pt}]
+      (-0.35,0.3) -- (1.85,0.3) node[midway, above=3pt, leg, text=UFSBlue] {\texttt{v}: 100 bytes};
+    \draw[UFSGray, thick, decorate, decoration={brace, amplitude=4pt}]
+      (1.85,0.3) -- (4.65,0.3) node[midway, above=3pt, leg] {\texttt{n}: 4 bytes};
+    \draw[setar] (2.2,-1.0) node[below, leg, text=UFSRed] {\texttt{v[100] = '('} grava 40} -- (c.south);
+  \end{tikzpicture}
+  \end{center}
+  \small
+  No registro, \texttt{n} vem logo depois dos 100 bytes de \texttt{v}. O 101º
+  \texttt{empilha} escreve \texttt{'('} --- código 40 --- no byte menos
+  significativo de \texttt{n}, que valia 100 (x86-64 e ARM guardam esse byte
+  primeiro); o \texttt{n++} seguinte faz 41. A escrita caiu dentro do objeto
+  \texttt{p}, e o \emph{sanitizer} não a acusa. Encher a pilha é o \emph{overflow}: quem empilha precisa
+  saber se ainda cabe.
+  \fonte{ISO/IEC 9899:2018, §6.7.2.1 e §6.5.6~\cite{iso2018c17};
+    Cormen et al.\ (2009), §10.1~\cite{cormen2009introduction}; medido com \texttt{transborda.c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: pilha num vetor}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item o fundo é \texttt{v[0]}, o topo é \texttt{v[n-1]}; empilhar e
+        desempilhar só mexem em \texttt{n} e numa posição;
+      \item desempilhar a vazia (\emph{underflow}) lê fora do vetor;
+        empilhar na cheia (\emph{overflow}) escreve fora;
+      \item os dois podem dar a resposta certa, uma errada ou nenhum aviso
+        --- nem do ASan;
+      \item conferir \texttt{vazia} antes de tirar e ``ainda cabe?'' antes de
+        pôr não é opcional.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Quando o vetor enche}
+% ==================================================================
+
+\begin{frame}[fragile]{Um vetor que cresce: \texttt{pilha\_vetor.c}}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+struct pilha {
+    int *v;    /* topo: v[n-1] */
+    int n;     /* quantos ha */
+    int cap;   /* quantos cabem */
+};
+
+void empilha(Pilha *p, int x)
+{
+    if (p->n == p->cap) { /* cheio */
+        p->cap *= 2;
+        p->v = aloca(p->v,
+                 p->cap * sizeof *p->v);
+    }
+    p->v[p->n] = x;
+    p->n++;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small \texttt{aloca} é um \texttt{realloc} que encerra o programa se
+      faltar memória; \texttt{pilha\_cria} começa com \texttt{cap = 4}.
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item Por que não \texttt{p->cap += 1}? Gasta menos memória.
+          \item Para empilhar $n$ valores a partir de \texttt{cap = 1},
+            quantos elementos são copiados em cada estratégia, se cada
+            \texttt{realloc} mudar o bloco de lugar?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.22.3.5~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}{Execute e compare: somar um $\times$ dobrar}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \begin{center}
+      \small
+      \begin{tabular}{@{}rrrrr@{}}
+        \toprule
+        & \multicolumn{2}{c}{\texttt{cap + 1}} & \multicolumn{2}{c}{\texttt{cap * 2}}\\
+        \cmidrule(lr){2-3}\cmidrule(l){4-5}
+        $n$ & cópias & tempo & cópias & tempo\\
+        \midrule
+        20\,000  & $2{,}0\cdot 10^{8}$ & 0,05\,s & 32\,767  & $<$0,001\,s\\
+        40\,000  & $8{,}0\cdot 10^{8}$ & 0,34\,s & 65\,535  & $<$0,001\,s\\
+        80\,000  & $3{,}2\cdot 10^{9}$ & 0,61\,s & 131\,071 & $<$0,001\,s\\
+        160\,000 & $1{,}3\cdot 10^{10}$& 1,65\,s & 262\,143 & $<$0,001\,s\\
+        \bottomrule
+      \end{tabular}
+
+      \medskip
+      \scriptsize \texttt{crescimento.c}, \texttt{-O2}; cada crescimento
+      aloca, copia e libera
+      \end{center}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \small
+      Somando um, dobrar $n$ \textbf{quadruplica} as cópias.
+
+      \medskip
+      Dobrando, as cópias ficam sempre abaixo de $2n$: dobrar $n$ dobra
+      as cópias.
+
+      \medskip
+      \scriptsize O \texttt{realloc} de verdade às vezes aumenta o bloco no
+      lugar e não copia nada --- mas a norma não promete isso.
+    \end{column}
+  \end{columns}
+  \fonte{medido com \texttt{crescimento.c}; ISO/IEC 9899:2018, §7.22.3.5~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}{A resposta: dobrar paga as cópias adiantado}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.32cm, y=0.32cm]
+        \foreach \c/\y in {1/0, 2/-1.3, 4/-2.6, 8/-3.9, 16/-5.2} {
+          \foreach \i in {1,...,\c} {
+            \pgfmathtruncatemacro{\cheio}{\i <= \c/2 ? 1 : 0}
+            \ifnum\cheio=1
+              \draw[UFSRed, fill=UFSRed!25] (\i-1,\y) rectangle ++(1,1);
+            \else
+              \draw[UFSBlue, fill=UFSBlue!8] (\i-1,\y) rectangle ++(1,1);
+            \fi
+          }
+          \node[leg, anchor=east] at (-0.3,\y+0.5) {\c};
+        }
+        \node[leg, anchor=west] at (0,-6.4) {\textcolor{UFSRed}{vermelho}: copiado ao crescer};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small
+      \textbf{Somando um}: $1 + 2 + \cdots + (n-1) = n(n-1)/2$ cópias.\\[0.4em]
+      \textbf{Dobrando}: $1 + 2 + 4 + \cdots + n/2 < n$ cópias.\\[0.6em]
+      Cada crescimento copia metade do novo vetor, mas depois dele cabem
+      outros tantos \texttt{empilha} sem cópia nenhuma. Dividido entre todos,
+      o custo por \texttt{empilha} é constante: o \emph{custo amortizado}.
+
+      \medskip
+      O preço: até metade do vetor pode ficar vazia.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §17.4, \emph{dynamic tables}~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}{Recapitulando: quando o vetor enche}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item guardar \texttt{cap} ao lado de \texttt{n} e crescer com
+        \texttt{realloc} quando \texttt{n == cap} acaba com o \emph{overflow};
+      \item crescer de um em um custa $n^2/2$ cópias; dobrar, menos de $n$;
+      \item dobrando, um \texttt{empilha} raro é caro, mas a média por
+        operação é constante;
+      \item a troca: até metade da memória reservada pode ficar sem uso.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Pilha numa lista}
+% ==================================================================
+
+\begin{frame}[fragile]{O topo é o primeiro nó: \texttt{pilha\_lista.c}}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+struct pilha {
+    No *topo;   /* 1o no, ou NULL */
+};
+
+void empilha(Pilha *p, int x)
+{   /* insere no inicio */
+    No *novo = malloc(sizeof *novo);
+    if (novo == NULL) exit(1);
+    novo->valor = x;
+    novo->prox = p->topo;
+    p->topo = novo;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=codC]
+int desempilha(Pilha *p)
+{   /* remove o primeiro */
+    if (p->topo == NULL) {
+        fprintf(stderr, "pilha vazia\n");
+        exit(1);
+    }
+    No *velho = p->topo;
+    int x = velho->valor;
+    p->topo = velho->prox;
+    free(velho);
+    return x;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[var] (t) at (0,0) {topo};
+    \foreach \v/\k in {{\{}/1, {[}/2, {(}/3} {
+      \node[cel, minimum width=0.6cm] (v\k) at (0.7+1.3*\k,0) {\v};
+      \node[cel, fill=white, minimum width=0.3cm, right=0pt of v\k] (p\k) {};
+    }
+    \draw[seta] (t) -- (v1);
+    \draw[seta] (p1.center) -- (v2); \draw[seta] (p2.center) -- (v3);
+    \draw[UFSGray] (p3.south west) -- (p3.north east);
+    \node[leg, anchor=west] at (5.55,0) {o \texttt{(} é o fundo: foi o primeiro a entrar};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{Celes et al.\ (2004), cap.~11~\cite{celes2004introducao};
+    Feofiloff (2009), cap.~6~\cite{feofiloff2009algoritmos}}
+\end{frame}
+
+\begin{frame}{Por que a lista simples basta}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small
+      Inserir e remover no \textbf{início} eram as duas operações baratas da
+      lista simples: nenhuma precisa de \texttt{ant}, de \texttt{fim} ou de
+      laço.
+
+      \medskip
+      Se o topo fosse o \emph{último} nó, empilhar seria barato com
+      \texttt{fim}, mas desempilhar exigiria achar o penúltimo --- $n$
+      passos, ou um \texttt{ant} em cada nó.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Sem \emph{overflow}, sem \texttt{cap}}
+        \small Cada \texttt{empilha} pede um nó ao \texttt{malloc}: a pilha
+        só enche quando acaba a memória do processo. O \emph{underflow}
+        continua possível --- por isso o teste em \texttt{desempilha}.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~11~\cite{celes2004introducao};
+    Cormen et al.\ (2009), §10.2, exercício 10.2-2~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}[fragile]{Uma interface, duas implementações}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+/* pilha.h */
+#ifndef PILHA_H
+#define PILHA_H
+
+typedef struct pilha Pilha; /* campos no .c */
+
+Pilha *pilha_cria(void);
+void pilha_libera(Pilha *p);
+
+void empilha(Pilha *p, int x);
+int desempilha(Pilha *p);
+int topo(const Pilha *p);
+int vazia(const Pilha *p);
+
+#endif
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small \texttt{balanco\_tad.c} tem a mesma \texttt{balanceada}, agora
+      com \texttt{Pilha *}, e testa também $10^5$ abertos seguidos de $10^5$
+      fechados.
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item O \texttt{main} pode escrever \texttt{p->n}? E
+            \texttt{sizeof(Pilha)}?
+          \item O que muda em \texttt{balanco\_tad.c} para trocar o vetor
+            pela lista?
+          \item As duas versões imprimem \texttt{sim} para $10^5$ níveis?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §4.5~\cite{kernighan1988c};
+    Celes et al.\ (2004), cap.~9~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra balanco_tad.c pilha_vetor.c -o balanco_vetor
+$ gcc -Wall -Wextra balanco_tad.c pilha_lista.c -o balanco_lista
+$ ./balanco_vetor                     $ ./balanco_lista
+v[f(x)] = {1, 2}   sim                v[f(x)] = {1, 2}   sim
+([)]               nao                ([)]               nao
+(()                nao                (()                nao
+())                nao                ())                nao
+                   sim                                   sim
+100000 niveis      sim                100000 niveis      sim
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small \texttt{balanco\_tad.c} não mudou \textbf{nenhuma} linha: só
+      o arquivo passado ao \texttt{gcc}. E $10^5$ níveis já não transbordam.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small O \texttt{main} só vê um \texttt{struct pilha} incompleto: pode
+      guardar um \texttt{Pilha *}, mas \texttt{p->n} e
+      \texttt{sizeof(Pilha)} não compilam.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Recapitulando: pilha numa lista}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item o topo é o primeiro nó: empilhar é inserir no início,
+        desempilhar é remover o primeiro;
+      \item uma lista simples basta --- só uma ponta é usada;
+      \item a lista não enche, mas desempilhar a vazia continua sendo erro;
+      \item com \texttt{pilha.h}, quem usa a pilha não sabe nem precisa
+        saber se ela é vetor ou lista.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Quanto custa}
+% ==================================================================
+
+\begin{frame}{Empilhar e desempilhar $n$ valores: vetor $\times$ lista}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \small
+      \begin{tabular}{@{}rrr@{}}
+        \toprule
+        $n$ & vetor (dobra) & lista\\
+        \midrule
+        1\,000\,000 & 0,002\,s & 0,035\,s\\
+        2\,000\,000 & 0,003\,s & 0,123\,s\\
+        4\,000\,000 & 0,005\,s & 0,127\,s\\
+        8\,000\,000 & 0,009\,s & 0,234\,s\\
+        \bottomrule
+      \end{tabular}
+
+      \medskip
+      \scriptsize \texttt{vetor\_vs\_lista.c}, \texttt{-O2}, valores
+      \texttt{int}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small
+      As duas crescem em linha reta: cada operação custa um número fixo de
+      passos. Mas a lista é umas \textbf{25 vezes} mais lenta.
+
+      \medskip
+      Na lista, cada \texttt{empilha} é um \texttt{malloc} e cada
+      \texttt{desempilha}, um \texttt{free}; os nós ficam espalhados pela
+      memória. No vetor, os valores estão lado a lado e o
+      \texttt{realloc} é raro.
+    \end{column}
+  \end{columns}
+  \fonte{medido com \texttt{vetor\_vs\_lista.c};
+    Bryant e O'Hallaron (2016), §6.2 e §9.9~\cite{bryant2016computer}}
+\end{frame}
+
+\begin{frame}{Vetor ou lista?}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    & vetor fixo & vetor que dobra & lista encadeada\\
+    \midrule
+    \texttt{empilha}             & constante & constante (amortizado) & constante + \texttt{malloc}\\
+    \texttt{desempilha}, \texttt{topo}, \texttt{vazia} & constante & constante & constante\\
+    pode encher?                 & sim, em \texttt{MAX} & só sem memória & só sem memória\\
+    memória por \texttt{int}     & \texttt{MAX} $\times$ 4\,B & 4 a 8\,B & 16\,B + o do \texttt{malloc}\\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \small Para uma pilha, o vetor que dobra costuma ganhar. A lista compensa
+  quando cada elemento é grande e já mora num nó --- ou quando um
+  \texttt{empilha} nunca pode demorar mais que os outros.
+  \fonte{Cormen et al.\ (2009), §10.1 e §17.4~\cite{cormen2009introduction};
+    Celes et al.\ (2004), cap.~11~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}{Recapitulando: quanto custa}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item nas três versões, toda operação de pilha tem custo fixo --- não
+        depende de $n$;
+      \item o vetor que dobra é o mais rápido na prática: memória contígua e
+        poucas chamadas ao alocador;
+      \item a lista gasta 16 bytes por \texttt{int} e um \texttt{malloc} por
+        \texttt{empilha};
+      \item o vetor fixo só serve quando há um limite conhecido --- e
+        conferido.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \small
+  \begin{block}{Tarefa 1}
+    Faça \texttt{balanceada} devolver a \textbf{posição} do primeiro erro (ou
+    $-1$ se estiver tudo certo) e imprima-a. Em \texttt{"(()"}, qual posição
+    faz sentido informar?
+  \end{block}
+  \begin{block}{Tarefa 2}
+    Guarde na pilha a posição de cada aberto (um \texttt{int}), em vez do
+    caractere. O que \texttt{combina} passa a receber? Que mensagem fica
+    possível em \texttt{"(()"}?
+  \end{block}
+  \begin{block}{Tarefa 3}
+    Troque \texttt{MAX} por 4 e acrescente a \texttt{empilha} um teste que
+    encerra com mensagem se a pilha estiver cheia. Rode
+    \texttt{transborda.c} de novo e preveja cada linha.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Exercícios (1/3)}
+  \footnotesize
+  \begin{block}{Exercício 1 --- uma pilha que avisa}
+    \texttt{int empilha(Pilha *p, char c)} devolve 0 se a pilha está cheia;
+    \texttt{int desempilha(Pilha *p, char *c)} devolve 0 se está vazia e o
+    topo por \texttt{*c}. Use-as em \texttt{balanceada}.
+  \end{block}
+  \begin{block}{Exercício 2 --- inverter uma cadeia}
+    \texttt{void inverte(char *s)} com uma pilha de \texttt{char}; depois
+    \texttt{inverte\_palavras}: \texttt{"ola mundo"} $\to$ \texttt{"alo odnum"}.
+  \end{block}
+  \begin{block}{Exercício 3 --- decimal para binário}
+    Imprima os dígitos de \texttt{n} na base \texttt{b} ($2 \le b \le 16$):
+    os restos de \texttt{n \% b} saem do menos significativo para o mais ---
+    a pilha devolve na ordem certa.
+  \end{block}
+  \fonte{Celes et al.\ (2004), cap.~11~\cite{celes2004introducao};
+    Tenenbaum et al.\ (1995), cap.~2~\cite{tenenbaum1995estruturas}}
+\end{frame}
+
+\begin{frame}{Exercícios (2/3)}
+  \footnotesize
+  \begin{block}{Exercício 4 --- calculadora pós-fixa}
+    Avalie \texttt{"3 4 + 2 *"} $\to$ 14 (pós-fixa, \texttt{+ - * /}).
+    Número: empilha. Operador: desempilha dois, empilha o resultado. Qual
+    dos dois é o operando da esquerda?
+  \end{block}
+  \begin{block}{Exercício 5 --- pilha com mínimo}
+    Acrescente \texttt{int minimo(const Pilha *p)}, que devolve o menor
+    elemento em tempo constante. Dica: uma segunda pilha de mínimos.
+  \end{block}
+  \begin{block}{Exercício 6 --- duas pilhas num vetor}
+    Num único \texttt{int v[MAX]}, uma pilha cresce de \texttt{v[0]} para a
+    direita e outra de \texttt{v[MAX-1]} para a esquerda. Quando enchem?
+  \end{block}
+  \fonte{Feofiloff (2009), cap.~6~\cite{feofiloff2009algoritmos};
+    Knuth (1997), §2.2.2~\cite{knuth1997art}}
+\end{frame}
+
+\begin{frame}{Exercícios (3/3)}
+  \footnotesize
+  \begin{block}{Exercício 7 --- desfazer e refazer}
+    Um contador recebe comandos \texttt{+k}, \texttt{-k}, \texttt{u}
+    (desfaz) e \texttt{r} (refaz). Use duas pilhas. O que acontece com a
+    pilha de refazer quando chega um \texttt{+k} novo?
+  \end{block}
+  \begin{block}{Exercício 8 --- ordenar com uma pilha auxiliar}
+    Ordene uma pilha (menor no topo) usando só uma segunda pilha e uma
+    variável \texttt{int}. Quantos \texttt{empilha} isso faz no pior caso?
+  \end{block}
+  \begin{block}{Exercício 9 --- a lista de trás para a frente, sem recursão}
+    Imprima uma lista simples do último ao primeiro com uma pilha de
+    \texttt{No *}. Compare com a versão recursiva: quem faz o papel da
+    pilha lá?
+  \end{block}
+  \fonte{Tenenbaum et al.\ (1995), cap.~2~\cite{tenenbaum1995estruturas};
+    Cormen et al.\ (2009), §10.1, exercícios~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}{Desafio}
+  \begin{block}{Uma calculadora de verdade}
+    \small Leia expressões \emph{infixas} com inteiros, \texttt{+ - * /} e
+    parênteses, uma por linha, e imprima o valor:
+    \vspace{-0.3em}
+    \begin{itemize}
+      \item primeiro converta para pós-fixa com uma pilha de
+        \textbf{operadores}: um operador desempilha os de precedência maior
+        ou igual antes de entrar; \texttt{(} entra sempre; \texttt{)}
+        desempilha até o \texttt{(};
+      \item depois avalie com uma pilha de \textbf{valores} (Exercício 4);
+      \item parênteses desbalanceados e divisão por zero viram mensagem de
+        erro, nunca \emph{segmentation fault}.
+    \end{itemize}
+  \end{block}
+  \vspace{-0.3em}
+  \centering\scriptsize
+  \texttt{2 * (3 + 4) - 5} $\to$ \texttt{2 3 4 + * 5 -} $\to$ \texttt{9}
+  \quad \texttt{(1 + 2} $\to$ \texttt{erro: parenteses}
+  \fonte{Dijkstra (1961)~\cite{dijkstra1961algol};
+    Tenenbaum et al.\ (1995), cap.~2~\cite{tenenbaum1995estruturas}}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      \small Restringir a estrutura a uma ponta deixou tudo mais simples:
+      quatro operações, nenhum laço, e duas implementações trocáveis atrás
+      de um \texttt{.h}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que ficou}\\[0.3em]
+      \small A pilha devolve na ordem \emph{inversa}. Para atender na ordem
+      de chegada --- o primeiro a entrar, o primeiro a sair --- é preciso
+      outra estrutura.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \small
+      \item pilha: só o topo entra e sai --- o último a entrar sai primeiro;
+      \item num vetor: topo em \texttt{v[n-1]}; confira vazia antes de
+        tirar e cheia antes de pôr;
+      \item vetor que cresce: dobre, não some um;
+      \item numa lista: topo é o primeiro nó; a lista simples basta.
+    \end{itemize}
+  \end{block}
+  \small\textcolor{UFSGray}{Próxima aula: filas --- põe-se por uma ponta e
+  tira-se pela outra.}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}
