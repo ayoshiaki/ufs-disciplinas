@@ -181,4 +181,13 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/lista-de-exercicios-unidade-2' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
+    <div class="week-num" style="color: #1f6f43;">📝</div>
+    <div class="week-body">
+      <div class="week-title" style="color: #14532d;">LISTA DE EXERCÍCIOS — Divisão e conquista e programação dinâmica</div>
+      <div class="week-desc">10 exercícios em três partes: divisão e conquista, primeiros problemas de programação dinâmica, programação dinâmica em sequências e em grafos.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span></div>
+    </div>
+  </a>
+
 </div>
