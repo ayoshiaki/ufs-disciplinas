@@ -169,6 +169,15 @@ title: "COMP0512 — Programação C — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-c/2026-2-T02/aula-18-filas-conceito-e-implementacao' | relative_url }}">
+    <div class="week-num">18</div>
+    <div class="week-body">
+      <div class="week-title">Filas: conceito e implementação</div>
+      <div class="week-desc">Entra por uma ponta e sai pela outra: a fila num vetor, a fila circular que dá a volta, dobrar sem embaralhar, a fila numa lista e quanto custa cada versão — e exercícios.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge nb">1 notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'programacao-c/2026-2-T02/lista-de-exercicios' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📝</div>
     <div class="week-body">

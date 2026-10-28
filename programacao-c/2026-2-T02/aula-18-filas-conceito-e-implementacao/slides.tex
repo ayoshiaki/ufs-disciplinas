@@ -1,0 +1,1376 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, shapes.multipart, arrows.meta, positioning,
+  matrix, fit, backgrounds, decorations.pathreplacing, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{codC}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7.5}{8.6}\selectfont\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=0.55cm,
+    minimum height=0.42cm, inner sep=0pt, font=\scriptsize\ttfamily},
+  celvazia/.style={cel, fill=white, draw=UFSGray!60, text=UFSGray},
+  celmorta/.style={cel, fill=black!5, draw=UFSGray!60, text=UFSGray!70},
+  celr/.style={cel, draw=UFSRed, fill=UFSRed!10},
+  var/.style={rectangle, draw=UFSGray, fill=black!5, minimum width=0.7cm,
+    minimum height=0.5cm, font=\scriptsize\ttfamily},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={-{Stealth[length=1.8mm]}, thick, UFSBlue},
+  setar/.style={-{Stealth[length=1.8mm]}, thick, UFSRed},
+  setag/.style={-{Stealth[length=1.8mm]}, thick, UFSGray},
+}
+
+% Fila desenhada da esquerda (frente) para a direita (fim):
+% \fila{x}{y}{{a},{b},{c}}
+\newcommand{\fila}[3]{%
+  \foreach \e [count=\k from 0] in {#3} {
+    \node[cel] at (#1+0.55*\k, #2) {\e};
+  }
+}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% --- Metadados ---
+\title{Filas: conceito e implementação}
+\subtitle{Entra-se por uma ponta e sai-se pela outra}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[
+    item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+      minimum width=10.4cm, minimum height=0.5cm, font=\small}
+  ]
+    \node[item] (t1) at (0, 0)    {Fila: o primeiro a entrar é o primeiro a sair};
+    \node[item] (t2) at (0,-0.64) {Fila num vetor: \texttt{ini} e \texttt{fim} só andam para a direita};
+    \node[item] (t3) at (0,-1.28) {A fila circular: o fim dá a volta no vetor};
+    \node[item] (t4) at (0,-1.92) {Quando o vetor circular enche: dobrar sem embaralhar};
+    \node[item] (t5) at (0,-2.56) {Fila numa lista: sai do primeiro nó, entra depois do último};
+    \node[item] (t6) at (0,-3.20) {Quanto custa: deslocar, dar a volta ou encadear};
+    \node[item] (t7) at (0,-3.84) {Exercícios};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+    \draw[seta] (t5) -- (t6);
+    \draw[seta] (t6) -- (t7);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{A pergunta de hoje}
+% ==================================================================
+
+\begin{frame}{O problema: quem fica com a batata?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Até aqui}\\[0.3em]
+      \small
+      A pilha devolve tudo na ordem \emph{inversa}: o último a entrar sai
+      primeiro. Serviu para parênteses, desfazer e a pilha de execução.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que vamos descobrir}\\[0.3em]
+      \small
+      Muitos problemas querem a ordem de \textbf{chegada}: quem chegou antes
+      é atendido antes. A estrutura é tão simples quanto a pilha --- mas
+      guardá-la num vetor esconde uma armadilha.
+    \end{column}
+  \end{columns}
+  \begin{block}{A pergunta de hoje}
+    $n$ crianças em roda, numeradas de 1 a $n$. A batata quente passa de mão
+    em mão $k$ vezes; quem fica com ela sai, e a brincadeira continua a
+    partir do seguinte. Quem sobra?
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{batata.c} (1/2)}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=codC]
+#include <stdio.h>
+#include <stdlib.h>
+#define MAX 100
+typedef struct {
+    int v[MAX]; /* frente: v[ini] */
+    int ini, fim; /* entra em v[fim] */
+} Fila;
+
+void enfileira(Fila *f, int x)
+{
+    if (f->fim == MAX) {
+        fprintf(stderr, "fila cheia\n");
+        exit(1);
+    }
+    f->v[f->fim] = x;
+    f->fim++;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+int desenfileira(Fila *f)
+{
+    if (f->ini == f->fim) {
+        fprintf(stderr, "fila vazia\n");
+        exit(1);
+    }
+    int x = f->v[f->ini];
+    f->ini++;
+    return x;
+}
+
+int tamanho(const Fila *f)
+{
+    return f->fim - f->ini;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{batata.c} (2/2): a roda e o \texttt{main}}
+  \vspace{-0.4em}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=codC]
+/* imprime quem sai; devolve quem fica */
+int roda(int n, int k)
+{
+    Fila f = {.ini = 0, .fim = 0};
+    for (int i = 1; i <= n; i++)
+        enfileira(&f, i);
+    while (tamanho(&f) > 1) {
+        for (int j = 0; j < k; j++)
+            /* passa a batata */
+            enfileira(&f, desenfileira(&f));
+        /* quem ficou com ela sai */
+        printf(" %d", desenfileira(&f));
+    }
+    return desenfileira(&f);
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=codC]
+int main(void)
+{
+    int casos[][2] = {
+        {6, 0}, {5, 2}, {7, 1},
+    };
+    for (int i = 0; i < 3; i++) {
+        printf("n = %d, k = %d: sai",
+               casos[i][0], casos[i][1]);
+        int fica = roda(casos[i][0],
+                        casos[i][1]);
+        printf(" | fica %d\n", fica);
+    }
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item Para $k = 0$, a batata nem passa. Em que ordem as seis crianças
+        saem?
+      \item Para $n = 5$ e $k = 2$, quem sai primeiro? Quem sobra?
+      \item E para $n = 7$ e $k = 1$?
+      \item Passar a batata é \texttt{enfileira(\&f, desenfileira(\&f))}. O
+        que essa linha faz com a criança da frente?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra batata.c -o batata
+$ ./batata
+n = 6, k = 0: sai 1 2 3 4 5 | fica 6
+n = 5, k = 2: sai 3 1 5 2 | fica 4
+n = 7, k = 1: sai 2 4 6 1 5 3 | fica 7
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{O que o programa guarda}
+        \small A roda inteira, na ordem: quem está com a batata na
+        \textbf{frente}, quem acabou de passá-la no \textbf{fim}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Passar a batata tira a criança da frente e a põe no fim: a roda
+      gira sem que ninguém mude de lugar em relação aos outros. Com
+      $k = 0$, saem na ordem em que entraram.
+    \end{column}
+  \end{columns}
+  \fonte{Graham, Knuth e Patashnik (1994), §1.3, \emph{o problema de Josephus}~\cite{graham1994concrete}}
+\end{frame}
+
+% ==================================================================
+\section{O que é uma fila}
+% ==================================================================
+
+\begin{frame}{Definição: fila}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Fila}
+        \small Uma sequência em que as inserções acontecem numa ponta, o
+        \emph{fim}, e as remoções na outra, a \emph{frente}. O primeiro a
+        entrar é o primeiro a sair: \emph{FIFO}, \emph{first in, first out}.
+      \end{block}
+      \small
+      \begin{tabular}{@{}ll@{}}
+        \texttt{enfileira(f, x)} & põe \texttt{x} no fim\\
+        \texttt{desenfileira(f)} & tira e devolve a frente\\
+        \texttt{frente(f)}       & devolve a frente sem tirar\\
+        \texttt{vazia(f)}        & a fila não tem nada?
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \fila{0}{0}{{3},{4},{5},{1},{2}}
+        \node[leg] at (0,-0.45) {frente};
+        \node[leg] at (2.2,-0.45) {fim};
+        \draw[seta] (-0.3,0) -- (-1.0,0) node[left, leg, text=UFSBlue] {sai};
+        \node[celr] (novo) at (3.4,0) {6};
+        \draw[setar] (novo.west) -- (2.5,0);
+        \node[leg, text=UFSRed] at (3.4,0.45) {entra};
+      \end{tikzpicture}
+      \end{center}
+      \small Na pilha, as duas operações usam a mesma ponta. Na fila, cada
+      uma usa a sua --- é daí que vem toda a diferença na implementação.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.1~\cite{cormen2009introduction};
+    Celes et al.\ (2004), cap.~12~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}{Seguindo a fila: $n = 5$, $k = 2$}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[leg, anchor=east] at (-0.5,0) {início};
+    \fila{0}{0}{{1},{2},{3},{4},{5}}
+
+    \node[leg, anchor=east] at (-0.5,-0.6) {passa 2};
+    \fila{0}{-0.6}{{3},{4},{5},{1},{2}}
+    \node[leg, anchor=west, text=UFSRed] at (2.7,-0.6) {sai \texttt{3}};
+
+    \node[leg, anchor=east] at (-0.5,-1.2) {passa 2};
+    \fila{0}{-1.2}{{1},{2},{4},{5}}
+    \node[leg, anchor=west, text=UFSRed] at (2.7,-1.2) {sai \texttt{1}};
+
+    \node[leg, anchor=east] at (-0.5,-1.8) {passa 2};
+    \fila{0}{-1.8}{{5},{2},{4}}
+    \node[leg, anchor=west, text=UFSRed] at (2.7,-1.8) {sai \texttt{5}};
+
+    \node[leg, anchor=east] at (-0.5,-2.4) {passa 2};
+    \fila{0}{-2.4}{{2},{4}}
+    \node[leg, anchor=west, text=UFSRed] at (2.7,-2.4) {sai \texttt{2}};
+    \node[leg, anchor=west] at (2.7,-3.0) {fica \texttt{4}};
+  \end{tikzpicture}
+  \end{center}
+  \small Cada passada tira da frente e põe no fim; a criança que sai é a que
+  está na frente depois das $k$ passadas. Ninguém precisa ser procurado.
+  \fonte{Graham, Knuth e Patashnik (1994), §1.3~\cite{graham1994concrete};
+    Tenenbaum et al.\ (1995), cap.~4~\cite{tenenbaum1995estruturas}}
+\end{frame}
+
+\begin{frame}{Filas que você já usou}
+  \begin{columns}[T]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{O teclado}
+        \small O que você digita espera num \emph{buffer} até o
+        \texttt{scanf} ler --- na ordem em que foi digitado. É por isso que
+        o \texttt{\textbackslash n} esquecido aparece no próximo
+        \texttt{scanf}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{A impressora}
+        \small Os documentos esperam na fila de impressão; o primeiro
+        mandado é o primeiro impresso.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{O processador}
+        \small O sistema dá a cada programa uma fatia de tempo e o põe no fim
+        da fila de prontos --- é a batata quente, sem ninguém sair.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  \small Em todos, a pergunta é a mesma: \emph{quem está esperando há mais
+  tempo?}
+  \fonte{Tanenbaum e Bos (2015), §2.4.3, \emph{round-robin}~\cite{tanenbaum2015modern};
+    Kernighan e Ritchie (1988), §8.5~\cite{kernighan1988c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: o que é uma fila}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item fila: entra no fim, sai da frente --- o primeiro a entrar é o
+        primeiro a sair;
+      \item quatro operações: \texttt{enfileira}, \texttt{desenfileira},
+        \texttt{frente} e \texttt{vazia};
+      \item passar a batata é desenfileirar e enfileirar de novo: a fila
+        ``gira'' sem mudar a ordem relativa;
+      \item buffers, impressoras e o escalonador do sistema são filas.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Fila num vetor}
+% ==================================================================
+
+\begin{frame}{A frente é \texttt{v[ini]}, o próximo entra em \texttt{v[fim]}}
+  \begin{center}
+  \begin{tikzpicture}
+    \foreach \k in {0,1} {
+      \node[celmorta, minimum width=0.7cm] (v\k) at (0.7*\k,0) {};
+      \node[leg] at (0.7*\k,-0.4) {\k};
+    }
+    \foreach \c [count=\k from 2] in {3,4,5,1,2} {
+      \node[cel, minimum width=0.7cm] (v\k) at (0.7*\k,0) {\c};
+      \node[leg] at (0.7*\k,-0.4) {\k};
+    }
+    \foreach \k in {7,8} {
+      \node[celvazia, minimum width=0.7cm] (v\k) at (0.7*\k,0) {?};
+      \node[leg] at (0.7*\k,-0.4) {\k};
+    }
+    \node[leg, anchor=west] at (6.0,0) {\ldots\ \texttt{MAX-1}};
+    \draw[setar] (v2.north) ++(0,0.5) node[above, leg, text=UFSRed] {frente: \texttt{v[ini]}, \texttt{ini = 2}} -- (v2.north);
+    \draw[seta] (v7.north) ++(0,0.5) node[above, leg, text=UFSBlue] {entra: \texttt{v[fim]}, \texttt{fim = 7}} -- (v7.north);
+  \end{tikzpicture}
+  \end{center}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small
+      \texttt{enfileira}: escreve em \texttt{v[fim]}, depois \texttt{fim++}.\\
+      \texttt{desenfileira}: lê \texttt{v[ini]}, depois \texttt{ini++}.\\
+      \texttt{vazia}: \texttt{ini == fim}; \texttt{tamanho}: \texttt{fim - ini}.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Nenhuma operação tem laço. Mas repare: na pilha só o topo
+      andava, e para os dois lados. Aqui \texttt{ini} e \texttt{fim}
+      \textbf{só aumentam}. As posições à esquerda de \texttt{ini} nunca
+      mais são usadas.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.1, \textsc{Enqueue} e \textsc{Dequeue}~\cite{cormen2009introduction};
+    Celes et al.\ (2004), cap.~12~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}[fragile]{E se a roda for maior?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=shellStyle]
+$ ./batata 41 2
+\end{lstlisting}
+      \small O \texttt{main} completo aceita \texttt{n} e \texttt{k} pela
+      linha de comando. São 41 crianças --- a fila nunca tem mais do que 41
+      elementos --- e \texttt{MAX} é 100.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item Cabe? Algum dos dois testes de \texttt{enfileira} e
+            \texttt{desenfileira} vai disparar?
+          \item Quantas vezes \texttt{enfileira} é chamada até sobrar uma
+            criança?
+          \item Quanto vale \texttt{fim} no final?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ ./batata 41 2
+n = 41, k = 2: sai 3 6 9 12 15 18 21 24 27 30 33 36 39 1 5 10 14 19 23 28
+                   32 37 41 7 13 20 26 34 40
+enfileira: fila cheia
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Saíram 29 crianças; restavam 12 na roda. A fila ``encheu''
+      com 12 elementos num vetor de 100.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Desta vez não houve lixo nem estouro silencioso: o teste de
+      \texttt{enfileira} --- a lição da aula de pilhas --- parou o programa.
+      Mas parou um programa que deveria funcionar.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: a fila anda para a direita}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[celmorta, minimum width=0.7cm] at (0,0) {};
+    \node[leg] at (0,-0.4) {0};
+    \node[leg] at (0.7,0) {\ldots};
+    \node[celmorta, minimum width=0.7cm] at (1.4,0) {};
+    \node[leg] at (1.4,-0.4) {88};
+    \foreach \c [count=\k from 0] in {8,11,16} {
+      \node[cel, minimum width=0.7cm] (o\k) at (2.1+0.7*\k,0) {\c};
+    }
+    \node[leg] at (2.1,-0.4) {89};
+    \node[leg] at (4.55,0) {\ldots};
+    \node[cel, minimum width=0.7cm] at (5.3,0) {2};
+    \node[leg] at (5.3,-0.4) {99};
+    \node[celr, minimum width=0.7cm] (fora) at (6.2,0) {};
+    \node[leg, text=UFSRed] at (6.2,-0.4) {100};
+    \draw[UFSGray, thick, decorate, decoration={brace, amplitude=4pt}]
+      (-0.35,0.3) -- (1.75,0.3) node[midway, above=3pt, leg] {89 posições abandonadas};
+    \draw[UFSBlue, thick, decorate, decoration={brace, amplitude=4pt}]
+      (1.75,0.3) -- (5.65,0.3) node[midway, above=3pt, leg, text=UFSBlue] {11 na fila};
+    \draw[setar] (6.2,1.1) node[above, leg, text=UFSRed] {\texttt{fim == MAX}: o 4 não entra} -- (fora.north);
+  \end{tikzpicture}
+  \end{center}
+  \small
+  Cada criança que entra e cada passada da batata é um \texttt{enfileira}:
+  são $n + k(n-1) = 41 + 2 \cdot 40 = 121$ ao todo, e \texttt{fim} só cresce. A fila nunca passou de
+  41 elementos, mas foi andando para a direita e bateu na parede, deixando
+  para trás posições vazias que ninguém mais usa.
+
+  \medskip
+  Um vetor de 100 só aguenta 100 \texttt{enfileira} \textbf{na vida inteira}
+  da fila. Não basta saber quantos elementos cabem: é preciso reaproveitar o
+  espaço que a frente deixou.
+  \fonte{Cormen et al.\ (2009), §10.1~\cite{cormen2009introduction};
+    Tenenbaum et al.\ (1995), cap.~4~\cite{tenenbaum1995estruturas}}
+\end{frame}
+
+\begin{frame}[fragile]{Primeira ideia: trazer todo mundo para a frente}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+int desenfileira(Fila *f)
+{   /* a frente e sempre v[0] */
+    int x = f->v[0];
+    for (int i = 1; i < f->fim; i++)
+        f->v[i - 1] = f->v[i];
+    f->fim--;
+    return x;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small Sem \texttt{ini}: quem sai é sempre \texttt{v[0]}, e os outros
+      andam uma casa para a esquerda. Agora \texttt{MAX} = 41 basta para a
+      roda de 41.
+
+      \medskip
+      É assim numa fila de banco: quando o primeiro é atendido, todos dão
+      um passo. Mas no vetor cada passo é uma cópia --- com $n$ na fila,
+      \textbf{cada} \texttt{desenfileira} custa $n - 1$ cópias.
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~12~\cite{celes2004introducao};
+    medido com \texttt{custo.c}, adiante}
+\end{frame}
+
+\begin{frame}{Recapitulando: fila num vetor}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item com \texttt{ini} e \texttt{fim}, enfileirar e desenfileirar não
+        têm laço: escrevem em \texttt{v[fim]} e leem de \texttt{v[ini]};
+      \item mas os dois índices só crescem: a fila anda pelo vetor e
+        ``enche'' depois de \texttt{MAX} enfileiramentos, não com
+        \texttt{MAX} elementos;
+      \item deslocar todos a cada saída resolve o espaço, mas faz cada
+        \texttt{desenfileira} custar o tamanho da fila;
+      \item falta reaproveitar o espaço que a frente deixa para trás.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{A fila circular}
+% ==================================================================
+
+\begin{frame}{O fim dá a volta}
+  \begin{columns}[c]
+    \begin{column}{0.42\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \foreach \i/\c/\s in {0/7/cel, 1/8/cel, 2/{}/celvazia, 3/{}/celvazia,
+                              4/{}/celvazia, 5/3/cel, 6/4/cel, 7/5/cel} {
+          \node[\s, minimum width=0.55cm] (c\i) at ({90-45*\i}:1.3) {\c};
+          \node[leg] at ({90-45*\i}:0.8) {\i};
+        }
+        \draw[setar] (c5) ++(-0.8,-0.5) node[left, leg, text=UFSRed] {ini} -- (c5);
+        \draw[seta] (c2) ++(0.9,0) node[right, leg, text=UFSBlue] {fim} -- (c2);
+        \draw[setag, -{Stealth[length=1.6mm]}] (100:1.85) arc (100:30:1.85);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \small Imagine o vetor dobrado em anel: depois de \texttt{v[MAX-1]} vem
+      \texttt{v[0]}. Quando o fim chega à última posição, continua no começo
+      --- no espaço que a frente já liberou.
+
+      \medskip
+      Em C, ``dar a volta'' é o resto da divisão:
+      \begin{center}
+        \texttt{fim = (fim + 1) \% MAX;}\\
+        \texttt{ini = (ini + 1) \% MAX;}
+      \end{center}
+      Na figura, \texttt{MAX = 8}: a fila é \texttt{3 4 5 7 8}, com a frente
+      em \texttt{v[5]} e o próximo entrando em \texttt{v[2]}.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.1, Figura 10.2~\cite{cormen2009introduction};
+    Knuth (1997), §2.2.2~\cite{knuth1997art}}
+\end{frame}
+
+\begin{frame}{Cheia ou vazia?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[leg, anchor=east] at (-0.5,0) {vazia};
+        \foreach \k in {0,...,3} \node[celvazia] at (0.55*\k,0) {};
+        \node[leg, anchor=west] at (2.0,0) {\texttt{ini = 0, fim = 0}};
+        \node[leg, anchor=east] at (-0.5,-0.7) {+ 4 entram};
+        \fila{0}{-0.7}{{1},{2},{3},{4}}
+        \node[leg, anchor=west] at (2.0,-0.7) {\texttt{ini = 0, fim = 0}};
+      \end{tikzpicture}
+      \end{center}
+      \small \texttt{MAX = 4}. Depois do quarto \texttt{enfileira}, o
+      \texttt{fim} deu a volta: \texttt{(3 + 1) \% 4 == 0}.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item Com \texttt{ini} e \texttt{fim} apenas, como \texttt{vazia}
+            distingue as duas situações?
+          \item \texttt{tamanho} pode continuar sendo \texttt{fim - ini}?
+          \item O que mais a fila precisaria guardar?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: guarde quantos há}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Com \texttt{ini} e \texttt{fim}, a fila cheia e a vazia são o
+      mesmo estado: \texttt{ini == fim}. E \texttt{fim - ini} pode ser
+      negativo quando o fim já deu a volta.
+
+      \medskip
+      Há duas saídas clássicas:
+      \begin{itemize}
+        \item guardar \texttt{n}, o número de elementos: vazia é
+          \texttt{n == 0}, cheia é \texttt{n == MAX}, e o \texttt{fim}
+          nem precisa ser guardado;
+        \item deixar sempre uma posição vazia: cheia é
+          \texttt{(fim + 1) \% MAX == ini}.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Com \texttt{ini} e \texttt{n}}
+        \small
+        \begin{tabular}{@{}ll@{}}
+          frente      & \texttt{v[ini]}\\
+          próximo     & \texttt{v[(ini + n) \% MAX]}\\
+          vazia       & \texttt{n == 0}\\
+          cheia       & \texttt{n == MAX}\\
+        \end{tabular}
+      \end{block}
+      \small O livro de Cormen usa a segunda saída e guarda no máximo
+      $\texttt{MAX} - 1$ elementos. Aqui usaremos a primeira.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.1~\cite{cormen2009introduction};
+    Knuth (1997), §2.2.2~\cite{knuth1997art}}
+\end{frame}
+
+\begin{frame}[fragile]{A roda com a fila circular: \texttt{batata\_circular.c}}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+#define MAX 41
+
+typedef struct {
+    int v[MAX];
+    int ini, n; /* frente, quantos */
+} Fila;
+
+void enfileira(Fila *f, int x)
+{
+    if (f->n == MAX) { /* cheia */ }
+    f->v[(f->ini + f->n) % MAX] = x;
+    f->n++;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=codC]
+int desenfileira(Fila *f)
+{
+    if (f->n == 0) { /* vazia */ }
+    int x = f->v[f->ini];
+    f->ini = (f->ini + 1) % MAX;
+    f->n--;
+    return x;
+}
+\end{lstlisting}
+      \small \texttt{roda} e \texttt{main} não mudaram uma linha: só a
+      fila por dentro. Os testes de cheia e vazia são os de
+      \texttt{batata.c}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra batata_circular.c -o batata_circular
+$ ./batata_circular 41 2
+n = 41, k = 2: sai 3 6 9 12 15 18 21 24 27 30 33 36 39 1 5 10 14 19 23 28
+                   32 37 41 7 13 20 26 34 40 8 17 29 38 11 25 2 22 4 35 16 | fica 31
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Os 121 \texttt{enfileira} cabem num vetor de \textbf{41}: o
+      espaço que a frente libera é reaproveitado pelo fim.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Conta a lenda que Josephus e um amigo, numa roda de 41 em que
+      cada terceiro saía, escolheram os lugares 16 e 31 --- os dois
+      últimos.
+    \end{column}
+  \end{columns}
+  \fonte{Graham, Knuth e Patashnik (1994), §1.3~\cite{graham1994concrete}}
+\end{frame}
+
+\begin{frame}{Recapitulando: a fila circular}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item o vetor vira anel com \texttt{\% MAX}: o fim continua no espaço
+        que a frente liberou;
+      \item com só \texttt{ini} e \texttt{fim}, cheia e vazia são o mesmo
+        estado --- guarde \texttt{n} (ou deixe uma posição sempre livre);
+      \item a próxima posição livre é \texttt{(ini + n) \% MAX};
+      \item agora \texttt{MAX} limita quantos estão na fila, não quantos já
+        passaram por ela.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Quando o vetor circular enche}
+% ==================================================================
+
+\begin{frame}[fragile]{Dobrar, como na pilha: \texttt{dobra\_errada.c}}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+void enfileira(Fila *f, int x)
+{
+    if (f->n == f->cap) { /* dobra */
+        f->cap *= 2;
+        f->v = realloc(f->v,
+                 f->cap * sizeof *f->v);
+    }
+    f->v[(f->ini + f->n) % f->cap] = x;
+    f->n++;
+}
+\end{lstlisting}
+      \small Na pilha, crescer era um \texttt{realloc}. O \texttt{main}
+      começa com \texttt{cap = 4}, enfileira de 1 a 4, desenfileira dois,
+      enfileira 5, 6 e 7 --- o 7 faz dobrar --- e imprime tudo o que sair.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item Desenhe o vetor de 4 antes do 7: onde estão \texttt{3 4 5 6}
+            e quanto vale \texttt{ini}?
+          \item Desenhe o vetor de 8 depois do \texttt{realloc}. Onde o 7
+            é escrito?
+          \item Em que ordem os cinco saem?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.22.3.5~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ ./dobra_errada
+cap = 8, ini = 2, n = 5
+sai: 3 4 0 0 7
+$ gcc -g -fsanitize=address dobra_errada.c -o dobra_errada-asan
+$ ./dobra_errada-asan
+cap = 8, ini = 2, n = 5
+sai: 3 4 -1094795586 -1094795586 7
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small O 5 e o 6 sumiram; no lugar deles saiu o que havia na memória
+      nova --- zero numa execução, outro valor na outra.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small O \emph{sanitizer} não acusa nada: todas as posições lidas
+      estão \emph{dentro} do bloco. Ele só preenche a memória nova com um
+      padrão, \texttt{0xBEBEBEBE}, e o padrão aparece na saída.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: o \texttt{realloc} copia o vetor, não a fila}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[leg, anchor=east] at (-0.5,0.6) {antes};
+    \foreach \c [count=\k from 0] in {5,6,3,4}
+      \node[cel] at (0.55*\k,0.6) {\c};
+    \draw[setar] (1.1,1.3) node[above, leg, text=UFSRed] {\texttt{ini = 2}} -- (1.1,0.85);
+    \node[leg, anchor=west] at (2.3,0.6) {fila: \texttt{3 4 5 6} (o 5 e o 6 deram a volta)};
+
+    \node[leg, anchor=east] at (-0.5,-0.4) {depois};
+    \foreach \c [count=\k from 0] in {5,6,3,4}
+      \node[cel] at (0.55*\k,-0.4) {\c};
+    \node[celvazia] at (2.2,-0.4) {?};
+    \node[celvazia] at (2.75,-0.4) {?};
+    \node[celr] at (3.3,-0.4) {7};
+    \node[celvazia] at (3.85,-0.4) {?};
+    \draw[setag] (1.1,-0.85) -- (1.1,-0.65);
+    \node[leg, anchor=west] at (4.3,-0.4) {de \texttt{v[2]} em diante: \texttt{3 4 ? ? 7}};
+  \end{tikzpicture}
+  \end{center}
+  \small
+  O \texttt{realloc} copia as posições 0 a 3 para as posições 0 a 3 do bloco
+  novo. Só que, na fila, o 5 e o 6 vinham \emph{depois} do 4: com
+  \texttt{cap = 8}, a posição seguinte a \texttt{v[3]} deixou de ser
+  \texttt{v[0]} e passou a ser \texttt{v[4]}, que é lixo.
+
+  \medskip
+  A conta \texttt{(ini + i) \% cap} mudou de significado quando \texttt{cap}
+  mudou. Para crescer, é preciso copiar \textbf{na ordem da fila}, não na
+  ordem do vetor.
+  \fonte{ISO/IEC 9899:2018, §7.22.3.5~\cite{iso2018c17};
+    Cormen et al.\ (2009), §17.4~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}[fragile]{Crescer desenrolando o anel}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=codC]
+/* fila_vetor.c: vetor com o dobro do
+   tamanho, ja na ordem: frente em 0 */
+static void cresce(Fila *f)
+{
+    int *novo = aloca(NULL,
+                  2 * f->cap * sizeof *novo);
+    for (int i = 0; i < f->n; i++)
+        novo[i] = f->v[(f->ini + i) % f->cap];
+    free(f->v);
+    f->v = novo;
+    f->ini = 0;
+    f->cap *= 2;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \foreach \c [count=\k from 0] in {3,4,5,6,7}
+          \node[cel] at (0.55*\k,0) {\c};
+        \foreach \k in {5,6,7}
+          \node[celvazia] at (0.55*\k,0) {};
+        \draw[setar] (0,0.75) node[above, leg, text=UFSRed] {\texttt{ini = 0}} -- (0,0.25);
+      \end{tikzpicture}
+      \end{center}
+      \small O laço percorre a fila da frente para o fim, com o
+      \texttt{cap} \emph{antigo}, e escreve a partir de \texttt{novo[0]}.
+
+      \medskip
+      Ainda são $n$ cópias por crescimento, como na pilha: dobrando, o custo
+      por \texttt{enfileira} continua constante, amortizado.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §17.4, \emph{dynamic tables}~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}{Recapitulando: quando o vetor circular enche}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item numa fila que deu a volta, a ordem dos elementos não é a ordem
+        das posições no vetor;
+      \item o \texttt{realloc} preserva as posições, e a conta
+        \texttt{\% cap} muda com o novo \texttt{cap}: a fila embaralha;
+      \item cresça copiando na ordem da fila, com \texttt{ini} voltando a 0;
+      \item dobrando, o custo amortizado de \texttt{enfileira} continua
+        constante --- a mesma conta da pilha.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Fila numa lista}
+% ==================================================================
+
+\begin{frame}[fragile]{Sai do primeiro nó, entra depois do último: \texttt{fila\_lista.c}}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+struct fila { No *ini, *fim; };
+
+void enfileira(Fila *f, int x)
+{   /* insere no fim */
+    No *novo = malloc(sizeof *novo);
+    if (novo == NULL) exit(1);
+    novo->valor = x; novo->prox = NULL;
+    if (f->fim == NULL) f->ini = novo;
+    else f->fim->prox = novo;
+    f->fim = novo;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=codC]
+int desenfileira(Fila *f)
+{   /* remove o primeiro */
+    if (f->ini == NULL) {
+        fprintf(stderr, "fila vazia\n");
+        exit(1);
+    }
+    No *velho = f->ini;
+    int x = velho->valor;
+    f->ini = velho->prox;
+    if (f->ini == NULL) f->fim = NULL;
+    free(velho);
+    return x;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[var] (i) at (0,0) {ini};
+    \foreach \v/\k in {3/1, 4/2, 5/3} {
+      \node[cel, minimum width=0.6cm] (v\k) at (0.7+1.3*\k,0) {\v};
+      \node[cel, fill=white, minimum width=0.3cm, right=0pt of v\k] (p\k) {};
+    }
+    \node[var] (f) at (6.3,0) {fim};
+    \draw[seta] (i) -- (v1);
+    \draw[seta] (p1.center) -- (v2); \draw[seta] (p2.center) -- (v3);
+    \draw[UFSGray] (p3.south west) -- (p3.north east);
+    \draw[seta] (f) -- (p3);
+  \end{tikzpicture}
+  \end{center}
+  \fonte{Celes et al.\ (2004), cap.~12~\cite{celes2004introducao};
+    Feofiloff (2009), cap.~5~\cite{feofiloff2009algoritmos}}
+\end{frame}
+
+\begin{frame}{Por que sai do início e entra no fim}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small
+      A fila precisa de uma ponta para entrar e outra para sair. Na lista
+      simples com \texttt{ini} e \texttt{fim}, três das quatro operações nas
+      pontas são baratas:
+
+      \medskip
+      \begin{tabular}{@{}lcc@{}}
+        & início & fim\\
+        \midrule
+        inserir & barato & barato com \texttt{fim}\\
+        remover & barato & $n$ passos\\
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Remover o último exige achar o penúltimo --- percorrer a lista
+      toda. Então a remoção fica no início (a frente) e a inserção, no fim.
+      Com isso, a lista simples basta; não é preciso \texttt{ant}.
+
+      \begin{block}{Sem \emph{overflow}}
+        \small Como na pilha em lista, a fila só enche quando acaba a
+        memória; o \emph{underflow} continua possível.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~12~\cite{celes2004introducao};
+    Cormen et al.\ (2009), §10.2, exercício 10.2-3~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}[fragile]{E se esquecer o \texttt{fim}?}
+  \begin{columns}[c]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=codC]
+int desenfileira(Fila *f) /* esvazia.c */
+{
+    No *velho = f->ini;
+    int x = velho->valor;
+    f->ini = velho->prox;
+    /* sumiu: if (f->ini == NULL) f->fim = NULL; */
+    free(velho);
+    return x;
+}
+/* main: */
+enfileira(&f, 1);   enfileira(&f, 2);
+printf("sai %d\n", desenfileira(&f));
+printf("sai %d\n", desenfileira(&f));
+enfileira(&f, 3);
+printf("vazia? %s\n", vazia(&f) ? "sim" : "nao");
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small \texttt{enfileira} é a de \texttt{fila\_lista.c}.
+        \begin{enumerate}
+          \item Depois dos dois \texttt{desenfileira}, quanto valem
+            \texttt{ini} e \texttt{fim}?
+          \item Ao enfileirar o 3, qual ramo do \texttt{if} é seguido?
+          \item O que o programa imprime na última linha?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ ./esvazia
+sai 1
+sai 2
+vazia? sim
+$ gcc -g -fsanitize=address esvazia.c -o esvazia-asan && ./esvazia-asan
+sai 1
+sai 2
+==96228==ERROR: AddressSanitizer: heap-use-after-free on address 0x602000000118
+WRITE of size 8 at 0x602000000118 thread T0
+    #0 0x000104bc5934 in enfileira esvazia.c:23
+0x602000000118 is located 8 bytes inside of 16-byte region [0x602000000110,0x602000000120)
+freed by thread T0 here:
+    #1 0x000104bc5a8d in desenfileira esvazia.c:33
+\end{lstlisting}
+  \begin{center}
+    \scriptsize\textcolor{UFSGray}{A linha 23 é o \texttt{f->fim->prox = novo;}
+    de \texttt{enfileira}; a 33, o \texttt{free(velho);}. Relatório resumido.}
+  \end{center}
+\end{frame}
+
+\begin{frame}{A resposta: \texttt{fim} aponta para um nó que já foi liberado}
+  \begin{columns}[c]
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[var] (i) at (0,0.9) {ini};
+        \node[leg, anchor=west] at (0.5,0.9) {\texttt{NULL}};
+        \node[var] (f) at (0,0) {fim};
+        \node[celmorta, minimum width=0.6cm] (v) at (1.6,0) {2};
+        \node[cel, fill=white, minimum width=0.3cm, right=0pt of v] (p) {};
+        \draw[setar] (f) -- (v);
+        \node[leg, text=UFSRed] at (1.75,-0.45) {liberado};
+        \node[celr, minimum width=0.6cm] (n) at (3.2,0) {3};
+        \draw[setar] (p.center) to[out=0, in=180] (n);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \small
+      Ao sair o 2, \texttt{ini} virou \texttt{NULL}, mas \texttt{fim}
+      continuou apontando para o nó do 2 --- já devolvido pelo
+      \texttt{free}. Ao enfileirar o 3, \texttt{fim != NULL}: o programa
+      escreve \texttt{fim->prox} em memória liberada e deixa \texttt{ini}
+      em \texttt{NULL}.
+
+      \medskip
+      O 3 foi alocado e ``enfileirado'', mas ninguém chega até ele: a fila
+      se diz vazia e o nó vaza. A remoção do \textbf{último} é o caso
+      especial da fila em lista: \texttt{ini} e \texttt{fim} mudam juntos.
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~12~\cite{celes2004introducao};
+    Serebryany et al.\ (2012)~\cite{serebryany2012asan}}
+\end{frame}
+
+\begin{frame}[fragile]{Uma interface, duas implementações}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+/* fila.h */
+#ifndef FILA_H
+#define FILA_H
+
+typedef struct fila Fila; /* campos no .c */
+
+Fila *fila_cria(void);
+void fila_libera(Fila *f);
+
+void enfileira(Fila *f, int x);
+int desenfileira(Fila *f);
+int frente(const Fila *f);
+int vazia(const Fila *f);
+int tamanho(const Fila *f);
+
+#endif
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small \texttt{fila\_vetor.c} é a circular que cresce;
+      \texttt{fila\_lista.c}, a lista com \texttt{ini} e \texttt{fim}.
+      \texttt{batata\_tad.c} tem a mesma \texttt{roda}, agora com
+      \texttt{Fila *}, e roda também $n = 100\,000$ com $k = 1$.
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item O que muda em \texttt{batata\_tad.c} para trocar o vetor
+            pela lista?
+          \item As duas versões dão o mesmo sobrevivente para
+            $n = 100\,000$?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §4.5~\cite{kernighan1988c};
+    Celes et al.\ (2004), cap.~9~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra batata_tad.c fila_vetor.c -o batata_vetor
+$ gcc -Wall -Wextra batata_tad.c fila_lista.c -o batata_lista
+$ ./batata_vetor                          $ ./batata_lista
+n = 6, k = 0: sai 1 2 3 4 5 | fica 6      n = 6, k = 0: sai 1 2 3 4 5 | fica 6
+n = 5, k = 2: sai 3 1 5 2 | fica 4        n = 5, k = 2: sai 3 1 5 2 | fica 4
+n = 7, k = 1: sai 2 4 6 1 5 3 | fica 7    n = 7, k = 1: sai 2 4 6 1 5 3 | fica 7
+n = 41, k = 2: fica 31                    n = 41, k = 2: fica 31
+n = 100000, k = 1: fica 68929             n = 100000, k = 1: fica 68929
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small \texttt{batata\_tad.c} não mudou \textbf{nenhuma} linha: só o
+      arquivo passado ao \texttt{gcc}. Nenhuma das duas versões tem
+      \texttt{MAX}.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Para $k = 1$ há fórmula: escreva $n = 2^m + l$, com
+      $0 \le l < 2^m$; sobra $2l + 1$. Para $100\,000 = 2^{16} + 34\,464$,
+      sobra $68\,929$.
+    \end{column}
+  \end{columns}
+  \fonte{Graham, Knuth e Patashnik (1994), §1.3, equação (1.9)~\cite{graham1994concrete}}
+\end{frame}
+
+\begin{frame}{Recapitulando: fila numa lista}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item a frente é o primeiro nó, o fim é o último: enfileirar é
+        inserir depois de \texttt{fim}, desenfileirar é remover o primeiro;
+      \item ao contrário da pilha, a fila precisa das \textbf{duas} pontas
+        --- e de \texttt{fim} para não percorrer a lista;
+      \item quando sai o último, \texttt{fim} também vira \texttt{NULL};
+        esquecer isso deixa um ponteiro para memória liberada;
+      \item com \texttt{fila.h}, quem usa a fila não sabe se ela é vetor ou
+        lista.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Quanto custa}
+% ==================================================================
+
+\begin{frame}{A roda com $n$ crianças e $k = 1$: três filas}
+  \begin{columns}[c]
+    \begin{column}{0.54\textwidth}
+      \begin{center}
+      \small
+      \begin{tabular}{@{}rrrr@{}}
+        \toprule
+        $n$ & desloca & circular & lista\\
+        \midrule
+        25\,000  & 0,053\,s & 0,0004\,s & 0,001\,s\\
+        50\,000  & 0,239\,s & 0,0006\,s & 0,002\,s\\
+        100\,000 & 1,100\,s & 0,0013\,s & 0,005\,s\\
+        200\,000 & 4,217\,s & 0,0026\,s & 0,009\,s\\
+        \bottomrule
+      \end{tabular}
+
+      \medskip
+      \scriptsize \texttt{custo.c}, \texttt{-O2}; as três dão o mesmo
+      sobrevivente
+      \end{center}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \small
+      Deslocando, dobrar $n$ \textbf{quadruplica} o tempo: cada saída copia
+      a fila inteira, e são $n$ saídas.
+
+      \medskip
+      Na circular e na lista, dobrar $n$ dobra o tempo: custo fixo por
+      operação. A lista é umas 4 vezes mais lenta que a circular --- um
+      \texttt{malloc} e um \texttt{free} por passada da batata.
+    \end{column}
+  \end{columns}
+  \fonte{medido com \texttt{custo.c};
+    Bryant e O'Hallaron (2016), §6.2 e §9.9~\cite{bryant2016computer}}
+\end{frame}
+
+\begin{frame}{Vetor ou lista?}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+    & vetor que desloca & circular que dobra & lista com \texttt{fim}\\
+    \midrule
+    \texttt{enfileira}           & constante & constante (amortizado) & constante + \texttt{malloc}\\
+    \texttt{desenfileira}        & \textbf{tamanho da fila} & constante & constante + \texttt{free}\\
+    pode encher?                 & sim, em \texttt{MAX} & só sem memória & só sem memória\\
+    caso delicado                & --- & crescer na ordem & \texttt{fim} ao esvaziar\\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \small Como na pilha, o vetor --- aqui, circular --- costuma ganhar. A lista
+  compensa quando cada elemento é grande e já mora num nó, ou quando um
+  \texttt{enfileira} nunca pode demorar mais que os outros.
+  \fonte{Cormen et al.\ (2009), §10.1 e §17.4~\cite{cormen2009introduction};
+    Celes et al.\ (2004), cap.~12~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}{Recapitulando: quanto custa}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item deslocar todo mundo a cada saída custa o tamanho da fila: o
+        total cresce com $n^2$;
+      \item na fila circular e na lista, toda operação tem custo fixo;
+      \item a circular é a mais rápida na prática: memória contígua e
+        crescimentos raros;
+      \item a lista paga um \texttt{malloc} por \texttt{enfileira} e 16
+        bytes por \texttt{int}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \small
+  \begin{block}{Tarefa 1}
+    Em \texttt{batata.c}, qual é o menor \texttt{MAX} com que
+    \texttt{./batata 41 2} termina? Calcule antes, depois confira. E para
+    \texttt{./batata 41 0}?
+  \end{block}
+  \begin{block}{Tarefa 2}
+    Faça a batata passar um número \textbf{diferente} de vezes a cada rodada:
+    na rodada $r$ (a partir de 1), ela passa $r$ vezes. Preveja a ordem de
+    saída para $n = 5$ antes de executar.
+  \end{block}
+  \begin{block}{Tarefa 3}
+    Em \texttt{batata\_circular.c}, troque \texttt{MAX} por 40 e rode
+    \texttt{./batata\_circular 41 2}. Em que momento o programa para? Por
+    que não para antes?
+  \end{block}
+\end{frame}
+
+\begin{frame}{Exercícios (1/3)}
+  \footnotesize
+  \begin{block}{Exercício 1 --- uma fila que avisa}
+    Na fila circular, \texttt{enfileira} devolve 0 se está cheia e
+    \texttt{desenfileira(f, \&x)}, 0 se está vazia. Na falha, a fila não muda.
+  \end{block}
+  \begin{block}{Exercício 2 --- inverter uma fila}
+    Com uma pilha auxiliar, inverta a ordem de uma fila usando só as
+    operações de \texttt{fila.h} e \texttt{pilha.h}.
+  \end{block}
+  \begin{block}{Exercício 3 --- escalonador \emph{round-robin}}
+    O processo $i$ precisa de $t_i$ unidades de tempo. O da frente recebe
+    $q$ unidades e, se não terminou, volta para o fim. Em que ordem e em
+    que instante cada um termina?
+  \end{block}
+  \fonte{Celes et al.\ (2004), cap.~12~\cite{celes2004introducao};
+    Tanenbaum e Bos (2015), §2.4.3~\cite{tanenbaum2015modern}}
+\end{frame}
+
+\begin{frame}{Exercícios (2/3)}
+  \footnotesize
+  \begin{block}{Exercício 4 --- fila com duas pilhas}
+    Implemente \texttt{fila.h} usando só duas pilhas: uma recebe os que
+    entram, a outra entrega os que saem. Quando passar de uma para a outra?
+    Por que o custo amortizado é constante?
+  \end{block}
+  \begin{block}{Exercício 5 --- as últimas $k$ linhas}
+    Imprima as últimas $k$ linhas da entrada, como \texttt{tail -n k}, com
+    um vetor circular de $k$ cadeias.
+  \end{block}
+  \begin{block}{Exercício 6 --- fila de duas pontas}
+    Um \emph{deque} insere e remove nas duas pontas. Implemente-o num vetor
+    circular. Como andar para trás, se em C \texttt{-1 \% cap} é $-1$?
+  \end{block}
+  \fonte{Cormen et al.\ (2009), §10.1, exercícios 10.1-5 e 10.1-6~\cite{cormen2009introduction};
+    Knuth (1997), §2.2.1~\cite{knuth1997art}}
+\end{frame}
+
+\begin{frame}{Exercícios (3/3)}
+  \footnotesize
+  \begin{block}{Exercício 7 --- Josephus sem simulação}
+    Compare a simulação com a recorrência $J(1) = 0$,
+    $J(n) = (J(n-1) + k + 1) \bmod n$ (posições a partir de 0), escrita
+    recursivamente e com um laço. Até que $n$ cada uma vai?
+  \end{block}
+  \begin{block}{Exercício 8 --- média móvel}
+    Leia uma sequência de medições e imprima, a cada uma, a média das últimas
+    $k$, em tempo constante por medição: guarde as $k$ num vetor circular e
+    mantenha a soma.
+  \end{block}
+  \begin{block}{Exercício 9 --- o caixa do banco}
+    Clientes chegam em instantes dados, cada um com um tempo de atendimento.
+    Com um caixa, calcule a espera de cada cliente e a média. E com dois
+    caixas e uma fila única?
+  \end{block}
+  \fonte{Graham, Knuth e Patashnik (1994), §1.3~\cite{graham1994concrete};
+    Tenenbaum et al.\ (1995), cap.~4~\cite{tenenbaum1995estruturas}}
+\end{frame}
+
+\begin{frame}[fragile]{Desafio}
+  \begin{columns}[T]
+    \begin{column}{0.6\textwidth}
+      \begin{block}{O caminho mais curto no labirinto}
+        \small Leia um labirinto (\texttt{\#} parede, \texttt{.} livre,
+        \texttt{S} saída, \texttt{E} entrada) e imprima o menor número de
+        passos de \texttt{E} até \texttt{S}, andando nas quatro direções:
+        \vspace{-0.3em}
+        \begin{itemize}
+          \item enfileire \texttt{E} com distância 0;
+          \item tire uma casa da frente e enfileire cada vizinha livre ainda
+            não visitada, com distância + 1;
+          \item a primeira vez que \texttt{S} sair da fila, a distância dela
+            é a resposta --- ou \texttt{sem caminho}.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+\begin{lstlisting}[style=shellStyle, language={}]
+#########
+#E..#...#
+#.#.#.#.#
+#.#...#S#
+#########
+\end{lstlisting}
+      \centering\scriptsize \texttt{passos: 12}
+
+      \medskip
+      \raggedright Por que a fila garante o \emph{menor} caminho --- e uma
+      pilha, não?
+    \end{column}
+  \end{columns}
+  \fonte{Moore (1959)~\cite{moore1959shortest};
+    Feofiloff (2009), cap.~5~\cite{feofiloff2009algoritmos};
+    Cormen et al.\ (2009), §22.2~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      \small Usar as duas pontas, em vez de uma, fez o vetor ``andar''. O
+      anel e o \texttt{\% cap} reaproveitam o espaço; a lista precisa de
+      \texttt{ini} e de \texttt{fim}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que ficou}\\[0.3em]
+      \small Pilha e fila escondem os campos atrás de um \texttt{.h} e
+      oferecem só operações. Esse é o desenho de um \emph{tipo abstrato de
+      dados} --- o tema da próxima aula.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \small
+      \item fila: entra no fim, sai da frente --- o primeiro a entrar sai
+        primeiro;
+      \item num vetor: anel com \texttt{\% cap} e um contador \texttt{n};
+      \item para crescer: copie na ordem da fila, não na do vetor;
+      \item numa lista: sai do primeiro nó, entra depois do último; ao
+        esvaziar, \texttt{fim = NULL}.
+    \end{itemize}
+  \end{block}
+  \small\textcolor{UFSGray}{Próxima aula: tipos abstratos de dados ---
+  implementação com structs e ponteiros.}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}
