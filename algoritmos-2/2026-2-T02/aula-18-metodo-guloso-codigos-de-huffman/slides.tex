@@ -1,0 +1,1106 @@
+% -*- coding: utf-8 -*-
+% Aula: Metodo guloso -- codigos de Huffman e o argumento de troca (abre a Unidade 3 de AED2)
+% Fontes principais: Cormen et al. (2009), cap. 16: sec. 16.1 (selecao de atividades,
+% Teorema 16.1), sec. 16.2 (elementos da estrategia gulosa, mochila fracionaria, Figura 16.2),
+% sec. 16.3 (codigos de Huffman, Figuras 16.3-16.6, Lemas 16.2 e 16.3, Teorema 16.4);
+% Kleinberg e Tardos (2006), sec. 4.1, 4.2 e 4.8; Levitin (2012), sec. 9.4;
+% Dasgupta et al. (2008), sec. 5.2; Huffman (1952); Shannon (1948); Cover e Thomas (2006), cap. 5.
+% Instancia de intervalos: a mesma da aula "PD: memoization e subestrutura otima", agora sem pesos.
+% Continua a aula "Programacao dinamica em grafos: Warshall e Floyd".
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, decorations.pathmorphing, backgrounds, patterns}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    columns=fullflexible,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=6.6cm, minimum height=0.55cm, font=\scriptsize},
+  folha/.style={rectangle, draw=blue!60!black, fill=blue!10, rounded corners=1pt,
+                font=\tiny, inner sep=1.5pt, minimum height=3.6mm},
+  interno/.style={circle, draw=orange!80!black, fill=orange!20, font=\tiny,
+                  inner sep=0.5pt, minimum size=4.4mm},
+  bit/.style={font=\tiny, inner sep=0.5pt, text=gray!50!black},
+  arv/.style={level distance=6.5mm, edge from parent/.style={draw, thin}},
+  iv/.style={line width=3.2pt, blue!50, line cap=round},
+  ivesc/.style={line width=3.2pt, orange!90!black, line cap=round},
+  ivfora/.style={line width=3.2pt, gray!35, line cap=round},
+  rot/.style={font=\tiny, anchor=east},
+  arc/.style={-{Stealth}, thick}
+}
+% rotulos 0/1 nas arestas de uma arvore de codigo
+\newcommand{\zero}{edge from parent node[bit, left] {0}}
+\newcommand{\um}{edge from parent node[bit, right] {1}}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\title{Método guloso}
+\subtitle{Códigos de Huffman e o argumento de troca}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=2.6mm]
+    \node[box] (t1) {1.\ O paradigma guloso: escolher agora e não voltar atrás};
+    \node[box, below=of t1] (t2) {2.\ Seleção de intervalos e o argumento de troca};
+    \node[box, below=of t2] (t3) {3.\ Códigos de prefixo como árvores binárias};
+    \node[box, below=of t3] (t4) {4.\ O algoritmo de Huffman};
+    \node[box, below=of t4, fill=orange!20, draw=orange!80!black] (t5)
+         {5.\ Por que Huffman está correto};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4, t4/t5}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+    \draw[-{Stealth}, thick, orange!80!black, dashed]
+      (t2.east) to[out=0, in=0, looseness=1.3]
+      node[right, xshift=1mm, font=\tiny, align=left]
+      {a mesma técnica\\de prova} (t5.east);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize\centering
+  Na programação dinâmica, a decisão vinha \emph{depois} de resolver todos os subproblemas.
+  Hoje ela vem \textbf{antes}: uma escolha só, e um subproblema só.\par}
+  \fonte{Cormen et al.\ (2009), cap.~16~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), cap.~4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{O paradigma guloso}
+
+\begin{frame}{Por que não pegar sempre o melhor agora?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} dar troco de $c$ centavos com o \emph{menor número} de moedas.
+      \medskip
+
+      {\small Com as moedas do real, $\{1, 5, 10, 25, 50, 100\}$, o caixa faz assim: pega a
+      maior moeda que cabe, desconta e repete.}
+      \medskip
+
+      {\small $c = 68$: $50 + 10 + 5 + 1 + 1 + 1$ --- seis moedas, e é o ótimo.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Mas nem sempre funciona:} moedas $\{1, 3, 4\}$, troco $c = 6$.
+      \medskip
+
+      \begin{center}
+      \begin{tikzpicture}[moeda/.style={circle, draw=orange!80!black, fill=orange!15,
+          minimum size=6mm, font=\scriptsize\bfseries, inner sep=0pt}]
+        \node[font=\scriptsize, anchor=east] at (-0.4,0) {guloso:};
+        \node[moeda] at (0,0) {4};
+        \node[moeda] at (0.7,0) {1};
+        \node[moeda] at (1.4,0) {1};
+        \node[font=\scriptsize, anchor=west] at (1.9,0) {3 moedas};
+        \node[font=\scriptsize, anchor=east] at (-0.4,-0.9) {ótimo:};
+        \node[moeda, fill=green!15, draw=green!50!black] at (0,-0.9) {3};
+        \node[moeda, fill=green!15, draw=green!50!black] at (0.7,-0.9) {3};
+        \node[font=\scriptsize, anchor=west] at (1.9,-0.9) {2 moedas};
+      \end{tikzpicture}
+      \end{center}
+      {\small A escolha ``óbvia'' (a moeda 4) já descarta o ótimo, e o guloso nunca volta
+      atrás.}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\small\centering A pergunta da aula: \textbf{quando} o guloso acerta, e \textbf{como provar}
+  que acerta.\par}
+  \fonte{Cormen et al.\ (2009), Problema 16-1 (troco)~\cite{cormen2009introduction};
+    Dasgupta et al.\ (2008), cap.~5~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Método guloso: definição}
+  \begin{block}{Definição}
+    Um \textbf{algoritmo guloso} constrói a solução em passos. Em cada passo, faz a escolha que
+    parece melhor \emph{naquele momento}, segundo um critério local, e nunca desfaz uma escolha
+    já feita. Depois de cada escolha sobra um único subproblema, do mesmo tipo do original.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    Ganhar o máximo agora, sem olhar o futuro. É rápido (em geral, ordenar e varrer uma vez),
+    mas a escolha local só leva ao ótimo global em problemas com estrutura especial, e essa
+    estrutura precisa ser \emph{provada}, não suposta.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), introdução ao cap.~16~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), introdução ao cap.~4~\cite{kleinberg2006algorithm};
+    Levitin (2012), introdução ao cap.~9~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Mochila: o guloso erra na 0/1 e acerta na fracionária}
+  \begin{columns}[c]
+    \begin{column}{0.36\textwidth}
+      \scriptsize
+      Capacidade $W = 50$. Itens em ordem de valor por quilo:
+      \begin{center}
+      \begin{tabular}{cccc}
+        \toprule
+        item & $w$ & $v$ & $v/w$ \\
+        \midrule
+        1 & 10 & 60 & 6 \\
+        2 & 20 & 100 & 5 \\
+        3 & 30 & 120 & 4 \\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+      Guloso: pega o item de maior $v/w$ que ainda cabe. Na \textbf{0/1}, os itens 1 e 2
+      deixam 20 kg vazios; na \textbf{fracionária}, o vazio recebe $\frac{2}{3}$ do item 3.
+    \end{column}
+    \begin{column}{0.6\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1cm, y=0.046cm,
+          it/.style={draw=blue!60, font=\tiny}]
+        \foreach \x/\t/\v/\c in {0/{guloso 0/1}/160/orange, 2.1/{ótimo 0/1}/220/green,
+                                 4.2/fracionária/240/green} {
+          \draw[thick, gray] (\x,0) rectangle +(1.3,50);
+          \node[font=\tiny] at (\x+0.65,-6) {\t};
+          \node[font=\scriptsize\bfseries, text=\c!50!black] at (\x+0.65,57) {\v};
+        }
+        % guloso 0/1: itens 1 e 2
+        \filldraw[it, fill=blue!20] (0,0) rectangle (1.3,10);  \node[font=\tiny] at (0.65,5) {1};
+        \filldraw[it, fill=blue!35] (0,10) rectangle (1.3,30); \node[font=\tiny] at (0.65,20) {2};
+        \node[font=\tiny, gray] at (0.65,40) {vazio};
+        % otimo 0/1: itens 2 e 3
+        \filldraw[it, fill=blue!35] (2.1,0) rectangle (3.4,20);  \node[font=\tiny] at (2.75,10) {2};
+        \filldraw[it, fill=blue!50] (2.1,20) rectangle (3.4,50); \node[font=\tiny] at (2.75,35) {3};
+        % fracionaria: 1, 2 e 2/3 de 3
+        \filldraw[it, fill=blue!20] (4.2,0) rectangle (5.5,10);  \node[font=\tiny] at (4.85,5) {1};
+        \filldraw[it, fill=blue!35] (4.2,10) rectangle (5.5,30); \node[font=\tiny] at (4.85,20) {2};
+        \filldraw[it, fill=blue!50] (4.2,30) rectangle (5.5,50);
+        \node[font=\tiny] at (4.85,40) {$\frac{2}{3}$ de 3};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  {\scriptsize Por isso a mochila 0/1 pediu PD (aula de 15/10); a fracionária se resolve
+  ordenando por $v/w$, em $O(n \log n)$.\par}
+  \fonte{Cormen et al.\ (2009), \S 16.2, Figura 16.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Os dois ingredientes de um guloso correto}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Propriedade da escolha gulosa}
+        \small Existe uma solução ótima que contém a escolha gulosa. Ou seja, a escolha
+        local pode ser feita \emph{sem} resolver subproblemas antes.
+      \end{block}
+      \begin{block}{Subestrutura ótima}
+        \small Depois da escolha, o que falta da solução ótima é uma solução ótima do único
+        subproblema que sobrou.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[sp/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+          font=\tiny, minimum width=6mm, minimum height=4mm}]
+        \node[font=\scriptsize\bfseries] at (0,0.9) {PD};
+        \node[sp] (p) at (0,0.35) {$P$};
+        \foreach \i/\x in {1/-0.9,2/-0.3,3/0.3,4/0.9} {
+          \node[sp] (s\i) at (\x,-0.55) {};
+          \draw[-{Stealth}] (p) -- (s\i);
+        }
+        \node[font=\tiny, align=center] at (0,-1.25) {resolve todos,\\depois escolhe};
+        \node[font=\scriptsize\bfseries] at (2.6,0.9) {guloso};
+        \node[sp, fill=orange!20, draw=orange!80!black] (g) at (2.6,0.35) {$P$};
+        \node[sp] (g1) at (2.6,-0.55) {};
+        \draw[-{Stealth}, thick, orange!80!black] (g) -- node[right, font=\tiny] {escolha} (g1);
+        \node[font=\tiny, align=center] at (2.6,-1.25) {escolhe primeiro,\\um subproblema só};
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize A subestrutura ótima é a mesma que justificou a PD. O que o guloso tem a
+      mais é o primeiro ingrediente, e é ele que precisa de prova --- quase sempre por um
+      \textbf{argumento de troca}.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 16.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: o paradigma guloso}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item O guloso escolhe pelo critério local e nunca volta atrás.
+      \item Ele é rápido, mas pode errar: troco com $\{1,3,4\}$, mochila 0/1.
+      \item Para estar correto, precisa da \textbf{escolha gulosa} e da
+            \textbf{subestrutura ótima}.
+      \item A escolha gulosa é o que a PD não precisa provar e o guloso precisa.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 16.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Seleção de intervalos e o argumento de troca}
+
+\begin{frame}{Por que voltar aos intervalos?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} um auditório, $n$ pedidos de reserva $[s_i, f_i)$. Atender o
+      \emph{maior número} de pedidos sem sobreposição.
+      \medskip
+
+      {\small Na aula de 13/10, cada pedido tinha um valor $v_i$ e o guloso dava 7 em vez
+      de 8: foi preciso PD.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Hoje:} os mesmos seis intervalos, \emph{sem pesos} --- todo pedido vale 1.
+      \medskip
+
+      {\small Sem pesos, um critério guloso simples basta. Mas qual critério? Há pelo menos
+      quatro candidatos naturais, e três deles falham.}
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{center}
+  \begin{tikzpicture}[x=0.5cm, y=0.24cm]
+    \foreach \x in {0,...,11} \node[font=\tiny, gray] at (\x,-0.9) {\x};
+    \draw[gray!40] (0,-0.4) -- (11,-0.4);
+    \foreach \i/\s/\f in {1/0/4, 2/1/6, 3/5/7, 4/2/9, 5/8/10, 6/7/11} {
+      \draw[iv] (\s,\i) -- (\f,\i);
+      \node[rot] at (-0.3,\i) {\i};
+    }
+  \end{tikzpicture}
+  \end{center}
+  \fonte{Kleinberg e Tardos (2006), \S 4.1 e \S 6.1~\cite{kleinberg2006algorithm};
+    Cormen et al.\ (2009), \S 16.1~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Três critérios que falham}
+  \begin{columns}[T]
+    \begin{column}{0.31\textwidth}
+      \centering\scriptsize\textbf{começa mais cedo}
+      \smallskip
+
+      \begin{tikzpicture}[x=0.32cm, y=0.3cm]
+        \draw[ivesc] (0,3) -- (12,3);
+        \foreach \s in {1,4,7,10} \draw[iv] (\s,2) -- (\s+1.8,2);
+      \end{tikzpicture}
+      \smallskip
+
+      \tiny O longo começa primeiro e bloqueia os quatro curtos: 1 contra 4.
+    \end{column}
+    \begin{column}{0.31\textwidth}
+      \centering\scriptsize\textbf{mais curto}
+      \smallskip
+
+      \begin{tikzpicture}[x=0.32cm, y=0.3cm]
+        \draw[iv] (0.1,2) -- (5.9,2);
+        \draw[iv] (6.1,2) -- (11.9,2);
+        \draw[ivesc] (5,3) -- (7,3);
+      \end{tikzpicture}
+      \smallskip
+
+      \tiny O curto do meio corta os dois longos: 1 contra 2.
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \centering\scriptsize\textbf{menos conflitos}
+      \smallskip
+
+      \begin{tikzpicture}[x=0.3cm, y=0.24cm]
+        \foreach \s in {0,3,6,9} \draw[iv] (\s+0.1,4) -- (\s+2.9,4);
+        \draw[ivesc] (5,3) -- (7,3);
+        \foreach \y in {2,1,0} {
+          \draw[iv] (2,\y) -- (4,\y);
+          \draw[iv] (8,\y) -- (10,\y);
+        }
+      \end{tikzpicture}
+      \smallskip
+
+      \tiny O laranja tem só 2 conflitos e é escolhido, mas elimina os dois do meio da fileira
+      de cima: 3 contra 4.
+    \end{column}
+  \end{columns}
+  \bigskip
+  {\small Em laranja, a primeira escolha do critério. Um contraexemplo derruba um critério
+  guloso; para \emph{aceitar} um critério, é preciso uma prova.\par}
+  \fonte{Kleinberg e Tardos (2006), \S 4.1, Figura 4.1~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{O critério certo: termina mais cedo}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.42cm, y=0.3cm]
+        \foreach \x in {0,...,11} \node[font=\tiny, gray] at (\x,-0.9) {\x};
+        \draw[gray!40] (0,-0.4) -- (11,-0.4);
+        % ordenados por termino: 1(0,4) 2(1,6) 3(5,7) 4(2,9) 5(8,10) 6(7,11)
+        \draw[ivesc]  (0,6) -- (4,6);   \node[rot] at (-0.3,6) {1};
+        \draw[ivfora] (1,5) -- (6,5);   \node[rot] at (-0.3,5) {2};
+        \draw[ivesc]  (5,4) -- (7,4);   \node[rot] at (-0.3,4) {3};
+        \draw[ivfora] (2,3) -- (9,3);   \node[rot] at (-0.3,3) {4};
+        \draw[ivesc]  (8,2) -- (10,2);  \node[rot] at (-0.3,2) {5};
+        \draw[ivfora] (7,1) -- (11,1);  \node[rot] at (-0.3,1) {6};
+        \foreach \x in {4,7,10} \draw[dashed, orange!70!black] (\x,0) -- (\x,6.6);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      Já em ordem de término $f_1 \le f_2 \le \dots \le f_n$. Varrer uma vez, escolhendo
+      cada intervalo que começa depois do último escolhido terminar ($s_i \ge f$):
+      \begin{itemize}
+        \item escolhe 1, $f = 4$;
+        \item 2 começa em 1: descarta;
+        \item escolhe 3, $f = 7$;
+        \item 4 começa em 2: descarta;
+        \item escolhe 5, $f = 10$;
+        \item 6 começa em 7: descarta.
+      \end{itemize}
+      Resultado: $\{1, 3, 5\}$, três pedidos, que é o máximo.
+      \medskip
+
+      Ideia: terminar cedo \emph{deixa o maior tempo livre} para os pedidos seguintes.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 16.1, \textsc{Greedy-Activity-Selector}~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.1~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}[fragile]{Seleção de intervalos em C}
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+typedef struct { int s, f; } Intervalo;
+
+static int cmp_fim( const void *a, const void *b) {
+   return ((const Intervalo *) a)->f
+        - ((const Intervalo *) b)->f;
+}
+
+/* ordena v[0..n-1] por termino e grava em esc[]
+   os indices escolhidos; devolve quantos sao */
+int seleciona( int n, Intervalo v[], int esc[]) {
+   qsort( v, n, sizeof (Intervalo), cmp_fim);
+   int k = 0, fim = INT_MIN;
+   for (int i = 0; i < n; ++i)
+      if (v[i].s >= fim) {    /* compativel */
+         esc[k++] = i;
+         fim = v[i].f;
+      }
+   return k;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \scriptsize
+      \textbf{Custo.} A ordenação domina: $O(n \log n)$. A varredura é $\Theta(n)$ e só
+      guarda o término do último escolhido.
+      \medskip
+
+      \textbf{Intervalos semiabertos.} $[s_i, f_i)$ e $[s_j, f_j)$ são compatíveis quando
+      $f_i \le s_j$: um pedido pode começar no instante em que o anterior termina.
+      \medskip
+
+      Compare com a PD da aula de 13/10: lá eram $O(n \log n)$ para ordenar e calcular
+      $p(j)$ e uma tabela $M$ de $n + 1$ posições.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 16.1~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.1~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{O argumento de troca}
+  \begin{block}{Teorema (escolha gulosa)}
+    \small Seja $a_1$ o intervalo que termina mais cedo. Existe uma solução ótima que
+    contém $a_1$.
+  \end{block}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \scriptsize
+      \textbf{Prova.} Seja $O$ uma solução ótima qualquer e $a_j$ o intervalo de $O$ que
+      termina primeiro. Se $a_j = a_1$, acabou. Senão, troque:
+      $O' = O - \{a_j\} \cup \{a_1\}$.
+      \smallskip
+
+      Os outros intervalos de $O$ começam depois de $f_j$, e $f_1 \le f_j$; logo nenhum deles
+      cruza $a_1$. Então $O'$ é compatível e $|O'| = |O|$: $O'$ também é ótima e contém
+      $a_1$. \hfill$\square$
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{tikzpicture}[x=0.4cm, y=0.32cm]
+        \node[font=\tiny, anchor=east] at (-0.2,3) {$O$};
+        \draw[iv] (1.5,3) -- (4,3) node[midway, above, font=\tiny, text=black] {$a_j$};
+        \draw[iv] (4.5,3) -- (6.5,3);
+        \draw[iv] (7,3) -- (9.5,3);
+        \node[font=\tiny, anchor=east] at (-0.2,1) {$O'$};
+        \draw[ivesc] (0,1) -- (3,1) node[midway, below, font=\tiny, text=black] {$a_1$};
+        \draw[iv] (4.5,1) -- (6.5,1);
+        \draw[iv] (7,1) -- (9.5,1);
+        \draw[dashed, gray] (3,0) -- (3,3.6) node[above, font=\tiny] {$f_1$};
+        \draw[dashed, gray] (4,0) -- (4,3.6) node[above, font=\tiny] {$f_j$};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize Com a subestrutura ótima (o resto de $O'$ é ótimo para os intervalos que
+  começam depois de $f_1$), uma indução no número de intervalos prova que o guloso é ótimo.}
+  \fonte{Cormen et al.\ (2009), \S 16.1, Teorema 16.1~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.1~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{O roteiro de um argumento de troca}
+  \begin{center}
+  \begin{tikzpicture}[passo/.style={rectangle, rounded corners, draw=blue!60, fill=blue!10,
+      font=\scriptsize, text width=2.45cm, align=center, minimum height=1.25cm}]
+    \node[passo] (p1) at (0,0) {\textbf{1.} Tome uma solução ótima $O$ \emph{qualquer}};
+    \node[passo] (p2) at (3.05,0) {\textbf{2.} Ache onde $O$ difere da escolha gulosa $g$};
+    \node[passo] (p3) at (6.1,0) {\textbf{3.} Troque o elemento de $O$ por $g$};
+    \node[passo, fill=orange!20, draw=orange!80!black] (p4) at (9.15,0)
+      {\textbf{4.} Mostre que a troca \emph{não piora} e é viável};
+    \foreach \a/\b in {p1/p2, p2/p3, p3/p4} \draw[arc, blue!60!black] (\a) -- (\b);
+  \end{tikzpicture}
+  \end{center}
+  \medskip
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Conclusão:} existe solução ótima que concorda com o guloso na primeira escolha.
+      Repetindo (indução), existe uma que concorda em \emph{todas}: a solução gulosa é ótima.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Onde vamos usar:} hoje, na corretude de Huffman (trocar folhas de posição na
+      árvore); nas próximas aulas, em Kruskal e Prim (trocar arestas de uma árvore geradora)
+      e em Dijkstra.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 4.2 (argumento de troca)~\cite{kleinberg2006algorithm};
+    Cormen et al.\ (2009), \S 16.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: seleção de intervalos}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Sem pesos, ``termina mais cedo'' resolve a seleção de intervalos em
+            $O(n \log n)$.
+      \item ``Começa mais cedo'', ``mais curto'' e ``menos conflitos'' caem com
+            contraexemplos.
+      \item O \textbf{argumento de troca} transforma uma solução ótima qualquer em uma que
+            contém a escolha gulosa, sem piorá-la.
+      \item Com pesos, a troca deixa de funcionar e voltamos à PD.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 16.1~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.1--4.2~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{Códigos de prefixo}
+
+\begin{frame}{Por que códigos de tamanho variável?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} um arquivo de 100 mil caracteres com só seis letras. Quantos bits
+      são necessários para guardá-lo?
+      \medskip
+
+      {\small Com um código de tamanho fixo, cada letra gasta $\lceil \log_2 6 \rceil = 3$
+      bits: 300 mil bits.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Ideia:} letras frequentes ganham palavras curtas, como no código Morse.
+      \medskip
+
+      \centering\scriptsize\setlength{\tabcolsep}{3pt}
+      \begin{tabular}{lcccccc}
+        \toprule
+        & a & b & c & d & e & f \\
+        \midrule
+        freq.\ (mil) & 45 & 13 & 12 & 16 & 9 & 5 \\
+        fixo & 000 & 001 & 010 & 011 & 100 & 101 \\
+        variável & 0 & 101 & 100 & 111 & 1101 & 1100 \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\small Com o código variável:
+  $45 \cdot 1 + 13 \cdot 3 + 12 \cdot 3 + 16 \cdot 3 + 9 \cdot 4 + 5 \cdot 4 = 224$ mil bits,
+  uma economia de 25\%. Esse é o exemplo condutor do resto da aula.\par}
+  \fonte{Cormen et al.\ (2009), \S 16.3, Figura 16.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Código de prefixo: definição}
+  \begin{block}{Definição}
+    Um \textbf{código de prefixo} atribui a cada caractere uma palavra binária de modo que
+    nenhuma palavra é prefixo de outra.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    Sem prefixos em comum, a decodificação nunca hesita: lendo os bits da esquerda para a
+    direita, a primeira palavra completa encontrada só pode ser a certa.
+  \end{exampleblock}
+  {\small\textbf{Contraexemplo:} com $\mathrm{a} = 0$, $\mathrm{b} = 01$ e
+  $\mathrm{c} = 1$, a sequência $01$ pode ser ``b'' ou ``ac''. O código variável do slide
+  anterior é de prefixo: $\texttt{0101100}$ só pode ser $\texttt{0}\,\texttt{101}\,\texttt{100}$
+  $=$ ``abc''.\par}
+  \smallskip
+  {\scriptsize Pode-se provar que nenhum código decodificável (de prefixo ou não) comprime
+  melhor que o melhor código de prefixo, então basta procurar entre eles.\par}
+  \fonte{Cormen et al.\ (2009), \S 16.3~\cite{cormen2009introduction};
+    Cover e Thomas (2006), \S 5.1 e \S 5.5~\cite{cover2006elements}.}
+\end{frame}
+
+\begin{frame}{Códigos como árvores binárias}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \centering\scriptsize\textbf{código fixo}\par
+      \begin{tikzpicture}[arv, level 1/.style={sibling distance=26mm},
+          level 2/.style={sibling distance=13mm}, level 3/.style={sibling distance=7mm}]
+        \node[interno] {100}
+          child {node[interno] {86}
+            child {node[interno] {58}
+              child {node[folha] {a:45} \zero}
+              child {node[folha] {b:13} \um} \zero}
+            child {node[interno] {28}
+              child {node[folha] {c:12} \zero}
+              child {node[folha] {d:16} \um} \um} \zero}
+          child {node[interno] {14}
+            child {node[interno] {14}
+              child {node[folha] {e:9} \zero}
+              child {node[folha] {f:5} \um} \zero}
+            child[missing] \um};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering\scriptsize\textbf{código variável}\par
+      \begin{tikzpicture}[arv, level 1/.style={sibling distance=20mm},
+          level 2/.style={sibling distance=16mm}, level 3/.style={sibling distance=8mm},
+          level 4/.style={sibling distance=7mm}]
+        \node[interno] {100}
+          child {node[folha] {a:45} \zero}
+          child {node[interno] {55}
+            child {node[interno] {25}
+              child {node[folha] {c:12} \zero}
+              child {node[folha] {b:13} \um} \zero}
+            child {node[interno] {30}
+              child {node[interno] {14}
+                child {node[folha] {f:5} \zero}
+                child {node[folha] {e:9} \um} \zero}
+              child {node[folha] {d:16} \um} \um} \um};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \smallskip
+  {\scriptsize Cada caractere é uma folha; a palavra é o caminho da raiz até ela (0 =
+  esquerda, 1 = direita). Ser de prefixo é exatamente isto: \emph{nenhum caractere em nó
+  interno}. Cada nó interno mostra a soma das frequências abaixo dele. A árvore fixa tem um
+  nó interno com um filho só: dá para encurtar e e f.\par}
+  \fonte{Cormen et al.\ (2009), \S 16.3, Figura 16.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{O custo de uma árvore}
+  \begin{block}{Definição}
+    \small Para um alfabeto $C$ com frequências $c.\mathit{freq}$ e uma árvore de código $T$,
+    em que $d_T(c)$ é a profundidade da folha $c$ (o tamanho da sua palavra),
+    \[ B(T) = \sum_{c \in C} c.\mathit{freq} \cdot d_T(c) \quad\text{bits.} \]
+    O problema: dada $C$, achar $T$ que \textbf{minimiza} $B(T)$ --- um código ótimo.
+  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Fato 1.} Uma árvore ótima é \emph{cheia}: todo nó interno tem dois filhos.
+      (Um nó com filho único pode ser contraído, e as palavras abaixo dele encurtam.)
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Fato 2.} $B(T)$ é a soma dos valores dos nós internos, pois a frequência de
+      uma folha é somada uma vez em cada ancestral. Na árvore variável:
+      $14 + 25 + 30 + 55 + 100 = 224$.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 16.3, Equação~(16.4)~\cite{cormen2009introduction};
+    Levitin (2012), \S 9.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: códigos de prefixo}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Palavras curtas para caracteres frequentes reduzem o total de bits.
+      \item Um código de prefixo decodifica sem ambiguidade e corresponde a uma árvore
+            binária com os caracteres nas folhas.
+      \item O custo é $B(T) = \sum_c c.\mathit{freq} \cdot d_T(c)$; a árvore ótima é cheia.
+      \item No exemplo: 300 mil bits com código fixo, 224 mil com o variável.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 16.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{O algoritmo de Huffman}
+
+\begin{frame}{Por que construir de baixo para cima?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} há uma quantidade exponencial de árvores cheias com $n$ folhas.
+      Testar todas está fora de questão.
+      \medskip
+
+      {\small Uma observação ajuda: os dois caracteres \emph{menos} frequentes deveriam ficar
+      no fundo da árvore, onde as palavras são mais longas.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução (Huffman, 1952):} começar com $n$ árvores de um nó só e repetir $n-1$
+      vezes:
+      \begin{enumerate}
+        \item tire as duas árvores de \textbf{menor} frequência, $x$ e $y$;
+        \item crie um nó $z$ com filhos $x$ e $y$ e
+              $z.\mathit{freq} = x.\mathit{freq} + y.\mathit{freq}$;
+        \item devolva $z$ ao conjunto.
+      \end{enumerate}
+      {\small A escolha gulosa: juntar sempre os dois menores.}
+    \end{column}
+  \end{columns}
+  \fonte{Huffman (1952)~\cite{huffman1952method}; Cormen et al.\ (2009), \S 16.3,
+    \textsc{Huffman}~\cite{cormen2009introduction}; Dasgupta et al.\ (2008),
+    \S 5.2~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Exemplo: as primeiras fusões}
+  \begin{tikzpicture}[arv, level 1/.style={sibling distance=7mm}]
+    \node[font=\scriptsize\bfseries, anchor=west] at (-0.6,0) {(a)};
+    \foreach \t [count=\i] in {f:5, e:9, c:12, b:13, d:16, a:45}
+      \node[folha] at (0.4+\i*1.05,0) {\t};
+    \node[font=\tiny, anchor=west, gray!50!black] at (7.4,0) {fila de prioridade inicial};
+    % (b)
+    \node[font=\scriptsize\bfseries, anchor=west] at (-0.6,-1.0) {(b)};
+    \node[folha] at (1.45,-1.0) {c:12};
+    \node[folha] at (2.5,-1.0) {b:13};
+    \node[interno, fill=orange!50] at (3.7,-1.0) {14}
+      child {node[folha] {f:5} \zero} child {node[folha] {e:9} \um};
+    \node[folha] at (5.0,-1.0) {d:16};
+    \node[folha] at (6.05,-1.0) {a:45};
+    \node[font=\tiny, anchor=west, gray!50!black] at (7.4,-1.0) {junta f e e};
+    % (c)
+    \node[font=\scriptsize\bfseries, anchor=west] at (-0.6,-2.6) {(c)};
+    \node[interno] at (1.75,-2.6) {14}
+      child {node[folha] {f:5} \zero} child {node[folha] {e:9} \um};
+    \node[folha] at (3.0,-2.6) {d:16};
+    \node[interno, fill=orange!50] at (4.3,-2.6) {25}
+      child {node[folha] {c:12} \zero} child {node[folha] {b:13} \um};
+    \node[folha] at (5.7,-2.6) {a:45};
+    \node[font=\tiny, anchor=west, gray!50!black] at (7.4,-2.6) {junta c e b};
+  \end{tikzpicture}
+  \medskip
+
+  {\small Em cada linha, a fila em ordem crescente de frequência; em laranja, o nó recém-criado.
+  Na linha (b), o nó 14 entra \emph{entre} b:13 e d:16: a fila é reordenada a cada fusão,
+  por isso usamos um heap.\par}
+  \fonte{Cormen et al.\ (2009), \S 16.3, Figura 16.5(a)--(c)~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplo: as últimas fusões}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+      \scriptsize\textbf{(d)} junta 14 e d\par
+      \smallskip
+      \begin{tikzpicture}[arv, level 1/.style={sibling distance=9mm},
+          level 2/.style={sibling distance=7mm}]
+        \node[interno] at (0,0) {25}
+          child {node[folha] {c:12} \zero} child {node[folha] {b:13} \um};
+        \node[interno, fill=orange!50] at (2.0,0) {30}
+          child {node[interno] {14}
+            child {node[folha] {f:5} \zero} child {node[folha] {e:9} \um} \zero}
+          child {node[folha] {d:16} \um};
+        \node[folha] at (3.5,0) {a:45};
+      \end{tikzpicture}
+      \smallskip
+
+      \textbf{(e)} junta 25 e 30\par
+      \smallskip
+      \begin{tikzpicture}[arv, level 1/.style={sibling distance=9mm}]
+        \node[folha] at (0,0) {a:45};
+        \node[interno, fill=orange!50] at (1.6,0) {55}
+          child {node[interno] {25} \zero} child {node[interno] {30} \um};
+        \node[font=\tiny, anchor=west, gray!50!black] at (2.5,-0.35) {(subárvores como em (d))};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \scriptsize\textbf{(f)} junta a e 55: a árvore final
+      \smallskip
+
+      \begin{tikzpicture}[arv, level 1/.style={sibling distance=20mm},
+          level 2/.style={sibling distance=16mm}, level 3/.style={sibling distance=8mm},
+          level 4/.style={sibling distance=7mm}]
+        \node[interno, fill=orange!50] {100}
+          child {node[folha] {a:45} \zero}
+          child {node[interno] {55}
+            child {node[interno] {25}
+              child {node[folha] {c:12} \zero}
+              child {node[folha] {b:13} \um} \zero}
+            child {node[interno] {30}
+              child {node[interno] {14}
+                child {node[folha] {f:5} \zero}
+                child {node[folha] {e:9} \um} \zero}
+              child {node[folha] {d:16} \um} \um} \um};
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize $n = 6$ caracteres, $n - 1 = 5$ fusões. Os nós internos valem
+  $14, 25, 30, 55, 100$, e a soma é $B(T) = 224$ mil bits: a árvore variável do início da
+  aula era a de Huffman. Palavras: a\,=\,0, c\,=\,100, b\,=\,101, f\,=\,1100, e\,=\,1101,
+  d\,=\,111.\par}
+  \fonte{Cormen et al.\ (2009), \S 16.3, Figura 16.5(d)--(f)~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{Huffman em C}
+  \begin{columns}[T]
+    \begin{column}{0.6\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* nos 0..n-1 sao as folhas (freq[] dado);
+   nos n..2n-2 sao os internos criados aqui.
+   Heap: fila de prioridade minima de AED 1. */
+int huffman( int n, int freq[], int esq[], int dir[]) {
+   Heap h = heap_cria( n);
+   for (int i = 0; i < n; ++i)
+      heap_insere( &h, i, freq[i]);
+   for (int z = n; z < 2*n - 1; ++z) { /* n-1 fusoes */
+      int x = heap_remove_min( &h);
+      int y = heap_remove_min( &h);
+      esq[z] = x;  dir[z] = y;
+      freq[z] = freq[x] + freq[y];
+      heap_insere( &h, z, freq[z]);
+   }
+   return heap_remove_min( &h);  /* a raiz, 2n-2 */
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      \scriptsize
+      \textbf{Custo.} São $n - 1$ iterações, cada uma com três operações no heap de até
+      $n$ elementos: $O(n \log n)$ no total. (Construir o heap inicial com
+      \textit{build-heap} custa $O(n)$.)
+      \medskip
+
+      \textbf{Árvore em vetores.} Os nós são índices; \texttt{esq[z]} e \texttt{dir[z]}
+      são os filhos do nó interno \texttt{z}. As palavras saem de uma DFS da raiz que
+      acrescenta 0 ao descer à esquerda e 1 à direita.
+      \medskip
+
+      Com as frequências já ordenadas, duas filas simples substituem o heap: $O(n)$.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 16.3, \textsc{Huffman}~\cite{cormen2009introduction}; van Leeuwen (1976), duas filas~\cite{vanleeuwen1976construction};
+    Levitin (2012), \S 9.4~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Decodificando com a árvore}
+  \begin{columns}[c]
+    \begin{column}{0.45\textwidth}
+      \begin{tikzpicture}[arv, level 1/.style={sibling distance=16mm},
+          level 2/.style={sibling distance=11mm}, level 3/.style={sibling distance=6.5mm},
+          level 4/.style={sibling distance=5.5mm}]
+        \node[interno] (r) {100}
+          child {node[folha] {a} \zero}
+          child {node[interno] {55}
+            child {node[interno] {25}
+              child {node[folha] {c} \zero}
+              child {node[folha] {b} \um} \zero}
+            child {node[interno] {30}
+              child {node[interno] {14}
+                child {node[folha, fill=orange!40] {f} \zero}
+                child {node[folha] {e} \um} \zero}
+              child {node[folha] {d} \um} \um} \um};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \scriptsize
+      Começar na raiz; para cada bit, descer à esquerda (0) ou à direita (1). Ao chegar numa
+      folha, emitir o caractere e voltar à raiz.
+      \medskip
+
+      \begin{center}
+      \begin{tabular}{ccc}
+        \toprule
+        bits lidos & caminho & emite \\
+        \midrule
+        \texttt{0} & esquerda & a \\
+        \texttt{101} & dir., esq., dir. & b \\
+        \texttt{1100} & dir., dir., esq., esq. & f \\
+        \texttt{1101} & dir., dir., esq., dir. & e \\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+      \medskip
+      Assim $\texttt{010111001101} =$ ``abfe''. Cada bit custa $O(1)$: decodificar é linear
+      no tamanho do texto codificado.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 16.3~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.8~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: o algoritmo de Huffman}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Huffman junta, $n - 1$ vezes, as duas árvores de menor frequência.
+      \item Com um heap, custa $O(n \log n)$.
+      \item No exemplo, produz $B(T) = 224$ mil bits, a soma dos nós internos.
+      \item Decodificar é descer na árvore, um bit por passo.
+    \end{itemize}
+  \end{block}
+  {\small Falta a pergunta central: por que juntar os dois menores dá a árvore
+  \emph{ótima}?\par}
+  \fonte{Cormen et al.\ (2009), \S 16.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Por que Huffman está correto}
+
+\begin{frame}{Por que precisamos de uma prova?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} Huffman é guloso. Vimos três critérios gulosos ``razoáveis'' para
+      intervalos falharem, e o guloso da mochila 0/1 também falhou.
+      \medskip
+
+      {\small Um bom exemplo não é prova: precisamos dos dois ingredientes.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:} dois lemas, um para cada ingrediente.
+      \medskip
+
+      \begin{itemize}
+        \small
+        \item \textbf{Escolha gulosa} (Lema 16.2): juntar os dois menores não exclui o ótimo
+              --- argumento de troca.
+        \item \textbf{Subestrutura ótima} (Lema 16.3): depois da fusão, o resto é um problema
+              de Huffman menor.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 16.3, Lemas 16.2 e 16.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Lema da escolha gulosa}
+  \begin{block}{Lema}
+    \small Sejam $x$ e $y$ os dois caracteres de menor frequência de $C$. Existe um código de
+    prefixo ótimo em que $x$ e $y$ são \textbf{irmãos} na árvore: suas palavras têm o mesmo
+    tamanho e diferem só no último bit.
+  \end{block}
+  \begin{center}
+  \begin{tikzpicture}[tri/.style={draw=blue!60, fill=blue!5, thick},
+      f/.style={folha, minimum width=4mm}]
+    \foreach \x/\T/\l in {0/T/{}, 3.7/T'/{troca $x \leftrightarrow a$},
+                          7.4/T''/{troca $y \leftrightarrow b$}} {
+      \draw[tri] (\x,0) -- (\x-1.2,-1.9) -- (\x+1.2,-1.9) -- cycle;
+      \node[font=\scriptsize] at (\x,0.25) {$\T$};
+    }
+    % T
+    \node[f] at (-0.45,-0.9) {$x$};  \node[f] at (0.45,-0.9) {$y$};
+    \node[f, fill=green!15] at (-0.3,-1.65) {$a$}; \node[f, fill=green!15] at (0.3,-1.65) {$b$};
+    % T'
+    \node[f, fill=green!15] at (3.25,-0.9) {$a$};  \node[f] at (4.15,-0.9) {$y$};
+    \node[f] at (3.4,-1.65) {$x$}; \node[f, fill=green!15] at (4.0,-1.65) {$b$};
+    % T''
+    \node[f, fill=green!15] at (6.95,-0.9) {$a$};  \node[f, fill=green!15] at (7.85,-0.9) {$b$};
+    \node[f, fill=orange!40] at (7.1,-1.65) {$x$}; \node[f, fill=orange!40] at (7.7,-1.65) {$y$};
+    \draw[arc, gray] (1.4,-1) -- (2.3,-1) node[midway, above, font=\tiny] {troca};
+    \draw[arc, gray] (5.1,-1) -- (6.0,-1) node[midway, above, font=\tiny] {troca};
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize $T$ é uma árvore ótima qualquer; $a$ e $b$ são folhas irmãs de profundidade
+  máxima (existem porque $T$ é cheia). Trocar $x$ com $a$ e $y$ com $b$ leva $x, y$ ao
+  fundo, como irmãos.\par}
+  \fonte{Cormen et al.\ (2009), \S 16.3, Lema 16.2 e Figura 16.6~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Prova: a troca não piora}
+  \small
+  Só as parcelas de $x$ e $a$ mudam de $T$ para $T'$:
+  \[
+    \begin{aligned}
+    B(T) - B(T') &= x.\mathit{freq}\, d_T(x) + a.\mathit{freq}\, d_T(a)
+                  - x.\mathit{freq}\, d_T(a) - a.\mathit{freq}\, d_T(x) \\
+                 &= \underbrace{(a.\mathit{freq} - x.\mathit{freq})}_{\ge 0\text{: $x$ é mínimo}}
+                    \;\underbrace{(d_T(a) - d_T(x))}_{\ge 0\text{: $a$ é o mais fundo}}
+                 \;\ge\; 0 .
+    \end{aligned}
+  \]
+  Do mesmo modo, $B(T') - B(T'') \ge 0$. Logo $B(T'') \le B(T)$; como $T$ é ótima,
+  $B(T'') = B(T)$ e $T''$ também é ótima, com $x$ e $y$ irmãos. \hfill$\square$
+  \medskip
+
+  {\scriptsize É o roteiro da seção 2: uma solução ótima qualquer, uma troca que aproxima
+  da escolha gulosa, e a conta mostrando que não piora. A frequência baixa vai para o fundo,
+  a alta sobe.\par}
+  \fonte{Cormen et al.\ (2009), \S 16.3, prova do Lema 16.2~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.8~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Subestrutura ótima e o teorema}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+      \begin{block}{Lema}
+        \scriptsize Seja $C' = C - \{x, y\} \cup \{z\}$, com
+        $z.\mathit{freq} = x.\mathit{freq} + y.\mathit{freq}$. Se $T'$ é ótima para $C'$,
+        então a árvore $T$ obtida trocando a folha $z$ por um nó com filhos $x$ e $y$ é
+        ótima para $C$.
+      \end{block}
+      \scriptsize
+      \textbf{Chave da prova:} $B(T) = B(T') + x.\mathit{freq} + y.\mathit{freq}$, porque $x$ e
+      $y$ estão um nível abaixo de onde $z$ estava. Se houvesse $T^\ast$ melhor para $C$,
+      por (16.2) podemos supor $x, y$ irmãos em $T^\ast$; contraí-los daria uma árvore para
+      $C'$ melhor que $T'$, absurdo.
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[arv, level 1/.style={sibling distance=8mm}]
+        \draw[draw=blue!60, fill=blue!5, thick] (0,0) -- (-0.9,-1.3) -- (0.9,-1.3) -- cycle;
+        \node[font=\scriptsize] at (0,0.25) {$T'$};
+        \node[folha, fill=orange!40] at (0.3,-1.05) {$z$};
+        \draw[arc, gray] (1.1,-0.7) -- (1.7,-0.7);
+        \draw[draw=blue!60, fill=blue!5, thick] (2.9,0) -- (2.0,-1.3) -- (3.8,-1.3) -- cycle;
+        \node[font=\scriptsize] at (2.9,0.25) {$T$};
+        \node[interno] at (3.2,-1.05) {$z$}
+          child {node[folha] {$x$}} child {node[folha] {$y$}};
+      \end{tikzpicture}
+      \end{center}
+      \begin{block}{Teorema}
+        \scriptsize Huffman produz um código de prefixo ótimo.
+      \end{block}
+      \scriptsize Indução em $n = |C|$: a primeira fusão é segura (16.2) e o que sobra é
+      Huffman em $C'$, com $n - 1$ caracteres (16.3).
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 16.3, Lema 16.3 e Teorema 16.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: corretude de Huffman}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \textbf{Escolha gulosa:} trocar folhas leva os dois menos frequentes ao fundo
+            sem aumentar $B(T)$.
+      \item \textbf{Subestrutura ótima:} fundir $x$ e $y$ em $z$ custa exatamente
+            $x.\mathit{freq} + y.\mathit{freq}$ a mais.
+      \item Indução sobre o número de caracteres fecha a prova.
+      \item É o mesmo esqueleto da seleção de intervalos.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 16.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Fechando}
+
+\begin{frame}{Quão perto do limite Huffman chega?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \scriptsize
+      Com $p_c$ a fração de ocorrências de $c$, a \textbf{entropia}
+      \[ H = -\sum_{c} p_c \log_2 p_c \]
+      é o mínimo de bits por caractere que \emph{qualquer} código decodificável consegue em
+      média, para caracteres independentes. O comprimento médio $L$ do código de Huffman
+      satisfaz
+      \[ H \;\le\; L \;<\; H + 1 . \]
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \textbf{No exemplo:}
+      \begin{center}
+      \begin{tabular}{lc}
+        \toprule
+        & bits/caractere \\
+        \midrule
+        código fixo & 3{,}00 \\
+        Huffman ($L$) & 2{,}24 \\
+        entropia ($H$) & 2{,}22 \\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+      \smallskip
+      Huffman é usado no estágio final de formatos como DEFLATE (\texttt{zip}, \texttt{gzip},
+      PNG) e JPEG, depois de etapas que exploram repetições e correlações.
+    \end{column}
+  \end{columns}
+  \fonte{Shannon (1948)~\cite{shannon1948mathematical}; Cover e Thomas (2006), \S 5.4,
+    Teorema 5.4.1, e \S 5.8~\cite{cover2006elements}; Deutsch (1996), RFC
+    1951~\cite{deutsch1996deflate}.}
+\end{frame}
+
+\begin{frame}{Guloso ou programação dinâmica?}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{llll}
+    \toprule
+    problema & técnica & por quê & tempo \\
+    \midrule
+    intervalos sem peso & guloso & troca: termina mais cedo & $O(n \log n)$ \\
+    intervalos ponderados & PD & a troca falha com pesos & $O(n \log n)$ \\
+    mochila fracionária & guloso & troca: maior $v/w$ & $O(n \log n)$ \\
+    mochila 0/1 & PD & guloso perde (160 contra 220) & $\Theta(nW)$ \\
+    códigos de prefixo & guloso & troca de folhas (Huffman) & $O(n \log n)$ \\
+    LCS, edição, Floyd & PD & sem escolha local segura & $\Theta(mn)$, $\Theta(n^3)$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  {\scriptsize Os dois métodos exigem subestrutura ótima. O guloso exige, além disso, uma
+  escolha que possa ser feita antes de resolver os subproblemas --- e, quando ela existe,
+  troca uma tabela inteira por uma única varredura.\par}
+  \smallskip
+  {\scriptsize\textbf{Próximas aulas:} árvore geradora mínima (Kruskal e Prim) e caminhos
+  mínimos (Dijkstra), dois gulosos em grafos provados por troca.\par}
+  \fonte{Cormen et al.\ (2009), \S 16.2~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), cap.~4 e~6~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{cormen2009introduction,cormen2012algoritmos,kleinberg2006algorithm,levitin2012introduction,dasgupta2008algorithms,huffman1952method,shannon1948mathematical,cover2006elements,vanleeuwen1976construction,deutsch1996deflate}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
