@@ -1,0 +1,986 @@
+% -*- coding: utf-8 -*-
+% Aula: Arvore geradora minima -- Kruskal e Prim (Unidade 3 de AED2, depois de Huffman)
+% Fontes principais: Cormen et al. (2009), cap. 23: sec. 23.1 (Generic-MST, Teorema 23.1,
+% Corolario 23.2, Figuras 23.1-23.3), sec. 23.2 (Kruskal, Figura 23.4; Prim, Figura 23.5);
+% cap. 21 (conjuntos disjuntos); Kleinberg e Tardos (2006), sec. 4.5-4.7;
+% Levitin (2012), sec. 9.1-9.2; Dasgupta et al. (2008), sec. 5.1; Feofiloff (2020).
+% Exemplo condutor: o grafo da Figura 23.1 de Cormen et al. (9 vertices a..i, 14 arestas,
+% AGM de peso 37). Kruskal escolhe (a,h) e Prim a partir de a escolhe (b,c): duas AGMs.
+% Continua a aula "Metodo guloso: codigos de Huffman e o argumento de troca".
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, decorations.pathmorphing, backgrounds, patterns}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    columns=fullflexible,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=6.6cm, minimum height=0.55cm, font=\scriptsize},
+  vert/.style={circle, draw=blue!60!black, fill=blue!10, font=\tiny,
+               inner sep=0pt, minimum size=4.2mm},
+  vdentro/.style={vert, draw=orange!80!black, fill=orange!35},
+  aresta/.style={draw=gray!55, thin},
+  arvore/.style={draw=orange!85!black, line width=2.2pt},
+  rejeitada/.style={draw=red!70!black, thick, dashed},
+  peso/.style={font=\tiny, fill=white, inner sep=0.6pt},
+  arc/.style={-{Stealth}, thick}
+}
+
+% ---- o grafo da Figura 23.1 de Cormen et al. ----
+% \grafoclrs{arestas da arvore}{vertices destacados}{arestas tracejadas}
+% (usar dentro de um tikzpicture; listas vazias: passar {})
+\newcommand{\arestasclrs}{a/b/4, a/h/8, b/c/8, b/h/11, c/d/7, c/f/4, c/i/2,
+  d/e/9, d/f/14, e/f/10, f/g/2, g/h/1, g/i/6, h/i/7}
+\newcommand{\grafoclrs}[3]{%
+  \coordinate (a) at (0,0);     \coordinate (b) at (1,1);
+  \coordinate (c) at (2.3,1);   \coordinate (d) at (3.6,1);
+  \coordinate (e) at (4.6,0);   \coordinate (f) at (3.6,-1);
+  \coordinate (g) at (2.3,-1);  \coordinate (h) at (1,-1);
+  \coordinate (i) at (1.75,0);
+  \foreach \u/\v/\w in \arestasclrs \draw[aresta] (\u) -- (\v);
+  \def\lista{#1}\ifx\lista\empty\else
+    \foreach \u/\v in {#1} \draw[arvore] (\u) -- (\v);\fi
+  \def\lista{#3}\ifx\lista\empty\else
+    \foreach \u/\v in {#3} \draw[rejeitada] (\u) -- (\v);\fi
+  \foreach \u/\v/\w in \arestasclrs \path (\u) -- (\v) node[peso, pos=0.5] {\w};
+  \foreach \v in {a,...,i} \node[vert] at (\v) {\v};
+  \def\lista{#2}\ifx\lista\empty\else
+    \foreach \v in {#2} \node[vdentro] at (\v) {\v};\fi
+}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\title{Árvore geradora mínima}
+\subtitle{Os algoritmos de Kruskal e de Prim}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=2.6mm]
+    \node[box] (t1) {1.\ O problema da árvore geradora mínima};
+    \node[box, below=of t1, fill=orange!20, draw=orange!80!black] (t2)
+         {2.\ A propriedade do corte: quais arestas são seguras};
+    \node[box, below=of t2] (t3) {3.\ Kruskal: arestas em ordem crescente};
+    \node[box, below=of t3] (t4) {4.\ Union-find: detectar ciclos quase em $O(1)$};
+    \node[box, below=of t4] (t5) {5.\ Prim: uma árvore que cresce a partir de um vértice};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4, t4/t5}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+    \draw[-{Stealth}, thick, orange!80!black, dashed]
+      (t2.east) to[out=0, in=0, looseness=1.2]
+      node[right, xshift=1mm, font=\tiny, align=left]
+      {um teorema,\\dois algoritmos} (t5.east);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize\centering
+  Na aula passada, o argumento de troca provou Huffman. Hoje ele prova, de uma vez, dois
+  algoritmos gulosos em grafos.\par}
+  \fonte{Cormen et al.\ (2009), cap.~23~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.5~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{O problema da árvore geradora mínima}
+
+\begin{frame}{Por que precisamos de uma árvore geradora mínima?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} ligar nove bairros por fibra óptica. Cada trecho possível tem um
+      custo de instalação. Que trechos instalar para que \emph{todos} os bairros se
+      comuniquem gastando o \emph{mínimo}?
+      \medskip
+
+      {\small Não vale a pena instalar um trecho que fecha um ciclo: dá para tirá-lo sem
+      desconectar ninguém e o custo cai. A resposta é uma \textbf{árvore}.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \grafoclrs{}{}{}
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize O exemplo condutor da aula: 9 vértices, 14 arestas com pesos. Foi assim que
+      o problema nasceu: Borůvka (1926) planejava a rede elétrica da Morávia.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 23.1, Figura 23.1~\cite{cormen2009introduction};
+    Graham e Hell (1985)~\cite{graham1985history}.}
+\end{frame}
+
+\begin{frame}{Árvore geradora mínima: definição}
+  \begin{block}{Definição}
+    Seja $G = (V, E)$ um grafo não dirigido \textbf{conexo} com pesos $w(u,v)$ nas arestas.
+    Uma \textbf{árvore geradora} de $G$ é um $T \subseteq E$ sem ciclos que liga todos os
+    vértices. Seu peso é $w(T) = \sum_{(u,v) \in T} w(u,v)$. Uma \textbf{árvore
+    geradora mínima} (AGM, em inglês \emph{MST}) é uma árvore geradora de peso mínimo.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    ``Geradora'': alcança todos os vértices. ``Árvore'': nenhuma aresta sobrando. Toda
+    árvore geradora tem exatamente $|V| - 1$ arestas; o que muda entre elas é \emph{quais}.
+  \end{exampleblock}
+  {\scriptsize Notação: $n = |V|$ e $m = |E|$. Se $G$ for desconexo, pede-se uma
+  \emph{floresta} geradora mínima.\par}
+  \fonte{Cormen et al.\ (2009), \S 23.1 e Apêndice B.5~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.5~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: uma AGM do grafo condutor}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.15cm, y=1.1cm]
+        \grafoclrs{g/h, c/i, f/g, a/b, c/f, c/d, a/h, d/e}{}{}
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.41\textwidth}
+      \scriptsize
+      Em laranja, $n - 1 = 8$ arestas:
+      \[ 1 + 2 + 2 + 4 + 4 + 7 + 8 + 9 = 37 . \]
+      Nenhuma árvore geradora deste grafo pesa menos que 37.
+      \medskip
+
+      Observe que a aresta $(a,h)$, de peso 8, poderia ser trocada por $(b,c)$, também de
+      peso 8: o resultado é outra árvore geradora de peso 37. \textbf{A AGM não precisa ser
+      única} --- ela é única quando os pesos são todos distintos.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 23.1, Figura 23.1~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.5 (pesos distintos)~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Por que não testar todas as árvores?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Fórmula de Cayley}
+        \small O grafo completo $K_n$ tem exatamente $n^{\,n-2}$ árvores geradoras.
+      \end{block}
+      \scriptsize
+      Mesmo num grafo esparso, a quantidade cresce exponencialmente. No exemplo condutor, há
+      $\binom{14}{8} = 3003$ conjuntos de 8 arestas para testar; num grafo de rodovias com
+      milhares de cidades, não há como.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \scriptsize
+      \begin{tabular}{rr}
+        \toprule
+        $n$ & árvores geradoras de $K_n$ \\
+        \midrule
+        4 & 16 \\
+        9 & 4\,782\,969 \\
+        20 & $\approx 2{,}6 \times 10^{23}$ \\
+        100 & $10^{196}$ \\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+      \scriptsize
+      A boa notícia: aqui o guloso funciona, e roda em $O(m \log n)$.
+    \end{column}
+  \end{columns}
+  \fonte{Cayley (1889)~\cite{cayley1889theorem}; Cormen et al.\ (2009),
+    \S 23.1~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: o problema}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Uma árvore geradora liga os $n$ vértices com $n - 1$ arestas e nenhum ciclo.
+      \item A AGM minimiza a soma dos pesos; no exemplo condutor, o mínimo é 37.
+      \item Pode haver várias AGMs quando há pesos repetidos.
+      \item Enumerar árvores é inviável: $K_n$ tem $n^{n-2}$ delas.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 23.1~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{A propriedade do corte}
+
+\begin{frame}{Por que precisamos de um critério de segurança?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} um algoritmo guloso vai juntar arestas uma a uma, sem voltar atrás.
+      Como saber que uma aresta pode entrar \emph{sem estragar} a chance de chegar a uma AGM?
+      \medskip
+
+      {\small É a pergunta da aula passada, a \textbf{escolha gulosa}, agora em grafos.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:} manter um conjunto $A$ de arestas com o invariante
+      \begin{center}
+      \fbox{\small $A$ está contido em alguma AGM}
+      \end{center}
+      e só acrescentar arestas \textbf{seguras}: arestas $(u,v)$ tais que
+      $A \cup \{(u,v)\}$ ainda está contido em alguma AGM.
+      \medskip
+
+      {\small Quando $|A| = n - 1$, o próprio $A$ é uma AGM.}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 23.1, \textsc{Generic-MST}~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Cortes e arestas leves: definição}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Definição}
+        \scriptsize Um \textbf{corte} $(S, V - S)$ é uma partição dos vértices em dois lados.
+        Uma aresta \textbf{cruza} o corte se tem uma ponta em cada lado. O corte
+        \textbf{respeita} $A$ se nenhuma aresta de $A$ o cruza. Uma aresta é \textbf{leve}
+        se tem o menor peso entre as que cruzam o corte.
+      \end{block}
+      \begin{exampleblock}{Intuição}
+        \scriptsize Qualquer árvore geradora precisa atravessar o corte pelo menos uma vez.
+        A travessia mais barata é a candidata natural.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.0cm, y=0.95cm]
+        \grafoclrs{}{a,b,h,i,g}{}
+        \draw[dashed, very thick, blue!70!black] (1.65,1.45) .. controls (1.8,0.5)
+          and (2.3,0.1) .. (2.4,-0.2) .. controls (2.6,-0.7) and (2.95,-0.9) .. (2.95,-1.45);
+        \node[font=\tiny, blue!70!black] at (0.3,1.25) {$S$};
+        \node[font=\tiny, blue!70!black] at (4.3,1.25) {$V - S$};
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize
+      $S = \{a, b, h, i, g\}$. Cruzam o corte: $(b,c){:}\,8$, $(c,i){:}\,2$, $(g,f){:}\,2$.
+      Há duas arestas leves, ambas de peso 2.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 23.1, Figura 23.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{O teorema do corte}
+  \begin{block}{Teorema}
+    \small Seja $A$ contido em alguma AGM de $G$, seja $(S, V - S)$ um corte que respeita $A$ e
+    seja $(u,v)$ uma aresta leve que cruza esse corte. Então $(u,v)$ é \textbf{segura} para $A$.
+  \end{block}
+  \begin{columns}[c]
+    \begin{column}{0.54\textwidth}
+      \scriptsize
+      \textbf{Prova (troca).} Seja $T$ uma AGM com $A \subseteq T$. Se $(u,v) \in T$, acabou.
+      Senão, o caminho de $u$ a $v$ em $T$ cruza o corte em alguma aresta $(x,y)$, que não
+      está em $A$ (o corte respeita $A$). Troque: $T' = T - \{(x,y)\} \cup \{(u,v)\}$.
+      \smallskip
+
+      $T'$ é árvore geradora (o ciclo criado por $(u,v)$ foi quebrado) e, como $(u,v)$ é leve,
+      $w(T') = w(T) - w(x,y) + w(u,v) \le w(T)$. Logo $T'$ é AGM e contém
+      $A \cup \{(u,v)\}$. \hfill$\square$
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{tikzpicture}[x=0.75cm, y=0.6cm, p/.style={circle, fill=blue!60!black,
+          inner sep=0pt, minimum size=1.6mm}]
+        \fill[blue!6] (-0.3,-1.3) rectangle (2.3,1.5);
+        \fill[orange!8] (2.7,-1.3) rectangle (5.3,1.5);
+        \node[font=\tiny, anchor=west] at (-0.3,1.25) {$S$};
+        \node[font=\tiny, anchor=east] at (5.3,1.25) {$V - S$};
+        \node[p, label={[font=\tiny]left:$u$}] (u) at (0.6,-0.6) {};
+        \node[p, label={[font=\tiny]right:$v$}] (v) at (4.4,-0.6) {};
+        \node[p, label={[font=\tiny]above:$x$}] (x) at (1.6,0.7) {};
+        \node[p, label={[font=\tiny]above:$y$}] (y) at (3.4,0.7) {};
+        \draw[thick, blue!60!black] (u) -- (0.4,0.4) -- (x);
+        \draw[thick, blue!60!black] (y) -- (4.6,0.3) -- (v);
+        \draw[very thick, red!70!black] (x) -- node[above, font=\tiny] {sai} (y);
+        \draw[very thick, orange!85!black, dashed] (u) -- node[below, font=\tiny] {entra (leve)} (v);
+      \end{tikzpicture}
+      \smallskip
+
+      \tiny Em azul, o caminho de $u$ a $v$ em $T$.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 23.1, Teorema 23.1 e Figura 23.3~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.5, (4.17)~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{O outro lado: a propriedade do ciclo}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \begin{block}{Propriedade do ciclo}
+        \small Se $e$ é a aresta de peso \emph{estritamente maior} de algum ciclo $C$ de $G$,
+        então $e$ não pertence a nenhuma AGM.
+      \end{block}
+      \scriptsize
+      \textbf{Prova (troca, de novo).} Se uma AGM $T$ contivesse $e$, tirar $e$ partiria $T$
+      em dois pedaços: um corte. O resto de $C$ volta de um lado ao outro, então
+      outra aresta $e'$ de $C$ cruza esse corte, e $T - \{e\} \cup \{e'\}$ é mais leve que
+      $T$: absurdo. \hfill$\square$
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \draw[line width=2pt, blue!40] (2.3,1) -- (3.6,1) -- (3.6,-1) -- cycle;
+        \grafoclrs{}{}{d/f}
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize No ciclo $c\text{--}d\text{--}f$, a aresta $(d,f){:}\,14$ é a mais pesada:
+      nenhuma AGM a usa.
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize Corte: certifica que uma aresta \textbf{entra}. Ciclo: certifica que uma aresta
+  \textbf{fica de fora}.\par}
+  \fonte{Kleinberg e Tardos (2006), \S 4.5, (4.20)~\cite{kleinberg2006algorithm};
+    Dasgupta et al.\ (2008), \S 5.1~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{O algoritmo genérico}
+  \begin{columns}[c]
+    \begin{column}{0.46\textwidth}
+      \begin{block}{\textsc{AGM-Genérico}$(G, w)$}
+        \small
+        $A \gets \emptyset$\\
+        \textbf{enquanto} $A$ não for árvore geradora:\\
+        \quad escolha um corte que respeita $A$\\
+        \quad $(u,v) \gets$ uma aresta leve do corte\\
+        \quad $A \gets A \cup \{(u,v)\}$\\
+        \textbf{devolva} $A$
+      \end{block}
+      \scriptsize Pelo teorema do corte, o invariante vale em todas as iterações.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \scriptsize
+      O teorema deixa uma liberdade: \textbf{qual corte} usar. Cada escolha dá um algoritmo.
+      \medskip
+
+      \begin{tabular}{p{1.2cm}p{4.2cm}}
+        \toprule
+        & corte usado \\
+        \midrule
+        \textbf{Kruskal} & o componente de $A$ que contém $u$, contra o resto \\
+        \addlinespace
+        \textbf{Prim} & os vértices da árvore que está crescendo, contra o resto \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      A prova dos dois é a mesma; muda a estrutura de dados que acha a aresta leve depressa.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 23.1, \textsc{Generic-MST} e Corolário
+    23.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: a propriedade do corte}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Uma aresta é segura se não impede chegar a uma AGM.
+      \item \textbf{Corte:} a aresta leve de um corte que respeita $A$ é segura.
+      \item \textbf{Ciclo:} a aresta mais pesada de um ciclo nunca entra.
+      \item As duas provas são argumentos de troca, como em Huffman.
+      \item Kruskal e Prim são o mesmo algoritmo genérico com cortes diferentes.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 23.1~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.5~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{O algoritmo de Kruskal}
+
+\begin{frame}{Por que começar pelas arestas mais leves?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} queremos as arestas baratas, mas uma aresta barata pode fechar um
+      ciclo com as que já foram escolhidas.
+      \medskip
+
+      {\small Pela propriedade do ciclo, quando uma aresta fecha ciclo com arestas
+      \emph{mais leves} já escolhidas, ela é dispensável.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução (Kruskal, 1956):}
+      \begin{enumerate}
+        \small
+        \item ordene as arestas por peso crescente;
+        \item percorra a lista; aceite a aresta se ela liga \textbf{dois componentes
+              diferentes} da floresta $A$ e rejeite se fecha ciclo;
+        \item pare quando $|A| = n - 1$.
+      \end{enumerate}
+      {\small $A$ é uma \textbf{floresta} que vai fundindo componentes até virar uma árvore só.}
+    \end{column}
+  \end{columns}
+  \fonte{Kruskal (1956)~\cite{kruskal1956shortest}; Cormen et al.\ (2009), \S 23.2,
+    \textsc{MST-Kruskal}~\cite{cormen2009introduction}; Levitin (2012),
+    \S 9.2~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Kruskal: por que está correto}
+  \begin{block}{Teorema}
+    \small O algoritmo de Kruskal devolve uma árvore geradora mínima.
+  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Aresta aceita $(u,v)$.} Seja $S$ o componente de $A$ que contém $u$. O corte
+      $(S, V - S)$ respeita $A$, e $(u,v)$ o cruza. Qualquer aresta mais leve que cruzasse
+      esse corte já teria sido examinada e aceita (ligava componentes diferentes). Logo
+      $(u,v)$ é leve: é segura pelo teorema do corte.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Aresta rejeitada $(u,v)$.} Ela fecha um ciclo com arestas de $A$, todas
+      examinadas antes, portanto de peso $\le w(u,v)$. Ela não faz falta: $A$ já liga $u$
+      a $v$.
+      \medskip
+
+      \textbf{Fim.} Como $G$ é conexo, alguma aresta liga dois componentes enquanto houver
+      mais de um. O laço termina com uma árvore só.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 23.2 e Corolário 23.2~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.5, (4.18)~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: Kruskal no grafo condutor}
+  \begin{columns}[c]
+    \begin{column}{0.4\textwidth}
+      \centering\tiny
+      \setlength{\tabcolsep}{3pt}
+      \begin{tabular}{cccl}
+        \toprule
+        passo & aresta & peso & decisão \\
+        \midrule
+        1 & $(g,h)$ & 1 & aceita \\
+        2 & $(c,i)$ & 2 & aceita \\
+        3 & $(f,g)$ & 2 & aceita \\
+        4 & $(a,b)$ & 4 & aceita \\
+        5 & $(c,f)$ & 4 & aceita \\
+        6 & $(g,i)$ & 6 & \textcolor{red!70!black}{ciclo $g\,f\,c\,i$} \\
+        7 & $(c,d)$ & 7 & aceita \\
+        8 & $(h,i)$ & 7 & \textcolor{red!70!black}{ciclo} \\
+        9 & $(a,h)$ & 8 & aceita \\
+        10 & $(b,c)$ & 8 & \textcolor{red!70!black}{ciclo} \\
+        11 & $(d,e)$ & 9 & aceita: $|A| = 8$ \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.15cm, y=1.1cm]
+        \grafoclrs{g/h, c/i, f/g, a/b, c/f, c/d, a/h, d/e}{}{g/i, h/i, b/c}
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize Em laranja, as aceitas; tracejadas em vermelho, as rejeitadas. As arestas
+      $(e,f)$, $(b,h)$ e $(d,f)$ nem são examinadas: o laço para no passo 11. Peso 37.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 23.2, Figura 23.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A floresta de Kruskal ao longo do tempo}
+  \begin{center}
+  \begin{tikzpicture}[x=0.82cm, y=0.62cm]
+    \begin{scope}
+      \grafoclrs{g/h, c/i, f/g}{}{}
+      \node[font=\tiny] at (2.3,-1.7) {depois do passo 3};
+    \end{scope}
+    \begin{scope}[xshift=4.9cm]
+      \grafoclrs{g/h, c/i, f/g, a/b, c/f}{}{}
+      \node[font=\tiny] at (2.3,-1.7) {depois do passo 5};
+    \end{scope}
+    \begin{scope}[xshift=9.8cm]
+      \grafoclrs{g/h, c/i, f/g, a/b, c/f, c/d}{}{g/i}
+      \node[font=\tiny] at (2.3,-1.7) {depois do passo 7};
+    \end{scope}
+  \end{tikzpicture}
+  \end{center}
+  \medskip
+  {\small No passo 3 há 6 componentes: $\{g,h,f\}$, $\{c,i\}$ e quatro vértices isolados. No
+  passo 5, $\{c,f,g,h,i\}$ e $\{a,b\}$ se formaram. A aresta $(g,i){:}\,6$ do passo 6 liga
+  dois vértices \emph{do mesmo componente}, por isso fecha um ciclo.\par}
+  \smallskip
+  {\small A pergunta que sobra: \textbf{como saber depressa} se $u$ e $v$ já estão no mesmo
+  componente?\par}
+  \fonte{Cormen et al.\ (2009), \S 23.2, Figura 23.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: Kruskal}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Kruskal examina as arestas em ordem crescente de peso.
+      \item Aceita se liga dois componentes; rejeita se fecha ciclo.
+      \item A aresta aceita é leve no corte do seu componente: é segura.
+      \item No exemplo, aceita 8 de 11 arestas examinadas e chega a 37.
+      \item Falta uma estrutura que responda ``mesmo componente?'' rapidamente.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 23.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Union-find: conjuntos disjuntos}
+
+\begin{frame}{Por que precisamos de uma estrutura nova?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} para cada uma das $m$ arestas, decidir se $u$ e $v$ estão no mesmo
+      componente de $A$.
+      \medskip
+
+      {\small Com uma busca em profundidade (DFS) em $A$ a cada aresta, gastamos $O(n)$ por
+      teste e $O(mn)$ no total. Mais lento que ordenar.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:} componentes só se fundem. Basta uma estrutura de
+      \textbf{conjuntos disjuntos}:
+      \begin{itemize}
+        \small
+        \item \texttt{cria}$(v)$: $\{v\}$ vira um conjunto;
+        \item \texttt{find}$(v)$: o \emph{representante} do conjunto de $v$;
+        \item \texttt{une}$(u,v)$: funde os dois conjuntos.
+      \end{itemize}
+      {\small Mesmo componente $\iff$ \texttt{find}$(u) =$ \texttt{find}$(v)$.}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 21.1~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.6~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Floresta de conjuntos disjuntos: definição}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Definição}
+        \scriptsize Cada conjunto é uma árvore enraizada guardada num vetor \texttt{pai[]};
+        a raiz é o representante e tem \texttt{pai[r] == r}. \texttt{find} sobe até a raiz;
+        \texttt{une} pendura uma raiz na outra.
+      \end{block}
+      \begin{exampleblock}{Duas heurísticas}
+        \scriptsize
+        \textbf{União por tamanho:} pendure a árvore \emph{menor} na maior; a altura fica
+        $\le \log_2 n$.\\[2pt]
+        \textbf{Compressão de caminho:} na volta do \texttt{find}, ligue todos os vértices
+        do caminho direto à raiz.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.55cm, y=0.62cm, n/.style={vert, minimum size=3.8mm},
+          up/.style={-{Stealth[length=1.6mm]}, thin}]
+        \node[font=\tiny\bfseries] at (1.5,1.0) {antes de \texttt{find}$(f)$};
+        \node[n, fill=orange!35] (r) at (1.5,0) {g};
+        \node[n] (h) at (0.5,-1) {h};
+        \node[n] (c) at (2.5,-1) {c};
+        \node[n] (i) at (2.5,-2) {i};
+        \node[n] (f) at (2.5,-3) {f};
+        \draw[up] (h) -- (r); \draw[up] (c) -- (r);
+        \draw[up] (i) -- (c); \draw[up] (f) -- (i);
+        \node[font=\tiny\bfseries] at (6.5,1.0) {depois};
+        \node[n, fill=orange!35] (r2) at (6.5,0) {g};
+        \foreach \v/\x in {h/4.7, c/5.9, i/7.1, f/8.3} {
+          \node[n] (\v2) at (\x,-1.3) {\v};
+          \draw[up] (\v2) -- (r2);
+        }
+        \draw[arc, gray] (3.4,-1.5) -- (4.3,-1.5);
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize O próximo \texttt{find} de $f$, $i$ ou $c$ sobe um passo só.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 21.3, Figura 21.5~\cite{cormen2009introduction};
+    Levitin (2012), \S 9.2~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{Union-find e Kruskal em C}
+  \begin{columns}[T]
+    \begin{column}{0.49\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+int pai[MAXN], tam[MAXN];
+
+int find( int x) {           /* com compressao */
+   if (pai[x] != x)
+      pai[x] = find( pai[x]);
+   return pai[x];
+}
+
+void une( int a, int b) {    /* a, b: raizes */
+   if (tam[a] < tam[b]) {    /* uniao por tamanho */
+      int t = a; a = b; b = t;
+   }
+   pai[b] = a;
+   tam[a] += tam[b];
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+typedef struct { int u, v, w; } Aresta;
+
+/* grava em T[] as arestas da AGM; devolve quantas */
+int kruskal( int n, int m, Aresta e[], Aresta T[]) {
+   qsort( e, m, sizeof (Aresta), cmp_peso);
+   for (int v = 0; v < n; ++v) {
+      pai[v] = v;  tam[v] = 1;
+   }
+   int k = 0;
+   for (int i = 0; i < m && k < n-1; ++i) {
+      int a = find( e[i].u), b = find( e[i].v);
+      if (a != b) {           /* componentes distintos */
+         T[k++] = e[i];
+         une( a, b);
+      }
+   }
+   return k;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 21.3 e \S 23.2, \textsc{MST-Kruskal}~\cite{cormen2009introduction};
+    Feofiloff (2020), Kruskal~\cite{feofiloff2020grafos}.}
+\end{frame}
+
+\begin{frame}{Quanto custa Kruskal?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \scriptsize
+      \begin{tabular}{lr}
+        \toprule
+        etapa & custo \\
+        \midrule
+        ordenar as $m$ arestas & $O(m \log m)$ \\
+        $2m$ \texttt{find} e $n - 1$ \texttt{une} & $O(m\, \alpha(n))$ \\
+        \midrule
+        total & $O(m \log m) = O(m \log n)$ \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      Como $m \le n^2$, vale $\log m \le 2 \log n$. A ordenação domina.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      $\alpha(n)$ é a inversa da função de Ackermann: cresce tão devagar que
+      $\alpha(n) \le 4$ para qualquer $n$ que caiba no universo observável. Na prática, cada
+      operação custa $O(1)$.
+      \medskip
+
+      \begin{tabular}{lc}
+        \toprule
+        heurísticas & $m$ operações \\
+        \midrule
+        nenhuma & $O(mn)$ no pior caso \\
+        só união por tamanho & $O(m \log n)$ \\
+        as duas & $O(m\, \alpha(n))$ \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 21.4 e \S 23.2~\cite{cormen2009introduction};
+    Tarjan (1975)~\cite{tarjan1975efficiency}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: union-find}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Componentes que só se fundem cabem numa floresta de conjuntos disjuntos.
+      \item \texttt{find} sobe até a raiz; \texttt{une} pendura uma raiz na outra.
+      \item União por tamanho e compressão de caminho levam a $O(\alpha(n))$ amortizado.
+      \item Com elas, Kruskal custa $O(m \log n)$, dominado pela ordenação.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), cap.~21~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.6~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{O algoritmo de Prim}
+
+\begin{frame}{Por que crescer uma árvore só?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} Kruskal precisa ordenar todas as arestas e manter uma floresta
+      inteira. Em grafos densos, $m \approx n^2$ arestas.
+      \medskip
+
+      {\small Outra maneira de escolher o corte: o lado $S$ é \emph{uma} árvore que começa
+      num vértice $r$ e só cresce.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução (Jarník, 1930; Prim, 1957):}
+      \begin{enumerate}
+        \small
+        \item $S \gets \{r\}$;
+        \item repita $n - 1$ vezes: escolha a aresta \textbf{mais leve} com uma ponta em $S$ e
+              outra fora, e traga a ponta de fora para $S$.
+      \end{enumerate}
+      {\small Cada aresta escolhida é leve no corte $(S, V - S)$, que respeita a árvore
+      atual: é segura pelo teorema do corte.}
+    \end{column}
+  \end{columns}
+  \fonte{Prim (1957)~\cite{prim1957shortest}; Cormen et al.\ (2009), \S 23.2,
+    \textsc{MST-Prim}~\cite{cormen2009introduction}; Levitin (2012),
+    \S 9.1~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Prim: a chave de cada vértice}
+  \begin{block}{Definição}
+    \small Para cada vértice $v$ fora da árvore, $\mathit{chave}[v]$ é o menor peso de uma
+    aresta que liga $v$ à árvore ($\infty$ se não houver), e $\mathit{pai}[v]$ é a outra ponta
+    dessa aresta.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \small A chave é o preço de trazer $v$ para a árvore agora. Em cada passo entra o vértice
+    mais barato $u$; depois, só as chaves dos \emph{vizinhos} de $u$ podem baixar:
+    \[ \mathit{chave}[v] \gets \min\bigl(\mathit{chave}[v],\; w(u,v)\bigr) . \]
+  \end{exampleblock}
+  {\scriptsize As chaves formam uma fila de prioridade, como em Huffman. Guarde a regra:
+  Dijkstra, na próxima aula, troca $w(u,v)$ por $\mathit{dist}[u] + w(u,v)$.\par}
+  \fonte{Cormen et al.\ (2009), \S 23.2, \textsc{MST-Prim}~\cite{cormen2009introduction};
+    Dasgupta et al.\ (2008), \S 5.1~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Exemplo: Prim a partir de $a$}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \centering\tiny
+      \setlength{\tabcolsep}{2.4pt}
+      \begin{tabular}{c|cccccccc}
+        \toprule
+        entra & $b$ & $c$ & $d$ & $e$ & $f$ & $g$ & $h$ & $i$ \\
+        \midrule
+        $a$ & \textbf{4} & $\infty$ & $\infty$ & $\infty$ & $\infty$ & $\infty$ & \textbf{8} & $\infty$ \\
+        $b$ (4) & -- & \textbf{8} & $\infty$ & $\infty$ & $\infty$ & $\infty$ & 8 & $\infty$ \\
+        $c$ (8) & -- & -- & \textbf{7} & $\infty$ & \textbf{4} & $\infty$ & 8 & \textbf{2} \\
+        $i$ (2) & -- & -- & 7 & $\infty$ & 4 & \textbf{6} & \textbf{7} & -- \\
+        $f$ (4) & -- & -- & 7 & \textbf{10} & -- & \textbf{2} & 7 & -- \\
+        $g$ (2) & -- & -- & 7 & 10 & -- & -- & \textbf{1} & -- \\
+        $h$ (1) & -- & -- & 7 & 10 & -- & -- & -- & -- \\
+        $d$ (7) & -- & -- & -- & \textbf{9} & -- & -- & -- & -- \\
+        $e$ (9) & -- & -- & -- & -- & -- & -- & -- & -- \\
+        \bottomrule
+      \end{tabular}
+      \smallskip
+
+      \scriptsize Chaves depois de cada entrada; em negrito, as que baixaram.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \grafoclrs{a/b, b/c, c/i, c/f, f/g, g/h, c/d, d/e}{a}{}
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize Na 2.ª linha, $c$ e $h$ empatam com chave 8; entrou $c$ (o de menor
+      rótulo). A árvore usa $(b,c)$ no lugar de $(a,h)$: outra AGM, também de peso
+      $4+8+2+4+2+1+7+9 = 37$.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 23.2, Figura 23.5~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{Prim em C com matriz de adjacência}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* W[u][v] = peso, ou INF se nao ha aresta.
+   Preenche pai[]: a AGM e {(v, pai[v]) : v != 0}. */
+void prim( int n, int W[][MAXN], int pai[]) {
+   int chave[MAXN];  bool dentro[MAXN];
+   for (int v = 0; v < n; ++v) {
+      chave[v] = INF;  pai[v] = -1;  dentro[v] = false;
+   }
+   chave[0] = 0;                      /* raiz r = 0 */
+   for (int it = 0; it < n; ++it) {
+      int u = -1;                     /* o mais barato fora */
+      for (int v = 0; v < n; ++v)
+         if (!dentro[v] && (u < 0 || chave[v] < chave[u]))
+            u = v;
+      dentro[u] = true;
+      for (int v = 0; v < n; ++v)     /* vizinhos de u */
+         if (!dentro[v] && W[u][v] < chave[v]) {
+            chave[v] = W[u][v];  pai[v] = u;
+         }
+   }
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \scriptsize
+      \textbf{Custo.} São $n$ iterações, e cada uma varre o vetor duas vezes:
+      $\Theta(n^2)$, independente de $m$.
+      \medskip
+
+      Para grafos \textbf{densos} ($m \approx n^2$) isso é ótimo: só ler a matriz já custa
+      $\Theta(n^2)$.
+      \medskip
+
+      Para grafos \textbf{esparsos}, troque a varredura por um heap mínimo de vértices
+      indexado pela chave (exercício do tutorial).
+    \end{column}
+  \end{columns}
+  \fonte{Feofiloff (2020), Prim~\cite{feofiloff2020grafos};
+    Levitin (2012), \S 9.1~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Quanto custa Prim?}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{lll}
+    \toprule
+    fila de prioridade & operações dominantes & total \\
+    \midrule
+    vetor (varredura) & $n$ extrações de $\Theta(n)$ & $\Theta(n^2)$ \\
+    heap binário & $n$ extrações e até $m$ reduções de chave, $O(\log n)$ cada & $O(m \log n)$ \\
+    heap de Fibonacci & redução de chave em $O(1)$ amortizado & $O(m + n \log n)$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Grafo esparso} ($m = O(n)$): heap binário dá $O(n \log n)$, e o vetor perde
+      com $\Theta(n^2)$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Grafo denso} ($m = \Theta(n^2)$): o vetor dá $\Theta(n^2)$, e o heap binário
+      perde com $O(n^2 \log n)$.
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize Sem heap com redução de chave, dá para inserir de novo o vértice com a chave
+  menor e ignorar as cópias velhas ao extrair (``Prim preguiçoso''): até $m$ itens no heap,
+  ainda $O(m \log n)$.\par}
+  \fonte{Cormen et al.\ (2009), \S 23.2~\cite{cormen2009introduction};
+    Sedgewick e Wayne (2011), \S 4.3 (versões preguiçosa e ansiosa)~\cite{sedgewick2011algorithms}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: Prim}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Prim cresce uma única árvore a partir de uma raiz.
+      \item A cada passo entra o vértice de menor chave, a aresta leve do corte.
+      \item Com vetor custa $\Theta(n^2)$; com heap binário, $O(m \log n)$.
+      \item No exemplo, chega a outra AGM de peso 37, com $(b,c)$ no lugar de $(a,h)$.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 23.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Fechando}
+
+\begin{frame}{Kruskal ou Prim?}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{lll}
+    \toprule
+    & Kruskal & Prim \\
+    \midrule
+    corte usado & componente de $u$ & árvore atual \\
+    estrutura auxiliar & ordenação + union-find & fila de prioridade de vértices \\
+    estado intermediário & floresta & uma árvore \\
+    tempo & $O(m \log n)$ & $\Theta(n^2)$ (vetor) ou $O(m \log n)$ (heap) \\
+    melhor quando & esparso, arestas já em lista & denso, matriz de adjacência \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Agrupamento.} Pare Kruskal quando restarem $k$ componentes: eles formam o
+      agrupamento em $k$ grupos de \emph{espaçamento máximo} (a menor distância entre grupos
+      é a maior possível).
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{História.} Borůvka (1926) já resolvia o problema com outro guloso, que funde
+      todos os componentes em paralelo; Jarník (1930) descreveu o que hoje chamamos de Prim.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 4.7 (agrupamento)~\cite{kleinberg2006algorithm};
+    Graham e Hell (1985)~\cite{graham1985history}.}
+\end{frame}
+
+\begin{frame}{O guloso até aqui}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{llll}
+    \toprule
+    problema & escolha gulosa & troca usada na prova & tempo \\
+    \midrule
+    intervalos sem peso & termina mais cedo & 1.º intervalo de $O$ por $a_1$ & $O(n \log n)$ \\
+    códigos de prefixo & junta os dois menores & folhas $x, y$ pelas mais fundas & $O(n \log n)$ \\
+    AGM (Kruskal) & aresta mais leve sem ciclo & aresta $(x,y)$ do caminho & $O(m \log n)$ \\
+    AGM (Prim) & vértice de menor chave & aresta $(x,y)$ do caminho & $O(m \log n)$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  {\scriptsize Nos quatro casos, a prova toma uma solução ótima qualquer e a aproxima da
+  gulosa por trocas que não pioram. A estrutura de dados (ordenação, heap, union-find) é o que
+  torna a escolha gulosa barata.\par}
+  \smallskip
+  {\scriptsize\textbf{Próxima aula:} caminhos mínimos com Dijkstra, que é o código de Prim com
+  outra chave.\par}
+  \fonte{Cormen et al.\ (2009), cap.~16 e~23~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), cap.~4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{cormen2009introduction,cormen2012algoritmos,kleinberg2006algorithm,levitin2012introduction,dasgupta2008algorithms,feofiloff2020grafos,sedgewick2011algorithms,kruskal1956shortest,prim1957shortest,tarjan1975efficiency,graham1985history,cayley1889theorem}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
