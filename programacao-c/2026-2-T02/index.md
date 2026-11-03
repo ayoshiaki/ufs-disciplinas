@@ -178,6 +178,15 @@ title: "COMP0512 — Programação C — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-c/2026-2-T02/aula-19-exercicios-de-revisao-da-segunda-unidade' | relative_url }}">
+    <div class="week-num">19</div>
+    <div class="week-body">
+      <div class="week-title">Exercícios de revisão da segunda unidade</div>
+      <div class="week-desc">Oito rodadas de resumo e exercício no papel, de recursividade a filas, com gabarito e placar para saber o que revisar.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge nb">1 notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'programacao-c/2026-2-T02/lista-de-exercicios' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📝</div>
     <div class="week-body">

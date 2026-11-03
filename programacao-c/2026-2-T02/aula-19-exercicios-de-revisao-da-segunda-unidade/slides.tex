@@ -1,0 +1,1114 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc,
+  shapes.multipart}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=8pt,
+  xleftmargin=16pt, framexleftmargin=16pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=3pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  xleftmargin=4pt, framexleftmargin=4pt,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{numC}{
+  style=ufsStyle, language=C,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  xleftmargin=4pt, framexleftmargin=4pt,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  caixa/.style={rectangle, draw=UFSGray, rounded corners, fill=black!3,
+    font=\scriptsize, align=center, inner sep=4pt},
+  etapa/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+    minimum width=2.5cm, minimum height=0.9cm, font=\small, align=center},
+  cel/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, minimum width=0.8cm,
+    minimum height=0.55cm, font=\scriptsize\ttfamily, inner sep=1pt},
+  celr/.style={cel, draw=UFSRed, fill=UFSRed!8},
+  celv/.style={cel, draw=UFSGray, fill=white, text=UFSGray},
+  no/.style={rectangle split, rectangle split parts=2,
+    rectangle split horizontal, draw=UFSBlue, fill=UFSBlue!8,
+    font=\scriptsize\ttfamily, minimum height=0.55cm, inner sep=3pt},
+  chamada/.style={rectangle, rounded corners, draw=UFSBlue, fill=UFSBlue!8,
+    font=\scriptsize\ttfamily, inner sep=2pt, minimum width=0.9cm},
+  rot/.style={font=\scriptsize\ttfamily, text=UFSGray},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={->, thick, UFSBlue},
+  setar/.style={->, thick, UFSRed},
+}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% Abertura de rodada: perguntas para a turma e aulas de origem
+\newcommand{\rodada}[4]{%
+  \begin{frame}{Lembrar: #2}
+    \begin{block}{Antes do resumo: responda em voz alta (1 min)}
+      #4
+    \end{block}
+    \vfill
+    {\small\textcolor{UFSGray}{Rodada #1 --- aulas de origem:} #3}
+  \end{frame}}
+
+% --- Metadados ---
+\title{Exercícios de revisão}
+\subtitle{Recursividade, listas, pilhas e filas em oito rodadas}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ------------------------------------------------------------------
+\begin{frame}{Como vai funcionar hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=0.55cm]
+    \node[etapa] (a) {\textbf{Lembrar}\\{\scriptsize 1 min, em voz alta}};
+    \node[etapa, right=of a] (b) {\textbf{Resumo}\\{\scriptsize 2--3 min}};
+    \node[etapa, right=of b, draw=UFSRed, fill=UFSRed!8] (c)
+      {\textbf{Exercício}\\{\scriptsize 3--4 min, sozinho}};
+    \node[etapa, right=of c] (d) {\textbf{Compare}\\{\scriptsize 1 min, com o vizinho}};
+    \draw[seta] (a) -- (b);
+    \draw[seta] (b) -- (c);
+    \draw[seta] (c) -- (d);
+    \draw[seta] (d.south) -- ++(0,-0.45) -| node[pos=0.25, below, leg]
+      {próxima rodada --- são oito} (a.south);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Combinado}
+    \begin{itemize}
+      \item \textbf{Tudo no papel, sem computador}: numere uma folha de
+        \textbf{R1} a \textbf{R8}, responda lendo o código e
+        \textbf{desenhe} nós, setas e pilhas --- \emph{antes} de conversar
+        com o vizinho.
+      \item O gabarito vem todo junto no final, e cada um confere a própria
+        folha.
+      \item Errou uma rodada? O último slide diz qual aula revisar.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}{O caminho que percorremos}
+  \begin{center}
+  \begin{tikzpicture}[
+    r/.style={rectangle, rounded corners, fill=UFSBlue, text=white,
+      font=\small\bfseries, minimum width=0.9cm, minimum height=0.62cm},
+    t/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+      font=\scriptsize, minimum width=5.3cm, minimum height=0.62cm,
+      align=left, anchor=west}
+  ]
+    \foreach \n/\txt [count=\k from 0] in {
+      R1/{Recursão: caso base, ida e volta},
+      R2/{Recursão e memória: pilha, cauda e heap},
+      R3/{Lista encadeada: o nó, percorrer e liberar},
+      R4/{Lista: buscar, inserir e remover}} {
+      \node[r] (r\k) at (0, -0.8*\k) {\n};
+      \node[t, right=0.15cm of r\k] {\txt};
+    }
+    \foreach \n/\txt [count=\k from 0] in {
+      R5/{Lista duplamente encadeada},
+      R6/{Pilhas: vetor e lista},
+      R7/{Filas: circular e lista},
+      R8/{Síntese: qual estrutura, a que custo?}} {
+      \node[r] (s\k) at (7.0, -0.8*\k) {\n};
+      \node[t, right=0.15cm of s\k] {\txt};
+    }
+    \draw[seta] (r0.north) ++(0,0.15) -- ++(0,0.25) -| node[pos=0.25, above, leg]
+      {da pilha de execução \ldots} (s0.north);
+    \node[leg, below=0.25cm of r3.south east, anchor=north west]
+      {\ldots\ às pilhas e filas que nós mesmos construímos};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{R1 --- Recursão}
+
+\rodada{1}{recursão}{recursividade: conceitos e pilha de execução}{
+  \begin{itemize}
+    \item Quais são as duas peças de toda função recursiva?
+    \item O que a pilha de execução guarda a cada chamada?
+    \item Um \texttt{printf} \emph{depois} da chamada recursiva roda na ida
+      ou na volta?
+  \end{itemize}}
+
+\begin{frame}{Resumo: caso base, passo e a pilha de execução}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Duas peças}
+        \small \textbf{Caso base}: resolve sem chamar a si mesma.
+        \textbf{Passo recursivo}: chama a si mesma com um problema
+        \emph{menor}, que caminha para o caso base.
+      \end{block}
+      \begin{block}{Ida e volta}
+        \small O que vem \emph{antes} da chamada acontece na ida (de fora
+        para dentro); o que vem \emph{depois}, na volta, em ordem inversa.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Pilha de execução}
+        \small Cada chamada empilha um \textbf{registro de ativação}
+        (parâmetros, locais, endereço de retorno); cada \texttt{return}
+        desempilha o do topo.
+      \end{block}
+      \begin{exampleblock}{Recursão múltipla}
+        \small \texttt{fib(n-1) + fib(n-2)} gera uma \emph{árvore} de
+        chamadas, mas a pilha só guarda um galho: altura $\approx n$.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \fonte{Feofiloff (2009), cap.~2~\cite{feofiloff2009algoritmos}; Bryant \& O'Hallaron (2015), §3.7.1~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R1 --- 4 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=numC]
+void f(int n) {
+    if (n <= 0)
+        return;
+    printf("%d ", n);
+    f(n - 2);
+    printf("%d ", n);
+}
+
+int g(int n) {
+    if (n < 2)
+        return 1;
+    return g(n - 1) + g(n - 2);
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Responda na folha}
+        \begin{enumerate}
+          \item[(a)] O que \texttt{f(5)} imprime?
+          \item[(b)] Quanto vale \texttt{g(4)}? Quantas chamadas a
+            \texttt{g} acontecem, contando a primeira?
+          \item[(c)] Durante \texttt{g(4)}, quantos registros de
+            \texttt{g} ficam na pilha, \textbf{no máximo}, ao mesmo tempo?
+        \end{enumerate}
+      \end{block}
+      \small Dica: em (b) e (c), desenhe a árvore de chamadas.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R2 --- Recursão e memória}
+
+\rodada{2}{recursão e memória}{recursividade e efeitos na alocação de memória}{
+  \begin{itemize}
+    \item Por que uma recursão muito profunda termina em \emph{segmentation
+      fault}?
+    \item O que é uma chamada de cauda?
+    \item O que acontece com as variáveis locais de uma função quando ela
+      retorna?
+  \end{itemize}}
+
+\begin{frame}{Resumo: o que a recursão gasta, e onde}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Limite da pilha}
+        \small A pilha tem tamanho fixo (em geral 8\,MB, \texttt{ulimit -s}).
+        Profundidade $\times$ tamanho do registro passou disso: \textbf{estouro
+        de pilha}. O heap é outra região e aguenta muito mais.
+      \end{block}
+      \begin{block}{Local morre com o \texttt{return}}
+        \small O registro é desempilhado; devolver \texttt{\&local} entrega
+        um endereço que já não é de ninguém.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Recursão de cauda}
+        \small A chamada é a \emph{última} coisa que a função faz: nada fica
+        pendente, e com \texttt{-O2} o compilador pode trocá-la por um laço.
+        Sem otimização, não conte com isso.
+      \end{block}
+      \begin{exampleblock}{\texttt{malloc} em cada chamada}
+        \small Quem recebe o bloco é dono dele e tem que liberá-lo --- na
+        volta, quando já não serve.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \fonte{Kerrisk (2010), §36.3~\cite{kerrisk2010linux}; Abelson et al.\ (1996), §1.2.1~\cite{abelson1996structure}; ISO/IEC 9899:2018, §6.2.4~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R2 --- 4 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+\begin{lstlisting}[style=numC]
+long conta(int n) {              /* A */
+    if (n == 0) return 0;
+    return 1 + conta(n - 1);
+}
+long conta_acum(int n, long acc) { /* B */
+    if (n == 0) return acc;
+    return conta_acum(n - 1, acc + 1);
+}
+int *dobro(int x) {              /* C */
+    int r = 2 * x;
+    return &r;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Responda na folha}
+        \small
+        \begin{enumerate}
+          \item[(a)] Qual de \textbf{A} e \textbf{B} é recursão de cauda? O
+            que fica pendente nos registros da outra?
+          \item[(b)] Pilha de 8\,MB, 48 bytes por registro, sem otimização:
+            \texttt{conta(100000)} termina? E \texttt{conta(1000000)}?
+          \item[(c)] O que há de errado em \textbf{C}? Corrija sem mudar o
+            que ela calcula.
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R3 --- Lista encadeada}
+
+\rodada{3}{lista encadeada}{introdução a listas encadeadas}{
+  \begin{itemize}
+    \item O que cada nó guarda além do valor?
+    \item Como se sabe que a lista acabou? E que ela está vazia?
+    \item Inserir no início de um vetor custa quanto? E no de uma lista?
+  \end{itemize}}
+
+\begin{frame}[fragile]{Resumo: o nó, percorrer, inserir no início, liberar}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+\begin{lstlisting}[style=tinyC]
+typedef struct no {
+    int valor;
+    struct no *prox; /* ou NULL */
+} No;
+
+novo->prox = ini;  /* 1o */
+ini = novo;        /* 2o */
+
+while (ini != NULL) {
+    No *prox = ini->prox; /* antes! */
+    free(ini);
+    ini = prox;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.53\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[rot] (i) at (0,0) {ini};
+        \node[no, right=0.35cm of i] (a) {10 \nodepart{two} \phantom{x}};
+        \node[no, right=0.45cm of a] (b) {20 \nodepart{two} \phantom{x}};
+        \node[no, right=0.45cm of b] (c) {30 \nodepart{two} \phantom{x}};
+        \node[rot, right=0.35cm of c] (n) {NULL};
+        \draw[seta] (i) -- (a);
+        \draw[seta] (a.two south) ++(0,0.27) -- (b);
+        \draw[seta] (b.two south) ++(0,0.27) -- (c);
+        \draw[seta] (c.two south) ++(0,0.27) -- (n);
+      \end{tikzpicture}
+      \end{center}
+      \small
+      \begin{itemize}
+        \item Estrutura \textbf{auto-referenciada}: o nó aponta para outro
+          do mesmo tipo; \texttt{NULL} marca o fim, \texttt{ini == NULL} é a
+          lista vazia.
+        \item Inserir no início é $O(1)$, mas inverte a ordem de entrada.
+        \item Ao liberar, guarde \texttt{prox} \emph{antes} do \texttt{free}.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §17.5~\cite{king2008c}; Feofiloff (2009), cap.~4~\cite{feofiloff2009algoritmos}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R3 --- 3 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=numC]
+/* No e insere_inicio como no resumo */
+No *lista = NULL;
+int entrada[] = {5, 8, 2};
+for (int i = 0; i < 3; i++)
+    lista = insere_inicio(lista,
+                          entrada[i]);
+imprime(lista);
+
+for (No *p = lista; p != NULL;
+     p = p->prox)
+    free(p);
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{block}{Responda na folha}
+        \small
+        \begin{enumerate}
+          \item[(a)] Desenhe a lista e escreva o que \texttt{imprime} mostra.
+          \item[(b)] Quanto vale \texttt{sizeof(No)} numa máquina de 64 bits?
+            Quantos bytes são de padding?
+          \item[(c)] O laço das linhas 9--11 tem um erro. Qual? Corrija.
+        \end{enumerate}
+      \end{block}
+      \scriptsize\textcolor{UFSGray}{\texttt{int} 4, ponteiro 8.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R4 --- Buscar, inserir, remover}
+
+\rodada{4}{buscar, inserir e remover}{lista encadeada: inserção, remoção e busca}{
+  \begin{itemize}
+    \item Para inserir ou remover no meio, em que nó o laço precisa parar?
+    \item Que nó é o caso especial da remoção, e por quê?
+    \item Em \texttt{p != NULL \&\& p->valor != x}, a ordem importa?
+  \end{itemize}}
+
+\begin{frame}{Resumo: o anterior guia, o primeiro atrapalha}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[rot] (i) at (0,0) {ini};
+    \node[no, right=0.35cm of i] (a) {10 \nodepart{two} \phantom{x}};
+    \node[no, right=0.55cm of a, draw=UFSRed, fill=UFSRed!8] (b) {20 \nodepart{two} \phantom{x}};
+    \node[no, right=0.55cm of b] (c) {30 \nodepart{two} \phantom{x}};
+    \node[rot, right=0.35cm of c] (n) {NULL};
+    \draw[seta] (i) -- (a);
+    \draw[seta, densely dashed, UFSGray] (a.two south) ++(0,0.27) -- (b);
+    \draw[seta] (b.two south) ++(0,0.27) -- (c);
+    \draw[seta] (c.two south) ++(0,0.27) -- (n);
+    \draw[setar] (a.two north) ++(0,-0.05) to[bend left=35]
+      node[above, leg] {\texttt{ant->prox = p->prox}} (c.north);
+    \node[rot, below=0.1cm of a] {ant};
+    \node[rot, below=0.1cm of b] {p};
+  \end{tikzpicture}
+  \end{center}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small
+      \begin{itemize}
+        \item \textbf{Busca}: \texttt{while (p != NULL \&\& p->valor != x)}
+          --- o \texttt{\&\&} só avalia a direita se a esquerda for verdadeira.
+        \item \textbf{Remover}: desviar a seta do \emph{anterior}, depois
+          \texttt{free}.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small
+      \begin{itemize}
+        \item O \textbf{primeiro nó} não tem anterior: quem muda é
+          \texttt{ini}, e a função devolve o novo início.
+        \item Com \texttt{No **pp} (o endereço da seta a mudar), o caso
+          especial some.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~10~\cite{celes2004introducao}; King (2008), §17.5--17.6~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R4 --- 4 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+\begin{lstlisting}[style=numC]
+No *remove_valor(No *ini, int x)
+{
+    No *ant = NULL, *p = ini;
+    while (p->valor != x && p != NULL) {
+        ant = p;
+        p = p->prox;
+    }
+    ant->prox = p->prox;
+    free(p);
+    return ini;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Responda na folha}
+        \small A lista é \texttt{10 -> 20 -> 30 -> NULL}.
+        \begin{enumerate}
+          \item[(a)] \texttt{remove\_valor(lista, 20)} funciona?
+          \item[(b)] E \texttt{remove\_valor(lista, 10)}? Em que linha,
+            e por quê?
+          \item[(c)] E \texttt{remove\_valor(lista, 99)}? Em que linha,
+            e por quê?
+          \item[(d)] Reescreva a função corrigindo os dois casos.
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R5 --- Lista duplamente encadeada}
+
+\rodada{5}{lista duplamente encadeada}{lista duplamente encadeada}{
+  \begin{itemize}
+    \item O que a lista dupla ganha da simples? E o que ela custa?
+    \item Que regra liga \texttt{ant} e \texttt{prox} de dois nós vizinhos?
+    \item Por que a lista dupla guarda \texttt{ini} \emph{e} \texttt{fim}?
+  \end{itemize}}
+
+\begin{frame}{Resumo: duas setas por nó, dois extremos por lista}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[rot] (i) at (0,0) {ini};
+    \foreach \v/\x [count=\k] in {10/1.2, 20/3.4, 30/5.6} {
+      \node[cel, minimum width=1.2cm] (n\k) at (\x,0) {\v};
+    }
+    \node[rot] (f) at (6.8,0) {fim};
+    \draw[seta] (i) -- (n1);
+    \draw[seta] (f) -- (n3);
+    \draw[seta] ([yshift=4pt]n1.east) -- node[above, rot] {prox} ([yshift=4pt]n2.west);
+    \draw[seta] ([yshift=4pt]n2.east) -- ([yshift=4pt]n3.west);
+    \draw[setar] ([yshift=-4pt]n2.west) -- node[below, rot] {ant} ([yshift=-4pt]n1.east);
+    \draw[setar] ([yshift=-4pt]n3.west) -- ([yshift=-4pt]n2.east);
+  \end{tikzpicture}
+  \end{center}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small
+      \begin{itemize}
+        \item A regra: \texttt{p->prox->ant == p} e \texttt{p->ant->prox ==
+          p} --- e ninguém a confere por você.
+        \item Inserir mexe em \textbf{quatro} ponteiros; nos extremos, um
+          deles é \texttt{ini} ou \texttt{fim}.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small
+      \begin{itemize}
+        \item Remover \emph{dado o nó} é $O(1)$: os vizinhos estão nele.
+        \item Dois \texttt{if}: sem anterior, muda \texttt{ini}; sem
+          seguinte, muda \texttt{fim}.
+        \item O nó sentinela dá vizinhos a todo mundo e some com os
+          \texttt{if}.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.2~\cite{cormen2009introduction}; Knuth (1997), §2.2.5~\cite{knuth1997art}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R5 --- 4 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+\begin{lstlisting}[style=numC]
+/* encaixa x logo depois de p */
+novo->ant  = p;
+novo->prox = p->prox;
+p->prox->ant = novo;
+p->prox = novo;
+
+void remove_no(Lista *l, No *p) {
+    if (p->ant == NULL)
+        l->ini = p->prox;
+    else
+        p->ant->prox = p->prox;
+    if (p->prox != NULL)
+        p->prox->ant = p->ant;
+    free(p);
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Responda na folha}
+        \small Lista \texttt{10 <-> 20 <-> 30}, com \texttt{ini} e
+        \texttt{fim}.
+        \begin{enumerate}
+          \item[(a)] Encaixe 25 depois do 20 (linhas 2--5). Desenhe. Por que a
+            linha 4 tem de vir \emph{antes} da 5?
+          \item[(b)] \texttt{remove\_no} está certa para o 20? E para o
+            \textbf{último} nó? O que dá errado, e quando aparece?
+          \item[(c)] Corrija \texttt{remove\_no}.
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R6 --- Pilhas}
+
+\rodada{6}{pilhas}{pilhas: conceito e implementação}{
+  \begin{itemize}
+    \item Numa pilha, quem sai primeiro?
+    \item Num vetor, onde fica o topo? E numa lista?
+    \item Quando o vetor enche, por que dobrar, e não somar uma posição?
+  \end{itemize}}
+
+\begin{frame}{Resumo: o último a entrar é o primeiro a sair}
+  \begin{columns}[T]
+    \begin{column}{0.30\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \foreach \v [count=\k from 0] in {10,20,30} {
+          \node[cel, minimum width=1.4cm] (p\k) at (0, 0.58*\k) {\v};
+        }
+        \node[celr, minimum width=1.4cm] (t) at (0, 1.74) {40};
+        \node[leg, below=0.05cm of p0] {fundo};
+        \draw[seta] (0.35,2.95) node[above right=-2pt, leg, anchor=south west] {empilha} -- (0.35,2.1);
+        \draw[setar] (-0.35,2.1) -- (-0.35,2.95) node[leg, anchor=south east] {desempilha};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.66\textwidth}
+      \small
+      \begin{itemize}
+        \item \textbf{Pilha} (LIFO): \texttt{empilha}, \texttt{desempilha},
+          \texttt{topo}, \texttt{vazia} --- só o topo é visível.
+        \item \textbf{Vetor}: topo em \texttt{v[n-1]}. Confira vazia antes
+          de tirar e cheia antes de pôr: ``certo por sorte'' é errado.
+        \item \textbf{Dobrar} a capacidade: poucas cópias, $O(1)$ amortizado
+          por operação. Somar uma constante: cópias demais.
+        \item \textbf{Lista}: topo no primeiro nó; insere e remove no início,
+          $O(1)$, sem nunca encher.
+        \item \textbf{Balanceamento}: abre empilha; fecha desempilha e tem
+          de combinar; no fim, a pilha tem de estar vazia.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~11~\cite{celes2004introducao}; Tenenbaum et al.\ (1995), cap.~2~\cite{tenenbaum1995estruturas}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R6 --- 4 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=numC]
+Pilha *p = pilha_cria();
+for (int i = 1; i <= 5; i++)
+    empilha(p, 10 * i);
+int a = desempilha(p);
+int b = desempilha(p);
+empilha(p, a - b);
+printf("%d\n", topo(p));
+while (!vazia(p))
+    printf("%d ", desempilha(p));
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Responda na folha}
+        \scriptsize
+        \begin{enumerate}
+          \item[(a)] O que o programa ao lado imprime?
+          \item[(b)] Para cada entrada, a verificação de balanceamento diz
+            sim ou não? Se não, em que caractere ela percebe, e por quê?\\
+            \texttt{\{[()()]\}} \quad \texttt{[(])} \quad \texttt{\{\}(}
+          \item[(c)] A pilha começa com capacidade 4. Para empilhar 100
+            valores, quantas vezes o vetor cresce se \textbf{dobrar}? E se
+            \textbf{somar 4}?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R7 --- Filas}
+
+\rodada{7}{filas}{filas: conceito e implementação}{
+  \begin{itemize}
+    \item Numa fila, quem sai primeiro?
+    \item Por que a fila num vetor simples ``anda para a direita''?
+    \item Na fila circular, como se distingue cheia de vazia?
+  \end{itemize}}
+
+\begin{frame}{Resumo: o primeiro a entrar é o primeiro a sair}
+  \begin{center}
+  \begin{tikzpicture}
+    \foreach \v [count=\k from 0] in {9,4,7,2} {
+      \node[cel, minimum width=0.9cm] (c\k) at (0.9*\k, 0) {\v};
+      \node[rot, below=0.02cm of c\k] {v[\k]};
+    }
+    \node[cel, minimum width=0.9cm, fill=UFSRed!15] at (c2) {7};
+    \node[cel, minimum width=0.9cm, fill=UFSRed!15] at (c3) {2};
+    \node[cel, minimum width=0.9cm, fill=UFSRed!15] at (c0) {9};
+    \node[celv, minimum width=0.9cm] at (c1) {};
+    \draw[setar] (1.8,0.85) node[above, leg] {ini = 2} -- (c2.north);
+    \draw[seta] (c0.north) ++(0,0.5) node[above, leg] {último} -- (c0.north);
+    \node[leg, anchor=west, align=left] at (4.0,0.1)
+      {frente \texttt{v[ini]}; o próximo entra em\\
+       \texttt{v[(ini + n) \% cap]} $=$ \texttt{v[(2 + 3) \% 4]} $=$ \texttt{v[1]}};
+  \end{tikzpicture}
+  \end{center}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small
+      \begin{itemize}
+        \item \textbf{Fila} (FIFO): entra no fim, sai da frente.
+        \item \textbf{Circular}: os índices dão a volta com \texttt{\%};
+          guardar \texttt{ini} e \texttt{n} separa cheia ($n = cap$) de vazia
+          ($n = 0$).
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small
+      \begin{itemize}
+        \item Para crescer, \textbf{desenrole o anel} num vetor novo, frente em
+          \texttt{v[0]}.
+        \item \textbf{Lista}: sai do primeiro nó, entra depois do último ---
+          com \texttt{ini} e \texttt{fim}, as duas em $O(1)$.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~12~\cite{celes2004introducao}; Cormen et al.\ (2009), §10.1~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercício R7 --- 4 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+      \scriptsize Fila circular com \texttt{v}, \texttt{ini}, \texttt{n} e
+      \texttt{cap}; começa vazia, com \texttt{cap = 4} e \texttt{ini = 0}.
+\begin{lstlisting}[style=numC]
+enfileira(f, 1);
+enfileira(f, 2);
+enfileira(f, 3);
+desenfileira(f);
+desenfileira(f);
+enfileira(f, 4);
+enfileira(f, 5);
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Responda na folha}
+        \scriptsize
+        \begin{enumerate}
+          \item[(a)] Desenhe \texttt{v[0..3]} e dê \texttt{ini} e \texttt{n}
+            depois da linha 7. Em que posição o próximo valor entra?
+          \item[(b)] Agora \texttt{enfileira(f, 6)} e \texttt{enfileira(f, 7)}.
+            O 7 não cabe: a fila cresce para \texttt{cap = 8}
+            desenrolando o anel. Desenhe \texttt{v[0..7]}, \texttt{ini} e
+            \texttt{n}.
+          \item[(c)] Se o crescimento fosse só
+            \texttt{v = realloc(v, 8 * sizeof *v)}, como na pilha, em que
+            ordem os valores sairiam? Por quê?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{R8 --- Síntese}
+
+\rodada{8}{qual estrutura, a que custo?}{todas as anteriores}{
+  \begin{itemize}
+    \item Pilha e fila dizem \emph{o que} se faz; vetor e lista dizem
+      \emph{como}. Qual é o TAD e qual é a implementação?
+    \item Que operação a lista simples \emph{não} faz bem, mesmo com
+      \texttt{fim}?
+  \end{itemize}}
+
+\begin{frame}{Exercício R8 --- 4 min, no papel}
+  \begin{columns}[T]
+    \begin{column}{0.47\textwidth}
+      \begin{block}{(a) Pilha, fila, lista simples ou lista dupla?}
+        \scriptsize
+        \begin{enumerate}
+          \item Desfazer (\texttt{Ctrl+Z}) num editor de texto.
+          \item Pedidos de impressão, atendidos na ordem de chegada.
+          \item Playlist com ``anterior'', ``próxima'' e ``remover a
+            atual''.
+          \item Imprimir os $n$ números lidos na ordem \emph{inversa}, sem
+            saber $n$ antes.
+        \end{enumerate}
+        Justifique cada escolha em uma linha.
+      \end{block}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{block}{(b) Complete com $O(1)$ ou $O(n)$}
+        \scriptsize
+        \begin{tabular}{@{}lccc@{}}
+          \toprule
+          & vetor & simples & dupla \\
+          & \texttt{v[0..n-1]} & \texttt{ini}, \texttt{fim} & \texttt{ini}, \texttt{fim} \\
+          \midrule
+          inserir no início & & & \\[0.15em]
+          inserir no fim    & & & \\[0.15em]
+          remover do início & & & \\[0.15em]
+          remover do fim    & & & \\
+          \bottomrule
+        \end{tabular}
+      \end{block}
+      \scriptsize\textcolor{UFSGray}{O vetor tem folga (\texttt{n < cap})
+      e não é circular.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{Gabarito}
+
+\begin{frame}{Hora de conferir}
+  \begin{block}{Como conferir}
+    Marque na folha: \textbf{C} (certo), \textbf{P} (parcial) ou \textbf{E}
+    (errado) em cada rodada. O placar diz o que revisar antes da prova ---
+    está no último slide.
+  \end{block}
+  \begin{block}{Quer ver rodando?}
+    Cada rodada tem um programa em \texttt{codigo/} e uma seção no
+    notebook: a saída tem de bater com o gabarito.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Gabarito R1: ida, volta e a árvore de \texttt{g(4)}}
+  \begin{columns}[T]
+    \begin{column}{0.45\textwidth}
+      \small
+      \textbf{(a)} \texttt{\large 5 3 1 1 3 5}\\[0.3em]
+      Na ida, 5, 3, 1; \texttt{f(-1)} para no caso base; na volta, 1, 3, 5.
+      \\[0.6em]
+      \textbf{(b)} \texttt{g(4)} $=$ \textbf{5}, em \textbf{9} chamadas
+      (os nós da árvore).\\[0.6em]
+      \textbf{(c)} \textbf{4}: o galho mais comprido,
+      \texttt{g(4)}$\to$\texttt{g(3)}$\to$\texttt{g(2)}$\to$\texttt{g(1)}.
+      Os ramos irmãos só entram depois que o anterior saiu.
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[level distance=0.8cm,
+        level 1/.style={sibling distance=2.6cm},
+        level 2/.style={sibling distance=1.5cm},
+        level 3/.style={sibling distance=1.0cm},
+        every node/.style={chamada},
+        edge from parent/.style={draw=UFSGray, thick}]
+        \node[celr] {g(4)}
+          child {node[celr] {g(3)}
+            child {node[celr] {g(2)}
+              child {node[celr] {g(1)}}
+              child {node {g(0)}}}
+            child {node {g(1)}}}
+          child {node {g(2)}
+            child {node {g(1)}}
+            child {node {g(0)}}};
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize\textcolor{UFSGray}{Em vermelho, o galho que a pilha guarda
+      no momento mais fundo.}
+    \end{column}
+  \end{columns}
+  \fonte{Feofiloff (2009), cap.~2~\cite{feofiloff2009algoritmos}}
+\end{frame}
+
+\begin{frame}[fragile]{Gabarito R2: cauda, limite da pilha e local morta}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+      \small
+      \begin{enumerate}
+        \item[(a)] \textbf{B} é de cauda: devolve direto o resultado da
+          chamada. Em \textbf{A}, cada registro guarda o \mbox{``\texttt{1~+}''}
+          que só roda na volta.
+        \item[(b)] $100\,000 \times 48 = 4{,}8$\,MB: \textbf{termina}.
+          $1\,000\,000 \times 48 = 48$\,MB $> 8$\,MB: \textbf{estoura a pilha}
+          (\emph{segmentation fault}).
+        \item[(c)] \texttt{r} vive no registro de \texttt{dobro}, que morre no
+          \texttt{return}: o endereço devolvido é de memória que será
+          reaproveitada.
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+\begin{lstlisting}[style=tinyC]
+int dobro(int x)       /* o valor */
+{                      /* sobrevive */
+    return 2 * x;
+}
+\end{lstlisting}
+\begin{lstlisting}[style=shellStyle]
+warning: function returns address of
+local variable [-Wreturn-local-addr]
+\end{lstlisting}
+      \scriptsize Ou \texttt{void dobro(int x, int *saida)}, ou
+      \texttt{malloc} --- e aí quem recebe dá \texttt{free}.
+    \end{column}
+  \end{columns}
+  \fonte{Abelson et al.\ (1996), §1.2.1~\cite{abelson1996structure}; ISO/IEC 9899:2018, §6.2.4~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}[fragile]{Gabarito R3: a ordem invertida e o \texttt{free} apressado}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \small
+      \textbf{(a)} Cada valor entra na frente do anterior:
+\begin{lstlisting}[style=shellStyle]
+2 -> 8 -> 5 -> NULL
+\end{lstlisting}
+      \textbf{(b)} \texttt{int} (4) + \textbf{4 de padding} + ponteiro (8):
+      \texttt{sizeof(No)} $=$ \textbf{16}. O ponteiro precisa começar num
+      múltiplo de 8.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small
+      \textbf{(c)} O incremento \texttt{p = p->prox} roda \emph{depois} do
+      \texttt{free(p)}: lê um nó já devolvido (\texttt{heap-use-after-free}
+      no \texttt{-fsanitize=address}). Guarde o caminho antes:
+\begin{lstlisting}[style=tinyC]
+while (lista != NULL) {
+    No *prox = lista->prox;
+    free(lista);
+    lista = prox;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §17.5~\cite{king2008c}; Bryant \& O'Hallaron (2015), §3.9.3~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}[fragile]{Gabarito R4: o meio funciona, as pontas não}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \begin{enumerate}
+        \item[(a)] \textbf{Sim}: para em \texttt{p} $=$ 20, \texttt{ant} $=$
+          10, e o 10 passa a apontar para o 30.
+        \item[(b)] \textbf{Quebra na linha 8}: o 10 é o primeiro, o laço
+          nem roda e \texttt{ant} continua \texttt{NULL} ---
+          \texttt{ant->prox} é \emph{segfault}. Quem tinha de mudar era
+          \texttt{ini}.
+        \item[(c)] \textbf{Quebra na linha 4}: \texttt{p} chega a
+          \texttt{NULL} e \texttt{p->valor} é lido \emph{antes} do teste
+          \texttt{p != NULL}. Inverta o \texttt{\&\&}; não achou, nada muda.
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[style=tinyC]
+No *remove_valor(No *ini, int x) {
+    No *ant = NULL, *p = ini;
+    while (p != NULL && p->valor != x) {
+        ant = p;
+        p = p->prox;
+    }
+    if (p == NULL) return ini; /* nao achou */
+    if (ant == NULL)     /* era o 1o */
+        ini = p->prox;
+    else
+        ant->prox = p->prox;
+    free(p);
+    return ini;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~10~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}[fragile]{Gabarito R5: quatro ponteiros e o \texttt{fim} esquecido}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+      \scriptsize
+      \begin{enumerate}
+        \item[(a)] \texttt{10 <-> 20 <-> 25 <-> 30}. A linha 4 usa
+          \texttt{p->prox} para chegar ao 30; se a 5 vier antes,
+          \texttt{p->prox} já é \texttt{novo}, e a linha 4 faz
+          \texttt{novo->ant = novo} --- o 30 fica apontando para o 20.
+        \item[(b)] Para o 20, certa. Para o \textbf{último}, o
+          \texttt{if} da linha 12 é falso e ninguém atualiza
+          \texttt{l->fim}: ele continua apontando para o nó liberado. O
+          erro só aparece \emph{depois}, quando alguém percorre de trás para
+          frente --- \texttt{heap-use-after-free} no \texttt{imprime}.
+        \item[(c)] Simétrico ao primeiro \texttt{if}:
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+\begin{lstlisting}[style=tinyC]
+void remove_no(Lista *l, No *p) {
+    if (p->ant == NULL)
+        l->ini = p->prox;
+    else
+        p->ant->prox = p->prox;
+    if (p->prox == NULL)
+        l->fim = p->ant;
+    else
+        p->prox->ant = p->ant;
+    free(p);
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.2~\cite{cormen2009introduction}}
+\end{frame}
+
+\begin{frame}[fragile]{Gabarito R6: pilhas}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small
+      \textbf{(a)} Sai 50, depois 40; entra $50 - 40 = 10$:
+\begin{lstlisting}[style=shellStyle]
+10
+10 30 20 10
+\end{lstlisting}
+      O 10 do topo é o \emph{calculado}; o do fundo, o primeiro
+      empilhado.\\[0.4em]
+      \textbf{(c)} Dobrando: $4 \to 8 \to 16 \to 32 \to 64 \to 128$,
+      \textbf{5} vezes. Somando 4: $4 + 4k \ge 100$, \textbf{24} vezes ---
+      cada uma copia tudo o que já havia.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small
+      \textbf{(b)}
+      \begin{itemize}
+        \item \texttt{\{[()()]\}}: \textbf{sim}.
+        \item \texttt{[(])}: \textbf{não}, no \texttt{]}: o topo é
+          \texttt{(}, e \texttt{(} não fecha com \texttt{]}.
+        \item \texttt{\{\}(}: \textbf{não}, só \textbf{no fim} da entrada:
+          sobrou \texttt{(} na pilha. Nenhum fechamento estava errado.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Celes et al.\ (2004), cap.~11~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}{Gabarito R7: o anel, desenrolado ou não}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[leg, anchor=east] at (-0.55,0) {(a)};
+    \foreach \v [count=\k from 0] in {5,\textcolor{UFSGray}{2},3,4}
+      \node[cel] (a\k) at (0.8*\k,0) {\v};
+    \node[leg, anchor=west] at (3.3,0)
+      {\texttt{ini = 2}, \texttt{n = 3}; o próximo entra em \texttt{v[(2+3)\%4] = v[1]}};
+    \node[leg, anchor=east] at (-0.55,-0.85) {(b)};
+    \foreach \v [count=\k from 0] in {3,4,5,6,7}
+      \node[cel] (b\k) at (0.8*\k,-0.85) {\v};
+    \foreach \k in {5,6,7}
+      \node[celv] at (0.8*\k,-0.85) {?};
+    \node[leg, anchor=west] at (6.5,-0.85) {\texttt{ini = 0}, \texttt{n = 5}};
+    \node[leg, anchor=east] at (-0.55,-1.7) {(c)};
+    \foreach \v [count=\k from 0] in {5,6,3,4,?,?,7,?}
+      \node[cel] (c\k) at (0.8*\k,-1.7) {\v};
+    \foreach \k in {4,5,7}
+      \node[celr] at (0.8*\k,-1.7) {?};
+    \node[leg, anchor=west] at (6.5,-1.7) {\texttt{ini = 2}, \texttt{n = 5}};
+  \end{tikzpicture}
+  \end{center}
+  \scriptsize
+  \begin{itemize}
+    \item (a) Saíram 1 e 2; o 5 deu a volta e caiu em \texttt{v[0]}. O
+      \texttt{2} em \texttt{v[1]} é resto: não está entre os \texttt{n}.
+    \item (b) O 6 vai para \texttt{v[1]} e enche a fila; o 7 provoca o
+      crescimento: o anel é copiado em ordem a partir da frente.
+    \item (c) Com \texttt{realloc}, 5 e 6 continuam em \texttt{v[0..1]}, mas
+      depois de \texttt{v[3]} agora vem \texttt{v[4]}, e não \texttt{v[0]}.
+      O 7 entra em \texttt{v[(2+4)\%8] = v[6]}, e saem \textbf{3, 4, lixo,
+      lixo, 7} --- 5 e 6 se perderam.
+  \end{itemize}
+  \fonte{Celes et al.\ (2004), cap.~12~\cite{celes2004introducao}}
+\end{frame}
+
+\begin{frame}{Gabarito R8: estrutura e custo}
+  \begin{columns}[T]
+    \begin{column}{0.47\textwidth}
+      \scriptsize
+      \textbf{(a)}
+      \begin{enumerate}
+        \item \textbf{Pilha}: desfaz-se a última ação primeiro.
+        \item \textbf{Fila}: quem chegou antes imprime antes.
+        \item \textbf{Lista dupla}: anda nos dois sentidos e remove o nó
+          atual sem procurar o anterior.
+        \item \textbf{Pilha} (numa lista, que não enche): o último lido sai
+          primeiro. Uma recursão também resolve --- a pilha é a de execução.
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \textbf{\scriptsize (b)}
+      \scriptsize
+      \begin{center}
+      \begin{tabular}{@{}lccc@{}}
+        \toprule
+        & vetor & simples & dupla \\
+        \midrule
+        inserir no início & $O(n)$ & $O(1)$ & $O(1)$ \\
+        inserir no fim    & $O(1)$ & $O(1)$ & $O(1)$ \\
+        remover do início & $O(n)$ & $O(1)$ & $O(1)$ \\
+        remover do fim    & $O(1)$ & \textcolor{UFSRed}{$O(n)$} & $O(1)$ \\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+      No vetor, o início desloca todo mundo. Na simples, remover o último
+      exige achar o \emph{penúltimo}. Por isso a fila em lista sai do
+      início e entra no fim --- e a circular tira o $O(n)$ do vetor.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), §10.1--10.2~\cite{cormen2009introduction}}
+\end{frame}
+
+% ==================================================================
+\section*{Fechamento}
+
+\begin{frame}{Seu placar: onde revisar}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}cl@{}}
+    \toprule
+    Errou & Revise a aula --- e refaça as tarefas e o desafio do fim dela \\
+    \midrule
+    R1 & Recursividade: conceitos e pilha de execução \\
+    R2 & Recursividade e efeitos na alocação de memória \\
+    R3 & Introdução a listas encadeadas \\
+    R4 & Lista encadeada: inserção, remoção e busca \\
+    R5 & Lista duplamente encadeada \\
+    R6 & Pilhas: conceito e implementação \\
+    R7 & Filas: conceito e implementação \\
+    R8 & Os ``Quanto custa'' das aulas de listas, pilhas e filas \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Para casa}
+    \small Rode o notebook: cada exercício está lá, pronto para executar e
+    conferir a sua previsão.
+  \end{block}
+\end{frame}
+
+\begin{frame}[allowframebreaks]{Referências}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}
