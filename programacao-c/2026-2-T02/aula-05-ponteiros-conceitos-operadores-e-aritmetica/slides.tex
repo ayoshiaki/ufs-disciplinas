@@ -745,13 +745,13 @@ printf("%d na posicao %ld\n", *achou, achou - v);
   \begin{center}
   \begin{tikzpicture}[
     item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
-      minimum width=10.5cm, minimum height=0.8cm, font=\small}
+      minimum width=10.5cm, minimum height=0.6cm, font=\small}
   ]
     \node[item] (t1) at (0,0)     {Ponteiro = variável que guarda um endereço};
-    \node[item] (t2) at (0,-0.9)  {\texttt{\&} pega o endereço; \texttt{*} chega ao conteúdo};
-    \node[item] (t3) at (0,-1.8)  {\texttt{a[i]} $\equiv$ \texttt{*(a + i)}: colchete é aritmética de ponteiros};
-    \node[item] (t4) at (0,-2.7)  {\texttt{int **pp}: cada \texttt{*} é mais um passo até o valor};
-    \node[item] (t5) at (0,-3.6)  {Próxima aula: alocação dinâmica --- memória que você mesmo pede};
+    \node[item] (t2) at (0,-0.8)  {\texttt{\&} pega o endereço; \texttt{*} chega ao conteúdo};
+    \node[item] (t3) at (0,-1.6)  {\texttt{a[i]} $\equiv$ \texttt{*(a + i)}: colchete é aritmética de ponteiros};
+    \node[item] (t4) at (0,-2.4)  {\texttt{int **pp}: cada \texttt{*} é mais um passo até o valor};
+    \node[item] (t5) at (0,-3.2)  {Próxima aula: alocação dinâmica --- memória que você mesmo pede};
     \draw[seta] (t1)--(t2);
     \draw[seta] (t2)--(t3);
     \draw[seta] (t3)--(t4);
@@ -766,19 +766,12 @@ printf("%d na posicao %ld\n", *achou, achou - v);
 
 % =====================================================================
 \section*{Referências}
-\begin{frame}{Referências}
-  \begin{itemize}
-    \item KERNIGHAN, B. W.; RITCHIE, D. M. \textit{C: a linguagem de programação
-      --- padrão ANSI}. Campus, 1989. (cap.\ 5)
-    \item SCHILDT, H. \textit{C completo e total}. 3.\ ed.\ Makron Books, 1997.
-    \item TENENBAUM, A. M.; LANGSAM, Y.; AUGENSTEIN, M. J. \textit{Estruturas de
-      dados usando C}. Pearson Makron Books, 1995.
-  \end{itemize}
-  \begin{exampleblock}{Complementar}
-    BACKES, \textit{Linguagem C: completa e descomplicada};
-    FEOFILOFF, \textit{Algoritmos em linguagem C};
-    DEITEL; DEITEL, \textit{C: como programar}.
-  \end{exampleblock}
+\begin{frame}[allowframebreaks]{Referências}
+  \footnotesize
+  \nocite{kernighan1989c,schildt1997completo,tenenbaum1995estruturas,%
+    backes2013linguagem,feofiloff2009algoritmos,deitel2011como}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
 \end{frame}
 
 \end{document}

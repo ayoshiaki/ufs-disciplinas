@@ -263,7 +263,7 @@ pos   aluno       media situacao
     máquina. É o desfecho normal quando um limite fica implícito num número
     solto.
   \end{block}
-  \fonte{ISO/IEC 9899:2018, §J.2 (comportamento indefinido)}
+  \fonte{ISO/IEC 9899:2018, §J.2 (comportamento indefinido)~\cite{iso2018c17}}
 \end{frame}
 
 \begin{frame}[fragile]{Pergunta 4: dois \texttt{troca} no mesmo programa}
@@ -285,7 +285,7 @@ ld: 1 duplicate symbols          # no Linux: "multiple definition of 'troca'"
       recai sobre quem chegou depois. Quanto maior o projeto, mais caro.
     \end{column}
   \end{columns}
-  \fonte{ISO/IEC 9899:2018, §6.2.2 (ligação externa e interna)}
+  \fonte{ISO/IEC 9899:2018, §6.2.2 (ligação externa e interna)~\cite{iso2018c17}}
 \end{frame}
 
 \begin{frame}{Funciona não é o mesmo que está pronto}
@@ -309,7 +309,7 @@ ld: 1 duplicate symbols          # no Linux: "multiple definition of 'troca'"
       Não é gosto pessoal: é acordo.
     \end{column}
   \end{columns}
-  \fonte{Kernighan \& Pike (1999), \emph{The Practice of Programming}, cap.~1}
+  \fonte{Kernighan \& Pike (1999), \emph{The Practice of Programming}, cap.~1~\cite{kernighan1999practice}}
 \end{frame}
 
 % ==================================================================
@@ -338,7 +338,7 @@ ld: 1 duplicate symbols          # no Linux: "multiple definition of 'troca'"
     \texttt{struct}, \texttt{ranking\_calcula} vira \texttt{ranking\_cria}:
     aí a função passa mesmo a \emph{criar} alguma coisa.
   \end{block}
-  \fonte{Kernighan \& Pike (1999), §1.1 ``Names''; McConnell (2004), cap.~11}
+  \fonte{Kernighan \& Pike (1999), §1.1 ``Names''~\cite{kernighan1999practice}; McConnell (2004), cap.~11~\cite{mcconnell2004code}}
 \end{frame}
 
 \begin{frame}{A regra do escopo, e o prefixo do módulo}
@@ -367,7 +367,7 @@ ld: 1 duplicate symbols          # no Linux: "multiple definition of 'troca'"
       C não tem \emph{namespace}: o prefixo é o nosso.
     \end{column}
   \end{columns}
-  \fonte{Kernighan \& Pike (1999), §1.1; GNU Coding Standards, §5.4}
+  \fonte{Kernighan \& Pike (1999), §1.1~\cite{kernighan1999practice}; GNU Coding Standards, §5.4~\cite{gnu2024standards}}
 \end{frame}
 
 % ==================================================================
@@ -433,7 +433,7 @@ for (int i = 0; i < N; i++)
       \end{itemize}
     \end{column}
   \end{columns}
-  \fonte{Linux kernel coding style, §1--§3; GNU Coding Standards, §5.1}
+  \fonte{Linux kernel coding style, §1--§3~\cite{linux2024codingstyle}; GNU Coding Standards, §5.1~\cite{gnu2024standards}}
 \end{frame}
 
 \begin{frame}{Consistência vale mais do que preferência}
@@ -447,7 +447,7 @@ for (int i = 0; i < N; i++)
     Entrou em código alheio, siga o estilo dele. Um arquivo com dois estilos
     é pior do que um arquivo com o estilo que você não gosta.
   \end{exampleblock}
-  \fonte{Kernighan \& Pike (1999), §1.3 ``Consistency and Idioms''}
+  \fonte{Kernighan \& Pike (1999), §1.3 ``Consistency and Idioms''~\cite{kernighan1999practice}}
 \end{frame}
 
 % ==================================================================
@@ -473,7 +473,7 @@ Q[i] = i;                    /* guarda o indice i em Q[i] */
 \end{lstlisting}
   \small\textcolor{UFSBlue}{Explica a decisão} --- o que o código não
   consegue dizer sozinho.
-  \fonte{McConnell (2004), cap.~32; Kernighan \& Pike (1999), §1.6}
+  \fonte{McConnell (2004), cap.~32~\cite{mcconnell2004code}; Kernighan \& Pike (1999), §1.6~\cite{kernighan1999practice}}
 \end{frame}
 
 \begin{frame}{Onde cada comentário mora}
@@ -501,7 +501,7 @@ Q[i] = i;                    /* guarda o indice i em Q[i] */
     \small O comentário que descreve \emph{como} costuma ser sintoma: quase
     sempre dá para trocá-lo por um nome melhor ou por uma função à parte.
   \end{block}
-  \fonte{McConnell (2004), cap.~32; GNU Coding Standards, §5.2}
+  \fonte{McConnell (2004), cap.~32~\cite{mcconnell2004code}; GNU Coding Standards, §5.2~\cite{gnu2024standards}}
 \end{frame}
 
 \begin{frame}[fragile]{Sua vez: dois minutos, em dupla}
@@ -549,7 +549,7 @@ int p(double *v, int n)
       bom teria levantado.
     \end{column}
   \end{columns}
-  \fonte{Kernighan \& Pike (1999), §1.1 e §1.5; McConnell (2004), cap.~11}
+  \fonte{Kernighan \& Pike (1999), §1.1 e §1.5~\cite{kernighan1999practice}; McConnell (2004), cap.~11~\cite{mcconnell2004code}}
 \end{frame}
 
 % ==================================================================
@@ -580,7 +580,7 @@ R[Q[i]] >= 7.0 ? "aprovado"
       turma, como já fazemos desde a aula de alocação dinâmica.
     \end{column}
   \end{columns}
-  \fonte{Kernighan \& Pike (1999), §1.5 ``Magic Numbers''}
+  \fonte{Kernighan \& Pike (1999), §1.5 ``Magic Numbers''~\cite{kernighan1999practice}}
 \end{frame}
 
 \begin{frame}{Variável global: o estado que ninguém vê passar}
@@ -612,7 +612,7 @@ R[Q[i]] >= 7.0 ? "aprovado"
     imprime lixo --- e nada no código avisa. Com o parâmetro, não existe
     ranking para imprimir antes de alguém criá-lo.
   \end{block}
-  \fonte{Kernighan \& Pike (1999), §4.5 ``Interface Principles''; McConnell (2004), §13.3}
+  \fonte{Kernighan \& Pike (1999), §4.5 ``Interface Principles''~\cite{kernighan1999practice}; McConnell (2004), §13.3~\cite{mcconnell2004code}}
 \end{frame}
 
 \begin{frame}[fragile]{\texttt{static}: o que é interno não vaza}
@@ -633,7 +633,7 @@ Ranking *ranking_cria(const Turma *t) { ... }  /* interface */
       \texttt{.h}? então é público. Não está? então é \texttt{static}.}
     \end{column}
   \end{columns}
-  \fonte{ISO/IEC 9899:2018, §6.2.2; Kernighan \& Ritchie (1989), §4.6}
+  \fonte{ISO/IEC 9899:2018, §6.2.2~\cite{iso2018c17}; Kernighan \& Ritchie (1989), §4.6~\cite{kernighan1989c}}
 \end{frame}
 
 \begin{frame}[fragile]{\texttt{const}: a promessa de não mexer}
@@ -687,8 +687,8 @@ CFLAGS = -std=c17 -Wall -Wextra -Werror -pedantic -g
     errado --- por isso a decisão é da equipe, e a nossa está escrita no
     \texttt{CFLAGS}.
   \end{block}
-  \fonte{GCC Manual, ``Options to Request or Suppress Warnings'';
-    GNU Coding Standards, §5.3}
+  \fonte{GCC Manual, ``Options to Request or Suppress Warnings''~\cite{gcc2024warnings};
+    GNU Coding Standards, §5.3~\cite{gnu2024standards}}
 \end{frame}
 
 \begin{frame}{Recapitulando: o seu checklist de revisão}
@@ -738,7 +738,7 @@ formato:
     \small Com o padrão em arquivo, ninguém precisa lembrar dele --- e a
     revisão de código deixa de gastar tempo com indentação.
   \end{block}
-  \fonte{LLVM Project, \emph{ClangFormat Style Options}}
+  \fonte{LLVM Project, \emph{ClangFormat Style Options}~\cite{llvm2024clangformat}}
 \end{frame}
 
 \begin{frame}{O que a ferramenta faz, e o que ela não faz}
@@ -765,7 +765,7 @@ formato:
     que exige entender o programa --- nomes, fronteiras, responsabilidades
     --- continua sendo sua.
   \end{block}
-  \fonte{LLVM Project, \emph{ClangFormat}; Kernighan \& Pike (1999), §1.3}
+  \fonte{LLVM Project, \emph{ClangFormat}~\cite{llvm2024clangformat}; Kernighan \& Pike (1999), §1.3~\cite{kernighan1999practice}}
 \end{frame}
 
 % ==================================================================
