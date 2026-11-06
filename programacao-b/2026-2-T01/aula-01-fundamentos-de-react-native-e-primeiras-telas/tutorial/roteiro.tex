@@ -1,0 +1,484 @@
+% Roteiro do aluno --- Fundamentos de React Native e primeiras telas
+% Compilar: xelatex roteiro.tex (duas vezes, por causa das referências cruzadas)
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=2cm,top=2.6cm,headheight=22pt,bottom=2.2cm]{geometry}
+\usepackage{fontspec}
+\usepackage[default]{sourcesanspro}
+\setmonofont{Inconsolatazi4}[Extension=.otf,UprightFont=*-Regular,BoldFont=*-Bold,ItalicFont=*-Regular,ItalicFeatures={FakeSlant=0.15},Scale=0.95,RawFeature={+zero}]
+\usepackage{polyglossia}
+\setdefaultlanguage{portuguese}
+
+\usepackage{xcolor}
+\definecolor{UFSBlue}{RGB}{3,78,162}
+\definecolor{UFSYellow}{RGB}{253,185,19}
+\definecolor{UFSRed}{RGB}{237,28,36}
+\definecolor{UFSGray}{RGB}{100,100,100}
+\definecolor{Fundo}{RGB}{244,246,250}
+\definecolor{Comentario}{RGB}{110,120,135}
+\definecolor{Cadeia}{RGB}{0,120,80}
+
+\usepackage{graphicx}
+\graphicspath{{\detokenize{/Users/yoshiaki/work/ufs-disciplinas/theme/}}}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{titlesec}
+\usepackage{needspace}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage[most]{tcolorbox}
+\usepackage{listings}
+\usepackage{amssymb}
+\usepackage{pgffor}
+\usepackage[hidelinks]{hyperref}
+
+\setlist{itemsep=2pt,topsep=4pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+
+% ---------- títulos ----------
+\titleformat{\section}{\needspace{5\baselineskip}\Large\bfseries\color{UFSBlue}}{\thesection}{0.6em}{}[{\color{UFSYellow}\titlerule[1.2pt]}]
+\titleformat{\subsection}{\large\bfseries\color{UFSBlue}}{}{0em}{}
+\titlespacing*{\section}{0pt}{14pt}{8pt}
+\titlespacing*{\subsection}{0pt}{10pt}{4pt}
+
+% ---------- cabeçalho e rodapé ----------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{UFSGray}COMP0511 --- Programação B}
+\fancyhead[R]{\small\color{UFSGray}Fundamentos de React Native --- roteiro prático}
+\fancyfoot[C]{\small\color{UFSGray}\thepage\ de \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{UFSLightRule}\leaders\hrule height \headrulewidth\hfill}}
+\definecolor{UFSLightRule}{RGB}{200,205,215}
+
+% ---------- código ----------
+\lstdefinelanguage{JSX}{
+  keywords={import,from,export,default,function,return,const,let,var,if,else,true,false,null,undefined,new,typeof},
+  sensitive=true,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  string=[b]',
+  morestring=[b]",
+  morestring=[b]`,
+}
+\lstset{
+  language=JSX,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{UFSBlue}\bfseries,
+  commentstyle=\color{Comentario}\itshape,
+  stringstyle=\color{Cadeia},
+  backgroundcolor=\color{Fundo},
+  frame=leftline,
+  framerule=2.5pt,
+  rulecolor=\color{UFSBlue},
+  xleftmargin=8pt,
+  framexleftmargin=6pt,
+  aboveskip=6pt,
+  belowskip=6pt,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  upquote=true,
+  breaklines=true,
+  tabsize=2,
+}
+% blocos curtos não se partem entre páginas
+\newtcblisting{codigo}{listing only, listing engine=listings, enhanced, unbreakable,
+  colback=Fundo, colframe=UFSBlue, boxrule=0pt, leftrule=2.5pt, arc=0pt,
+  left=6pt, right=4pt, top=2pt, bottom=2pt, before skip=6pt, after skip=6pt,
+  listing options={backgroundcolor={}, frame=none, xleftmargin=0pt, framexleftmargin=0pt, aboveskip=0pt, belowskip=0pt}}
+\newcommand{\cod}[1]{\texttt{#1}}
+
+% ---------- caixas ----------
+\newtcolorbox{previsao}[1][]{enhanced, unbreakable, colback=UFSYellow!10, colframe=UFSYellow!85!black,
+  boxrule=0.8pt, arc=2pt, left=8pt, right=8pt, top=6pt, bottom=6pt,
+  title={\bfseries Antes de rodar, escreva a sua resposta}, coltitle=black, #1}
+\newtcolorbox{aviso}[1][]{enhanced, breakable, colback=UFSBlue!5, colframe=UFSBlue,
+  boxrule=0pt, leftrule=3pt, arc=0pt, left=8pt, right=8pt, top=5pt, bottom=5pt, #1}
+\newtcolorbox{tarefa}[1]{enhanced, unbreakable, colback=white, colframe=UFSBlue,
+  boxrule=1pt, arc=2pt, left=8pt, right=8pt, top=6pt, bottom=6pt,
+  title={\bfseries #1}, colbacktitle=UFSBlue, coltitle=white}
+
+% espaço pautado para a resposta escrita à mão
+\newcommand{\linhas}[1]{%
+  \par\vspace{2pt}%
+  \foreach \i in {1,...,#1}{\noindent\textcolor{UFSGray!50}{\rule{\linewidth}{0.4pt}}\par\vspace{11pt}}%
+}
+
+\newcommand{\caixa}{\(\square\)}
+
+\begin{document}
+
+% ================= capa compacta =================
+\begin{minipage}[c]{0.24\textwidth}
+  \includegraphics[width=\linewidth]{ufs_principal_positiva.png}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.72\textwidth}
+  \raggedleft
+  {\small\color{UFSGray}Departamento de Computação --- DCOMP/UFS\\COMP0511 --- Programação B}\\[6pt]
+  {\LARGE\bfseries\color{UFSBlue} Fundamentos de React Native\\e primeiras telas}\\[4pt]
+  {\large Roteiro prático}\\[4pt]
+  {\small Prof. Dr. André Yoshiaki Kashiwabara --- \href{mailto:andreyoshiaki@dcomp.ufs.br}{andreyoshiaki@dcomp.ufs.br}}
+\end{minipage}
+
+\vspace{6pt}
+{\color{UFSYellow}\rule{\linewidth}{2pt}}
+
+\vspace{4pt}
+Nome(s): \rule{0.62\linewidth}{0.4pt} \quad Data: \rule{0.15\linewidth}{0.4pt}
+
+Este roteiro acompanha os slides. Tudo aqui roda no navegador e no celular:
+não há nada para instalar no computador. Os códigos que você vai colar no Snack
+estão no \hyperref[apx:codigos]{Apêndice} (p.~\pageref{apx:codigos}).
+
+\subsection{Ao final da aula você será capaz de}
+\begin{itemize}
+  \item explicar por que o \cod{<Text>} do React Native vira um componente nativo do Android ou do iOS;
+  \item escrever arrow functions, desestruturar objetos e vetores e transformar listas com \cod{map};
+  \item ler e escrever JSX, criar um componente e passar dados por props;
+  \item montar uma tela com \cod{View}, \cod{Text}, \cod{Image}, \cod{TextInput} e \cod{Pressable},
+        estilizada com \cod{StyleSheet} e posicionada com Flexbox;
+  \item usar \cod{useState} para que a tela reaja ao toque e ao que o usuário digita.
+\end{itemize}
+
+\subsection{Antes de começar}
+\begin{enumerate}
+  \item No \textbf{celular}: instale o aplicativo \textbf{Expo Go} (Play Store ou App Store).
+  \item No \textbf{computador}: abra \url{https://snack.expo.dev} em uma aba nova.
+  \item Na barra da direita do Snack, escolha \textbf{My Device}. Vai aparecer um QR code.
+  \item Abra o Expo Go e leia o QR code. No iPhone, use a câmera do sistema.
+  \item Guarde a URL que o Snack gerou --- é nela que o seu trabalho de hoje vai crescer.
+\end{enumerate}
+
+\begin{aviso}
+\textbf{Se a rede bloquear a conexão:} use o botão \textbf{Web} do próprio Snack. A tela
+roda no navegador. Você perde o celular de verdade, mas nenhum conceito da aula.
+\end{aviso}
+
+% ================= 1 =================
+\section{O JavaScript que a tela exige}
+
+\subsection{Arrow functions}
+Em JavaScript, funções são valores: dá para guardá-las em variáveis e passá-las
+como argumento --- que é exatamente o que um botão precisa receber
+(Flanagan, 2020, §8.1.3).
+
+\begin{codigo}
+function dobro(x) {            // forma tradicional
+  return x * 2;
+}
+
+const dobro = (x) => x * 2;    // a mesma coisa; sem chave, o return é implícito
+
+const saudacao = (nome) => {   // com chave, volta o bloco e o return explícito
+  const texto = 'Olá, ' + nome;
+  return texto;
+};
+\end{codigo}
+
+\subsection{Desestruturação}
+O lado esquerdo da atribuição imita o formato do dado: cada variável recebe o campo de
+mesmo nome (objeto) ou o valor na mesma posição (vetor) (Flanagan, 2020, §3.10).
+
+\begin{codigo}
+const aluno = { nome: 'Ada', curso: 'Programação B', nota: 9.5 };
+
+const { nome, nota } = aluno;   // tira campos de dentro do objeto
+const [a, b] = [10, 20];        // em vetores, por posição
+\end{codigo}
+A forma de vetor é a que o \cod{useState} usa: \cod{const [valor, setValor] = useState(0)}.
+
+\subsection{\texttt{map}}
+\cod{map} aplica uma função a cada item e devolve um vetor novo, do mesmo tamanho
+(Flanagan, 2020, §7.8.1).
+\begin{codigo}
+const habilidades = ['JavaScript', 'React Native', 'Flexbox'];
+const tamanhos = habilidades.map((h) => h.length);   // [10, 12, 7]
+\end{codigo}
+
+\begin{previsao}
+Quanto vale \cod{resultado}?
+\begin{codigo}
+const notas = [7, 5, 9, 4];
+const resultado = notas.map((n) => {
+  n >= 6;
+});
+\end{codigo}
+Minha resposta: \linhas{2}
+Depois de responder, confira na p.~\pageref{apx:respostas}.
+\end{previsao}
+
+\subsection{JSX, componente e props}
+Um componente é uma função com nome \textbf{maiúsculo} que devolve JSX; as props
+chegam como um único objeto (Banks; Porcello, 2020, cap.~5).
+\begin{codigo}
+function Saudacao({ nome, horario }) {          // props chegam como um objeto
+  return <Text>Bom {horario}, {nome}!</Text>;
+}
+
+<Saudacao nome="Ada" horario="dia" />           // quem chama decide os valores
+\end{codigo}
+
+Quatro regras de JSX que sempre pegam:
+\begin{enumerate}
+  \item chaves \cod{\{ \}} entram em modo JavaScript;
+  \item só pode haver \textbf{um} elemento raiz;
+  \item toda tag fecha, inclusive as vazias: \cod{<Image source=\{foto\} />};
+  \item estilo é objeto, não string: \cod{style=\{\{ fontSize: 20 \}\}}.
+\end{enumerate}
+
+% ================= 2 =================
+\section{A primeira tela}
+Apague o conteúdo do \cod{App.js} do Snack e digite (ou cole) o programa abaixo:
+
+\begin{codigo}
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function App() {
+  return (
+    <View style={estilos.tela}>
+      <Text style={estilos.titulo}>Olá, COMP0511!</Text>
+    </View>
+  );
+}
+
+const estilos = StyleSheet.create({
+  tela: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  titulo: { fontSize: 28, fontWeight: 'bold' },
+});
+\end{codigo}
+
+\begin{tarefa}{Tarefa 1 --- 5 minutos}
+\begin{enumerate}[label=\caixa]
+  \item Ponha o código acima para rodar no seu aparelho.
+  \item Troque o texto pelo seu próprio nome.
+  \item Mude \cod{fontSize} para \cod{48} e veja a tela recarregar sozinha.
+  \item \textbf{Apague a linha \cod{flex: 1}.} Para onde o texto foi? Por quê?
+\end{enumerate}
+\linhas{2}
+\end{tarefa}
+
+\subsection{Quando não funciona}
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Sintoma} & \textbf{Causa provável} \\
+\midrule
+O QR code não conecta & Celular e computador em redes diferentes --- use \textbf{Web} \\
+Tela branca, sem erro & Faltou \cod{export default} antes de \cod{function App} \\
+\cod{Text strings must be rendered within a <Text>} & Texto solto dentro de uma \cod{View} \\
+A imagem não aparece & \cod{Image} com \cod{uri} exige \cod{width} e \cod{height} no estilo \\
+\bottomrule
+\end{tabularx}
+
+% ================= 3 =================
+\section{Componentes, estilo e Flexbox}
+
+\begin{tabularx}{\linewidth}{@{}l l X@{}}
+\toprule
+\textbf{Componente} & \textbf{Equivale a} & \textbf{Para que serve} \\
+\midrule
+\cod{View} & \cod{<div>} & caixa: agrupa, posiciona, recebe cor e borda \\
+\cod{Text} & \cod{<p>} & todo texto visível --- nada de texto solto \\
+\cod{Image} & \cod{<img>} & imagem local ou vinda de uma URL \\
+\cod{TextInput} & \cod{<input>} & entrada de texto do usuário \\
+\cod{Pressable} & \cod{<button>} & qualquer área que reage ao toque \\
+\bottomrule
+\end{tabularx}
+
+Rode o programa \textbf{A.1 (catálogo de componentes)} do apêndice e experimente:
+\begin{enumerate}[label=\caixa]
+  \item troque \cod{flexDirection: 'row'} do estilo \cod{linha} para \cod{'column'};
+  \item em \cod{tela}, troque \cod{alignItems: 'center'} por \cod{'flex-start'} e depois \cod{'flex-end'};
+  \item acrescente \cod{justifyContent: 'space-between'} em \cod{linha}.
+\end{enumerate}
+
+As três propriedades que resolvem quase todo layout (Eisenman, 2017, cap.~5):
+\begin{itemize}
+  \item \textbf{\cod{flexDirection}} escolhe o eixo principal (\cod{'column'} é o padrão no React Native);
+  \item \textbf{\cod{justifyContent}} distribui no eixo principal;
+  \item \textbf{\cod{alignItems}} alinha no eixo cruzado.
+\end{itemize}
+
+\begin{aviso}
+\textbf{Diferenças em relação ao CSS da web:} o padrão é \cod{column} (e não \cod{row}),
+\cod{flex} é um número só, não há unidades (\cod{px}, \cod{\%}) e as propriedades usam
+\emph{camelCase} (\cod{backgroundColor}, não \cod{background-color}).
+\end{aviso}
+
+% ================= 4 =================
+\section{Telas que reagem: \texttt{useState}}
+
+\begin{previsao}
+Você toca \textbf{cinco} vezes no botão. O que a tela mostra?
+\begin{codigo}
+export default function App() {
+  let contagem = 0;
+  return (
+    <View>
+      <Text>{contagem}</Text>
+      <Pressable onPress={() => { contagem = contagem + 1; }}>
+        <Text>somar 1</Text>
+      </Pressable>
+    </View>
+  );
+}
+\end{codigo}
+Minha resposta: \linhas{2}
+Depois de responder, confira na p.~\pageref{apx:respostas}.
+\end{previsao}
+
+O \cod{useState} \textbf{lembra} um valor entre as renderizações e \textbf{avisa} o React
+que a tela precisa ser redesenhada (Banks; Porcello, 2020, cap.~6):
+\begin{codigo}
+const [contagem, setContagem] = useState(0);
+//     |            |                    +-- valor inicial (só na 1ª vez)
+//     |            +----------- troca o valor E pede um novo desenho
+//     +------------------------ valor atual, válido nesta renderização
+\end{codigo}
+
+Rode os dois exemplos do apêndice e leia o código linha a linha:
+\begin{enumerate}[label=\caixa]
+  \item \textbf{A.2 --- contador};
+  \item \textbf{A.3 --- campo controlado}.
+\end{enumerate}
+No campo controlado, o \cod{TextInput} não guarda nada. A prop \cod{value=\{nome\}} faz o campo mostrar
+o estado; já \cod{onChangeText=\{setNome\}} avisa quando o usuário pede uma mudança.
+
+\subsection{Três armadilhas}
+\begin{codigo}
+setContagem(contagem + 1);
+console.log(contagem);          // 1. ainda o valor ANTIGO
+
+setContagem((n) => n + 1);      // 2. quando o novo valor depende do antigo
+
+lista.push('novo');             // 3. ERRADO: React não percebe a mudança
+setLista([...lista, 'novo']);   //    CERTO: um vetor novo
+\end{codigo}
+
+% ================= 5 =================
+\section{Tarefa 2 --- o cartão de perfil}
+Trabalhe em \textbf{duplas}, no mesmo Snack, partindo do programa
+\textbf{A.4 --- esqueleto do cartão} do apêndice.
+\textbf{Cada checkpoint tem que rodar no celular antes de você começar o próximo.}
+Marque a caixa quando o item funcionar.
+
+\begin{tarefa}{Checkpoint 1 --- o cartão estático}
+\begin{enumerate}[label=\caixa]
+  \item cabeçalho em linha: foto redonda de 72×72 à esquerda; ao lado, em coluna, o nome e o usuário;
+  \item a bio abaixo;
+  \item as habilidades como etiquetas, uma por item do vetor, geradas com \cod{map}.
+\end{enumerate}
+\textit{Dicas:} \cod{flexDirection: 'row'} + \cod{alignItems: 'center'} no cabeçalho;
+\cod{borderRadius: 36} para uma foto de 72 de lado; cada elemento produzido por \cod{map}
+precisa de uma prop \cod{key} única.
+\end{tarefa}
+
+\begin{tarefa}{Checkpoint 2 --- o contador de curtidas}
+\begin{enumerate}[label=\caixa]
+  \item um \cod{Pressable} no rodapé do cartão mostrando \cod{0 curtidas};
+  \item cada toque soma 1;
+  \item o texto concorda em número: \cod{1 curtida}, \cod{2 curtidas}.
+\end{enumerate}
+Use a forma funcional: \cod{setCurtidas((n) => n + 1)}.
+\end{tarefa}
+
+\begin{tarefa}{Checkpoint 3 --- a bio vira campo controlado}
+\begin{enumerate}[label=\caixa]
+  \item crie um estado \cod{bio} iniciado com \cod{PERFIL.bio};
+  \item o \cod{<Text>} da bio passa a mostrar o estado, não mais a constante;
+  \item acrescente um \cod{TextInput} com \cod{value=\{bio\}} e \cod{onChangeText=\{setBio\}};
+  \item mostre um contador \cod{N/120} abaixo do campo.
+\end{enumerate}
+Ao digitar, o texto do cartão muda junto --- é o mesmo estado em dois lugares.
+\end{tarefa}
+
+\begin{tarefa}{Checkpoint 4 --- Seguir / Seguindo}
+\begin{enumerate}[label=\caixa]
+  \item estado booleano \cod{seguindo}, começando em \cod{false};
+  \item o botão mostra \cod{Seguir} ou \cod{Seguindo} e troca de cor:\\
+        \cod{style=\{[estilos.botaoSeguir, seguindo \&\& estilos.botaoSeguindo]\}};
+  \item o total de seguidores sobe 1 quando você está seguindo.
+\end{enumerate}
+\textbf{Atenção ao último item:} o total de seguidores \textbf{não} é um estado novo.
+Ele se calcula a partir de \cod{seguindo}:
+\begin{codigo}
+const seguidores = seguindo ? PERFIL.seguidores + 1 : PERFIL.seguidores;
+\end{codigo}
+Estado duplicado é fonte de inconsistência: dois lugares para atualizar, um deles esquecido.
+\end{tarefa}
+
+% ================= 6 =================
+\section{Desafio para casa}
+Transforme o cartão de perfil em uma \textbf{lista de contatos}:
+\begin{enumerate}
+  \item extraia um componente \cod{Cartao} que receba \cod{nome}, \cod{usuario}, \cod{foto} e
+        \cod{habilidades} por props;
+  \item monte um vetor com \textbf{quatro} pessoas e renderize os quatro cartões com \cod{map};
+  \item cada cartão mantém o \textbf{próprio} contador de curtidas --- curtir um não pode afetar os outros;
+  \item acrescente um \cod{TextInput} no topo que filtra os cartões pelo nome.
+\end{enumerate}
+Pergunta que decide o item 3: onde deve morar o estado das curtidas --- no \cod{App}
+ou dentro do \cod{Cartao}?
+
+Dica para o item 4:
+\begin{codigo}
+lista.filter((p) => p.nome.toLowerCase().includes(busca.toLowerCase()))
+\end{codigo}
+
+\section*{Referências}
+{\small
+\begin{itemize}
+  \item \textsc{Banks}, A.; \textsc{Porcello}, E. \emph{Learning React}. 2.~ed. O'Reilly, 2020 --- cap.~5 (JSX) e cap.~6 (estado).
+  \item \textsc{Eisenman}, B. \emph{Learning React Native}. 2.~ed. O'Reilly, 2017 --- cap.~1 (panorama) e cap.~5 (estilo).
+  \item \textsc{Flanagan}, D. \emph{JavaScript: The Definitive Guide}. 7.~ed. O'Reilly, 2020 --- §3.10, §7.8.1, §8.1.3.
+  \item React Native Docs --- \url{https://reactnative.dev/docs/getting-started}
+  \item React Docs --- \url{https://react.dev/learn}
+  \item Expo Docs --- \url{https://docs.expo.dev/}
+\end{itemize}
+}
+
+% ================= apêndices =================
+\clearpage
+\section*{Apêndice --- programas para colar no Snack}\label{apx:codigos}
+Ao copiar do PDF, a indentação pode se perder; isso não muda o funcionamento do JavaScript.
+
+\subsection*{A.1 --- Catálogo de componentes}
+\lstinputlisting{../codigo/02-componentes-e-estilo/App.js}
+
+\subsection*{A.2 --- Contador}
+\lstinputlisting{../codigo/03-contador/App.js}
+
+\subsection*{A.3 --- Campo controlado}
+\lstinputlisting{../codigo/04-campo-controlado/App.js}
+
+\clearpage
+\subsection*{A.4 --- Esqueleto do cartão de perfil}
+\lstinputlisting{../codigo/cartao-perfil/esqueleto/App.js}
+
+\clearpage
+\section*{Respostas das previsões}\label{apx:respostas}
+\textit{Leia só depois de escrever a sua resposta.}
+
+\subsection*{\texttt{map} com chave}
+\cod{[undefined, undefined, undefined, undefined]}. A chave depois da seta abre um
+bloco de comandos, e bloco de comandos exige \cod{return}. Corrija de uma das duas formas:
+\begin{codigo}
+notas.map((n) => { return n >= 6; });
+notas.map((n) => n >= 6);
+\end{codigo}
+
+\subsection*{\texttt{let contagem}}
+Zero, sempre zero. A variável muda na memória, mas ninguém pede para redesenhar
+a tela; e se algo redesenhar, a função \cod{App} roda de novo e \cod{contagem} volta a \cod{0}.
+Falta um mecanismo que \textbf{lembre} o valor entre as renderizações e \textbf{avise} que a
+tela mudou. Esse mecanismo é o \cod{useState}.
+
+\subsection*{Por que o texto saiu do centro sem \texttt{flex: 1}?}
+\cod{justifyContent} distribui o conteúdo \emph{no espaço que a caixa tem}. Sem \cod{flex: 1}
+a \cod{View} encolhe até caber no texto --- e não sobra espaço para distribuir. O texto vai
+para o topo da tela.
+
+\end{document}

@@ -1,0 +1,1264 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, matrix, fit,
+  backgrounds, decorations.pathreplacing, shadows, patterns, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+% listings nao conhece JavaScript/JSX: definimos a linguagem
+\lstdefinelanguage{JavaScript}{
+  morekeywords={const,let,var,function,return,import,from,export,default,
+    if,else,for,while,new,class,extends,super,this,typeof,null,undefined,
+    true,false,async,await,of,in,delete},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]",
+  sensitive=true,
+}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=2,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+  literate=%
+    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+    {â}{{\^a}}1 {ê}{{\^e}}1 {ô}{{\^o}}1 {ã}{{\~a}}1 {õ}{{\~o}}1
+    {ç}{{\c c}}1 {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1
+    {Ú}{{\'U}}1 {Ç}{{\c C}}1 {à}{{\`a}}1 {`}{{\`{}}}1,
+}
+\lstset{style=ufsStyle, language=JavaScript}
+
+\lstdefinestyle{js}{
+  style=ufsStyle, language=JavaScript, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+  aboveskip=4pt, belowskip=1pt,
+}
+\lstdefinestyle{jsx}{
+  style=ufsStyle, language=JavaScript, numbers=none,
+  basicstyle=\ttfamily\tiny\color{black},
+  aboveskip=3pt, belowskip=1pt,
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  cx/.style={rectangle, draw=UFSBlue, fill=UFSBlue!8, rounded corners,
+    minimum width=2.8cm, minimum height=0.8cm, font=\scriptsize, align=center},
+  cxr/.style={rectangle, draw=UFSRed, fill=UFSRed!8, rounded corners,
+    minimum width=2.8cm, minimum height=0.8cm, font=\scriptsize, align=center},
+  cxy/.style={rectangle, draw=UFSYellow!80!black, fill=UFSYellow!20,
+    rounded corners, minimum width=2.8cm, minimum height=0.8cm,
+    font=\scriptsize, align=center},
+  cxg/.style={rectangle, draw=UFSGray, fill=black!4, rounded corners,
+    minimum width=2.8cm, minimum height=0.8cm, font=\scriptsize, align=center},
+  cel/.style={rectangle, draw=UFSGray, fill=white, rounded corners=3pt,
+    minimum width=2.6cm, minimum height=0.55cm, font=\tiny, align=center},
+  seta/.style={->, thick, UFSBlue, >={Stealth[length=4pt]}},
+  setar/.style={->, thick, UFSRed, >={Stealth[length=4pt]}},
+  setag/.style={->, thick, UFSGray, >={Stealth[length=4pt]}},
+  rot/.style={font=\tiny, text=UFSGray},
+  item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+    minimum width=10.2cm, minimum height=0.68cm, font=\small},
+}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% --- Metadados ---
+\title{Fundamentos de React Native}
+\subtitle{E as suas primeiras telas rodando no celular}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+% ==================================================================
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[item] (t1) at (0, 0)    {Como um aplicativo chega até a tela do celular};
+    \node[item] (t2) at (0,-0.90) {O mínimo de JavaScript e React para começar};
+    \node[item] (t3) at (0,-1.80) {Sua primeira tela rodando no \emph{seu} aparelho};
+    \node[item] (t4) at (0,-2.70) {Componentes, estilos e a organização do layout};
+    \node[item] (t5) at (0,-3.60) {Telas que reagem ao toque e ao que você digita};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\begin{frame}{Onde a aula termina}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+      \textbf{A meta de hoje}\\[0.3em]
+      Daqui a 150 minutos o seu celular vai estar rodando um
+      \emph{cartão de perfil} escrito por você: foto, nome, bio editável,
+      etiquetas de habilidades, um botão de curtir que conta e um botão
+      de seguir que muda de cor.
+
+      \medskip
+      \textbf{O que você precisa}\\[0.3em]
+      Um navegador, o celular com o aplicativo \textbf{Expo Go} instalado
+      e a rede da universidade. Nada para compilar, nada para instalar
+      no computador.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.95, transform shape]
+        \draw[rounded corners=6pt, draw=UFSGray, fill=black!3]
+          (0,0) rectangle (4.1,4.3);
+        \draw[fill=UFSBlue!25, draw=UFSBlue] (0.75,3.55) circle (0.42);
+        \node[font=\scriptsize\bfseries, anchor=west] at (1.35,3.75) {Ada Lovelace};
+        \node[font=\tiny, text=UFSGray, anchor=west] at (1.35,3.42) {@ada · 128 seguidores};
+        \node[font=\tiny, text=UFSGray, align=left, anchor=north west]
+          at (0.35,2.95) {Estudante de Programação B.\\Gosto de algoritmos e de café.};
+        \node[cel, minimum width=1.0cm, minimum height=0.35cm] at (0.85,2.05) {JavaScript};
+        \node[cel, minimum width=1.1cm, minimum height=0.35cm] at (2.1,2.05) {React Native};
+        \node[cel, minimum width=0.8cm, minimum height=0.35cm] at (3.3,2.05) {Flexbox};
+        \draw[rounded corners=4pt, fill=UFSGray!15, draw=UFSGray]
+          (0.35,1.25) rectangle (3.75,1.8);
+        \node[font=\tiny, text=UFSGray] at (2.05,1.52) {campo de edição da bio};
+        \draw[rounded corners=4pt, fill=UFSRed, draw=UFSRed] (0.35,0.5) rectangle (1.95,1.0);
+        \node[font=\tiny, text=white] at (1.15,0.75) {7 curtidas};
+        \draw[rounded corners=4pt, fill=UFSBlue, draw=UFSBlue] (2.15,0.5) rectangle (3.75,1.0);
+        \node[font=\tiny, text=white] at (2.95,0.75) {Seguir};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{Como um aplicativo chega ao celular}
+% ==================================================================
+
+\begin{frame}{Três caminhos para o mesmo aplicativo}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cxg, minimum width=3.3cm] (n) at (-4.1,0)
+      {\textbf{Nativo}\\ Kotlin/Java (Android)\\ Swift (iOS)};
+    \node[cx,  minimum width=3.3cm] (m) at (0,0)
+      {\textbf{Multiplataforma}\\ um código,\\ dois sistemas};
+    \node[cxy, minimum width=3.3cm] (w) at (4.1,0)
+      {\textbf{Web}\\ o site aberto\\ no navegador};
+    \node[cel, minimum width=3.3cm, minimum height=0.9cm] (n2) at (-4.1,-1.6)
+      {dois times, dois códigos,\\ dois cronogramas};
+    \node[cel, minimum width=3.3cm, minimum height=0.9cm] (m2) at (0,-1.6)
+      {um time, um código,\\ duas lojas};
+    \node[cel, minimum width=3.3cm, minimum height=0.9cm] (w2) at (4.1,-1.6)
+      {um endereço,\\ nenhuma loja};
+    \draw[setag] (n) -- (n2);
+    \draw[seta]  (m) -- (m2);
+    \draw[setag] (w) -- (w2);
+    \node[rot, align=center] at (0,-2.7)
+      {A escolha não é sobre qual linguagem é mais bonita:\\
+       é sobre custo de manutenção, acesso ao hardware e velocidade de entrega.};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{Eisenman (2017), cap.\ 1, ``Advantages of React Native''~\cite{eisenman2017learning}}
+\end{frame}
+
+\begin{frame}{Nativo: o teto mais alto e a conta mais cara}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que você ganha}
+      \begin{itemize}
+        \item desempenho e fluidez máximos;
+        \item acesso imediato a todo recurso novo do sistema;
+        \item ferramentas maduras de depuração e perfil.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que você paga}
+      \begin{itemize}
+        \item escrever \emph{duas vezes} a mesma tela;
+        \item manter duas bases de código em sincronia;
+        \item contratar duas especialidades distintas.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \begin{block}{Quando compensa}
+    Aplicativos que dependem de câmera, sensores ou gráficos em tempo real ---
+    e equipes grandes o bastante para bancar dois times.
+  \end{block}
+  \fonte{Eisenman (2017), cap.\ 1~\cite{eisenman2017learning}}
+\end{frame}
+
+\begin{frame}{Web e híbrido: o mesmo HTML dentro de uma moldura}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cxy, minimum width=3.6cm, minimum height=1.0cm] (app) at (0,0)
+      {\textbf{Aplicativo híbrido}\\ instalado pela loja};
+    \node[cxg, minimum width=3.0cm, minimum height=1.0cm] (wv) at (4.6,0)
+      {\texttt{WebView}\\ (um navegador embutido)};
+    \node[cel, minimum width=3.0cm, minimum height=0.8cm] (html) at (4.6,-1.5)
+      {HTML + CSS + JS};
+    \draw[seta] (app) -- (wv);
+    \draw[setag] (wv) -- (html);
+    \node[cel, minimum width=3.6cm, minimum height=1.3cm, align=left] at (0,-1.6)
+      {A tela é uma página.\\ O sistema operacional\\ vê \emph{um} retângulo só.};
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{A consequência que se sente no dedo}
+    Rolagem, teclado e animações imitam o comportamento nativo em vez de
+    \emph{serem} o comportamento nativo --- e a diferença aparece justamente
+    nos gestos mais usados.
+  \end{block}
+  \fonte{Eisenman (2017), cap.\ 1, ``Hybrid Applications''~\cite{eisenman2017learning}}
+\end{frame}
+
+\begin{frame}{Pergunta}
+  \begin{center}
+    \vspace{1.2em}
+    {\Large Quando você escreve \texttt{<Text>Olá</Text>} em React Native,}
+
+    \vspace{0.6em}
+    {\Large o que exatamente aparece na tela do celular?}
+
+    \vspace{1.6em}
+    \begin{tikzpicture}
+      \node[cel, minimum width=3.2cm, minimum height=0.8cm] at (-3.4,0) {um \texttt{<p>} de HTML?};
+      \node[cel, minimum width=3.2cm, minimum height=0.8cm] at (0,0) {um desenho em um \emph{canvas}?};
+      \node[cel, minimum width=3.2cm, minimum height=0.8cm] at (3.4,0) {um componente do sistema?};
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Resposta: um componente nativo de verdade}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cx, minimum width=3.4cm, minimum height=0.9cm] (js) at (-3.6,0.9)
+      {\textbf{Seu código}\\ JavaScript + JSX};
+    \node[cxy, minimum width=3.4cm, minimum height=0.9cm] (rt) at (0.4,0.9)
+      {\textbf{Tempo de execução}\\ do React Native};
+    \node[cxr, minimum width=2.6cm, minimum height=0.9cm] (and) at (4.3,1.6)
+      {\texttt{android.widget}\\ \texttt{.TextView}};
+    \node[cxr, minimum width=2.6cm, minimum height=0.9cm] (ios) at (4.3,0.2)
+      {\texttt{UIKit}\\ \texttt{.UITextView}};
+    \draw[seta] (js) -- (rt);
+    \draw[setar] (rt) -- (and);
+    \draw[setar] (rt) -- (ios);
+    \node[rot, align=center] at (0.4,-0.6) {a ponte traduz\\ a árvore de elementos};
+    \node[cel, minimum width=9.6cm, minimum height=0.8cm, align=center] at (0.4,-1.7)
+      {O \texttt{<Text>} \emph{não} é uma imitação: é o widget de texto do próprio sistema.\\
+       Por isso a seleção de texto, a rolagem e a acessibilidade já vêm prontas.};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{React Native Docs, ``Core Components and Native Components''~\cite{reactnative2025docs}}
+\end{frame}
+
+\begin{frame}{Duas famílias de multiplataforma}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cx, minimum width=4.4cm, minimum height=0.8cm] (a) at (-2.8,1.2)
+      {\textbf{Usa os componentes do sistema}};
+    \node[cxg, minimum width=4.4cm, minimum height=0.8cm] (b) at (2.8,1.2)
+      {\textbf{Desenha tudo por conta própria}};
+    \node[cel, minimum width=4.4cm, minimum height=1.5cm, align=left] (a2) at (-2.8,-0.2)
+      {React Native\\[2pt]
+       O botão é o botão do Android/iOS.\\
+       Muda de aparência quando o\\ sistema muda.};
+    \node[cel, minimum width=4.4cm, minimum height=1.5cm, align=left] (b2) at (2.8,-0.2)
+      {Flutter\\[2pt]
+       Pinta cada pixel em uma tela\\ própria. Aparência idêntica\\ nos dois sistemas.};
+    \draw[seta] (a) -- (a2);
+    \draw[setag] (b) -- (b2);
+    \node[rot, align=center] at (0,-1.6)
+      {Nenhuma das duas é ``a certa''. A pergunta é se você quer parecer\\
+       com o sistema do usuário ou parecer sempre igual a si mesmo.};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{React Native Docs, ``Architecture Overview''~\cite{reactnative2025docs}}
+\end{frame}
+
+\begin{frame}{Recapitulando: o panorama}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}lccc@{}}
+    \toprule
+      & \textbf{Nativo} & \textbf{React Native} & \textbf{Web / híbrido} \\
+    \midrule
+    Bases de código        & duas       & uma            & uma \\
+    O que desenha a tela   & o sistema  & o sistema      & o navegador \\
+    Acesso a sensores      & total      & amplo          & limitado \\
+    Custo de manutenção    & alto       & médio          & baixo \\
+    Distribuição           & lojas      & lojas          & endereço web \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{A frase para levar}
+    React Native escreve-se como uma página e executa-se como um aplicativo:
+    a sua lógica é JavaScript, mas a interface é feita de componentes nativos.
+  \end{block}
+  \fonte{Eisenman (2017), cap.\ 1~\cite{eisenman2017learning}; React Native Docs~\cite{reactnative2025docs}}
+\end{frame}
+
+% ==================================================================
+\section{JavaScript e React em trinta minutos}
+% ==================================================================
+
+\begin{frame}{Por que parar em JavaScript antes de abrir o editor}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O problema}\\[0.3em]
+      Quase todo erro da primeira semana de React Native não é de React
+      Native: é de JavaScript. Uma chave fora do lugar, uma função que
+      devolve \texttt{undefined}, um \texttt{map} sem \texttt{return}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O recorte de hoje}\\[0.3em]
+      Cinco construções, e só elas:
+      \begin{itemize}
+        \item \emph{arrow functions};
+        \item desestruturação;
+        \item \texttt{map};
+        \item JSX;
+        \item componentes e \emph{props}.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    A ideia central: em JavaScript, funções são valores ---
+    dá para guardá-las em variáveis e passá-las como argumento.
+  \end{block}
+  \fonte{Flanagan (2020), cap.\ 8, ``Functions''~\cite{flanagan2020javascript}}
+\end{frame}
+
+\begin{frame}[fragile]{Arrow functions: a função como valor}
+\begin{lstlisting}[style=js]
+// forma tradicional: uma declaracao de funcao
+function dobro(x) {
+  return x * 2;
+}
+
+// a mesma funcao, escrita como valor guardado em uma constante
+const dobro = (x) => x * 2;        // corpo curto: o return e' implicito
+
+// quando o corpo tem mais de uma linha, volta o bloco e o return
+const saudacao = (nome) => {
+  const texto = 'Ola, ' + nome;
+  return texto;
+};
+\end{lstlisting}
+  \fonte{Flanagan (2020), \S 8.1.3, ``Arrow Functions''~\cite{flanagan2020javascript}}
+\end{frame}
+
+\begin{frame}[fragile]{Desestruturação: tirar campos de dentro de um objeto}
+  \textbf{Desestruturação}: atribuição em que o lado esquerdo imita o formato
+  do dado --- cada variável recebe o campo de mesmo nome (objeto) ou a mesma posição (array).
+  \vspace{0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Sem desestruturação}
+\begin{lstlisting}[style=jsx]
+const aluno = { nome: 'Ada', nota: 9.5 };
+const nome = aluno.nome;
+const nota = aluno.nota;
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Com desestruturação}
+\begin{lstlisting}[style=jsx]
+const { nome, nota } = aluno;
+// tambem funciona no parametro:
+function resumo({ nome, nota }) {
+  return nome + ': ' + nota;
+}
+// e em arrays, por posicao:
+const [a, b] = [10, 20];
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \begin{block}{}
+    A forma de array é a que o \texttt{useState} usa: \texttt{const [valor, setValor] = useState(0)}.
+  \end{block}
+  \fonte{Flanagan (2020), \S 3.10.3, ``Destructuring Assignment'', e \S 8.3.5~\cite{flanagan2020javascript}}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{map}: de uma lista de dados para outra lista}
+\begin{lstlisting}[style=js]
+const habilidades = ['JavaScript', 'React Native', 'Flexbox'];
+
+// map percorre a lista, aplica a funcao e devolve uma NOVA lista
+const tamanhos = habilidades.map((h) => h.length);
+// tamanhos vale [10, 12, 7]; habilidades continua intacta
+
+const marcadas = habilidades.map((h) => '#' + h.toLowerCase());
+// ['#javascript', '#react native', '#flexbox']
+\end{lstlisting}
+  \begin{block}{Por que isso importa em uma tela}
+    Em React Native a lista de saída não é de textos: é de \emph{elementos
+    de interface}. Uma etiqueta na tela para cada habilidade no vetor.
+  \end{block}
+  \fonte{Flanagan (2020), \S 7.8.1, ``\texttt{map()}''~\cite{flanagan2020javascript}}
+\end{frame}
+
+\begin{frame}[fragile]{Pergunta}
+\begin{lstlisting}[style=js]
+const notas = [7, 5, 9, 4];
+
+const resultado = notas.map((n) => {
+  n >= 6;
+});
+\end{lstlisting}
+  \begin{center}
+    \vspace{0.4em}
+    {\large Quanto vale \texttt{resultado}?}\\[0.4em]
+    {\small E o que seria preciso mudar para obter
+     \texttt{[true, false, true, false]}?}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Resposta: o \texttt{return} que faltou}
+\begin{lstlisting}[style=js]
+// resultado vale [undefined, undefined, undefined, undefined]
+// o corpo em bloco { } executa a comparacao e joga fora o valor
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[style=jsx]
+// corrigindo com return
+notas.map((n) => {
+  return n >= 6;
+});
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[style=jsx]
+// ou com corpo curto
+notas.map((n) => n >= 6);
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \begin{alertblock}{A regra}
+    Chave depois da seta significa bloco de comandos, e bloco de comandos
+    exige \texttt{return}. Sem chave, o valor da expressão já é o retorno.
+  \end{alertblock}
+  \fonte{Flanagan (2020), \S 8.1.3~\cite{flanagan2020javascript}}
+\end{frame}
+
+\begin{frame}[fragile]{O que é JSX}
+  \textbf{JSX} (\emph{JavaScript XML}) é uma \textbf{extensão de sintaxe} do
+  JavaScript: tags no estilo XML/HTML, escritas no meio do código, que
+  descrevem a tela. A forma do código imita a forma da interface.
+  \begin{columns}[T]
+    \begin{column}{0.47\textwidth}
+      \small
+      \begin{itemize}
+        \item \textbf{Não é HTML}: as tags são componentes
+          (\texttt{<View>}), não \texttt{<div>};
+        \item \textbf{Não é texto}: é uma \emph{expressão}, um valor;
+        \item \textbf{Não é JavaScript padrão}: o compilador
+          Babel (embutido no Expo) traduz antes de rodar.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+\begin{lstlisting}[style=js]
+const nome = 'Ada';
+// JSX e' um valor: vai numa variavel
+const oi = <Text>Oi, {nome}</Text>;
+// ... e num return
+function Tela() {
+  return <View>{oi}</View>;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{React Docs, ``Writing Markup with JSX''~\cite{react2025docs};
+    Banks \& Porcello (2020), cap.\ 5~\cite{banks2020learning}}
+\end{frame}
+
+\begin{frame}{JSX por baixo: cada tag vira uma chamada de função}
+  \begin{center}
+  \begin{tikzpicture}[
+      etapa/.style={rectangle, rounded corners=3pt, line width=0.8pt,
+        minimum height=1.9cm, align=left, inner sep=5pt,
+        font=\ttfamily\scriptsize, anchor=north west},
+      num/.style={circle, text=white, font=\tiny\bfseries, inner sep=1.2pt,
+        anchor=west},
+      cab/.style={font=\scriptsize\bfseries, anchor=west},
+    ]
+    % 1. o que voce escreve
+    \node[etapa, text width=2.6cm, draw=UFSBlue, fill=UFSBlue!8]
+      (jsx) at (0,0) {<Text>\\ \ \ Olá\\ </Text>};
+    % 2. o que o compilador gera
+    \node[etapa, text width=3.5cm, draw=UFSYellow!80!black, fill=UFSYellow!20]
+      (call) at ([xshift=0.9cm]jsx.north east)
+      {React.createElement(\\ \ \ Text,\\ \ \ null,\\ \ \ 'Olá')};
+    % 3. o que existe em execucao
+    \node[etapa, text width=3.3cm, draw=UFSRed, fill=UFSRed!8]
+      (el) at ([xshift=0.9cm]call.north east)
+      {\{\\ \ \ type: Text,\\ \ \ props: \{\\ \ \ \ \ children: 'Olá' \}\\ \}};
+
+    % cabecalhos numerados, todos na mesma linha
+    \node[num, fill=UFSBlue] (n1) at ([yshift=0.3cm]jsx.north west) {1};
+    \node[cab, text=UFSBlue] at (n1.east) {você escreve};
+    \node[num, fill=UFSYellow!70!black] (n2) at ([yshift=0.3cm]call.north west) {2};
+    \node[cab, text=UFSYellow!70!black] at (n2.east) {o compilador gera};
+    \node[num, fill=UFSRed] (n3) at ([yshift=0.3cm]el.north west) {3};
+    \node[cab, text=UFSRed] at (n3.east) {em execução vira};
+
+    \draw[seta, line width=1pt] (jsx.east) -- (call.west);
+    \draw[setar, line width=1pt] (call.east) -- (el.west);
+
+    \node[rectangle, rounded corners=3pt, fill=black!5, text width=11.2cm,
+          align=center, font=\small, inner sep=6pt, anchor=north]
+      at ([yshift=-0.45cm]call.south)
+      {JSX é \textbf{açúcar sintático} para chamadas de função.\\
+       O celular nunca vê a marcação: vê o objeto que ela produz.};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{Banks \& Porcello (2020), cap.\ 5, ``React with JSX''~\cite{banks2020learning}}
+\end{frame}
+
+\begin{frame}[fragile]{Quatro regras de JSX que sempre pegam}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=jsx]
+// 1. chaves entram em modo JavaScript
+<Text>Total: {2 + 3}</Text>
+
+// 2. so' pode haver UM elemento raiz
+<View>
+  <Text>a</Text>
+  <Text>b</Text>
+</View>
+
+// 3. toda tag fecha, inclusive as vazias
+<Image source={foto} />
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=jsx]
+// 4. estilo e' objeto, nao string
+<Text style={{ fontSize: 20 }}>
+  Ola
+</Text>
+
+// as duas chaves: a de fora abre o
+// modo JavaScript, a de dentro e'
+// o literal de objeto
+\end{lstlisting}
+      \medskip
+      \small
+      Nomes de propriedade seguem JavaScript:\\
+      \texttt{background-color} vira \texttt{backgroundColor}.
+    \end{column}
+  \end{columns}
+  \fonte{Banks \& Porcello (2020), cap.\ 5~\cite{banks2020learning}}
+\end{frame}
+
+\begin{frame}[fragile]{Componente: uma função que devolve JSX}
+\begin{lstlisting}[style=js]
+// componente = funcao com nome MAIUSCULO que devolve JSX
+function Saudacao() {
+  return <Text>Bom dia!</Text>;
+}
+
+// usar o componente e' escrever uma tag com o nome dele
+function App() {
+  return (
+    <View>
+      <Saudacao />
+      <Saudacao />
+    </View>
+  );
+}
+\end{lstlisting}
+  \fonte{React Docs, ``Your First Component''~\cite{react2025docs}}
+\end{frame}
+
+\begin{frame}[fragile]{Props: os parâmetros do componente}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Quem recebe}
+\begin{lstlisting}[style=jsx]
+// as props chegam como UM objeto;
+// a desestruturacao abre esse objeto
+function Saudacao({ nome, horario }) {
+  return <Text>Bom {horario}, {nome}!</Text>;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Quem envia}
+\begin{lstlisting}[style=jsx]
+<View>
+  <Saudacao nome="Ada" horario="dia" />
+  <Saudacao nome="Alan" horario="tarde" />
+</View>
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \begin{alertblock}{Props são somente leitura}
+    Quem decide o valor é quem chamou o componente. Para mudar algo de
+    dentro, é preciso \emph{estado} --- o último bloco da aula.
+  \end{alertblock}
+  \fonte{React Docs, ``Passing Props to a Component''~\cite{react2025docs}}
+\end{frame}
+
+\begin{frame}{Recapitulando: JavaScript e React}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cel, minimum width=11.0cm, minimum height=0.55cm] (a) at (0,0)
+      {\texttt{(x) => x * 2} \quad --- função como valor; sem chave, o retorno é implícito};
+    \node[cel, minimum width=11.0cm, minimum height=0.55cm] (b) at (0,-0.75)
+      {\texttt{const \{ nome \} = aluno} \quad --- abre o objeto; é assim que props chegam};
+    \node[cel, minimum width=11.0cm, minimum height=0.55cm] (c) at (0,-1.5)
+      {\texttt{lista.map(...)} \quad --- uma lista de dados vira uma lista de elementos};
+    \node[cel, minimum width=11.0cm, minimum height=0.55cm] (d) at (0,-2.25)
+      {\texttt{<View><Text/></View>} \quad --- JSX: um elemento raiz, tudo fechado};
+    \node[cel, minimum width=11.0cm, minimum height=0.55cm] (e) at (0,-3.0)
+      {\texttt{function Cartao(\{ nome \})} \quad --- componente com nome maiúsculo e props};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{A primeira tela no seu celular}
+% ==================================================================
+
+\begin{frame}{Por que Snack e Expo Go, e não a instalação completa}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cx, minimum width=3.2cm, minimum height=0.9cm] (nav) at (-4.0,0)
+      {\textbf{Navegador}\\ \texttt{snack.expo.dev}};
+    \node[cxy, minimum width=3.2cm, minimum height=0.9cm] (srv) at (0,0)
+      {\textbf{Servidor do Expo}\\ empacota o seu código};
+    \node[cxr, minimum width=3.2cm, minimum height=0.9cm] (cel) at (4.0,0)
+      {\textbf{Expo Go}\\ no seu celular};
+    \draw[seta] (nav) -- node[rot, above] {salva} (srv);
+    \draw[setar] (srv) -- node[rot, above] {QR code} (cel);
+    \draw[setag] (cel.south) to[bend left=25] node[rot, below] {você edita e a tela recarrega sozinha} (nav.south);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{O que isso nos poupa hoje}
+    Android Studio, Xcode, SDK, emulador e JDK --- somados, várias horas de
+    instalação e um disco cheio. Nada disso é necessário para as ideias de hoje.
+  \end{block}
+  \fonte{Expo Docs, ``Snack'' e ``Expo Go''~\cite{expo2025docs}}
+\end{frame}
+
+\begin{frame}{Cinco passos, cinco minutos}
+  \begin{enumerate}
+    \item No celular, instale o \textbf{Expo Go} (Play Store ou App Store).
+    \item No computador, abra \texttt{snack.expo.dev} em uma aba nova.
+    \item Na barra direita, escolha \textbf{My Device}: aparece um QR code.
+    \item Abra o Expo Go e leia o QR code (no iPhone, use a câmera).
+    \item Apague o conteúdo de \texttt{App.js} e cole o código do próximo slide.
+  \end{enumerate}
+  \begin{alertblock}{Se a rede da universidade bloquear a conexão}
+    Use o botão \textbf{Web} do próprio Snack: a tela roda no navegador.
+    Perde-se o celular de verdade, mas nenhum conceito da aula.
+  \end{alertblock}
+  \fonte{Expo Docs, ``Get started''~\cite{expo2025docs}}
+\end{frame}
+
+\begin{frame}[fragile]{O ``Olá mundo'' que vamos rodar}
+\begin{lstlisting}[style=js]
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function App() {
+  return (
+    <View style={estilos.tela}>
+      <Text style={estilos.titulo}>Ola, COMP0511!</Text>
+    </View>
+  );
+}
+
+const estilos = StyleSheet.create({
+  tela: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  titulo: { fontSize: 28, fontWeight: 'bold' },
+});
+\end{lstlisting}
+  \fonte{React Native Docs, ``Core Components''~\cite{reactnative2025docs}}
+\end{frame}
+
+\begin{frame}{Faça agora --- 5 minutos}
+  \begin{block}{Tarefa 1}
+    \begin{enumerate}
+      \item Ponha o ``Olá mundo'' para rodar no seu aparelho.
+      \item Troque o texto pelo seu próprio nome.
+      \item Mude \texttt{fontSize} para \texttt{48} e veja a tela recarregar sozinha.
+      \item Apague a linha \texttt{flex: 1} e observe para onde o texto vai.
+    \end{enumerate}
+  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Se travar}\\
+      Chame; quem já conseguiu ajuda o vizinho. Ninguém segue para o próximo
+      bloco sem ter visto o próprio nome na tela.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Guarde o endereço}\\
+      O Snack gera uma URL. Salve-a: é nela que o cartão de perfil vai crescer
+      pelo resto da aula.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Quando não funciona: os quatro suspeitos de sempre}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}p{4.6cm}p{7.0cm}@{}}
+    \toprule
+    \textbf{Sintoma} & \textbf{Causa provável e o que fazer} \\
+    \midrule
+    O QR code não conecta
+      & Celular e computador em redes diferentes. Use \texttt{Web} ou troque a rede. \\
+    Tela branca, sem erro
+      & Faltou o \texttt{export default} antes de \texttt{function App}. \\
+    \texttt{Text strings must be rendered within a <Text>}
+      & Texto solto dentro de \texttt{<View>}. Envolva-o em \texttt{<Text>}. \\
+    A imagem não aparece
+      & \texttt{Image} com \texttt{uri} precisa de \texttt{width} e \texttt{height} no estilo. \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \fonte{React Native Docs, ``Troubleshooting''~\cite{reactnative2025docs}}
+\end{frame}
+
+% ==================================================================
+\section{Componentes, estilos e layout}
+% ==================================================================
+
+\begin{frame}{O catálogo mínimo: cinco componentes bastam hoje}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}llp{6.6cm}@{}}
+    \toprule
+    \textbf{Componente} & \textbf{Equivale a} & \textbf{Para que serve} \\
+    \midrule
+    \texttt{View}      & \texttt{<div>}    & caixa: agrupa, posiciona, recebe cor e borda \\
+    \texttt{Text}      & \texttt{<p>}      & todo texto visível; nada de texto solto \\
+    \texttt{Image}     & \texttt{<img>}    & imagem local ou vinda de uma URL \\
+    \texttt{TextInput} & \texttt{<input>}  & entrada de texto do usuário \\
+    \texttt{Pressable} & \texttt{<button>} & qualquer área que reage ao toque \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{A regra que o iniciante mais esquece}
+    Texto só existe dentro de \texttt{<Text>}. Escrever palavras diretamente
+    dentro de uma \texttt{<View>} é erro de execução, não aviso.
+  \end{block}
+  \fonte{React Native Docs, ``Core Components and APIs''~\cite{reactnative2025docs}}
+\end{frame}
+
+\begin{frame}[fragile]{Os cinco em uma tela só}
+\begin{lstlisting}[style=js]
+<View style={estilos.tela}>
+  <Text style={estilos.titulo}>Catalogo</Text>
+
+  <Image style={estilos.foto}
+         source={{ uri: 'https://picsum.photos/id/1005/200/200' }} />
+
+  <TextInput style={estilos.campo} placeholder="Digite seu nome" />
+
+  <Pressable style={estilos.botao} onPress={() => console.log('toquei')}>
+    <Text style={estilos.textoBotao}>Tocar aqui</Text>
+  </Pressable>
+</View>
+\end{lstlisting}
+  \begin{block}{}
+    \texttt{Pressable} não desenha nada: ele envolve o que deve ser tocável.
+  \end{block}
+  \fonte{React Native Docs, ``Pressable'' e ``Image''~\cite{reactnative2025docs}}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{StyleSheet.create}: estilo separado da estrutura}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Inline: rápido e bagunçado}
+\begin{lstlisting}[style=jsx]
+<Text style={{ fontSize: 20,
+               color: 'blue' }}>
+  Ola
+</Text>
+\end{lstlisting}
+      \small Um objeto novo a cada renderização; a estrutura some no meio da
+      formatação.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Com \texttt{StyleSheet}}
+\begin{lstlisting}[style=jsx]
+<Text style={estilos.titulo}>Ola</Text>
+
+const estilos = StyleSheet.create({
+  titulo: { fontSize: 20,
+            color: 'blue' },
+});
+\end{lstlisting}
+      \small Nomes com significado, reaproveitáveis, e o JSX volta a se ler
+      como estrutura.
+    \end{column}
+  \end{columns}
+  \begin{block}{Combinando estilos}
+    \texttt{style=\{[estilos.botao, estilos.botaoAtivo]\}} --- o vetor aplica
+    da esquerda para a direita; o último vence nos campos repetidos.
+  \end{block}
+  \fonte{React Native Docs, ``Style'' e ``StyleSheet''~\cite{reactnative2025docs}}
+\end{frame}
+
+\begin{frame}[fragile]{Pergunta}
+\begin{lstlisting}[style=js]
+const estilos = StyleSheet.create({
+  tela: { justifyContent: 'center', alignItems: 'center' },
+});
+\end{lstlisting}
+  \begin{center}
+    \vspace{0.5em}
+    {\large A tela tem um único \texttt{<Text>} e o estilo acima.}\\[0.5em]
+    {\large Por que o texto continua colado no topo?}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]{Resposta: centralizar dentro de quê?}
+\begin{lstlisting}[style=js]
+tela: { flex: 1, justifyContent: 'center', alignItems: 'center' }
+\end{lstlisting}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.9, transform shape]
+    \draw[draw=UFSGray, fill=black!3] (0,0) rectangle (3.4,2.6);
+    \draw[draw=UFSRed, dashed] (0.1,2.1) rectangle (3.3,2.5);
+    \node[font=\tiny, text=UFSRed] at (1.7,2.3) {a View tem só a altura do texto};
+    \node[font=\tiny, text=UFSGray] at (1.7,0.5) {sem \texttt{flex: 1}};
+    \draw[draw=UFSGray, fill=black!3] (5.0,0) rectangle (8.4,2.6);
+    \draw[draw=UFSBlue, dashed] (5.1,0.1) rectangle (8.3,2.5);
+    \node[font=\tiny, text=UFSBlue] at (6.7,1.3) {a View ocupa a tela inteira};
+    \node[font=\tiny, text=UFSGray] at (6.7,-0.35) {com \texttt{flex: 1}};
+  \end{tikzpicture}
+  \end{center}
+  \begin{alertblock}{}
+    \texttt{justifyContent} distribui o conteúdo \emph{no espaço que a caixa tem}.
+    Se a caixa encolheu até caber no conteúdo, não há espaço para distribuir.
+  \end{alertblock}
+  \fonte{React Native Docs, ``Layout with Flexbox''~\cite{reactnative2025docs}}
+\end{frame}
+
+\begin{frame}{Flexbox: três propriedades resolvem quase tudo}
+  \begin{center}
+  \begin{tikzpicture}[scale=0.92, transform shape]
+    % coluna
+    \node[font=\scriptsize\bfseries] at (1.5,3.1) {flexDirection: 'column'};
+    \node[font=\tiny, text=UFSGray] at (1.5,2.8) {(o padrão no React Native)};
+    \draw[draw=UFSGray] (0,0) rectangle (3.0,2.6);
+    \draw[fill=UFSBlue!25, draw=UFSBlue] (0.4,1.85) rectangle (2.6,2.35);
+    \draw[fill=UFSBlue!25, draw=UFSBlue] (0.4,1.15) rectangle (2.6,1.65);
+    \draw[fill=UFSBlue!25, draw=UFSBlue] (0.4,0.45) rectangle (2.6,0.95);
+    \draw[setar] (-0.35,2.5) -- (-0.35,0.1);
+    \node[rot, rotate=90, text=UFSRed] at (-0.6,1.3) {eixo principal};
+    \draw[setag] (0.1,-0.3) -- (2.9,-0.3);
+    \node[rot] at (1.5,-0.55) {eixo cruzado};
+
+    % linha
+    \node[font=\scriptsize\bfseries] at (7.5,3.1) {flexDirection: 'row'};
+    \draw[draw=UFSGray] (6.0,0) rectangle (9.0,2.6);
+    \draw[fill=UFSYellow!35, draw=UFSYellow!80!black] (6.3,0.7) rectangle (7.0,1.9);
+    \draw[fill=UFSYellow!35, draw=UFSYellow!80!black] (7.15,0.7) rectangle (7.85,1.9);
+    \draw[fill=UFSYellow!35, draw=UFSYellow!80!black] (8.0,0.7) rectangle (8.7,1.9);
+    \draw[setar] (6.1,-0.3) -- (8.9,-0.3);
+    \node[rot, text=UFSRed] at (7.5,-0.55) {eixo principal};
+
+    % legenda
+    \node[cel, minimum width=4.0cm, minimum height=1.6cm, align=left] at (12.0,1.3)
+      {\texttt{flexDirection}\\ escolhe o eixo principal\\[4pt]
+       \texttt{justifyContent}\\ distribui no eixo principal\\[4pt]
+       \texttt{alignItems}\\ alinha no eixo cruzado};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{W3C, CSS Flexible Box Layout L1, \S 5--6~\cite{w3c2018flexbox}; React Native Docs~\cite{reactnative2025docs}}
+\end{frame}
+
+\begin{frame}{Flexbox no celular não é igual ao da web}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+      & \textbf{CSS na web} & \textbf{React Native} \\
+    \midrule
+    \texttt{flexDirection} padrão & \texttt{row}                & \texttt{column} \\
+    \texttt{flex}                 & três valores               & um número só \\
+    Unidades                      & \texttt{px}, \texttt{em}, \texttt{\%} & número puro (pontos) \\
+    Herança de fonte              & filhos herdam              & cada \texttt{Text} tem o seu \\
+    Nome das propriedades         & \texttt{background-color}   & \texttt{backgroundColor} \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Por que \texttt{column} é o padrão}
+    Telas de celular são altas e estreitas: empilhar é o caso comum.
+    A web herdou do texto, que corre na horizontal.
+  \end{block}
+  \fonte{React Native Docs, ``Layout with Flexbox''~\cite{reactnative2025docs};
+         Eisenman (2017), cap.\ 5~\cite{eisenman2017learning}}
+\end{frame}
+
+\begin{frame}[fragile]{Exemplo integrado: o cabeçalho do cartão}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[style=jsx]
+<View style={estilos.cabecalho}>
+  <Image style={estilos.foto}
+         source={{ uri: PERFIL.foto }} />
+  <View style={estilos.identidade}>
+    <Text style={estilos.nome}>Ada Lovelace</Text>
+    <Text style={estilos.usuario}>@ada</Text>
+  </View>
+</View>
+
+cabecalho: { flexDirection: 'row',
+             alignItems: 'center' },
+foto:      { width: 72, height: 72,
+             borderRadius: 36 },
+identidade:{ marginLeft: 14 },
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \draw[draw=UFSGray, dashed] (0,0) rectangle (4.2,1.5);
+        \node[rot, anchor=south west] at (0,1.55) {cabecalho: row};
+        \draw[fill=UFSBlue!25, draw=UFSBlue] (0.75,0.75) circle (0.5);
+        \draw[draw=UFSGray, dashed] (1.5,0.35) rectangle (4.05,1.15);
+        \node[rot, anchor=west] at (1.6,0.95) {Ada Lovelace};
+        \node[rot, anchor=west] at (1.6,0.6) {@ada};
+        \node[rot, anchor=north west] at (1.5,0.3) {identidade: column};
+      \end{tikzpicture}
+      \end{center}
+      \medskip
+      \small Uma \texttt{View} em linha, contendo uma \texttt{View} em coluna:
+      é assim que quase todo cartão de rede social é montado.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Recapitulando: componentes e layout}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item cinco componentes cobrem a tela de hoje, e texto só vive dentro de \texttt{Text};
+      \item \texttt{StyleSheet.create} devolve o JSX à sua função de descrever estrutura;
+      \item \texttt{flex: 1} é o que dá à caixa o espaço que ela vai distribuir;
+      \item \texttt{flexDirection} escolhe o eixo; \texttt{justifyContent} e
+        \texttt{alignItems} posicionam nele e no eixo cruzado.
+    \end{itemize}
+  \end{block}
+  \begin{alertblock}{Ainda falta uma coisa}
+    Tudo o que fizemos até aqui é uma fotografia: bonita e imóvel.
+    O botão não conta, o campo não lembra.
+  \end{alertblock}
+\end{frame}
+
+% ==================================================================
+\section{Telas que reagem: \texttt{useState}}
+% ==================================================================
+
+\begin{frame}[fragile]{Pergunta}
+\begin{lstlisting}[style=js]
+export default function App() {
+  let contagem = 0;
+
+  return (
+    <View>
+      <Text>{contagem}</Text>
+      <Pressable onPress={() => { contagem = contagem + 1; }}>
+        <Text>somar 1</Text>
+      </Pressable>
+    </View>
+  );
+}
+\end{lstlisting}
+  \begin{center}
+    {\large Você toca cinco vezes no botão. O que a tela mostra?}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Resposta: zero, sempre zero}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cx, minimum width=2.9cm, minimum height=0.85cm] (r) at (-3.6,0.9) {a função \texttt{App}\\ é executada};
+    \node[cxy, minimum width=2.9cm, minimum height=0.85cm] (t) at (0,0.9) {a tela é desenhada\\ com \texttt{contagem = 0}};
+    \node[cxr, minimum width=2.9cm, minimum height=0.85cm] (e) at (3.6,0.9) {você toca:\\ \texttt{contagem} vira 1};
+    \draw[seta] (r) -- (t);
+    \draw[seta] (t) -- (e);
+    \node[cel, minimum width=10.0cm, minimum height=1.0cm, align=center] at (0,-0.6)
+      {A variável mudou na memória --- e ninguém pediu para redesenhar a tela.\\
+       Pior: se algo redesenhar, a função roda de novo e \texttt{contagem} volta a valer 0.};
+    \node[rot, align=center] at (0,-1.6)
+      {Falta um mecanismo que faça duas coisas ao mesmo tempo:\\
+       \emph{lembrar} o valor entre as renderizações e \emph{avisar} que a tela mudou.};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{React Docs, ``State: A Component's Memory''~\cite{react2025docs}}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{useState}: memória e aviso na mesma linha}
+\begin{lstlisting}[style=js]
+import { useState } from 'react';
+
+const [contagem, setContagem] = useState(0);
+//     |            |                    +-- valor inicial (so' na 1a vez)
+//     |            +----------- troca o valor E pede um novo desenho
+//     +------------------------ valor atual, valido nesta renderizacao
+\end{lstlisting}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cx, minimum width=2.6cm, minimum height=0.7cm] (a) at (-3.9,0) {estado};
+    \node[cxy, minimum width=2.6cm, minimum height=0.7cm] (b) at (-0.6,0) {tela desenhada};
+    \node[cxr, minimum width=2.6cm, minimum height=0.7cm] (c) at (2.7,0) {toque do usuário};
+    \node[cx, minimum width=2.6cm, minimum height=0.7cm] (d) at (6.0,0) {\texttt{setContagem}};
+    \draw[seta] (a) -- (b);
+    \draw[seta] (b) -- (c);
+    \draw[seta] (c) -- (d);
+    \draw[seta] (d.north) to[bend right=30] (a.north);
+  \end{tikzpicture}
+  \end{center}
+  \fonte{React Docs, ``State: A Component's Memory''~\cite{react2025docs};
+         Banks \& Porcello (2020), cap.\ 6~\cite{banks2020learning}}
+\end{frame}
+
+\begin{frame}[fragile]{Contador: o programa inteiro}
+\begin{lstlisting}[style=js]
+import { useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+
+export default function App() {
+  const [contagem, setContagem] = useState(0);
+
+  return (
+    <View style={estilos.tela}>
+      <Text style={estilos.numero}>{contagem}</Text>
+      <Pressable style={estilos.botao} onPress={() => setContagem(contagem + 1)}>
+        <Text style={estilos.textoBotao}>+1</Text>
+      </Pressable>
+    </View>
+  );
+}
+\end{lstlisting}
+  \fonte{React Native Docs, ``Using Hooks''~\cite{reactnative2025docs}}
+\end{frame}
+
+\begin{frame}[fragile]{Campo controlado: o estado manda no que aparece}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=jsx]
+const [nome, setNome] = useState('');
+
+<TextInput
+  value={nome}
+  onChangeText={setNome}
+  placeholder="digite aqui"
+/>
+
+<Text>
+  {nome.length === 0
+    ? 'Ainda nao digitou nada.'
+    : 'Ola, ' + nome + '!'}
+</Text>
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[cel, minimum width=2.4cm, minimum height=0.6cm] (s) at (0,1.5) {estado \texttt{nome}};
+        \node[cel, minimum width=2.4cm, minimum height=0.6cm] (c) at (0,0) {o que o campo exibe};
+        \node[cel, minimum width=2.4cm, minimum height=0.6cm] (k) at (0,-1.5) {\texttt{onChangeText}};
+        \draw[seta] (s) -- node[rot, right] {\texttt{value}} (c);
+        \draw[setar] (c) -- node[rot, right] {você digita} (k);
+        \draw[seta] (k.west) -- ++(-0.45,0) |- node[rot, left, pos=0.25] {\texttt{setNome}} (s.west);
+      \end{tikzpicture}
+      \end{center}
+      \small O campo não guarda nada: mostra o estado e avisa a mudança.
+    \end{column}
+  \end{columns}
+  \fonte{React Native Docs, ``Handling Text Input''~\cite{reactnative2025docs}}
+\end{frame}
+
+\begin{frame}[fragile]{Três armadilhas do estado}
+  \begin{block}{1. \texttt{set} não é atribuição imediata}
+\begin{lstlisting}[style=jsx]
+setContagem(contagem + 1);
+console.log(contagem);  // ainda o valor ANTIGO
+\end{lstlisting}
+  \end{block}
+  \begin{block}{2. Se o novo valor depende do antigo, use a forma funcional}
+\begin{lstlisting}[style=jsx]
+setContagem((n) => n + 1);
+\end{lstlisting}
+  \end{block}
+  \begin{block}{3. Nunca altere o valor por dentro}
+\begin{lstlisting}[style=jsx]
+lista.push('novo');            // ERRADO: React nao percebe
+setLista([...lista, 'novo']);  // CERTO: um vetor novo
+\end{lstlisting}
+  \end{block}
+  \fonte{React Docs, ``Updating Arrays in State''~\cite{react2025docs}}
+\end{frame}
+
+\begin{frame}{Tarefa 2 --- o cartão de perfil é seu}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+      \textbf{O que construir}
+      \begin{itemize}
+        \item cabeçalho com foto redonda, nome e usuário;
+        \item bio editável por um campo controlado;
+        \item etiquetas de habilidades geradas com \texttt{map};
+        \item botão de curtir que conta;
+        \item botão Seguir/Seguindo que troca texto e cor.
+      \end{itemize}
+      \textbf{Como trabalhar:} em duplas, no mesmo Snack, a partir do
+      esqueleto.
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[cx, minimum width=4.4cm, minimum height=0.62cm] (c1) at (0,0)
+          {\textbf{1.} layout, Flexbox e \texttt{map}};
+        \node[cx, minimum width=4.4cm, minimum height=0.62cm] (c2) at (0,-0.85)
+          {\textbf{2.} contador de curtidas};
+        \node[cx, minimum width=4.4cm, minimum height=0.62cm] (c3) at (0,-1.70)
+          {\textbf{3.} bio controlada};
+        \node[cx, minimum width=4.4cm, minimum height=0.62cm] (c4) at (0,-2.55)
+          {\textbf{4.} Seguir / Seguindo};
+        \draw[seta] (c1) -- (c2);
+        \draw[seta] (c2) -- (c3);
+        \draw[seta] (c3) -- (c4);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O que cada checkpoint cobra}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}clp{6.4cm}@{}}
+    \toprule
+    \textbf{\#} & \textbf{Entrega} & \textbf{Conceito que ele verifica} \\
+    \midrule
+    1 & cartão estático completo
+      & \texttt{flexDirection: 'row'}; \texttt{map} com \texttt{key} \\
+    2 & botão de curtir contando
+      & \texttt{useState} numérico e a forma funcional do \texttt{set} \\
+    3 & bio que muda enquanto se digita
+      & \texttt{value} + \texttt{onChangeText} no mesmo estado \\
+    4 & Seguir vira Seguindo
+      & estado booleano decidindo texto, estilo e um valor derivado \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{alertblock}{Checkpoint 4, a pegadinha boa}
+    O total de seguidores \emph{não} é estado novo: calcula-se a partir de
+    \texttt{seguindo}. Estado a mais é fonte de inconsistência.
+  \end{alertblock}
+  \fonte{React Docs, ``Choosing the State Structure''~\cite{react2025docs}}
+\end{frame}
+
+% ==================================================================
+\section{Fechamento}
+% ==================================================================
+
+\begin{frame}{O caminho que percorremos}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[cel, minimum width=11.0cm, minimum height=0.55cm] at (0,0)
+      {React Native escreve-se como uma página e executa componentes \textbf{nativos}};
+    \node[cel, minimum width=11.0cm, minimum height=0.55cm] at (0,-0.75)
+      {arrow functions, desestruturação e \texttt{map} --- o JavaScript que a tela exige};
+    \node[cel, minimum width=11.0cm, minimum height=0.55cm] at (0,-1.5)
+      {JSX vira chamada de função; componente é função com nome maiúsculo};
+    \node[cel, minimum width=11.0cm, minimum height=0.55cm] at (0,-2.25)
+      {\texttt{flex: 1} dá o espaço; \texttt{flexDirection} escolhe o eixo};
+    \node[cel, minimum width=11.0cm, minimum height=0.55cm] at (0,-3.0)
+      {\texttt{useState} é memória \emph{e} aviso: sem ele a tela não se redesenha};
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Para casa}
+  \begin{block}{Tarefa}
+    Transforme o cartão de perfil em um \textbf{cartão de contato} com uma
+    lista de contatos:
+    \begin{enumerate}
+      \item extraia um componente \texttt{Cartao} que receba
+        \texttt{nome}, \texttt{usuario}, \texttt{foto} e \texttt{habilidades} por props;
+      \item monte um vetor com \textbf{quatro} pessoas e renderize os quatro
+        cartões com \texttt{map};
+      \item cada cartão mantém o próprio contador de curtidas
+        (curtir um não pode afetar os outros);
+      \item acrescente um \texttt{TextInput} no topo que filtra os cartões pelo nome.
+    \end{enumerate}
+  \end{block}
+  \textbf{Dica do item 3:} onde deve morar o estado das curtidas ---
+  no \texttt{App} ou dentro do \texttt{Cartao}?
+\end{frame}
+
+\begin{frame}{Na próxima aula}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{De onde partimos}\\[0.3em]
+      Uma tela só, com os dados escritos no próprio arquivo. Quatro cartões
+      já deixam a tela sem espaço para rolar.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{Para onde vamos}\\[0.3em]
+      \begin{itemize}
+        \item listas longas com \texttt{FlatList};
+        \item \texttt{ScrollView} e áreas seguras;
+        \item navegação entre telas;
+        \item dados vindos da rede.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \begin{block}{Antes da próxima aula}
+    Deixe o Expo Go instalado e o Snack de hoje salvo --- vamos continuar
+    exatamente deste ponto.
+  \end{block}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}
