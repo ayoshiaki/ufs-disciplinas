@@ -1,0 +1,613 @@
+\documentclass[11pt,a4paper]{article}
+
+\newcommand{\cabecalhodireita}{Lista de Exercícios 2}
+\input{preambulo.tex}
+\setlength{\emergencystretch}{2em}
+
+\begin{document}
+
+\capa{Lista de Exercícios 2 --- Recursividade, Listas, Pilhas e Filas}
+     {Conteúdo da segunda unidade: recursividade e pilha de execução, efeitos da
+      recursão na memória, listas encadeadas simples e duplas, pilhas e filas.}
+
+\begin{destaque}
+\textbf{Entrega manuscrita.}
+\begin{itemize}[leftmargin=1.2em,itemsep=1pt,topsep=3pt]
+  \item Resolva \textbf{à mão}, em folhas avulsas. Escreva nome e matrícula em
+        \textbf{todas} as folhas e numere-as (1/6, 2/6, \dots).
+  \item Indique o número do exercício e a letra do item antes de cada resposta.
+        Não é preciso copiar o enunciado.
+  \item Código em C deve estar legível e indentado. Não é preciso escrever
+        \cd{\#include} nem \cd{main}, a menos que o item peça.
+  \item Nos desenhos de memória, use uma caixa para cada nó ou variável e uma seta
+        para cada ponteiro; escreva \cd{NULL} explicitamente onde houver.
+  \item Quando o item pedir ``explique'' ou ``justifique'', duas ou três frases
+        bastam --- mas a resposta sem justificativa não é considerada.
+\end{itemize}
+\vspace{4pt}
+\textbf{Data de entrega:} \rule{4cm}{0.4pt}
+\end{destaque}
+
+\noindent Salvo indicação em contrário, os exercícios usam os tipos vistos em aula:
+
+\begin{lstlisting}
+typedef struct no {            /* lista simples */
+    int valor;
+    struct no *prox;
+} No;
+
+typedef struct nod {           /* lista dupla */
+    int valor;
+    struct nod *ant, *prox;
+} NoD;
+
+typedef struct {
+    NoD *ini, *fim;            /* primeiro e ultimo nos, ou NULL */
+} Lista;
+\end{lstlisting}
+
+\noindent e as interfaces \cd{pilha.h} (\cd{pilha\_cria}, \cd{pilha\_libera},
+\cd{empilha}, \cd{desempilha}, \cd{topo}, \cd{vazia}) e \cd{fila.h}
+(\cd{fila\_cria}, \cd{fila\_libera}, \cd{enfileira}, \cd{desenfileira},
+\cd{frente}, \cd{vazia}, \cd{tamanho}), todas com elementos \cd{int}.
+
+\section{Parte I --- Recursividade e pilha de execução}
+
+\exercicio{O que acontece na ida e o que acontece na volta.}
+Considere a função abaixo.
+
+\begin{lstlisting}
+void h(int n) {
+    if (n == 0) {
+        printf("* ");
+        return;
+    }
+    printf("%d ", n);
+    h(n / 2);
+    printf("%d ", n % 2);
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Escreva o que \cd{h(6)} imprime e o que \cd{h(11)} imprime.
+  \item Identifique o caso base e o passo recursivo. Por que a recursão sempre
+        termina para $n \ge 0$?
+  \item Os números impressos \textbf{depois} do \cd{*} têm um significado. Qual?
+        Por que eles saem nessa ordem, e não na ordem inversa?
+  \item Desenhe a pilha de execução no instante em que o \cd{*} é impresso durante
+        \cd{h(6)}: um registro por chamada, com o valor de \cd{n} em cada um.
+        Quantos registros de \cd{h} existem nesse instante?
+  \item Quantos registros de \cd{h} ficam na pilha, no máximo, durante \cd{h(1000)}?
+        Dê a conta, não só o número.
+\end{enumerate}
+
+\exercicio{Árvore de chamadas e o custo de recalcular.}
+Considere a função abaixo.
+
+\begin{lstlisting}
+int t(int n) {
+    if (n <= 2)
+        return n;
+    return t(n - 1) + t(n - 3);
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Calcule \cd{t(3)}, \cd{t(4)}, \cd{t(5)} e \cd{t(6)}.
+  \item Desenhe a árvore de chamadas de \cd{t(5)}. Quantas chamadas a \cd{t}
+        acontecem, contando a primeira?
+  \item Na árvore do item (b), quais chamadas são repetidas? Qual é a altura máxima
+        que a pilha de execução atinge (em registros de \cd{t})?
+  \item Escreva \cd{int t\_memo(int n, int *tab)} que guarda em \cd{tab[i]} cada
+        valor já calculado (\cd{-1} indica ``ainda não calculado''), e uma função
+        \cd{int t\_rapida(int n)} que aloca \cd{tab} no heap \textbf{uma única vez},
+        inicializa, chama \cd{t\_memo}, libera e devolve o resultado.
+  \item Por que a tabela deve ser alocada em \cd{t\_rapida}, e não dentro de
+        \cd{t\_memo}?
+\end{enumerate}
+
+\exercicio{Escrever funções recursivas.}
+Escreva as funções abaixo \textbf{sem laços}. Para cada uma, marque no código qual é
+o caso base e qual é o passo recursivo.
+
+\begin{lstlisting}
+int    conta_digitos(int n);              /* n >= 0; conta_digitos(0) == 1 */
+int    maior(const int *v, int n);        /* n >= 1 */
+int    palindromo(const char *s, int i, int j);
+double potencia(double x, int n);         /* n >= 0 */
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Implemente \cd{conta\_digitos} e \cd{maior}.
+  \item Implemente \cd{palindromo}, que devolve 1 se \cd{s[i..j]} se lê igual nos
+        dois sentidos e 0 caso contrário. Mostre a chamada inicial para uma string
+        \cd{s} inteira. Quais são os \textbf{dois} casos base?
+  \item Implemente \cd{potencia} usando $x^n = (x^{n/2})^2$ para $n$ par e
+        $x^n = x \cdot x^{n-1}$ para $n$ ímpar, de modo que cada chamada faça
+        \textbf{uma só} chamada recursiva. Quantas chamadas acontecem para
+        $n = 16$? E se você escrevesse \cd{potencia(x, n/2) * potencia(x, n/2)}?
+  \item Um colega escreveu a função abaixo. O que acontece com \cd{soma(6)}? E com
+        \cd{soma(5)}? Corrija o caso base.
+\end{enumerate}
+
+\begin{lstlisting}
+int soma(int n) {          /* deveria somar n + (n-2) + (n-4) + ... */
+    if (n == 0)
+        return 0;
+    return n + soma(n - 2);
+}
+\end{lstlisting}
+
+\section{Parte II --- Recursividade e memória}
+
+\exercicio{Locais que se multiplicam pela profundidade.}
+Considere a função abaixo. Suponha uma pilha de execução de 8\,MiB
+($8 \times 2^{20}$ bytes) e que cada registro de ativação de \cd{niveis} ocupe
+4\,KiB (4096 bytes), quase todos do vetor \cd{linha}.
+
+\begin{lstlisting}
+void niveis(int n) {
+    char linha[4000];
+    if (n == 0)
+        return;
+    snprintf(linha, sizeof linha, "nivel %d", n);
+    puts(linha);
+    niveis(n - 1);
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Aproximadamente, qual é o maior \cd{n} para o qual \cd{niveis(n)} termina
+        sem estourar a pilha? Mostre a conta.
+  \item Se \cd{linha} fosse declarado com \cd{malloc(4000)} dentro da função (e
+        liberado antes do \cd{return}), esse limite mudaria? Explique o que passa a
+        ficar na pilha e o que passa a ficar no heap.
+  \item Reescreva a função para que o vetor seja alocado \textbf{uma única vez} e
+        passado para as chamadas seguintes como parâmetro. Quem aloca e quem libera?
+  \item A chamada \cd{niveis(n - 1)} é uma chamada de cauda? Um compilador com
+        \cd{-O2} poderia evitar o estouro. Por que, ainda assim, você não deve
+        contar com isso?
+\end{enumerate}
+
+\exercicio{Recursão de cauda.}
+Considere as quatro funções abaixo.
+
+\begin{lstlisting}
+int A(int n)          { if (n == 0) return 0;   return 1 + A(n - 1); }
+int B(int n, int acc) { if (n == 0) return acc; return B(n - 1, acc + n); }
+void C(int n)         { if (n == 0) return; printf("%d ", n); C(n - 1); }
+int D(int n)          { if (n == 0) return 1;   return 2 * D(n - 1); }
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Diga o que \cd{A(4)}, \cd{B(4, 0)} e \cd{D(4)} devolvem e o que \cd{C(4)}
+        imprime.
+  \item Classifique cada uma como recursão de cauda ou não. Para as que não são,
+        diga exatamente \textbf{o que fica pendente} em cada registro de ativação.
+  \item Reescreva \cd{A} e \cd{D} em recursão de cauda, usando um parâmetro
+        acumulador. Mostre a chamada inicial de cada uma.
+  \item Reescreva \cd{B} com um laço \cd{while}, sem recursão. O que os parâmetros
+        \cd{n} e \cd{acc} viraram?
+\end{enumerate}
+
+\exercicio{Quem recebe o bloco é dono dele.}
+A função abaixo devolve, num bloco do heap, a string com o caractere \cd{c} repetido
+\cd{k} vezes.
+
+\begin{lstlisting}
+char *repete(char c, int k) {
+    if (k == 0) {
+        char *s = malloc(1);
+        s[0] = '\0';
+        return s;
+    }
+    char *resto = repete(c, k - 1);
+    char *s = malloc(k + 1);
+    s[0] = c;
+    strcpy(s + 1, resto);
+    return s;
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Para \cd{repete('x', 4)}, quantas chamadas a \cd{malloc} acontecem e quantos
+        bytes são alocados no total?
+  \item O chamador faz \cd{char *s = repete('x', 4); puts(s); free(s);}.
+        Quantos blocos e quantos bytes ficam perdidos? Generalize para \cd{k}.
+  \item Corrija a função com o menor número de linhas possível. Em que ponto exato
+        o \cd{free} entra, e por que não pode vir antes do \cd{strcpy}?
+  \item Na versão corrigida, quantos bytes de heap ficam ocupados \textbf{ao mesmo
+        tempo}, no máximo, durante \cd{repete('x', k)}? Compare com a versão
+        original.
+  \item A função não confere o retorno de \cd{malloc}. Acrescente a verificação de
+        modo que, em caso de falha, ela devolva \cd{NULL} sem vazar nada.
+\end{enumerate}
+
+\section{Parte III --- Listas encadeadas simples}
+
+\exercicio{Seguir as setas.}
+Considere o trecho abaixo, em que \cd{cria(v)} devolve um nó novo com valor \cd{v} e
+\cd{prox} igual a \cd{NULL}.
+
+\begin{lstlisting}
+No *a = cria(1), *b = cria(2), *c = cria(3), *d = cria(4);
+a->prox = c;  c->prox = b;  b->prox = d;
+No *ini = a;
+                                   /* bloco 1 */
+No *p = ini->prox;
+ini->prox = p->prox;
+p->prox = ini;
+ini = p;
+                                   /* bloco 2 */
+No *q = ini;
+while (q->prox->prox != NULL)
+    q = q->prox;
+q->prox->prox = ini;
+ini = q->prox;
+q->prox = NULL;
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Desenhe a lista (a partir de \cd{ini}) antes do bloco 1, depois do bloco 1 e
+        depois do bloco 2. Escreva, para cada desenho, os valores na ordem em que
+        um percurso a partir de \cd{ini} os visitaria.
+  \item Descreva em uma frase o que o bloco 1 faz e o que o bloco 2 faz, para uma
+        lista qualquer.
+  \item Ao final do laço do bloco 2, quem é \cd{q}? Por que a condição testa
+        \cd{q->prox->prox}, e não \cd{q->prox}?
+  \item O que acontece com o bloco 2 se a lista tiver um único nó? E se estiver
+        vazia? Acrescente as proteções necessárias.
+\end{enumerate}
+
+\exercicio{Funções sobre uma lista simples.}
+Escreva as funções abaixo. Nenhuma delas deve imprimir nada.
+
+\begin{lstlisting}
+int  conta(const No *ini, int x);        /* quantas vezes x aparece        */
+int  ordenada(const No *ini);            /* 1 se nao decrescente, 0 se nao */
+No  *remove_todos(No *ini, int x);       /* tira todos os x; novo inicio   */
+void tira_repetidos(No *ini);            /* lista ordenada: deixa um de cada */
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Implemente \cd{conta} e \cd{ordenada}. O que \cd{ordenada} devolve para a
+        lista vazia e para a lista de um nó? Justifique a escolha.
+  \item Implemente \cd{remove\_todos}, liberando cada nó removido. Mostre que ela
+        funciona para a lista \cd{7 -> 7 -> 3 -> 7 -> NULL} com \cd{x = 7}:
+        desenhe a lista depois de cada nó removido.
+  \item Implemente \cd{tira\_repetidos}: \cd{1 -> 1 -> 2 -> 3 -> 3 -> 3 -> NULL}
+        vira \cd{1 -> 2 -> 3 -> NULL}. Por que ela não precisa devolver um novo
+        início, ao contrário de \cd{remove\_todos}?
+  \item Diga o custo de cada uma das quatro funções em função do número $n$ de nós.
+\end{enumerate}
+
+\exercicio{O \cd{insere\_fim} que não insere.}
+Um colega escreveu a função abaixo para inserir \cd{x} no fim da lista.
+
+\begin{lstlisting}
+void insere_fim(No *ini, int x) {
+    No *novo = malloc(sizeof(No));
+    novo->valor = x;
+    No *p = ini;
+    while (p != NULL)
+        p = p->prox;
+    p->prox = novo;
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item A função tem \textbf{quatro} defeitos. Liste-os, dizendo em que linha está
+        cada um e o que ele causa em tempo de execução.
+  \item Mesmo depois de corrigir o laço, a chamada \cd{insere\_fim(lista, 5)} com
+        \cd{lista == NULL} não altera \cd{lista} na \cd{main}. Por quê?
+  \item Reescreva a função de duas formas corretas: (1)
+        \cd{No *insere\_fim(No *ini, int x)}, devolvendo o novo início, e (2)
+        \cd{void insere\_fim2(No **pini, int x)}. Mostre a chamada de cada uma.
+  \item Quanto custa inserir $n$ valores, um a um, no fim de uma lista que começa
+        vazia, usando essa função? O que mudaria na estrutura para que cada inserção
+        no fim custasse um tempo constante?
+\end{enumerate}
+
+\exercicio{Ponteiro para a seta.}
+Considere a função abaixo e a lista \cd{10 -> 20 -> 30 -> NULL}, guardada em
+\cd{No *ini} na \cd{main}.
+
+\begin{lstlisting}
+void remove_valor(No **pp, int x) {
+    while (*pp != NULL && (*pp)->valor != x)
+        pp = &(*pp)->prox;
+    if (*pp != NULL) {
+        No *morto = *pp;
+        *pp = morto->prox;
+        free(morto);
+    }
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Mostre a chamada correta a partir da \cd{main}.
+  \item Para \cd{x = 10}, \cd{x = 30} e \cd{x = 99}, diga para \textbf{que variável
+        ou campo} \cd{pp} aponta quando o laço termina (por exemplo: ``a variável
+        \cd{ini} da \cd{main}'' ou ``o campo \cd{prox} do nó 20'').
+  \item Desenhe a memória no caso \cd{x = 30}, logo antes do \cd{free}: os três nós,
+        \cd{ini}, \cd{pp} e \cd{morto}.
+  \item Por que essa versão não precisa de um \cd{if} separado para o primeiro nó,
+        ao contrário da versão com \cd{ant}?
+  \item O que aconteceria se as duas condições do \cd{while} fossem escritas na
+        ordem inversa? Para qual dos três valores de \cd{x} o problema aparece?
+\end{enumerate}
+
+\section{Parte IV --- Listas duplamente encadeadas}
+
+\exercicio{Quatro setas para mover um nó.}
+A lista \cd{l} contém \cd{10 <-> 20 <-> 30 <-> 40}, com \cd{l->ini} no 10 e
+\cd{l->fim} no 40. O ponteiro \cd{p} aponta para o nó 20 e \cd{q} para o nó 40.
+
+\begin{lstlisting}
+p->ant->prox = p->prox;     /* 1 */
+p->prox->ant = p->ant;      /* 2 */
+p->ant  = q;                /* 3 */
+p->prox = NULL;             /* 4 */
+q->prox = p;                /* 5 */
+l->fim  = p;                /* 6 */
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Desenhe a lista depois da linha 2 e depois da linha 6, com todas as setas
+        \cd{ant} e \cd{prox}, \cd{l->ini} e \cd{l->fim}.
+  \item Escreva o que um percurso de \cd{l->ini} pelos \cd{prox} imprime e o que um
+        percurso de \cd{l->fim} pelos \cd{ant} imprime, ao final.
+  \item Diga o valor de \cd{l->ini->prox->prox->ant->valor} ao final.
+  \item Se \cd{p} apontasse para o nó 10 (o primeiro), que linha falharia, e por quê?
+        Reescreva as linhas 1 e 2 para funcionarem também nesse caso.
+  \item E se \cd{p} e \cd{q} apontassem ambos para o 40? Siga as linhas na ordem e diga
+        o que acontece.
+\end{enumerate}
+
+\exercicio{Operações nos extremos e no meio.}
+Escreva as funções abaixo para a lista dupla com \cd{ini} e \cd{fim}.
+
+\begin{lstlisting}
+void insere_depois(Lista *l, NoD *p, int x);  /* p pertence a l */
+int  remove_ultimo(Lista *l);                 /* devolve o valor; lista nao vazia */
+void imprime_reversa(const Lista *l);
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Implemente \cd{insere\_depois}. Quantos ponteiros mudam quando \cd{p} está
+        no meio? E quando \cd{p == l->fim}?
+  \item Implemente \cd{remove\_ultimo} sem laço. Não esqueça o caso em que a lista
+        tem um único nó: o que deve acontecer com \cd{ini} e \cd{fim}?
+  \item Implemente \cd{imprime\_reversa} sem recursão e sem estrutura auxiliar.
+  \item Remover o último nó de uma lista \textbf{simples} com \cd{ini} e \cd{fim}
+        custa quanto? Por que manter o ponteiro \cd{fim} não resolve o problema na
+        lista simples, mas resolve na dupla?
+\end{enumerate}
+
+\exercicio{O nó sentinela.}
+Uma lista dupla circular com nó cabeça \cd{cab} (que não guarda valor) tem
+\cd{cab->prox} no primeiro nó e \cd{cab->ant} no último; a lista vazia tem
+\cd{cab->ant == cab->prox == cab}. A inserção é:
+
+\begin{lstlisting}
+void insere_antes(NoD *p, int x) {
+    NoD *novo = malloc(sizeof *novo);
+    novo->valor = x;
+    novo->prox = p;
+    novo->ant  = p->ant;
+    p->ant->prox = novo;
+    p->ant = novo;
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Desenhe a lista vazia. Depois, desenhe a lista após a chamada
+        \cd{insere\_antes(cab, 5)} e, em seguida, após \cd{insere\_antes(cab, 7)}.
+  \item As duas chamadas do item (a) inseriram no início ou no fim? Que chamada
+        insere no outro extremo?
+  \item Escreva \cd{int tamanho(const NoD *cab)}. Qual é a condição de parada do
+        percurso, e por que não pode ser \cd{p != NULL}?
+  \item Escreva \cd{void remove\_no(NoD *p)} em três linhas, sem nenhum \cd{if}.
+        Explique por que a versão sem sentinela precisava de dois \cd{if}.
+  \item O que acontece se alguém chamar \cd{remove\_no(cab)}? Como a função
+        poderia se proteger, se recebesse também \cd{cab}?
+\end{enumerate}
+
+\section{Parte V --- Pilhas}
+
+\exercicio{Seguir a pilha.}
+Responda usando apenas a definição de pilha (o último a entrar é o primeiro a sair).
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Avalie a expressão pós-fixa \cd{5 1 2 + 4 * + 3 -} com uma pilha: número
+        empilha; operador desempilha dois valores e empilha o resultado. Desenhe a
+        pilha depois de cada símbolo e dê o resultado final.
+  \item No item (a), quando o operador \cd{-} desempilha dois valores, qual deles é
+        o operando da esquerda? Mostre o que sairia se a ordem fosse trocada.
+  \item Os valores \cd{1 2 3 4} são empilhados nessa ordem, mas a qualquer momento
+        pode-se desempilhar e imprimir o topo. Para cada sequência abaixo, diga se
+        ela pode ser impressa; se puder, dê a sequência de \cd{empilha} e
+        \cd{desempilha}; se não puder, diga em que momento ela trava.\\[2pt]
+        \cd{2 4 3 1} \qquad \cd{3 1 4 2} \qquad \cd{4 3 2 1} \qquad \cd{1 4 2 3}
+\end{enumerate}
+
+\exercicio{Pilha num vetor que dobra.}
+Um colega implementou a pilha num vetor com a estrutura abaixo.
+
+\begin{lstlisting}
+struct pilha {
+    int *v;
+    int n;      /* quantos elementos ha; o topo e v[n-1] */
+    int cap;    /* quantos cabem em v */
+};
+
+void empilha(Pilha *p, int x) {
+    if (p->n == p->cap) {
+        p->cap = 2 * p->cap;
+        p->v = realloc(p->v, p->cap * sizeof *p->v);
+    }
+    p->v[p->n++] = x;
+}
+
+int desempilha(Pilha *p) {
+    return p->v[p->n--];
+}
+
+int topo(const Pilha *p) {
+    return p->v[p->n];
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item \cd{desempilha} e \cd{topo} têm o mesmo erro. Qual é? Com a pilha contendo
+        \cd{10 20 30} (30 no topo), o que cada uma devolveria?
+  \item Nenhuma das duas trata a pilha vazia. O que acontece se \cd{desempilha} for
+        chamada com \cd{n == 0}, já com o erro do item (a) corrigido?
+  \item \cd{empilha} tem dois problemas no \cd{realloc}: um quando ele falha e outro
+        quando a capacidade inicial é 0. Explique ambos e reescreva a função.
+  \item Começando com \cd{cap = 1}, empilham-se 1000 valores. Quantas vezes o vetor
+        cresce? Quantos elementos são copiados no total pelos \cd{realloc} (no pior
+        caso, em que cada um muda o bloco de lugar)? E se, em vez de dobrar, a
+        capacidade aumentasse de 1 em 1?
+\end{enumerate}
+
+\exercicio{Pilha numa lista e o uso só pela interface.}
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Escreva \cd{struct pilha}, \cd{empilha}, \cd{desempilha} e
+        \cd{pilha\_libera} para uma pilha guardada numa lista simples (use o tipo
+        \cd{No}).
+  \item O topo deve ficar no \textbf{primeiro} ou no \textbf{último} nó? Justifique
+        com o custo de \cd{empilha} e \cd{desempilha} em cada escolha.
+  \item Usando \textbf{apenas} as funções de \cd{pilha.h} (sem acessar os campos),
+        escreva \cd{int base(Pilha *p)}, que devolve o elemento do fundo de uma
+        pilha não vazia e deixa a pilha exatamente como estava. De que estrutura
+        auxiliar você precisou?
+  \item A função do item (c) funciona sem nenhuma alteração tanto com a pilha num
+        vetor quanto com a pilha numa lista. Que característica de \cd{pilha.h}
+        garante isso?
+\end{enumerate}
+
+\section{Parte VI --- Filas}
+
+\exercicio{A fila circular dá a volta.}
+Uma fila circular guarda \cd{v}, \cd{ini} (posição da frente), \cd{n} (quantos há) e
+\cd{cap}. Ela começa vazia, com \cd{cap = 5} e \cd{ini = 0}; o valor novo entra em
+\cd{v[(ini + n) \% cap]}.
+
+\begin{lstlisting}
+enfileira(f, 10);  enfileira(f, 20);  enfileira(f, 30);  enfileira(f, 40);
+desenfileira(f);   desenfileira(f);   desenfileira(f);
+enfileira(f, 50);  enfileira(f, 60);  enfileira(f, 70);
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Desenhe \cd{v[0..4]} e dê \cd{ini} e \cd{n} depois da primeira linha, depois
+        da segunda e depois da terceira. Marque as posições que guardam valores que
+        já não pertencem à fila.
+  \item Em que posição entra o próximo valor? Escreva a conta.
+  \item Agora \cd{enfileira(f, 80)} e \cd{enfileira(f, 90)}. O 90 não cabe e a fila
+        cresce para \cd{cap = 10}, copiando os elementos na ordem da fila para o
+        início do vetor novo. Desenhe \cd{v[0..9]}, \cd{ini} e \cd{n} depois do 90.
+  \item Por que não basta fazer \cd{v = realloc(v, 10 * sizeof *v)}, como na pilha?
+        Em que ordem os valores sairiam nesse caso?
+  \item Uma versão alternativa guarda \cd{ini} e \cd{fim} (próxima posição livre) em
+        vez de \cd{ini} e \cd{n}. Depois do \cd{enfileira(f, 80)}, quanto valem
+        \cd{ini} e \cd{fim}? Por que, com só esses dois campos, não dá para
+        distinguir a fila cheia da fila vazia?
+\end{enumerate}
+
+\exercicio{Fila numa lista: as duas pontas.}
+Um colega implementou a fila numa lista simples com \cd{struct fila \{ No *ini, *fim; int n; \};}.
+
+\begin{lstlisting}
+void enfileira(Fila *f, int x) {
+    No *novo = malloc(sizeof *novo);
+    novo->valor = x;
+    novo->prox = NULL;
+    f->fim->prox = novo;
+    f->fim = novo;
+    f->n++;
+}
+
+int desenfileira(Fila *f) {
+    No *velho = f->ini;
+    int x = velho->valor;
+    f->ini = velho->prox;
+    free(velho);
+    f->n--;
+    return x;
+}
+\end{lstlisting}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item O que acontece na primeira chamada de \cd{enfileira} sobre uma fila recém
+        criada, com \cd{ini} e \cd{fim} iguais a \cd{NULL}? Corrija a função
+        testando se \cd{f->fim} é \cd{NULL}.
+  \item Com \cd{enfileira} corrigida, faça estas três chamadas, nesta ordem:\\
+        \cd{enfileira(f, 1);} \quad \cd{desenfileira(f);} \quad \cd{enfileira(f, 2);}\\
+        Desenhe \cd{ini}, \cd{fim} e os nós depois de cada uma. Onde está o defeito de \cd{desenfileira} e qual
+        categoria de erro de memória ele produz?
+  \item Corrija \cd{desenfileira}, incluindo o tratamento da fila vazia.
+  \item Por que a fila sai pelo \textbf{primeiro} nó e entra depois do
+        \textbf{último}, e não o contrário? Diga o custo de cada operação nas duas
+        escolhas.
+\end{enumerate}
+
+\exercicio{Resolver problemas com filas e pilhas.}
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Na brincadeira da batata quente, $n$ crianças numeradas de 1 a $n$ estão
+        numa fila; a cada rodada, a da frente passa para o fim $k$ vezes e, em
+        seguida, a que ficou na frente sai. Para $n = 6$ e $k = 2$, desenhe a fila
+        no início de cada rodada e dê a ordem em que as crianças saem.
+  \item Usando apenas \cd{fila.h}, escreva
+        \cd{void intercala(Fila *a, Fila *b, Fila *saida)}, que tira alternadamente
+        um elemento de \cd{a} e um de \cd{b} e os coloca em \cd{saida}; quando uma
+        acaba, o resto da outra vai inteiro.
+  \item Usando uma fila e uma pilha (um \cd{char} cabe num \cd{int}), escreva
+        \cd{int eh\_palindromo(const char *s)}. Explique por que as duas estruturas,
+        juntas, resolvem o problema.
+  \item \cd{pilha.h} e \cd{fila.h}, como estão, não podem ser incluídos no mesmo
+        arquivo \cd{.c}. Por quê? Proponha uma correção nas duas interfaces.
+\end{enumerate}
+
+\exercicio{Escolher a estrutura.}
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt]
+  \item Copie e preencha a tabela com o custo de cada operação ($O(1)$ ou $O(n)$)
+        numa coleção de $n$ elementos.
+\end{enumerate}
+
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+Operação & Vetor & Lista simples (\cd{ini}) & Lista simples (\cd{ini}, \cd{fim}) & Lista dupla (\cd{ini}, \cd{fim}) \\
+\midrule
+inserir no início   & & & & \\
+inserir no fim      & & & & \\
+remover do início   & & & & \\
+remover do fim      & & & & \\
+acessar o $k$-ésimo & & & & \\
+buscar um valor     & & & & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{enumerate}[label=(\alph*),leftmargin=1.8em,itemsep=1pt,start=2]
+  \item Na coluna ``Vetor'', considere que ``inserir no fim'' usa um vetor que dobra
+        quando enche. Por que se diz que essa operação custa $O(1)$
+        \emph{amortizado}, se de vez em quando ela copia o vetor inteiro?
+  \item Para cada situação abaixo, diga se você usaria uma pilha, uma fila, uma lista
+        simples ou uma lista dupla, e justifique em uma frase:
+        \begin{enumerate}[label=(\roman*),leftmargin=1.6em,itemsep=0pt]
+          \item o ``desfazer'' de um editor de texto;
+          \item os documentos esperando numa impressora compartilhada;
+          \item uma \emph{playlist} com os botões ``anterior'' e ``próxima'' e
+                remoção da música atual;
+          \item verificar se as \cd{\{ \}} de um programa estão balanceadas;
+          \item as senhas de atendimento de uma agência bancária.
+        \end{enumerate}
+  \item Para qual das situações do item (c) mais de uma estrutura serve bem?
+        Compare as duas opções.
+\end{enumerate}
+
+\end{document}
