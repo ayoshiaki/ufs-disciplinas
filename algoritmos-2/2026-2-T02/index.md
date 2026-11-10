@@ -190,6 +190,15 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-20-caminhos-minimos-algoritmo-de-dijkstra' | relative_url }}">
+    <div class="week-num">20</div>
+    <div class="week-body">
+      <div class="week-title">Caminhos mínimos: o algoritmo de Dijkstra</div>
+      <div class="week-desc">Caminhos mínimos a partir de uma origem e relaxamento; Dijkstra fecha sempre o vértice mais próximo, em O(n²) com vetor ou O(m log n) com heap; por que pesos negativos quebram o algoritmo.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/lista-de-exercicios' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📝</div>
     <div class="week-body">

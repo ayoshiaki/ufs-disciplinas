@@ -1,0 +1,922 @@
+% -*- coding: utf-8 -*-
+% Aula: Caminhos minimos -- o algoritmo de Dijkstra (Unidade 3 de AED2, depois de Kruskal/Prim)
+% Fontes principais: Cormen et al. (2009), cap. 24: introducao (Lema 24.1, pesos negativos,
+% Initialize-Single-Source e Relax, Figura 24.3), sec. 24.3 (Dijkstra, Teorema 24.6,
+% Corolario 24.7, Figura 24.6), sec. 24.5 (Lemas 24.10, 24.11, 24.14, 24.15);
+% Kleinberg e Tardos (2006), sec. 4.4; Dasgupta et al. (2008), sec. 4.4-4.7;
+% Levitin (2012), sec. 9.3; Feofiloff (2020).
+% Exemplo condutor: o digrafo da Figura 24.6 de Cormen et al. (s,t,x,y,z; origem s).
+% Dijkstra fecha s, y, z, t, x com distancias 0, 5, 7, 8, 9.
+% Fechamento usa o grafo da Figura 23.1 (aula de Kruskal/Prim): arvore de caminhos minimos
+% a partir de a pesa 42, a AGM pesa 37.
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, decorations.pathmorphing, backgrounds, patterns}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    columns=fullflexible,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=6.6cm, minimum height=0.55cm, font=\scriptsize},
+  vert/.style={circle, draw=blue!60!black, fill=blue!10, font=\tiny,
+               inner sep=0pt, minimum size=4.2mm},
+  vdentro/.style={vert, draw=orange!80!black, fill=orange!35},
+  aresta/.style={draw=gray!55, thin},
+  arvore/.style={draw=orange!85!black, line width=2.2pt},
+  rejeitada/.style={draw=red!70!black, thick, dashed},
+  peso/.style={font=\tiny, fill=white, inner sep=0.6pt},
+  arc/.style={-{Stealth}, thick},
+  arco/.style={-{Stealth[length=1.5mm]}, draw=gray!60, thin},
+  arcoarv/.style={-{Stealth[length=2mm]}, draw=orange!85!black, line width=1.8pt},
+  dlab/.style={font=\tiny\bfseries, text=blue!60!black, inner sep=1pt},
+  r/.style={},
+  bl/.style={bend left=22},
+  cz/.style={out=-115, in=-80, looseness=1.25}
+}
+
+% ---- o digrafo da Figura 24.6 de Cormen et al. ----
+% \digrafo{arcos destacados u/v/estilo}{vertices fechados}{d(s)}{d(t)}{d(x)}{d(y)}{d(z)}
+% (usar dentro de um tikzpicture; listas vazias: passar {}; rotulo vazio: nao desenha)
+\newcommand{\arcoscond}{s/t/10/r, s/y/5/r, t/x/1/r, t/y/2/bl, y/t/3/bl, y/x/9/r,
+  y/z/2/r, x/z/4/bl, z/x/6/bl, z/s/7/cz}
+\newcommand{\digrafo}[7]{%
+  \node[vert] (s) at (0,0) {s};      \node[vert] (t) at (1.6,0.9) {t};
+  \node[vert] (x) at (3.4,0.9) {x};  \node[vert] (y) at (1.6,-0.9) {y};
+  \node[vert] (z) at (3.4,-0.9) {z};
+  \def\lista{#2}\ifx\lista\empty\else
+    \foreach \v in {#2} \node[vdentro] at (\v) {\v};\fi
+  \foreach \u/\v/\w/\o in \arcoscond \draw[arco, \o] (\u) to (\v);
+  \edef\lista{#1}\ifx\lista\empty\else
+    \foreach \u/\v/\o in \lista \draw[arcoarv, \o] (\u) to (\v);\fi
+  \foreach \u/\v/\w/\o in \arcoscond \path[\o] (\u) to node[peso] {\w} (\v);
+  \def\lista{#3}\ifx\lista\empty\else \node[dlab, left=0.5mm of s] {#3};\fi
+  \def\lista{#4}\ifx\lista\empty\else \node[dlab, above=0.5mm of t] {#4};\fi
+  \def\lista{#5}\ifx\lista\empty\else \node[dlab, above=0.5mm of x] {#5};\fi
+  \def\lista{#6}\ifx\lista\empty\else \node[dlab, below left=0mm and 0.2mm of y] {#6};\fi
+  \def\lista{#7}\ifx\lista\empty\else \node[dlab, right=0.5mm of z] {#7};\fi
+}
+% a arvore final de caminhos minimos (pai[t]=y, pai[x]=t, pai[y]=s, pai[z]=y)
+\newcommand{\arvorefinal}{s/y/r, y/t/bl, t/x/r, y/z/r}
+
+% ---- o grafo da Figura 23.1 de Cormen et al. (aula de Kruskal e Prim) ----
+\newcommand{\arestasclrs}{a/b/4, a/h/8, b/c/8, b/h/11, c/d/7, c/f/4, c/i/2,
+  d/e/9, d/f/14, e/f/10, f/g/2, g/h/1, g/i/6, h/i/7}
+\newcommand{\grafoclrs}[2]{%
+  \coordinate (a) at (0,0);     \coordinate (b) at (1,1);
+  \coordinate (c) at (2.3,1);   \coordinate (d) at (3.6,1);
+  \coordinate (e) at (4.6,0);   \coordinate (f) at (3.6,-1);
+  \coordinate (g) at (2.3,-1);  \coordinate (h) at (1,-1);
+  \coordinate (i) at (1.75,0);
+  \foreach \u/\v/\w in \arestasclrs \draw[aresta] (\u) -- (\v);
+  \def\lista{#1}\ifx\lista\empty\else
+    \foreach \u/\v in {#1} \draw[arvore] (\u) -- (\v);\fi
+  \foreach \u/\v/\w in \arestasclrs \path (\u) -- (\v) node[peso, pos=0.5] {\w};
+  \foreach \v in {a,...,i} \node[vert] at (\v) {\v};
+  \def\lista{#2}\ifx\lista\empty\else
+    \foreach \v in {#2} \node[vdentro] at (\v) {\v};\fi
+}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\title{Caminhos mínimos}
+\subtitle{O algoritmo de Dijkstra}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=2.6mm]
+    \node[box] (t1) {1.\ O problema dos caminhos mínimos a partir de uma origem};
+    \node[box, below=of t1] (t2) {2.\ Relaxamento: estimativas que só descem};
+    \node[box, below=of t2, fill=orange!20, draw=orange!80!black] (t3)
+         {3.\ Dijkstra: fechar sempre o vértice mais próximo};
+    \node[box, below=of t3] (t4) {4.\ Implementação em C e custo: vetor ou heap};
+    \node[box, below=of t4] (t5) {5.\ Limites: pesos negativos e o panorama};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4, t4/t5}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+    \draw[-{Stealth}, thick, orange!80!black, dashed]
+      (t3.east) to[out=0, in=0, looseness=1.4]
+      node[right, xshift=1mm, font=\tiny, align=left]
+      {o código de Prim\\com outra chave} (t4.east);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize\centering
+  Na aula passada, Prim trazia para a árvore o vértice de \emph{aresta} mais barata. Hoje,
+  Dijkstra traz o vértice de \emph{caminho} mais barato.\par}
+  \fonte{Cormen et al.\ (2009), cap.~24~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{O problema dos caminhos mínimos}
+
+\begin{frame}{Por que precisamos de caminhos mínimos?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} um aplicativo de mapas precisa da rota mais rápida de Aracaju até
+      cada cidade de Sergipe. As vias são de mão única ou dupla, e cada trecho tem um tempo
+      de percurso.
+      \medskip
+
+      {\small A busca em largura (BFS) acha o caminho com \emph{menos trechos}, mas um
+      trecho pode levar 2 minutos e outro, 40.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.9cm, y=0.8cm]
+        \digrafo{}{}{}{}{}{}{}
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Exemplo condutor: origem $s$. Menos arcos: $s \to t \to x$ (custo 11).
+      Menor custo: $s \to y \to t \to x$ (custo 9).\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 24.3, Figura 24.6~\cite{cormen2009introduction};
+    Dasgupta et al.\ (2008), \S 4.4~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Caminhos mínimos: definição}
+  \begin{block}{Definição}
+    Seja $G = (V, E)$ um digrafo com custos $w(u,v)$ nos arcos. O \textbf{custo} de um
+    caminho $P = \langle v_0, v_1, \dots, v_k \rangle$ é
+    $w(P) = \sum_{i=1}^{k} w(v_{i-1}, v_i)$. A \textbf{distância} de $s$ a $v$ é
+    \[ \delta(s, v) = \min\{\, w(P) : P \text{ é caminho de } s \text{ a } v \,\}, \]
+    com $\delta(s,v) = \infty$ se $v$ não é alcançável a partir de $s$.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \small Problema de \textbf{origem única}: uma origem $s$ fixa, a distância a \emph{todos}
+    os vértices de uma vez. Achar só $s \to v$ não é mais fácil no pior caso.
+  \end{exampleblock}
+  {\scriptsize Notação: $n = |V|$, $m = |E|$. Grafo não dirigido: cada aresta vira dois arcos.
+  Hoje, todos os custos são $\ge 0$.\par}
+  \fonte{Cormen et al.\ (2009), introdução do cap.~24~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: as distâncias no digrafo condutor}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.15cm, y=1.05cm]
+        \digrafo{\arvorefinal}{}{0}{8}{9}{5}{7}
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering\scriptsize
+      \begin{tabular}{clc}
+        \toprule
+        $v$ & caminho mínimo & $\delta(s,v)$ \\
+        \midrule
+        $s$ & $s$ & 0 \\
+        $y$ & $s \to y$ & 5 \\
+        $z$ & $s \to y \to z$ & 7 \\
+        $t$ & $s \to y \to t$ & 8 \\
+        $x$ & $s \to y \to t \to x$ & 9 \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      \raggedright
+      Em azul, $\delta(s,v)$. Os arcos em laranja formam uma \textbf{árvore de caminhos
+      mínimos}: o caminho de $s$ a cada $v$ dentro dela é mínimo. Note que o arco
+      $s \to t$, de custo 10, não serve para nada.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 24.3, Figura 24.6(f)~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A subestrutura ótima dos caminhos mínimos}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+      \begin{block}{Lema}
+        \small Todo trecho de um caminho mínimo é um caminho mínimo.
+      \end{block}
+      \scriptsize
+      \textbf{Prova (recorte e cola).} Seja $P$ mínimo de $s$ a $v$ e $P_{ab}$ o trecho de $a$
+      a $b$. Se houvesse $Q$ de $a$ a $b$ com $w(Q) < w(P_{ab})$, trocar $P_{ab}$ por $Q$ em
+      $P$ daria um caminho de $s$ a $v$ mais barato que $P$: absurdo. \hfill$\square$
+      \medskip
+
+      \textbf{Consequência.} Basta guardar, para cada $v$, o \textbf{predecessor}
+      $\mathit{pai}[v]$ no caminho mínimo: os $n - 1$ arcos $(\mathit{pai}[v], v)$ formam a
+      árvore da página anterior.
+    \end{column}
+    \begin{column}{0.41\textwidth}
+      \begin{tikzpicture}[x=0.75cm, y=0.6cm, p/.style={circle, fill=blue!60!black,
+          inner sep=0pt, minimum size=1.6mm}]
+        \node[p, label={[font=\tiny]below:$s$}] (s) at (0,0) {};
+        \node[p, label={[font=\tiny]below:$a$}] (a) at (1.6,0) {};
+        \node[p, label={[font=\tiny]below:$b$}] (b) at (3.4,0) {};
+        \node[p, label={[font=\tiny]below:$v$}] (v) at (5,0) {};
+        \draw[thick, blue!60!black, decorate, decoration={snake, amplitude=0.6mm,
+          segment length=3mm}] (s) -- (a);
+        \draw[very thick, red!70!black, decorate, decoration={snake, amplitude=0.6mm,
+          segment length=3mm}] (a) -- node[below=1mm, font=\tiny] {$P_{ab}$} (b);
+        \draw[thick, blue!60!black, decorate, decoration={snake, amplitude=0.6mm,
+          segment length=3mm}] (b) -- (v);
+        \draw[very thick, orange!85!black, dashed] (a) to[bend left=55]
+          node[above, font=\tiny] {$Q$ mais barato?} (b);
+      \end{tikzpicture}
+      \smallskip
+
+      \tiny É a \textbf{subestrutura ótima} das aulas de programação dinâmica; Floyd já
+      dependia dela.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), cap.~24, Lema 24.1~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{O que já sabemos fazer}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{llll}
+    \toprule
+    algoritmo & resolve & restrição & tempo \\
+    \midrule
+    força bruta & enumera todos os caminhos & --- & exponencial \\
+    BFS (Unidade 1) & origem única & todo custo $= 1$ & $O(n + m)$ \\
+    Floyd (Unidade 2) & \emph{todos os pares} & sem ciclo negativo & $\Theta(n^3)$ \\
+    \textbf{Dijkstra (hoje)} & origem única & custos $\ge 0$ & $O(m \log n)$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      Floyd responde à pergunta de origem única, mas paga $\Theta(n^3)$ calculando $n^2$
+      distâncias quando queremos só $n$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      Num mapa de ruas com $n = 10^6$ cruzamentos, $n^3 = 10^{18}$ operações; o grafo é
+      esparso ($m \approx 3n$), e $m \log n \approx 6 \times 10^7$.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), cap.~24 e \S 25.2~\cite{cormen2009introduction};
+    Dasgupta et al.\ (2008), \S 4.4~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: o problema}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item $\delta(s,v)$ é o menor custo de um caminho de $s$ a $v$ ($\infty$ se não há).
+      \item Origem única: queremos $\delta(s,v)$ para todo $v$ de uma vez.
+      \item Trechos de caminhos mínimos são mínimos: basta guardar $\mathit{pai}[v]$.
+      \item Os predecessores formam uma árvore de caminhos mínimos.
+      \item BFS só vale para custos unitários; Floyd é caro demais para uma origem.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), cap.~24~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Relaxamento}
+
+\begin{frame}{Por que trabalhar com estimativas?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} não conhecemos $\delta(s,v)$ de antemão. Precisamos de uma operação
+      que melhore aos poucos o que sabemos, sem nunca errar para baixo.
+      \medskip
+
+      {\small Analogia: o preço de uma passagem que você vai pesquisando. Cada rota nova
+      encontrada só pode \emph{baixar} o melhor preço conhecido.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução:} para cada $v$, uma \textbf{estimativa} $\mathit{dist}[v]$ que é o custo
+      de \emph{algum} caminho de $s$ a $v$ já encontrado:
+      \begin{center}
+      \fbox{\small $\mathit{dist}[v] \ge \delta(s,v)$ sempre}
+      \end{center}
+      Começa com $\mathit{dist}[s] = 0$ e $\infty$ no resto, e só desce.
+      \medskip
+
+      {\small Dijkstra, Bellman-Ford e o algoritmo para DAGs usam a mesma operação; o que muda
+      é a \emph{ordem} em que a aplicam.}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), cap.~24, ``Relaxation''~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Relaxar um arco: definição}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{\textsc{Relaxa}$(u, v)$}
+        \small
+        \textbf{se} $\mathit{dist}[u] + w(u,v) < \mathit{dist}[v]$:\\
+        \quad $\mathit{dist}[v] \gets \mathit{dist}[u] + w(u,v)$\\
+        \quad $\mathit{pai}[v] \gets u$
+      \end{block}
+      \begin{exampleblock}{Intuição}
+        \scriptsize ``Chegar a $v$ passando por $u$ é melhor do que o melhor caminho que eu
+        conhecia?'' Se sim, adote o novo caminho: o de $u$ seguido do arco $u \to v$.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1cm, y=0.9cm]
+        \foreach \k/\yy/\du/\dv/\dn/\cor in {1/0/5/9/7/orange!85!black, 2/-1.6/5/6/6/gray} {
+          \node[vert] (u\k) at (0,\yy) {u};
+          \node[vert] (v\k) at (1.5,\yy) {v};
+          \draw[arco, draw=gray!70] (u\k) -- node[peso, above] {2} (v\k);
+          \node[dlab, below=0.5mm of u\k] {\du};
+          \node[dlab, below=0.5mm of v\k] {\dv};
+          \draw[-{Stealth}, thick, gray] (2.0,\yy) -- (2.7,\yy);
+          \node[vert] (U\k) at (3.2,\yy) {u};
+          \node[vert, draw=\cor] (V\k) at (4.7,\yy) {v};
+          \draw[arco, draw=\cor, thick] (U\k) -- node[peso, above] {2} (V\k);
+          \node[dlab, below=0.5mm of U\k] {\du};
+          \node[dlab, below=0.5mm of V\k] {\dn};
+        }
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize
+      Em cima, $5 + 2 < 9$: $\mathit{dist}[v]$ cai para 7 e $\mathit{pai}[v] = u$. Embaixo,
+      $5 + 2 \ge 6$: nada muda.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), cap.~24, \textsc{Relax} e Figura 24.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Propriedades do relaxamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \scriptsize
+      \textbf{Desigualdade triangular.} Para todo arco $(u,v)$:
+      $\delta(s,v) \le \delta(s,u) + w(u,v)$.
+      \medskip
+
+      \textbf{Limite superior.} Em qualquer sequência de relaxamentos,
+      $\mathit{dist}[v] \ge \delta(s,v)$, e quando $\mathit{dist}[v]$ atinge $\delta(s,v)$ não
+      muda mais.
+      \medskip
+
+      \textbf{Convergência.} Se $s \leadsto u \to v$ é um caminho mínimo e
+      $\mathit{dist}[u] = \delta(s,u)$ no momento em que $(u,v)$ é relaxado, então depois
+      disso $\mathit{dist}[v] = \delta(s,v)$.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \textbf{Relaxamento de caminho.} Se os arcos de um caminho mínimo
+      $\langle s, v_1, \dots, v_k \rangle$ forem relaxados \emph{nessa ordem} (com quaisquer
+      outros relaxamentos no meio), no fim $\mathit{dist}[v_k] = \delta(s, v_k)$.
+      \medskip
+
+      \begin{block}{A pergunta da aula}
+        \scriptsize Em que ordem relaxar os arcos para que cada arco seja relaxado
+        \textbf{uma vez só}?
+      \end{block}
+      \medskip
+
+      Para custos $\ge 0$, a resposta é de Dijkstra.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 24.5, Lemas 24.10, 24.11, 24.14 e
+    24.15~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: relaxamento}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item $\mathit{dist}[v]$ é o custo de um caminho conhecido: nunca menor que $\delta(s,v)$.
+      \item Relaxar $(u,v)$ testa se passar por $u$ melhora o caminho até $v$.
+      \item Relaxar os arcos de um caminho mínimo em ordem acerta a distância do fim.
+      \item Os algoritmos de caminho mínimo diferem na ordem dos relaxamentos.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), cap.~24 e \S 24.5~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{O algoritmo de Dijkstra}
+
+\begin{frame}{Por que fechar o vértice mais próximo?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} relaxar um arco $(u,v)$ só é definitivo se $\mathit{dist}[u]$ já for
+      exata. Qual vértice tem certamente a estimativa exata?
+      \medskip
+
+      {\small Imagine a origem soltando água que escorre pelos arcos com velocidade
+      constante: os vértices molham em ordem crescente de distância. O mais próximo dos ainda
+      secos é o próximo a molhar.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Solução (Dijkstra, 1959):} manter o conjunto $S$ de vértices
+      \textbf{fechados}, cuja distância já é exata.
+      \begin{enumerate}
+        \small
+        \item $S \gets \emptyset$; $\mathit{dist}[s] = 0$;
+        \item escolha $u \notin S$ com \textbf{menor} $\mathit{dist}[u]$ e feche $u$;
+        \item relaxe os arcos que saem de $u$;
+        \item repita até fechar todos os alcançáveis.
+      \end{enumerate}
+      {\small Cada arco é relaxado uma vez só: quando sua ponta inicial fecha.}
+    \end{column}
+  \end{columns}
+  \fonte{Dijkstra (1959)~\cite{dijkstra1959note}; Dasgupta et al.\ (2008), \S 4.4
+    (adaptação da BFS)~\cite{dasgupta2008algorithms}; Levitin (2012),
+    \S 9.3~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{O algoritmo de Dijkstra}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{\textsc{Dijkstra}$(G, w, s)$}
+        \small
+        \textbf{para cada} $v$: $\mathit{dist}[v] \gets \infty$; $\mathit{pai}[v] \gets -1$\\
+        $\mathit{dist}[s] \gets 0$;\ $S \gets \emptyset$\\
+        $Q \gets$ fila de prioridade com $V$, chave $\mathit{dist}$\\
+        \textbf{enquanto} $Q \neq \emptyset$:\\
+        \quad $u \gets$ \textsc{Extrai-Min}$(Q)$;\ $S \gets S \cup \{u\}$\\
+        \quad \textbf{para cada} arco $(u,v)$:\\
+        \quad\quad \textsc{Relaxa}$(u,v)$
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      Compare com Prim, da aula passada: a estrutura é a mesma, só a chave muda.
+      \medskip
+
+      \begin{tabular}{lp{3.6cm}}
+        \toprule
+        & a chave de $v$ baixa para \\
+        \midrule
+        \textbf{Prim} & $w(u,v)$ \\
+        \addlinespace
+        \textbf{Dijkstra} & $\mathit{dist}[u] + w(u,v)$ \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      Prim pergunta ``quanto custa \emph{pendurar} $v$ na árvore?''; Dijkstra pergunta
+      ``quanto custa \emph{chegar} a $v$ desde $s$?''. Com custos unitários e uma fila comum
+      no lugar da de prioridade, Dijkstra vira a BFS.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 24.3, \textsc{Dijkstra}~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: Dijkstra a partir de $s$}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \centering\scriptsize
+      \setlength{\tabcolsep}{3.5pt}
+      \begin{tabular}{c|ccccc}
+        \toprule
+        fecha & $s$ & $t$ & $x$ & $y$ & $z$ \\
+        \midrule
+        --- & 0 & $\infty$ & $\infty$ & $\infty$ & $\infty$ \\
+        $s$ (0) & -- & \textbf{10} & $\infty$ & \textbf{5} & $\infty$ \\
+        $y$ (5) & -- & \textbf{8} & \textbf{14} & -- & \textbf{7} \\
+        $z$ (7) & -- & 8 & \textbf{13} & -- & -- \\
+        $t$ (8) & -- & -- & \textbf{9} & -- & -- \\
+        $x$ (9) & -- & -- & -- & -- & -- \\
+        \bottomrule
+      \end{tabular}
+      \smallskip
+
+      \raggedright
+      $\mathit{dist}$ depois de cada fechamento; em negrito, as que baixaram.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \textbf{Fecha $y$:} $t$ cai de 10 para $5 + 3 = 8$, pois chegar a $t$ por $y$ é mais
+      barato que pelo arco direto.
+      \medskip
+
+      \textbf{Fecha $z$:} $x$ cai de 14 para $7 + 6 = 13$. O arco $z \to s$ não muda nada:
+      $s$ já está fechado.
+      \medskip
+
+      \textbf{Fecha $t$:} $x$ cai de novo, para $8 + 1 = 9$. Ao fechar $x$, todos os
+      relaxamentos falham.
+      \medskip
+
+      Ordem de fechamento: $s, y, z, t, x$, com distâncias \textbf{crescentes}
+      $0, 5, 7, 8, 9$.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 24.3, Figura 24.6~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{As estimativas ao longo do tempo}
+  \begin{center}
+  \begin{tikzpicture}[x=0.82cm, y=0.7cm]
+    \begin{scope}
+      \digrafo{s/y/r, s/t/r}{s}{0}{10}{$\infty$}{5}{$\infty$}
+      \node[font=\tiny] at (1.7,-2.55) {depois de fechar $s$};
+    \end{scope}
+    \begin{scope}[xshift=5.2cm]
+      \digrafo{s/y/r, y/t/bl, y/x/r, y/z/r}{s,y}{0}{8}{14}{5}{7}
+      \node[font=\tiny] at (1.7,-2.55) {depois de fechar $y$};
+    \end{scope}
+    \begin{scope}[xshift=10.4cm]
+      \digrafo{\arvorefinal}{s,y,z,t}{0}{8}{9}{5}{7}
+      \node[font=\tiny] at (1.7,-2.55) {depois de fechar $t$};
+    \end{scope}
+  \end{tikzpicture}
+  \end{center}
+  {\small Em laranja, os vértices fechados e os arcos $(\mathit{pai}[v], v)$ do momento. O
+  arco $s \to t$ entra na árvore e depois sai, quando $y$ oferece um caminho melhor até $t$; o
+  mesmo acontece com $y \to x$.\par}
+  \fonte{Cormen et al.\ (2009), \S 24.3, Figura 24.6(b)--(e)~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Dijkstra: por que está correto}
+  \begin{block}{Teorema}
+    \small Com custos $w \ge 0$, ao ser fechado, cada vértice $u$ tem
+    $\mathit{dist}[u] = \delta(s,u)$.
+  \end{block}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \scriptsize
+      \textbf{Prova.} Suponha que $u$ seja o primeiro a fechar com
+      $\mathit{dist}[u] > \delta(s,u)$. Tome um caminho mínimo $P$ de $s$ a $u$ e seja $y$ o
+      primeiro vértice de $P$ fora de $S$, com predecessor $x \in S$.
+      \smallskip
+
+      $x$ fechou com $\mathit{dist}[x] = \delta(s,x)$ e relaxou $(x,y)$; por convergência,
+      $\mathit{dist}[y] = \delta(s,y)$. Como $y$ vem antes de $u$ em $P$ e os custos são
+      $\ge 0$:
+      \[ \mathit{dist}[y] = \delta(s,y) \le \delta(s,u) < \mathit{dist}[u] . \]
+      Mas o algoritmo escolheu $u$, e não $y$: $\mathit{dist}[u] \le \mathit{dist}[y]$.
+      Absurdo. \hfill$\square$
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{tikzpicture}[x=0.72cm, y=0.6cm, p/.style={circle, fill=blue!60!black,
+          inner sep=0pt, minimum size=1.6mm}]
+        \fill[orange!12] (-0.4,-1.4) rectangle (2.5,1.4);
+        \node[font=\tiny, anchor=north west] at (-0.4,1.4) {$S$ (fechados)};
+        \node[p, label={[font=\tiny]left:$s$}] (s) at (0.2,-0.6) {};
+        \node[p, label={[font=\tiny]above:$x$}] (x) at (1.9,0.5) {};
+        \node[p, label={[font=\tiny]above:$y$}] (y) at (3.4,0.5) {};
+        \node[p, label={[font=\tiny]right:$u$}] (u) at (5.0,-0.6) {};
+        \draw[thick, blue!60!black, decorate, decoration={snake, amplitude=0.5mm,
+          segment length=2.5mm}] (s) -- (x);
+        \draw[-{Stealth}, very thick, orange!85!black] (x) -- (y);
+        \draw[thick, blue!60!black, decorate, decoration={snake, amplitude=0.5mm,
+          segment length=2.5mm}] (y) -- (u);
+        \draw[-{Stealth}, gray, dashed] (s) to[bend right=25]
+          node[below, font=\tiny] {escolhido} (u);
+      \end{tikzpicture}
+      \smallskip
+
+      \tiny Em azul e laranja, o caminho mínimo $P$. É aqui que $w \ge 0$ é indispensável:
+      o trecho de $y$ a $u$ não pode diminuir o custo.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 24.3, Teorema 24.6 e Figura 24.7~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 4.4, (4.14)~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: Dijkstra}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Dijkstra fecha sempre o vértice aberto de menor $\mathit{dist}$.
+      \item Ao fechar $u$, relaxa os arcos que saem de $u$; cada arco, uma vez.
+      \item É o código de Prim com chave $\mathit{dist}[u] + w(u,v)$ no lugar de $w(u,v)$.
+      \item Os vértices fecham em ordem crescente de distância.
+      \item A correção depende de $w \ge 0$: nenhum caminho fica mais barato ao crescer.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 24.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Implementação e custo}
+
+\begin{frame}[fragile]{Dijkstra em C com matriz de adjacência}
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* W[u][v] = custo do arco u->v, ou INF se nao ha arco */
+void dijkstra( int n, int W[][MAXN], int s, int dist[], int pai[]) {
+   bool fechado[MAXN];
+   for (int v = 0; v < n; ++v) {
+      dist[v] = INF;  pai[v] = -1;  fechado[v] = false;
+   }
+   dist[s] = 0;
+   for (int it = 0; it < n; ++it) {
+      int u = -1;                     /* o aberto mais proximo */
+      for (int v = 0; v < n; ++v)
+         if (!fechado[v] && (u < 0 || dist[v] < dist[u]))
+            u = v;
+      if (dist[u] == INF) break;      /* o resto e inalcancavel */
+      fechado[u] = true;
+      for (int v = 0; v < n; ++v)     /* relaxa os arcos de u */
+         if (W[u][v] != INF && dist[u] + W[u][v] < dist[v]) {
+            dist[v] = dist[u] + W[u][v];  pai[v] = u;
+         }
+   }
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \scriptsize
+      \textbf{Diferenças para o Prim da aula passada:}
+      \begin{itemize}
+        \scriptsize
+        \item a chave é $\mathit{dist}[u] + W[u][v]$;
+        \item o teste \texttt{W[u][v] != INF} evita somar com \texttt{INF} e transbordar o
+              \texttt{int};
+        \item se o mais próximo tem $\mathit{dist} = \infty$, os demais são inalcançáveis.
+      \end{itemize}
+      \medskip
+
+      \textbf{Custo.} $n$ iterações, cada uma com duas varreduras de $n$ posições:
+      $\Theta(n^2)$, ótimo para grafos densos.
+    \end{column}
+  \end{columns}
+  \fonte{Feofiloff (2020), algoritmo de Dijkstra~\cite{feofiloff2020grafos};
+    Levitin (2012), \S 9.3~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{Reconstruindo o caminho com \texttt{pai[]}}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* imprime o caminho minimo de s a t, de s para t */
+void imprime_caminho( int pai[], int s, int t) {
+   if (t == s) { printf( "%d", s);  return; }
+   if (pai[t] == -1) {
+      printf( "%d inalcancavel", t);  return;
+   }
+   imprime_caminho( pai, s, pai[t]);
+   printf( " -> %d", t);
+}
+\end{lstlisting}
+      \scriptsize
+      A recursão sobe de $t$ até $s$ e imprime na volta, na ordem certa. Custo: o número de
+      arcos do caminho.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \scriptsize
+      \begin{tabular}{cccccc}
+        \toprule
+        $v$ & $s$ & $t$ & $x$ & $y$ & $z$ \\
+        \midrule
+        $\mathit{pai}[v]$ & $-1$ & $y$ & $t$ & $s$ & $y$ \\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+      \scriptsize
+      Caminho até $x$: $\mathit{pai}[x] = t$, $\mathit{pai}[t] = y$, $\mathit{pai}[y] = s$.
+      Lido de trás para frente: $s \to y \to t \to x$, custo $5 + 3 + 1 = 9$.
+      \medskip
+
+      O vetor $\mathit{pai}$ guarda a árvore de caminhos mínimos inteira em $n$ posições:
+      os $n$ caminhos juntos podem ter $\Theta(n^2)$ arcos.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 22.2, \textsc{Print-Path}, e cap.~24, ``Representing
+    shortest paths''~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Quanto custa Dijkstra?}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{lll}
+    \toprule
+    fila de prioridade & operações dominantes & total \\
+    \midrule
+    vetor (varredura) & $n$ extrações de $\Theta(n)$ & $\Theta(n^2)$ \\
+    heap binário & $n$ extrações e até $m$ reduções de chave, $O(\log n)$ cada & $O((n + m) \log n)$ \\
+    heap de Fibonacci & redução de chave em $O(1)$ amortizado & $O(m + n \log n)$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Grafo esparso} ($m = O(n)$): heap binário dá $O(n \log n)$; o vetor perde com
+      $\Theta(n^2)$.
+      \medskip
+
+      \textbf{Grafo denso} ($m = \Theta(n^2)$): o vetor dá $\Theta(n^2)$; o heap binário
+      perde com $O(n^2 \log n)$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Heap preguiçoso.} Sem redução de chave: a cada relaxamento bem-sucedido, insira
+      o par $(\mathit{dist}[v], v)$ de novo; ao extrair um par com custo maior que
+      $\mathit{dist}[v]$, descarte-o. O heap chega a $m$ pares, e o custo fica
+      $O(m \log n)$. É o Exercício 2 do tutorial.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 24.3 (análise)~\cite{cormen2009introduction};
+    Fredman e Tarjan (1987)~\cite{fredman1987fibonacci}; Dasgupta et al.\ (2008),
+    \S 4.5~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: implementação}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Com matriz e varredura, Dijkstra custa $\Theta(n^2)$: bom para grafos densos.
+      \item Com listas de adjacência e heap binário, $O((n + m) \log n)$: bom para esparsos.
+      \item O heap preguiçoso dispensa a redução de chave e descarta pares velhos.
+      \item O vetor $\mathit{pai}$ guarda todos os caminhos em $n$ posições.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 24.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Limites e panorama}
+
+\begin{frame}{Por que custos negativos quebram Dijkstra?}
+  \begin{columns}[c]
+    \begin{column}{0.4\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.1cm, y=1.0cm]
+        \node[vert] (s) at (0,0) {s};
+        \node[vdentro] (a) at (1.5,0.8) {a};
+        \node[vdentro] (c) at (3,0.8) {c};
+        \node[vert] (b) at (1.5,-0.8) {b};
+        \draw[arco, draw=gray!80] (s) -- node[peso] {2} (a);
+        \draw[arco, draw=gray!80] (s) -- node[peso] {4} (b);
+        \draw[arco, draw=gray!80] (a) -- node[peso] {1} (c);
+        \draw[arco, draw=red!70!black, thick] (b) -- node[peso] {$-3$} (a);
+        \node[dlab, above=0.5mm of a] {2};
+        \node[dlab, above=0.5mm of c] {3};
+        \node[dlab, below=0.5mm of b] {4};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      \scriptsize
+      Dijkstra fecha $s$ (0), $a$ (2), $c$ (3) e por último $b$ (4). Ao fechar $b$, o arco
+      $b \to a$ ofereceria $4 - 3 = 1$ para $a$, mas $a$ e $c$ já estão fechados.
+      \medskip
+
+      \textbf{Resposta errada:} $\mathit{dist}[c] = 3$, mas
+      $s \to b \to a \to c$ custa $4 - 3 + 1 = 2$.
+      \medskip
+
+      A prova falha exatamente no passo $\delta(s,y) \le \delta(s,u)$: um trecho com custo
+      negativo pode deixar o caminho mais barato ao crescer.
+      \medskip
+
+      \textbf{E somar uma constante a todos os custos?} Não funciona: penaliza mais os
+      caminhos com mais arcos. Somando 3, $s \to a \to c$ custa 9 e $s \to b \to a \to c$
+      custa 11, e o mínimo muda.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), cap.~24, ``Negative-weight edges'', e Exercício
+    24.3-2~\cite{cormen2009introduction}; Dasgupta et al.\ (2008),
+    \S 4.6~\cite{dasgupta2008algorithms}.}
+\end{frame}
+
+\begin{frame}{Árvore de caminhos mínimos não é AGM}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \grafoclrs{g/h, c/i, f/g, a/b, c/f, c/d, a/h, d/e}{a}
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize\centering AGM de Kruskal: peso \textbf{37}.
+      De $a$ a $e$: $a\,h\,g\,f\,c\,d\,e$, custo 31.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \grafoclrs{a/b, b/c, c/d, f/e, g/f, h/g, a/h, c/i}{a}
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize\centering Dijkstra a partir de $a$: peso \textbf{42}.
+      De $a$ a $e$: $a\,h\,g\,f\,e$, custo 21.
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize O grafo da aula passada. A AGM minimiza a \textbf{soma de todas as arestas}; a
+  árvore de Dijkstra minimiza \textbf{cada caminho a partir de $a$}. Os objetivos são
+  diferentes e as árvores também: a de Dijkstra troca $(c,f)$ e $(d,e)$ por $(b,c)$ e
+  $(e,f)$.\par}
+  \fonte{Cormen et al.\ (2009), \S 23.1, Figura 23.1, e \S 24.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{O panorama dos caminhos mínimos}
+  \begin{center}
+  \scriptsize
+  \begin{tabular}{llll}
+    \toprule
+    algoritmo & quando usar & ordem dos relaxamentos & tempo \\
+    \midrule
+    BFS & custos unitários & fila comum & $O(n + m)$ \\
+    DAG & digrafo acíclico, qualquer custo & ordem topológica & $O(n + m)$ \\
+    \textbf{Dijkstra} & custos $\ge 0$ & menor $\mathit{dist}$ primeiro & $O(m \log n)$ \\
+    Bellman-Ford & custos negativos; detecta ciclo negativo & todos os arcos, $n - 1$ vezes & $O(nm)$ \\
+    Floyd & todos os pares & intermediários $0..k-1$ & $\Theta(n^3)$ \\
+    Johnson & todos os pares, esparso & Bellman-Ford + $n \times$ Dijkstra & $O(nm \log n)$ \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  {\scriptsize Todos, exceto Floyd, são o mesmo relaxamento em ordens diferentes. A ordem
+  topológica da Unidade 1 também resolve caminhos mínimos, e até \emph{máximos}, em DAGs.
+  Na prática, GPS e roteadores usam Dijkstra e variantes com heurística, como o A*
+  (desafio do tutorial).\par}
+  \fonte{Cormen et al.\ (2009), \S 24.1, \S 24.2, \S 24.3 e \S 25.3~\cite{cormen2009introduction};
+    Hart, Nilsson e Raphael (1968), A*~\cite{hart1968formal}.}
+\end{frame}
+
+\begin{frame}{Fechando}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{O que levar desta aula}
+        \scriptsize
+        \begin{itemize}
+          \item Relaxar arcos só baixa estimativas, que nunca ficam abaixo de $\delta$.
+          \item Dijkstra relaxa a partir do vértice aberto mais próximo, uma vez por arco.
+          \item É guloso: fecha cada vértice sem voltar atrás, como Prim.
+          \item Exige custos $\ge 0$; para negativos, Bellman-Ford.
+          \item $\Theta(n^2)$ com vetor, $O(m \log n)$ com heap.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{História.} Dijkstra conta que concebeu o algoritmo em 1956, em uns vinte
+      minutos, sentado num café em Amsterdã, sem papel e lápis, para demonstrar um computador
+      novo calculando rotas entre 64 cidades holandesas. Publicou três anos depois, numa nota
+      de três páginas que também resolvia a AGM.
+      \medskip
+
+      \textbf{Próxima aula:} fluxo máximo e emparelhamento, em que caminhos num grafo
+      \emph{residual} são usados para aumentar o fluxo.
+    \end{column}
+  \end{columns}
+  \fonte{Misa e Frana (2010)~\cite{misa2010interview}; Dijkstra (1959)~\cite{dijkstra1959note}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{cormen2009introduction,cormen2012algoritmos,kleinberg2006algorithm,dasgupta2008algorithms,levitin2012introduction,feofiloff2020grafos,sedgewick2011algorithms,dijkstra1959note,fredman1987fibonacci,hart1968formal,misa2010interview}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
