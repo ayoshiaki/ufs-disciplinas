@@ -34,6 +34,10 @@ title: "COMP0496 — Programação A — Turma 1 · 2026/2"
         <td><strong>Fintech: map, filter, reduce e recursão</strong><div class="td-sub">PIX, crédito e investimentos</div></td>
         <td class="td-right"><a class="badge-pdf" href="{{ 'programacao-a/lista-exercicios-fintech.pdf' | relative_url }}">📄 PDF</a></td>
       </tr>
+      <tr>
+        <td><strong>Programação orientada a objetos</strong><div class="td-sub">Classes, encapsulamento, herança, polimorfismo e recursos avançados</div></td>
+        <td class="td-right"><a class="badge-pdf" href="{{ 'programacao-a/2026-2-T01/semana-10/lista-exercicios-poo.pdf' | relative_url }}">📄 PDF</a></td>
+      </tr>
     </tbody>
   </table>
 </div>
