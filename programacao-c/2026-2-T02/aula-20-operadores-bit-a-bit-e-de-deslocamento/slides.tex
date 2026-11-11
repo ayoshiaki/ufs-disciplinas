@@ -1,0 +1,1531 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning,
+  matrix, fit, backgrounds, decorations.pathreplacing, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{codC}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7.5}{8.6}\selectfont\color{black},
+}
+\lstdefinestyle{codCs}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7}{7.9}\selectfont\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+
+% Til e circunflexo em codigo no meio do texto
+\newcommand{\til}{\textasciitilde}
+\newcommand{\cir}{\textasciicircum}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  bit0/.style={rectangle, draw=UFSBlue, fill=white, minimum width=0.42cm,
+    minimum height=0.42cm, inner sep=0pt, font=\scriptsize\ttfamily, text=UFSGray},
+  bit1/.style={bit0, fill=UFSBlue!15, text=black},
+  bitr/.style={bit0, draw=UFSRed, fill=UFSRed!12, text=black},
+  bitv/.style={bit0, draw=UFSGray!50, fill=black!4, text=UFSGray!70},
+  item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+    minimum width=10.4cm, minimum height=0.5cm, font=\small},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={-{Stealth[length=1.8mm]}, thick, UFSBlue},
+  setar/.style={-{Stealth[length=1.8mm]}, thick, UFSRed},
+  setag/.style={-{Stealth[length=1.8mm]}, thick, UFSGray},
+}
+
+% Uma linha de bits, do mais significativo para o menos:
+% \bits{x}{y}{1,1,0,...}
+\newcommand{\bits}[3]{%
+  \foreach \b [count=\k from 0] in {#3} {
+    \node[bit\b] at (#1+0.42*\k, #2) {\b};
+  }
+}
+% A mesma linha, toda destacada em vermelho
+\newcommand{\bitsr}[3]{%
+  \foreach \b [count=\k from 0] in {#3} {
+    \node[bitr] at (#1+0.42*\k, #2) {\b};
+  }
+}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% --- Metadados ---
+\title{Operadores bit-a-bit e de deslocamento}
+\subtitle{Nove sins e nãos num único número}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[item] (t1) at (0, 0)    {Um inteiro é uma fileira de bits: binário, octal e hexadecimal};
+    \node[item] (t2) at (0,-0.64) {Os operadores \texttt{\&}, \texttt{|}, \texttt{\cir} e \texttt{\til}: um bit de cada vez};
+    \node[item] (t3) at (0,-1.28) {Máscaras: ligar, desligar, inverter e testar bits};
+    \node[item] (t4) at (0,-1.92) {Deslocamentos \texttt{<{}<} e \texttt{>{}>}: montar máscaras e extrair campos};
+    \node[item] (t5) at (0,-2.56) {A ordem dos bytes na memória: \emph{little-endian} e \emph{big-endian}};
+    \node[item] (t6) at (0,-3.20) {Um conjunto inteiro dentro de um \texttt{unsigned}};
+    \node[item] (t7) at (0,-3.84) {Exercícios};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+    \draw[seta] (t5) -- (t6);
+    \draw[seta] (t6) -- (t7);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{A pergunta de hoje}
+% ==================================================================
+
+\begin{frame}[fragile]{O problema: o que quer dizer 754?}
+  \vspace{-0.4em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Até aqui}\\[0.3em]
+      \small
+      Um \texttt{int} foi sempre um número: uma nota, um tamanho, um índice.
+      Vários sim/não pediam um campo para cada um, ou um
+      vetor de \texttt{char}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que vamos descobrir}\\[0.3em]
+      \small
+      Os 32 bits de um \texttt{unsigned} podem ser 32 sim/não independentes.
+      C tem operadores para ler e mudar um bit de cada vez.
+    \end{column}
+  \end{columns}
+  \smallskip
+\begin{lstlisting}[style=shellStyle]
+$ chmod 754 relatorio.sh
+$ ls -l relatorio.sh
+-rwxr-xr-- 1 ana alunos 812 nov 16 14:02 relatorio.sh
+\end{lstlisting}
+  \begin{block}{A pergunta de hoje}
+    Como o número 754 guarda nove permissões --- ler, escrever, executar
+    para o dono, o grupo e os outros? E como mudar só uma delas?
+  \end{block}
+  \fonte{Kerrisk (2010), §15.4~\cite{kerrisk2010linux}}
+\end{frame}
+
+\begin{frame}{Permissões em UNIX: quem pode fazer o quê}
+  \begin{columns}[T]
+    \begin{column}{0.4\textwidth}
+      \begin{block}{Três classes de usuários}
+        \small Todo arquivo tem um dono e um grupo.
+        As permissões valem separadamente para:
+        \begin{itemize}
+          \item \texttt{u}: o dono
+          \item \texttt{g}: os membros do grupo
+          \item \texttt{o}: todos os outros
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      \begin{block}{Três permissões por classe}
+        \scriptsize
+        \begin{tabular}{@{}lll@{}}
+          & em arquivo & em diretório\\
+          \midrule
+          \texttt{r} & ler o conteúdo         & listar os nomes\\
+          \texttt{w} & alterar o conteúdo     & criar e apagar entradas\\
+          \texttt{x} & executar como programa & entrar com \texttt{cd}\\
+        \end{tabular}
+      \end{block}
+      \small Três classes $\times$ três permissões = \textbf{nove sim/não}.
+      O kernel consulta só a primeira classe que casa: dono, senão grupo,
+      senão outros.
+    \end{column}
+  \end{columns}
+  \fonte{Kerrisk (2010), §15.4.1--15.4.3~\cite{kerrisk2010linux}}
+\end{frame}
+
+\begin{frame}{Lendo \texttt{rwxr-xr-{}-} como 754}
+  \begin{center}
+  \begin{tikzpicture}[scale=1.3, transform shape]
+    \foreach \c [count=\k from 0] in {r,w,x,r,-,x,r,-,-} {
+      \node[leg] at (0.42*\k, 0.42) {\texttt{\c}};
+    }
+    \bits{0}{0}{1,1,1,1,0,1,1,0,0}
+    \foreach \v [count=\k from 0] in {4,2,1,4,2,1,4,2,1} {
+      \node[leg] at (0.42*\k, -0.42) {\v};
+    }
+    \foreach \a/\t/\d in {0/dono/7, 1.26/grupo/5, 2.52/outros/4} {
+      \draw[decorate, decoration={brace, amplitude=4pt, mirror}, thick, UFSBlue]
+        (\a-0.19,-0.65) -- (\a+1.03,-0.65)
+        node[midway, below=4pt, font=\scriptsize, align=center]
+        {\t\\ \textbf{\d}};
+    }
+    \node[leg, anchor=west, align=left] at (4.3,0)
+      {cada permissão é um bit:\\
+       \texttt{r = 4}, \texttt{w = 2}, \texttt{x = 1}};
+  \end{tikzpicture}
+  \end{center}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Cada classe ocupa \textbf{três bits}, e cada trio de bits é um
+      dígito de 0 a 7: $4{+}2{+}1 = 7$, $4{+}1 = 5$, $4$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small \texttt{chmod u+x} liga um bit; \texttt{chmod go-w} desliga dois.
+      Ligar e desligar bits sem tocar nos vizinhos é o assunto de hoje.
+    \end{column}
+  \end{columns}
+  \fonte{Kerrisk (2010), §15.4~\cite{kerrisk2010linux}}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{permissoes.c} (1/2)}
+  \vspace{-0.8em}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+\begin{lstlisting}[style=codCs]
+#include <stdio.h>
+#include <stdlib.h>
+/* rwx do dono, do grupo, dos outros */
+#define R 4u
+#define W 2u
+#define X 1u
+
+/* imprime os nove bits: rwxr-xr-- */
+void mostra(unsigned modo)
+{
+    const char *letras = "rwx";
+    for (int i = 8; i >= 0; i--)
+        putchar(modo & (1u << i)
+                ? letras[(8 - i) % 3]
+                : '-');
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=codCs]
+/* aplica "u+x", "go-w", "a+r"... */
+unsigned aplica(unsigned modo, const char *ordem)
+{
+    unsigned quem = 0, bits = 0, mascara = 0;
+    const char *p = ordem;
+    for (; *p == 'u' || *p == 'g' || *p == 'o'
+           || *p == 'a'; p++)
+        quem |= *p == 'u' ? 4u : *p == 'g' ? 2u
+              : *p == 'o' ? 1u : 7u;
+    char op = *p++;
+    for (; *p != '\0'; p++)
+        bits |= *p == 'r' ? R : *p == 'w' ? W
+              : *p == 'x' ? X : 0u;
+    if (quem & 4u) mascara |= bits << 6;
+    if (quem & 2u) mascara |= bits << 3;
+    if (quem & 1u) mascara |= bits;
+    if (op == '+') modo |= mascara;
+    else if (op == '-') modo &= ~mascara;
+    return modo;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{permissoes.c} (2/2): o \texttt{main}}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+\begin{lstlisting}[style=codC]
+void mostra_linha(unsigned modo)
+{
+    printf("%03o ", modo);
+    mostra(modo);
+    putchar('\n');
+}
+\end{lstlisting}
+      \small
+      \texttt{\%o} imprime em \textbf{octal}, base 8;
+      \texttt{\%03o} completa com zeros até três dígitos.
+      \texttt{0644} começa com zero: em C, isso também é octal.
+
+      \medskip
+      O programa completo, em \texttt{codigo/}, aceita o modo e as ordens
+      pela linha de comando: \texttt{./permissoes 754 u-x go+w}.
+    \end{column}
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=codC]
+int main(void)
+{
+    unsigned modo = 0644;
+    const char *ordens[] = {"u+x", "go+w",
+                            "a-r", "o+rwx"};
+    printf("%-6s", "");
+    mostra_linha(modo);
+    for (int i = 0; i < 4; i++) {
+        modo = aplica(modo, ordens[i]);
+        printf("%-6s", ordens[i]);
+        mostra_linha(modo);
+    }
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item A primeira linha mostra o modo inicial \texttt{0644}. Que letras
+        \texttt{mostra} imprime para ele?
+      \item Depois de \texttt{u+x}, o que muda --- o número e as letras?
+      \item \texttt{go+w} dá escrita ao grupo e aos outros. Qual é o novo
+        número?
+      \item \texttt{a-r} tira a leitura de todos. E \texttt{o+rwx}?
+      \item Repare em \texttt{modo |= mascara} e \texttt{modo \&= \til mascara}.
+        O que cada um faz com os bits que \emph{não} estão na máscara?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra permissoes.c -o permissoes
+$ ./permissoes
+      644 rw-r--r--
+u+x   744 rwxr--r--
+go+w  766 rwxrw-rw-
+a-r   322 -wx-w--w-
+o+rwx 327 -wx-w-rwx
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{O que o programa guarda}
+        \small Um único \texttt{unsigned}. Cada dígito octal é uma classe:
+        6 = \texttt{rw-}, 4 = \texttt{r-{}-}, 7 = \texttt{rwx}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Cada ordem mexe só nos bits que pediu: \texttt{u+x} fez o 6
+      virar 7 sem tocar no grupo e nos outros; \texttt{a-r} subtraiu 4 de cada
+      dígito que o tinha. Nenhuma conta de somar foi feita.
+    \end{column}
+  \end{columns}
+  \fonte{Kerrisk (2010), §15.4~\cite{kerrisk2010linux}}
+\end{frame}
+
+% ==================================================================
+\section{Um inteiro é uma fileira de bits}
+% ==================================================================
+
+\begin{frame}{Definição: as bases 2, 8 e 16}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Posição vale potência da base}
+        \small Na base 2, o dígito na posição $i$ (contando da direita, a
+        partir de 0) vale $2^i$. Um \texttt{unsigned} de 32 bits guarda de
+        $0$ a $2^{32}-1$.
+      \end{block}
+      \small
+      \begin{tabular}{@{}lll@{}}
+        \toprule
+        base & cada dígito & em C \\
+        \midrule
+        2  & 1 bit  & --- \\
+        8  & 3 bits & \texttt{0754} \\
+        16 & 4 bits & \texttt{0x1EC} \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \bits{0}{0}{1,1,1,1,0,1,1,0,0}
+        \foreach \i [count=\k from 0] in {8,...,0}
+          \node[leg] at (0.42*\k,-0.4) {\i};
+        \foreach \d/\x in {7/0.42, 5/1.68, 4/2.94}
+          \draw[UFSBlue, thick, decorate, decoration={brace, amplitude=3pt}]
+            (\x-0.4,0.3) -- (\x+0.4,0.3) node[midway, above=3pt, font=\small\ttfamily, text=UFSBlue] {\d};
+        \node[leg, anchor=west] at (-0.2,-0.9) {octal: \texttt{0754}, três bits por dígito};
+        \node[leg, anchor=west] at (-0.2,-1.3) {decimal: $256+128+64+32+8+4 = 492$};
+        \node[leg, anchor=west] at (-0.2,-1.7) {hexa: \texttt{1 1110 1100} = \texttt{0x1EC}};
+      \end{tikzpicture}
+      \end{center}
+      \small As permissões vêm em grupos de três: por isso o \texttt{chmod}
+      usa octal.
+    \end{column}
+  \end{columns}
+  \fonte{Bryant e O'Hallaron (2015), §2.1.1--2.1.3~\cite{bryant2015computer};
+    ISO/IEC 9899:2018, §6.4.4.1~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}[fragile]{Hexadecimal: quatro bits por dígito}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \foreach \b [count=\k from 0] in {0,0,0} {
+          \node[bitv] at (0.42*\k, 0) {\b};
+        }
+        \bits{1.26}{0}{1,1,1,1,0,1,1,0,0}
+        \foreach \w [count=\k from 0] in {8,4,2,1,8,4,2,1,8,4,2,1}
+          \node[leg] at (0.42*\k,-0.4) {\w};
+        \foreach \d/\v/\x in {1/1/0.63, E/14/2.31, C/12/3.99}
+          \draw[UFSBlue, thick, decorate, decoration={brace, amplitude=3pt}]
+            (\x-0.8,0.3) -- (\x+0.8,0.3)
+            node[midway, above=3pt, font=\small\ttfamily, text=UFSBlue] {\d\ \textrm{\scriptsize(\v)}};
+        \draw[UFSGray, dashed] (1.47,-0.3) -- (1.47,0.3);
+        \draw[UFSGray, dashed] (3.15,-0.3) -- (3.15,0.3);
+        \node[leg, anchor=west] at (-0.2,-0.85)
+          {1. agrupe de 4 em 4, \emph{a partir da direita}};
+        \node[leg, anchor=west] at (-0.2,-1.2)
+          {2. complete o grupo da esquerda com zeros};
+        \node[leg, anchor=west] at (-0.2,-1.55)
+          {3. cada grupo vale de 0 a 15: troque pelo dígito};
+        \node[leg, anchor=west] at (-0.2,-1.95)
+          {confere: $1\cdot 16^2 + 14\cdot 16 + 12 = 256+224+12 = 492$};
+      \end{tikzpicture}
+      \end{center}
+      \small Um byte são dois dígitos hexa; um \texttt{unsigned} de 32 bits,
+      oito: \texttt{0x000001EC}.
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \centering\scriptsize
+      \begin{tabular}{@{}ccc@{\hspace{1.2em}}ccc@{}}
+        \toprule
+        hexa & bits & dec & hexa & bits & dec\\
+        \midrule
+        \texttt{0} & \texttt{0000} & \texttt{0} & \texttt{8} & \texttt{1000} & \texttt{8}\\
+        \texttt{1} & \texttt{0001} & \texttt{1} & \texttt{9} & \texttt{1001} & \texttt{9}\\
+        \texttt{2} & \texttt{0010} & \texttt{2} & \texttt{A} & \texttt{1010} & \texttt{10}\\
+        \texttt{3} & \texttt{0011} & \texttt{3} & \texttt{B} & \texttt{1011} & \texttt{11}\\
+        \texttt{4} & \texttt{0100} & \texttt{4} & \texttt{C} & \texttt{1100} & \texttt{12}\\
+        \texttt{5} & \texttt{0101} & \texttt{5} & \texttt{D} & \texttt{1101} & \texttt{13}\\
+        \texttt{6} & \texttt{0110} & \texttt{6} & \texttt{E} & \texttt{1110} & \texttt{14}\\
+        \texttt{7} & \texttt{0111} & \texttt{7} & \texttt{F} & \texttt{1111} & \texttt{15}\\
+        \bottomrule
+      \end{tabular}
+\begin{lstlisting}[style=tinyC]
+/* 0x1EC e 0x1ec: mesmo valor */
+unsigned m = 0x1EC;
+printf("%x %#X\n", m, m);
+/* saida: 1ec 0X1EC */
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{Bryant e O'Hallaron (2015), §2.1.1~\cite{bryant2015computer};
+    ISO/IEC 9899:2018, §6.4.4.1 e §7.21.6.1~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}[fragile]{E se esquecer o zero?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+/* decimal.c */
+int main(void)
+{
+    unsigned modo = 754; /* rwxr-xr-- ? */
+    printf("%o ", modo);
+    mostra(modo);
+    putchar('\n');
+    return 0;
+}
+\end{lstlisting}
+      \small A mesma \texttt{mostra} de \texttt{permissoes.c}. Só falta um
+      caractere.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item O \texttt{gcc -Wall} reclama de alguma coisa?
+          \item O que o \texttt{printf("\%o")} imprime?
+          \item E as nove letras?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra decimal.c -o decimal
+$ ./decimal
+1362 -wxrw--w-
+\end{lstlisting}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[leg, anchor=east] at (-0.4,0) {$754 = 512+128+64+32+16+2$};
+    \bitsr{0}{0}{1}
+    \bits{0.42}{0}{0,1,1,1,1,0,0,1,0}
+    \foreach \i [count=\k from 0] in {9,...,0}
+      \node[leg] at (0.42*\k,-0.4) {\i};
+    \draw[UFSRed, thick, decorate, decoration={brace, amplitude=3pt, mirror}]
+      (-0.2,-0.6) -- (0.2,-0.6) node[midway, below=3pt, leg, text=UFSRed] {fora};
+    \draw[UFSBlue, thick, decorate, decoration={brace, amplitude=3pt, mirror}]
+      (0.22,-0.6) -- (4.0,-0.6) node[midway, below=3pt, leg, text=UFSBlue] {\texttt{-wx rw- -w-}};
+  \end{tikzpicture}
+  \end{center}
+  \small Nenhum aviso: \texttt{754} é um número decimal perfeitamente válido.
+  Em binário ele ocupa dez bits; em octal, \texttt{1362}. O bit 9 nem é
+  olhado, e os nove de baixo dão permissões que ninguém pediu. Com bits,
+  escreva as constantes na base que mostra os bits: octal (\texttt{0754})
+  ou hexadecimal (\texttt{0x1EC}).
+  \fonte{ISO/IEC 9899:2018, §6.4.4.1~\cite{iso2018c17};
+    Kernighan e Ritchie (1988), §2.3~\cite{kernighan1988c}}
+\end{frame}
+
+\begin{frame}{Por que \texttt{unsigned}?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Em \texttt{int}, o bit 31 é o sinal}
+        \small Num \texttt{int} de 32 bits, o bit mais alto vale $-2^{31}$
+        (complemento de dois). Ligar o bit 31 faz o número ficar negativo;
+        deslocar um negativo para a direita depende do compilador.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Em \texttt{unsigned}, todo bit é só um bit}
+        \small Os 32 bits valem $2^0$ a $2^{31}$, sem sinal, e as contas
+        são módulo $2^{32}$. Os resultados de \texttt{\&}, \texttt{|},
+        \texttt{\cir}, \texttt{\til}, \texttt{<{}<} e \texttt{>{}>} são os mesmos
+        em qualquer compilador.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  \small Regra prática: quando o número é uma coleção de bits, e não uma
+  quantidade, use \texttt{unsigned} --- e escreva as constantes com
+  \texttt{u}: \texttt{1u}, \texttt{4u}, \texttt{0x80000000u}.
+  \fonte{Bryant e O'Hallaron (2015), §2.2~\cite{bryant2015computer};
+    King (2008), §20.1~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: um inteiro é uma fileira de bits}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item o bit $i$ vale $2^i$; um \texttt{unsigned} de 32 bits são 32
+        sim/não;
+      \item cada dígito octal são 3 bits, cada dígito hexa são 4: por isso
+        \texttt{chmod} fala octal;
+      \item em C, \texttt{0754} é octal, \texttt{0x1EC} é hexa e \texttt{754}
+        é decimal --- e o compilador não avisa;
+      \item para mexer em bits, use \texttt{unsigned}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Os operadores \texttt{\&}, \texttt{|}, \texttt{\cir} e \texttt{\til}}
+% ==================================================================
+
+\begin{frame}{Definição: operadores bit a bit}
+  \begin{columns}[c]
+    \begin{column}{0.36\textwidth}
+      \begin{block}{Um bit de cada vez}
+        \small Cada bit do resultado depende só dos bits na
+        \textbf{mesma posição} dos operandos.
+      \end{block}
+      \small
+      \begin{tabular}{@{}cc|cccc@{}}
+        $a$ & $b$ & \texttt{a\&b} & \texttt{a|b} & \texttt{a\cir b} & \texttt{\til a}\\
+        \midrule
+        0 & 0 & 0 & 0 & 0 & 1\\
+        0 & 1 & 0 & 1 & 1 & 1\\
+        1 & 0 & 0 & 1 & 1 & 0\\
+        1 & 1 & 1 & 1 & 0 & 0
+      \end{tabular}
+
+      \medskip
+      e, ou, ou-exclusivo, não.
+    \end{column}
+    \begin{column}{0.6\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[leg, anchor=east] at (-0.4,0)    {\texttt{a = 0754}};
+        \bits{0}{0}{1,1,1,1,0,1,1,0,0}
+        \node[leg, anchor=east] at (-0.4,-0.5) {\texttt{m = 0070}};
+        \bits{0}{-0.5}{0,0,0,1,1,1,0,0,0}
+        \draw[UFSGray] (-0.3,-0.8) -- (3.7,-0.8);
+        \node[leg, anchor=east] at (-0.4,-1.1) {\texttt{a \& m}};
+        \bits{0}{-1.1}{0,0,0,1,0,1,0,0,0}
+        \node[leg, anchor=west] at (3.8,-1.1) {\texttt{0050}: só o grupo};
+        \node[leg, anchor=east] at (-0.4,-1.6) {\texttt{a | m}};
+        \bits{0}{-1.6}{1,1,1,1,1,1,1,0,0}
+        \node[leg, anchor=west] at (3.8,-1.6) {\texttt{0774}: grupo ligado};
+        \node[leg, anchor=east] at (-0.4,-2.1) {\texttt{a \cir{} m}};
+        \bits{0}{-2.1}{1,1,1,0,1,0,1,0,0}
+        \node[leg, anchor=west] at (3.8,-2.1) {\texttt{0724}: grupo invertido};
+        \node[leg, anchor=east] at (-0.4,-2.6) {\texttt{\til m}};
+        \bits{0}{-2.6}{1,1,1,0,0,0,1,1,1}
+        \node[leg, anchor=west] at (3.8,-2.6) {\texttt{0707}, nos 9 bits};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §2.9~\cite{kernighan1988c};
+    Bryant e O'Hallaron (2015), §2.1.7~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{\texttt{\&} não é \texttt{\&\&}}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \footnotesize
+      \begin{tabular}{@{}lcl@{}}
+        \toprule
+        expressão & valor & por quê\\
+        \midrule
+        \texttt{6 \& 1}   & 0 & \texttt{110} e \texttt{001}: nada em comum\\
+        \texttt{6 \&\& 1} & 1 & os dois são $\neq 0$\\
+        \texttt{6 | 1}    & 7 & \texttt{111}\\
+        \texttt{6 || 1}   & 1 & verdadeiro\\
+        \texttt{\til 6}   & \texttt{-7} & os 32 bits invertidos\\
+        \texttt{!6}       & 0 & não verdadeiro é falso\\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Lógicos: o número todo é sim ou não}
+        \small \texttt{\&\&}, \texttt{||} e \texttt{!} olham o número
+        inteiro e dão 0 ou 1. \texttt{\&\&} e \texttt{||} param assim que
+        sabem a resposta.
+      \end{block}
+      \begin{block}{Bit a bit: 32 contas em paralelo}
+        \small \texttt{\&}, \texttt{|}, \texttt{\cir} e \texttt{\til} dão um
+        número inteiro e sempre avaliam os dois lados.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  \small \texttt{if (modo \&\& W)} é verdadeiro para qualquer modo diferente
+  de zero --- e compila sem aviso.
+  \fonte{Kernighan e Ritchie (1988), §2.9~\cite{kernighan1988c};
+    Bryant e O'Hallaron (2015), §2.1.8~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}[fragile]{O \texttt{\til} inverte os 32 bits, não só os nove}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=codC]
+unsigned m = 0444;      /* r para todos */
+printf("%o\n", ~m);     /* 37777777333 */
+printf("%o\n", ~m & 0777);       /* 333 */
+printf("%o\n", 0766 & ~m);       /* 322 */
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \small \texttt{\til m} liga os 23 bits de cima, que estavam zerados.
+      Para ver só as permissões, corte com \texttt{\& 0777}.
+
+      \medskip
+      Em \texttt{modo \&= \til mascara} isso não atrapalha: os bits altos de
+      \texttt{modo} já eram zero, e \texttt{0 \& 1} continua 0.
+    \end{column}
+  \end{columns}
+  \medskip
+  \small O tamanho conta: \texttt{\til} é o único dos quatro que transforma
+  zeros em uns. Antes de imprimir ou comparar o resultado, pergunte quantos
+  bits importam.
+  \fonte{ISO/IEC 9899:2018, §6.5.3.3~\cite{iso2018c17};
+    King (2008), §20.1~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: \texttt{\&}, \texttt{|}, \texttt{\cir} e \texttt{\til}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item os quatro operadores trabalham posição a posição, nos 32 bits
+        ao mesmo tempo;
+      \item \texttt{\&} só deixa passar onde os dois têm 1; \texttt{|} liga
+        onde qualquer um tem 1; \texttt{\cir} marca onde são diferentes;
+      \item \texttt{\&\&}, \texttt{||} e \texttt{!} são outra coisa: olham o
+        número inteiro e devolvem 0 ou 1;
+      \item \texttt{\til} também inverte os bits que você não está usando.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Máscaras}
+% ==================================================================
+
+\begin{frame}{Definição: máscara}
+  \begin{columns}[c]
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Máscara}
+        \small Um número com 1 exatamente nos bits em que se quer mexer.
+        Combinada com o operador certo, muda esses bits e deixa os outros
+        como estavam.
+      \end{block}
+      \small
+      \begin{tabular}{@{}ll@{}}
+        \toprule
+        quero & escrevo\\
+        \midrule
+        ligar    & \texttt{x |= m}\\
+        desligar & \texttt{x \&= \til m}\\
+        inverter & \texttt{x \cir= m}\\
+        testar   & \texttt{(x \& m) != 0}\\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[leg, anchor=east] at (-0.3,0) {\texttt{0744}};
+        \bits{0}{0}{1,1,1,1,0,0,1,0,0}
+        \node[leg, anchor=east] at (-0.3,-0.5) {\texttt{m = 0022}};
+        \bits{0}{-0.5}{0,0,0,0,1,0,0,1,0}
+        \draw[UFSGray] (-0.3,-0.8) -- (3.7,-0.8);
+        \node[leg, anchor=east] at (-0.3,-1.1) {\texttt{|= m}};
+        \bits{0}{-1.1}{1,1,1,1,1,0,1,1,0}
+        \node[leg, anchor=west] at (3.8,-1.1) {\texttt{0766}};
+        \node[leg, anchor=east] at (-0.3,-1.6) {\texttt{\&= \til m}};
+        \bits{0}{-1.6}{1,1,1,1,0,0,1,0,0}
+        \node[leg, anchor=west] at (3.8,-1.6) {\texttt{0744}};
+        \node[leg, anchor=east] at (-0.3,-2.1) {\texttt{\cir= m}};
+        \bits{0}{-2.1}{1,1,1,1,1,0,1,1,0}
+        \node[leg, anchor=west] at (3.8,-2.1) {\texttt{0766}};
+        \draw[setar] (1.68,-2.9) node[below, leg, text=UFSRed] {só as colunas da máscara mudam} -- (1.68,-2.4);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §2.9~\cite{kernighan1988c};
+    Deitel e Deitel (2011), cap.~10~\cite{deitel2011como}}
+\end{frame}
+
+\begin{frame}[fragile]{Como \texttt{aplica} monta a máscara de \texttt{go+w}}
+  \begin{columns}[c]
+    \begin{column}{0.4\textwidth}
+\begin{lstlisting}[style=codC]
+/* quem = 2|1, bits = W = 2 */
+if (quem & 4u) mascara |= bits << 6;
+if (quem & 2u) mascara |= bits << 3;
+if (quem & 1u) mascara |= bits;
+modo |= mascara;
+\end{lstlisting}
+      \small \texttt{quem} também é uma coleção de bits: 4 é o dono, 2 o
+      grupo, 1 os outros, e \texttt{a} liga os três (7).
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[leg, anchor=east] at (-0.3,0) {\texttt{bits}};
+        \bits{0}{0}{0,0,0,0,0,0,0,1,0}
+        \node[leg, anchor=east] at (-0.3,-0.5) {\texttt{bits <{}< 3}};
+        \bits{0}{-0.5}{0,0,0,0,1,0,0,0,0}
+        \node[leg, anchor=west] at (3.8,-0.5) {grupo};
+        \node[leg, anchor=east] at (-0.3,-1.0) {\texttt{bits}};
+        \bits{0}{-1.0}{0,0,0,0,0,0,0,1,0}
+        \node[leg, anchor=west] at (3.8,-1.0) {outros};
+        \draw[UFSGray] (-0.3,-1.3) -- (3.7,-1.3);
+        \node[leg, anchor=east] at (-0.3,-1.6) {\texttt{mascara}};
+        \bits{0}{-1.6}{0,0,0,0,1,0,0,1,0}
+        \node[leg, anchor=west] at (3.8,-1.6) {\texttt{0022}};
+        \node[leg, anchor=east] at (-0.3,-2.3) {\texttt{0744 | 0022}};
+        \bits{0}{-2.3}{1,1,1,1,1,0,1,1,0}
+        \node[leg, anchor=west] at (3.8,-2.3) {\texttt{0766}};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  \fonte{Kerrisk (2010), §15.4~\cite{kerrisk2010linux}; código da aula}
+\end{frame}
+
+\begin{frame}[fragile]{E se testar sem parênteses?}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+\begin{lstlisting}[style=codC]
+/* precedencia.c: 1 se a classe (6 = dono,
+   3 = grupo, 0 = outros) NAO pode escrever */
+int nao_escreve(unsigned modo, int classe)
+{
+    if (modo & W << classe == 0)
+        return 1;
+    return 0;
+}
+/* main: para 0644, 0664 e 0444, imprime
+   se o dono e o grupo escrevem */
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.41\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item Em \texttt{0644}, o dono escreve? E o grupo?
+          \item Em \texttt{0444}, alguém escreve?
+          \item O \texttt{gcc -Wall} diz alguma coisa?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra precedencia.c -o precedencia
+precedencia.c:9:28: warning: suggest parentheses around comparison in operand
+  of '&' [-Wparentheses]
+    9 |     if (modo & W << classe == 0)
+$ ./precedencia
+644: dono escreve, grupo escreve
+664: dono escreve, grupo escreve
+444: dono escreve, grupo escreve
+\end{lstlisting}
+  \small Todo mundo escreve --- até em \texttt{0444}, que é só leitura.
+  O \texttt{gcc} avisou, mas é só um aviso: o executável foi gerado.
+\end{frame}
+
+\begin{frame}[fragile]{A resposta: \texttt{\&} perde para \texttt{==}}
+  \begin{columns}[c]
+    \begin{column}{0.43\textwidth}
+      \small
+      \begin{tabular}{@{}ll@{}}
+        \toprule
+        \multicolumn{2}{@{}l}{da mais forte para a mais fraca}\\
+        \midrule
+        \texttt{\til}\ \ \texttt{!}         & unários\\
+        \texttt{*}\ \ \texttt{/}\ \ \texttt{\%} & \\
+        \texttt{+}\ \ \texttt{-}            & \\
+        \texttt{<{}<}\ \ \texttt{>{}>}          & deslocamentos\\
+        \texttt{<}\ \ \texttt{<=}\ \ \texttt{>}\ \ \texttt{>=} & \\
+        \texttt{==}\ \ \texttt{!=}          & \\
+        \texttt{\&}, depois \texttt{\cir}, depois \texttt{|} & \textcolor{UFSRed}{bit a bit}\\
+        \texttt{\&\&}, depois \texttt{||}   & lógicos\\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.53\textwidth}
+      \small A expressão foi lida assim:
+\begin{lstlisting}[style=codC]
+modo & ((W << classe) == 0)
+\end{lstlisting}
+      \texttt{W <{}< classe} nunca é zero, então a comparação dá 0, e
+      \texttt{modo \& 0} é sempre 0: a função nunca devolve 1.
+
+      \medskip
+      A correção são parênteses em volta do \texttt{\&}:
+\begin{lstlisting}[style=codC]
+if ((modo & W << classe) == 0)
+\end{lstlisting}
+      Kernighan e Ritchie avisam: como \texttt{\&}, \texttt{\cir} e
+      \texttt{|} ficam abaixo de \texttt{==}, todo teste de bits precisa
+      de parênteses.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §2.9 e §2.12, tabela 2-1~\cite{kernighan1988c}}
+\end{frame}
+
+\begin{frame}[fragile]{Flags que você vai usar na próxima aula}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+#include <fcntl.h>
+/* cria se nao existe, so escrita,
+   apaga o conteudo antigo */
+int fd = open("saida.txt",
+              O_WRONLY | O_CREAT | O_TRUNC,
+              0644);
+\end{lstlisting}
+\begin{lstlisting}[style=codC]
+enum {
+    NEGRITO    = 1u << 0,
+    ITALICO    = 1u << 1,
+    SUBLINHADO = 1u << 2,
+};
+unsigned estilo = NEGRITO | SUBLINHADO;
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small Cada opção é uma potência de 2 --- um bit só. Juntar opções é
+      \texttt{|}; perguntar por uma é \texttt{\&}.
+
+      \medskip
+      O \texttt{open} recebe as opções num \texttt{int} e as permissões do
+      arquivo novo em outro: \texttt{0644}, em octal, como no
+      \texttt{chmod}.
+
+      \medskip
+      Com \texttt{enum} (aula de enumerações), as constantes ganham nome e
+      tipo.
+    \end{column}
+  \end{columns}
+  \fonte{Kerrisk (2010), §4.3, \texttt{open()}~\cite{kerrisk2010linux};
+    King (2008), §20.1~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: máscaras}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item máscara: 1 nos bits em que se quer mexer, 0 nos outros;
+      \item ligar é \texttt{|=}, desligar é \texttt{\&= \til}, inverter é
+        \texttt{\cir=}, testar é \texttt{\&};
+      \item \texttt{\&}, \texttt{\cir} e \texttt{|} têm precedência
+        \emph{menor} que \texttt{==}: ponha parênteses sempre;
+      \item flags são potências de 2 combinadas com \texttt{|}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Deslocamentos}
+% ==================================================================
+
+\begin{frame}{Definição: \texttt{x <{}< k} e \texttt{x >{}> k}}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Deslocamento}
+        \small \texttt{x <{}< k} empurra os bits de \texttt{x} $k$ casas para a
+        esquerda; entram zeros à direita, e os que passam da borda se perdem.
+        \texttt{x >{}> k} empurra para a direita.
+      \end{block}
+      \small Em \texttt{unsigned}, sem estouro,
+      \texttt{x <{}< k} $= x \cdot 2^k$ e \texttt{x >{}> k} $= \lfloor x / 2^k
+      \rfloor$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[leg, anchor=east] at (-0.3,0) {\texttt{x = 22}};
+        \bits{0}{0}{0,0,0,1,0,1,1,0}
+        \node[leg, anchor=east] at (-0.3,-0.7) {\texttt{x <{}< 1}};
+        \bits{0}{-0.7}{0,0,1,0,1,1,0}
+        \node[bitr] at (2.94,-0.7) {0};
+        \node[leg, anchor=west] at (3.3,-0.7) {44};
+        \node[leg, anchor=east] at (-0.3,-1.4) {\texttt{x >{}> 2}};
+        \node[bitr] at (0,-1.4) {0};
+        \node[bitr] at (0.42,-1.4) {0};
+        \bits{0.84}{-1.4}{0,0,0,1,0,1}
+        \node[leg, anchor=west] at (3.3,-1.4) {5};
+        \node[leg] at (1.47,-2.0) {em vermelho, os zeros que entraram};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  \medskip
+  \small Com \texttt{<{}<} se \textbf{fabrica} uma máscara: \texttt{1u <{}< k} tem
+  um único 1, no bit $k$. Com \texttt{>{}>} se \textbf{traz} um campo para a
+  direita, onde é fácil olhar.
+  \fonte{Kernighan e Ritchie (1988), §2.9~\cite{kernighan1988c};
+    Bryant e O'Hallaron (2015), §2.1.9~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}[fragile]{Extraindo um campo: as permissões do grupo}
+  \begin{columns}[c]
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[style=codC]
+unsigned modo = 0754;
+unsigned grupo = (modo >> 3) & 7u;  /* 5 */
+unsigned bit_i = (modo >> i) & 1u;  /* 0 ou 1 */
+\end{lstlisting}
+      \small Primeiro desloca, para o campo chegar ao bit 0; depois corta
+      com uma máscara da largura do campo: \texttt{7u} são três bits.
+
+      \medskip
+      Na direção contrária, \emph{colocar} um campo é
+      \texttt{(valor \& 7u) <{}< 3}.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[leg, anchor=east] at (-0.3,0) {\texttt{modo}};
+        \bits{0}{0}{1,1,1,1,0,1,1,0,0}
+        \draw[UFSBlue, thick] (1.05,-0.25) rectangle (2.31,0.25);
+        \node[leg, anchor=east] at (-0.3,-0.7) {\texttt{>{}> 3}};
+        \node[bitv] at (0,-0.7) {0};
+        \node[bitv] at (0.42,-0.7) {0};
+        \node[bitv] at (0.84,-0.7) {0};
+        \bits{1.26}{-0.7}{1,1,1,1,0,1}
+        \node[leg, anchor=east] at (-0.3,-1.4) {\texttt{\& 7u}};
+        \bits{0}{-1.4}{0,0,0,0,0,0,1,0,1}
+        \draw[UFSBlue, thick] (2.31,-1.65) rectangle (3.57,-1.15);
+        \node[leg, anchor=west] at (3.7,-1.4) {5 = \texttt{r-x}};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  \fonte{Bryant e O'Hallaron (2015), §2.1.9~\cite{bryant2015computer};
+    King (2008), §20.1~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{E se o bit for o 31?}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=codC]
+/* mascaras.c */
+int main(void)
+{
+    for (int k = 28; k <= 32; k++) {
+        int m = 1 << k;
+        printf("k = %2d: %11d = 0x%08x\n",
+               k, m, (unsigned) m);
+    }
+    return 0;
+}
+\end{lstlisting}
+      \small A máscara do bit $k$, para os bits mais altos de um
+      \texttt{int} de 32 bits --- e um além.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item Para $k = 28$, \ldots, $30$, o que sai em decimal e em hexa?
+          \item E para $k = 31$? O número é positivo?
+          \item O bit 32 não existe. O que você espera de \texttt{1 <{}< 32}?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra mascaras.c -o mascaras && ./mascaras
+k = 28:   268435456 = 0x10000000
+k = 29:   536870912 = 0x20000000
+k = 30:  1073741824 = 0x40000000
+k = 31: -2147483648 = 0x80000000
+k = 32:           1 = 0x00000001
+$ gcc -g -fsanitize=undefined mascaras.c -o mascaras-ubsan && ./mascaras-ubsan
+mascaras.c:7:19: runtime error: left shift of 1 by 31 places cannot be
+  represented in type 'int'
+\end{lstlisting}
+  \small Sem aviso na compilação. Em $k = 31$, o 1 caiu no bit de sinal; em
+  $k = 32$, voltou para o bit 0. O \emph{sanitizer} de comportamento
+  indefinido (\texttt{-fsanitize=undefined}), primo do
+  \texttt{-fsanitize=address}, aponta a linha.
+\end{frame}
+
+\begin{frame}[fragile]{A resposta: dois comportamentos indefinidos}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{\texttt{1 <{}< 31} em \texttt{int}}
+        \small $2^{31}$ não cabe num \texttt{int}: deslocar um 1 para dentro
+        do bit de sinal é indefinido. A correção é \texttt{1u}, que é
+        \texttt{unsigned}.
+      \end{block}
+      \begin{block}{\texttt{x <{}< 32} num tipo de 32 bits}
+        \small Deslocar por $k \geq$ largura (ou $k < 0$) é indefinido, mesmo
+        em \texttt{unsigned}. O processador costuma usar $k \bmod 32$ --- daí
+        o 1 de volta ---, mas nada garante.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Trocando para \texttt{unsigned m = 1u <{}< k;}, o sanitizer muda
+      de queixa:
+\begin{lstlisting}[style=shellStyle]
+mascaras.c:7:25: runtime error: shift
+  exponent 32 is too large for 32-bit
+  type 'unsigned int'
+\end{lstlisting}
+      \begin{block}{Regras}
+        \small
+        \begin{itemize}
+          \item desloque \texttt{unsigned}: \texttt{1u <{}< k};
+          \item garanta $0 \leq k < 32$;
+          \item \texttt{>{}>} de um negativo depende do compilador.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §6.5.7~\cite{iso2018c17};
+    Bryant e O'Hallaron (2015), §2.1.9~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{Recapitulando: deslocamentos}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{<{}<} multiplica por $2^k$ e fabrica máscaras:
+        \texttt{1u <{}< k};
+      \item \texttt{>{}>} divide por $2^k$ e traz campos para baixo:
+        \texttt{(x >{}> s) \& m};
+      \item \texttt{1 <{}< 31} em \texttt{int} e qualquer deslocamento por
+        $k \geq 32$ são indefinidos;
+      \item \texttt{-fsanitize=undefined} encontra esses casos na execução.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{A ordem dos bytes na memória}
+% ==================================================================
+
+\begin{frame}{Definição: \emph{little-endian} e \emph{big-endian}}
+  \begin{columns}[c]
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Ordem dos bytes (\emph{endianness})}
+        \small Um \texttt{unsigned} de 32 bits ocupa 4 bytes, em 4 endereços
+        seguidos. \textbf{Little-endian}: o byte menos significativo fica
+        no menor endereço. \textbf{Big-endian}: o mais significativo fica
+        no menor endereço.
+      \end{block}
+      \small x86 e ARM (no modo usual) são little-endian; os protocolos de
+      rede usam big-endian. Os nomes vêm das \emph{Viagens de Gulliver}:
+      a guerra entre quem quebra o ovo pela ponta menor e pela maior.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[
+          byte/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10,
+            minimum width=1.0cm, minimum height=0.5cm, font=\small\ttfamily},
+          byter/.style={byte, draw=UFSRed, fill=UFSRed!12}]
+        \node[leg, anchor=west] at (-0.5,0.8) {\texttt{unsigned x = 0x01020304;}};
+        \foreach \e [count=\k from 0] in {p, p+1, p+2, p+3}
+          \node[leg] at (1.0*\k,0.25) {\texttt{\e}};
+        \node[leg, anchor=west] at (-0.5,-0.2) {little-endian};
+        \node[byter] at (0,-0.65) {04};
+        \foreach \b [count=\k from 1] in {03, 02, 01}
+          \node[byte] at (1.0*\k,-0.65) {\b};
+        \node[leg, anchor=west] at (-0.5,-1.2) {big-endian};
+        \foreach \b [count=\k from 0] in {01, 02, 03}
+          \node[byte] at (1.0*\k,-1.65) {\b};
+        \node[byter] at (3.0,-1.65) {04};
+        \draw[setag] (-0.5,-2.25) -- node[below, leg] {endereços crescentes} (3.5,-2.25);
+        \node[leg, text=UFSRed] at (1.5,-2.9) {em vermelho, o byte menos significativo};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  \fonte{Bryant e O'Hallaron (2015), §2.1.3~\cite{bryant2015computer};
+    Cohen (1981)~\cite{cohen1981holy}}
+\end{frame}
+
+\begin{frame}[fragile]{E se olhar os bytes um a um?}
+  \begin{columns}[c]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=codC]
+/* bytes.c */
+int main(void)
+{
+    unsigned x = 0x01020304;
+    unsigned char *p = (unsigned char *) &x;
+    for (int i = 0; i < 4; i++)
+        printf("p[%d] = %02x\n", i, p[i]);
+    printf("(x >> 24) & 0xFF = %02x\n",
+           (x >> 24) & 0xFFu);
+    return 0;
+}
+\end{lstlisting}
+      \small \texttt{p} aponta para o primeiro byte de \texttt{x}; \texttt{p[i]}
+      é o byte no endereço \texttt{p + i}.
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{block}{Pense antes de passar o slide}
+        \small
+        \begin{enumerate}
+          \item \texttt{p[0]} é \texttt{01} ou \texttt{04}?
+          \item E \texttt{(x >{}> 24) \& 0xFF}?
+          \item Num processador big-endian, qual das duas respostas muda?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra bytes.c -o bytes && ./bytes
+p[0] = 04
+p[1] = 03
+p[2] = 02
+p[3] = 01
+(x >> 24) & 0xFF = 01
+\end{lstlisting}
+  \small A memória guarda os bytes ``ao contrário'': este computador (ARM,
+  como os PCs x86) é little-endian. Num big-endian,
+  \texttt{p[0]} seria \texttt{01}. Já \texttt{(x >{}> 24) \& 0xFF} dá
+  \texttt{01} em qualquer máquina: \texttt{>{}>} vale $\lfloor x / 2^{24}
+  \rfloor$, uma conta sobre o \emph{valor}, que não sabe como os bytes estão
+  arrumados.
+  \fonte{Bryant e O'Hallaron (2015), §2.1.3~\cite{bryant2015computer};
+    ISO/IEC 9899:2018, §6.2.6.1~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}[fragile]{A resposta: \texttt{>{}>} olha o valor; o ponteiro, a memória}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+/* grava x em big-endian, em qualquer maquina */
+void grava_be(unsigned char b[4], unsigned x)
+{
+    b[0] = (x >> 24) & 0xFFu;
+    b[1] = (x >> 16) & 0xFFu;
+    b[2] = (x >> 8) & 0xFFu;
+    b[3] = x & 0xFFu;
+}
+unsigned le_be(const unsigned char b[4])
+{
+    return (unsigned) b[0] << 24
+         | (unsigned) b[1] << 16
+         | (unsigned) b[2] << 8 | b[3];
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Quando a ordem importa}
+        \small Só quando os bytes saem do programa: um \texttt{int} gravado
+        com \texttt{fwrite} num arquivo binário (próxima aula) ou enviado
+        pela rede. Quem lê, em outra máquina, pode ler na outra ordem.
+      \end{block}
+      \small A saída portátil é escolher uma ordem para o arquivo e
+      montar os bytes com \texttt{>{}>} e \texttt{<{}<}, como ao lado. Para a
+      rede, \texttt{<arpa/inet.h>} tem \texttt{htonl} e \texttt{ntohl}.
+    \end{column}
+  \end{columns}
+  \fonte{Kerrisk (2010), §59.2~\cite{kerrisk2010linux};
+    Bryant e O'Hallaron (2015), §2.1.3~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{Recapitulando: a ordem dos bytes na memória}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item little-endian guarda o byte menos significativo no menor
+        endereço; big-endian, o mais significativo;
+      \item x86 e ARM são little-endian; a rede é big-endian;
+      \item \texttt{>{}>}, \texttt{<{}<} e \texttt{\&} trabalham no valor e dão
+        o mesmo resultado em qualquer máquina;
+      \item ler um \texttt{int} byte a byte por ponteiro, ou gravá-lo com
+        \texttt{fwrite}, expõe a ordem da máquina.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Um conjunto num \texttt{unsigned}}
+% ==================================================================
+
+\begin{frame}[fragile]{O elemento $i$ está no conjunto se o bit $i$ vale 1}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+typedef unsigned Conjunto;   /* 0 a 31 */
+
+Conjunto insere(Conjunto c, int i)
+{ return c | 1u << i; }
+Conjunto retira(Conjunto c, int i)
+{ return c & ~(1u << i); }
+int pertence(Conjunto c, int i)
+{ return (c >> i) & 1u; }
+\end{lstlisting}
+      \begin{center}
+      \begin{tikzpicture}
+        \bits{0}{0}{0,1,0,1,0,1,0,0}
+        \foreach \i [count=\k from 0] in {7,...,0}
+          \node[leg] at (0.42*\k,-0.4) {\i};
+        \node[leg, anchor=west] at (3.3,0) {$\{2, 4, 6\}$};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small
+      \begin{tabular}{@{}ll@{}}
+        \toprule
+        conjuntos & bits\\
+        \midrule
+        $A \cup B$       & \texttt{a | b}\\
+        $A \cap B$       & \texttt{a \& b}\\
+        $A \setminus B$  & \texttt{a \& \til b}\\
+        $A \triangle B$  & \texttt{a \cir{} b}\\
+        $A = \emptyset$? & \texttt{a == 0}\\
+        \bottomrule
+      \end{tabular}
+
+      \medskip
+      Uma união de 32 elementos é \textbf{uma} instrução, sem laço.
+    \end{column}
+  \end{columns}
+  \fonte{Knuth (2011), §7.1.3~\cite{knuth2011art};
+    Kernighan e Ritchie (1988), §2.9~\cite{kernighan1988c}}
+\end{frame}
+
+\begin{frame}[fragile]{Quantos elementos? Apague o 1 mais à direita}
+  \begin{columns}[c]
+    \begin{column}{0.44\textwidth}
+\begin{lstlisting}[style=codC]
+int conta(Conjunto c)
+{
+    int n = 0;
+    while (c != 0) {
+        c &= c - 1;
+        n++;
+    }
+    return n;
+}
+\end{lstlisting}
+      \small O laço dá uma volta por elemento, não por bit.
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \node[leg, anchor=east] at (-0.3,0) {\texttt{c}};
+        \bits{0}{0}{0,1,0,1,0,1,0,0}
+        \node[leg, anchor=east] at (-0.3,-0.5) {\texttt{c - 1}};
+        \bits{0}{-0.5}{0,1,0,1,0,0,1,1}
+        \draw[UFSGray] (-0.3,-0.8) -- (3.2,-0.8);
+        \node[leg, anchor=east] at (-0.3,-1.1) {\texttt{c \& (c-1)}};
+        \bits{0}{-1.1}{0,1,0,1,0,0,0,0}
+        \draw[UFSRed, thick] (1.89,-1.35) rectangle (2.31,0.25);
+      \end{tikzpicture}
+      \end{center}
+      \small Subtrair 1 transforma o 1 mais à direita em 0 e os zeros à
+      direita dele em 1; o \texttt{\&} apaga tudo isso de uma vez. O resto
+      não muda.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §2.10, exercício 2-9~\cite{kernighan1988c};
+    Warren (2013), §2-1~\cite{warren2013hackers}}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{conjunto.c}: pares e múltiplos de 3 até 20}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra conjunto.c -o conjunto && ./conjunto
+pares      { 2 4 6 8 10 12 14 16 18 20 }  10 elementos
+mult3      { 3 6 9 12 15 18 }  6 elementos
+p | m      { 2 3 4 6 8 9 10 12 14 15 16 18 20 }  13 elementos
+p & m      { 6 12 18 }  3 elementos
+p & ~m     { 2 4 8 10 14 16 20 }  7 elementos
+p ^ m      { 2 3 4 8 9 10 14 15 16 20 }  10 elementos
+sem o 6    { 2 4 8 10 12 14 16 18 20 }  9 elementos
+\end{lstlisting}
+  \small \texttt{p \& m} são os múltiplos de 6; \texttt{p \cir{} m}, os que
+  estão em exatamente um dos dois. Para mais de 32 elementos, use um vetor de
+  \texttt{unsigned}: o elemento $i$ é o bit \texttt{i \% 32} da palavra
+  \texttt{i / 32}.
+  \fonte{Knuth (2011), §7.1.3~\cite{knuth2011art}}
+\end{frame}
+
+\begin{frame}[fragile]{Um bit por número: o crivo de Eratóstenes}
+\begin{lstlisting}[style=codC]
+/* o bit i % 32 da palavra v[i / 32] vale 1 se i nao e primo */
+#define LIGA(v, i)  ((v)[(i) >> 5] |= 1u << ((i) & 31))
+#define TESTA(v, i) (((v)[(i) >> 5] >> ((i) & 31)) & 1u)
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+      \small \texttt{i >{}> 5} é \texttt{i / 32} e \texttt{i \& 31} é
+      \texttt{i \% 32}: com potências de 2, dividir e tirar o resto viram
+      deslocamento e máscara.
+    \end{column}
+    \begin{column}{0.52\textwidth}
+\begin{lstlisting}[style=shellStyle]
+$ ./crivo
+char: 5761455 primos, 100.0 MB, 0.62 s
+bits: 5761455 primos,  12.5 MB, 0.72 s
+\end{lstlisting}
+      \small Primos até $10^8$: o mesmo resultado com um oitavo da memória
+      e quase o mesmo tempo (medido num notebook; no seu computador os
+      números mudam).
+    \end{column}
+  \end{columns}
+  \fonte{Knuth (2011), §7.1.3~\cite{knuth2011art};
+    Bryant e O'Hallaron (2015), §2.3.7~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{Recapitulando: um conjunto num \texttt{unsigned}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item o bit $i$ diz se $i$ está no conjunto: 32 elementos numa
+        palavra;
+      \item união, interseção, diferença e diferença simétrica são
+        \texttt{|}, \texttt{\&}, \texttt{\& \til} e \texttt{\cir};
+      \item \texttt{c \&= c - 1} apaga o 1 mais à direita: contar custa uma
+        volta por elemento;
+      \item com um vetor de \texttt{unsigned}, um bit por número: o crivo cabe
+        em um oitavo da memória.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \begin{block}{Tarefa 1 --- a ordem \texttt{=}}
+    \small \texttt{u=rx} deixa o dono com exatamente \texttt{r-x}, qualquer
+    que fosse o antes, sem mexer nas outras classes. Implemente em
+    \texttt{aplica}: primeiro desligue as três permissões das classes de
+    \texttt{quem}, depois ligue as pedidas.
+  \end{block}
+  \begin{block}{Tarefa 2 --- a ordem \texttt{\cir}}
+    \small Uma ordem que não existe no \texttt{chmod}: \texttt{go\cir w}
+    inverte a escrita do grupo e dos outros. Que operador resolve em uma
+    linha? Aplicar duas vezes volta ao modo original?
+  \end{block}
+  \begin{block}{Tarefa 3 --- \texttt{mostra} sem \texttt{1u <{}< i}}
+    \small Reescreva \texttt{mostra} deslocando o \emph{modo}: teste sempre o
+    bit 8 com \texttt{modo \& 0400} e faça \texttt{modo <{}<= 1} a cada volta.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Exercícios (1/3)}
+  \footnotesize
+  \begin{block}{Exercício 1 --- os bits de um número}
+    Escreva \texttt{void mostra\_bits(unsigned x, int n)}, que imprime os $n$
+    bits mais baixos de \texttt{x}, do mais alto para o mais baixo, com um
+    espaço a cada 4. Use-a para conferir \texttt{0754}, \texttt{\til 0u} e
+    \texttt{-1}.
+  \end{block}
+  \begin{block}{Exercício 2 --- distância de Hamming}
+    Em quantos bits \texttt{a} e \texttt{b} diferem? Use \texttt{\cir} e
+    \texttt{conta}. Quantos bits mudam de um número para o seguinte, de 0
+    a 15?
+  \end{block}
+  \begin{block}{Exercício 3 --- de letras para número}
+    Escreva \texttt{unsigned de\_texto(const char *s)}, o inverso de
+    \texttt{mostra}: \texttt{"rwxr-x-{}-{}-"} vira \texttt{0750}.
+  \end{block}
+  \fonte{Kernighan e Ritchie (1988), §2.9~\cite{kernighan1988c};
+    Warren (2013), cap.~5~\cite{warren2013hackers}}
+\end{frame}
+
+\begin{frame}{Exercícios (2/3)}
+  \vspace{-0.4em}
+  \footnotesize
+  \begin{block}{Exercício 4 --- cores \texttt{0xRRGGBB}}
+    Uma cor de 24 bits guarda vermelho, verde e azul, um byte cada:
+    \texttt{rgb(r, g, b)} empacota; \texttt{vermelho(c)},
+    \texttt{verde(c)}, \texttt{azul(c)}, que desempacotam. Depois
+    \texttt{cinza(c)}: a média dos três, repetida nos três bytes.
+  \end{block}
+  \begin{block}{Exercício 5 --- potências de 2}
+    Por que \texttt{x != 0 \&\& (x \& (x - 1)) == 0} diz se \texttt{x} é
+    potência de 2? Escreva \texttt{proxima\_potencia(x)}: a menor $\geq x$.
+  \end{block}
+  \fonte{Warren (2013), §2-1 e §3-2~\cite{warren2013hackers};
+    Bryant e O'Hallaron (2015), §2.1~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}{Exercícios (3/3)}
+  \footnotesize
+  \begin{block}{Exercício 6 --- rotação}
+    \texttt{rot\_esq(x, k)} gira os 32 bits: o que sai pela esquerda volta
+    pela direita. Cuidado com $k = 0$.
+  \end{block}
+  \begin{block}{Exercício 7 --- trocando a ordem dos bytes}
+    \texttt{troca\_bytes(x)} inverte os 4 bytes: \texttt{0x01020304} vira
+    \texttt{0x04030201}. Depois \texttt{eh\_little()}: 1 se a máquina é
+    little-endian.
+  \end{block}
+  \fonte{Warren (2013), §3-2 e §7-1~\cite{warren2013hackers};
+    Bryant e O'Hallaron (2015), §2.1.3~\cite{bryant2015computer}}
+\end{frame}
+
+\begin{frame}[fragile]{Desafio}
+  \vspace{-0.4em}
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+      \begin{block}{Duas pilhas de mesmo peso}
+        \small Leia $n \leq 20$ pesos e divida-os em duas pilhas com a
+        menor diferença de peso possível. Imprima a diferença e os pesos de
+        uma das pilhas.
+        \vspace{-0.3em}
+        \begin{itemize}
+          \item cada subconjunto é um número de 0 a $2^n - 1$: o bit $i$ diz
+            se o peso $i$ vai para a primeira pilha;
+          \item percorra todos com
+            \texttt{for (mask = 0; mask < 1u <{}< n; mask++)};
+          \item para cada um, some os pesos dos bits ligados.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+\begin{lstlisting}[style=shellStyle, language={}]
+$ echo 5 3 1 4 2 2 | ./pilhas
+diferenca: 0
+pilha: 3 1 2
+\end{lstlisting}
+      \raggedright\small Quantos subconjuntos há para $n = 20$? E para
+      $n = 40$? Por que ninguém conhece um método muito mais rápido no pior
+      caso?
+    \end{column}
+  \end{columns}
+  \fonte{Knuth (2011), §7.2.1.1~\cite{knuth2011art};
+    Garey e Johnson (1979), SP12~\cite{garey1979computers}}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      \small Um inteiro deixou de ser só uma quantidade: virou uma fileira
+      de 32 sim/não, que se lê e se muda com máscaras e deslocamentos.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que ficou}\\[0.3em]
+      \small Arquivos binários: bytes de 8 bits, numa ordem que depende
+      da máquina, abertos com flags e permissões como \texttt{0644}.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \small
+      \item ligar \texttt{|=}, desligar \texttt{\&= \til}, inverter
+        \texttt{\cir=}, testar \texttt{\&};
+      \item \texttt{1u <{}< k} fabrica a máscara; \texttt{(x >{}> s) \& m} extrai
+        o campo;
+      \item use \texttt{unsigned}, constantes em octal ou hexa e parênteses
+        em volta de \texttt{\&};
+      \item deslocar por $k \geq 32$ ou \texttt{1 <{}< 31} em \texttt{int}:
+        indefinido.
+    \end{itemize}
+  \end{block}
+  \small\textcolor{UFSGray}{Próxima aula: arquivos texto e binários.}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}
