@@ -1,0 +1,1132 @@
+% -*- coding: utf-8 -*-
+% Aula: Melhora iterativa -- fluxo maximo (Ford-Fulkerson) e emparelhamento bipartido
+% (Unidade 3 de AED2, depois de Dijkstra; encontro unico por causa da SEMAC).
+% Fontes principais: Levitin (2012), cap. 10 (introducao, sec. 10.2 e 10.3);
+% Cormen et al. (2009), cap. 26: sec. 26.1 (Figura 26.1), sec. 26.2 (Lemas 26.1-26.4,
+% Corolarios 26.3 e 26.5, Teorema 26.6, Figura 26.7, Teorema 26.8), sec. 26.3
+% (Lema 26.9, Teorema 26.10, Corolario 26.11, Figura 26.8);
+% Kleinberg e Tardos (2006), sec. 7.1-7.3 e 7.5; Dasgupta et al. (2008), sec. 7.2-7.3.
+% Exemplo condutor: a rede da Figura 26.1 de Cormen et al. (s, v1, v2, v3, v4, t).
+% Edmonds-Karp (BFS, vizinhos em ordem crescente) aumenta s-v1-v3-t (12), s-v2-v4-t (4),
+% s-v2-v4-v3-t (7): fluxo maximo 23; corte minimo S = {s, v1, v2, v4}.
+% Exemplo do guloso que trava: s->u 20, s->v 10, u->v 30, u->t 10, v->t 20 (guloso 20, maximo 30).
+% Emparelhamento: Ana-{1,2}, Beto-{1}, Caio-{2,3}, Duda-{3,4}; guloso para em 3, o caminho
+% alternante Beto-1-Ana-2-Caio-3-Duda-4 leva a 4.
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, decorations.pathmorphing, backgrounds, patterns}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    columns=fullflexible,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=6.6cm, minimum height=0.5cm, font=\scriptsize},
+  vert/.style={circle, draw=blue!60!black, fill=blue!10, font=\tiny,
+               inner sep=0pt, minimum size=4.6mm},
+  vS/.style={vert, draw=orange!80!black, fill=orange!35},
+  peso/.style={font=\tiny, fill=white, inner sep=0.6pt},
+  arco/.style={-{Stealth[length=1.5mm]}, draw=gray!60, thin},
+  arcocam/.style={-{Stealth[length=2mm]}, draw=orange!85!black, line width=1.8pt},
+  arcoret/.style={-{Stealth[length=2mm]}, draw=red!70!black, line width=1.6pt, dashed},
+  arcosat/.style={-{Stealth[length=2mm]}, draw=red!70!black, line width=1.6pt},
+  aresta/.style={draw=gray!60, thin},
+  emp/.style={draw=orange!85!black, line width=2.2pt},
+  alt/.style={draw=red!70!black, line width=1.6pt, dashed},
+  r/.style={},
+  bl/.style={bend left=20},
+  arcobl/.style={arco, bend left=20},
+  arcoretbl/.style={arcoret, bend left=20},
+  arcocambl/.style={arcocam, bend left=20},
+  arc/.style={-{Stealth}, thick}
+}
+
+% ---- a rede da Figura 26.1 de Cormen et al. (Lucky Puck) ----
+% \rede{arcos u/v/rotulo/estilo}{vertices destacados}
+% estilo: arco (normal), arcocam (caminho aumentador), arcosat (saturado no corte)
+\newcommand{\nosrede}[1]{%
+  \node[vert] (s)  at (0,0)     {$s$};
+  \node[vert] (v1) at (1.7,1)   {$v_1$};
+  \node[vert] (v2) at (1.7,-1)  {$v_2$};
+  \node[vert] (v3) at (3.6,1)   {$v_3$};
+  \node[vert] (v4) at (3.6,-1)  {$v_4$};
+  \node[vert] (t)  at (5.3,0)   {$t$};
+  \def\lista{#1}\ifx\lista\empty\else
+    \foreach \v/\n in {#1} \node[vS] at (\v) {$\n$};\fi
+}
+\newcommand{\rede}[2]{%
+  \nosrede{#2}
+  \edef\arcosR{#1}
+  \foreach \u/\v/\l/\e in \arcosR \draw[\e] (\u) to (\v);
+  \foreach \u/\v/\l/\e in \arcosR \path (\u) to node[peso] {\l} (\v);
+}
+% \redeR: como \rede, mas o rotulo acompanha a curvatura do arco (redes residuais)
+\newcommand{\redeR}[2]{%
+  \nosrede{#2}
+  \edef\arcosR{#1}
+  \foreach \u/\v/\l/\e in \arcosR \draw[\e] (\u) to (\v);
+  \foreach \u/\v/\l/\e in \arcosR \path[\e, draw=none] (\u) to node[peso] {\l} (\v);
+}
+% so as capacidades
+\newcommand{\capac}{s/v1/16/arco, s/v2/13/arco, v1/v3/12/arco, v2/v1/4/arco,
+  v2/v4/14/arco, v3/v2/9/arco, v3/t/20/arco, v4/v3/7/arco, v4/t/4/arco}
+
+% ---- o exemplo de Kleinberg e Tardos (guloso trava em 20) ----
+\newcommand{\nosKT}{%
+  \node[vert] (s) at (0,0) {$s$};   \node[vert] (u) at (1.5,0.9) {$u$};
+  \node[vert] (v) at (1.5,-0.9) {$v$}; \node[vert] (t) at (3,0) {$t$};
+}
+\newcommand{\redeKT}[1]{%
+  \nosKT
+  \foreach \u/\v/\l/\e in {#1} \draw[\e] (\u) to (\v);
+  \foreach \u/\v/\l/\e in {#1} \path[\e, draw=none] (\u) to node[peso] {\l} (\v);
+}
+
+% ---- o grafo bipartido alunos x projetos ----
+% \bip{arestas destacadas (emp)}{arestas do caminho alternante}
+\newcommand{\arestasbip}{A/p1, A/p2, B/p1, C/p2, C/p3, D/p3, D/p4}
+\newcommand{\nosbip}{%
+  \node[vert] (A) at (0,1.2)  {A};  \node[vert] (B) at (0,0.4)  {B};
+  \node[vert] (C) at (0,-0.4) {C};  \node[vert] (D) at (0,-1.2) {D};
+  \node[vert] (p1) at (2,1.2)  {1}; \node[vert] (p2) at (2,0.4)  {2};
+  \node[vert] (p3) at (2,-0.4) {3}; \node[vert] (p4) at (2,-1.2) {4};
+}
+\newcommand{\bip}[2]{%
+  \nosbip
+  \foreach \u/\v in \arestasbip \draw[aresta] (\u) -- (\v);
+  \def\lista{#1}\ifx\lista\empty\else
+    \foreach \u/\v in {#1} \draw[emp] (\u) -- (\v);\fi
+  \def\lista{#2}\ifx\lista\empty\else
+    \foreach \u/\v in {#2} \draw[alt] (\u) -- (\v);\fi
+}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\title{Melhora iterativa}
+\subtitle{Fluxo máximo (Ford-Fulkerson) e emparelhamento bipartido}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=2.2mm]
+    \node[box] (t1) {1.\ Melhora iterativa e o problema do fluxo máximo};
+    \node[box, below=of t1] (t2) {2.\ Rede residual: como desfazer uma escolha ruim};
+    \node[box, below=of t2, fill=orange!20, draw=orange!80!black] (t3)
+         {3.\ Ford-Fulkerson: aumentar enquanto houver caminho};
+    \node[box, below=of t3] (t4) {4.\ Corte mínimo: o certificado de que acabou};
+    \node[box, below=of t4] (t5) {5.\ Custo: Ford-Fulkerson e Edmonds-Karp};
+    \node[box, below=of t5, fill=orange!20, draw=orange!80!black] (t6)
+         {6.\ Emparelhamento bipartido como fluxo};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4, t4/t5, t5/t6}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+    \draw[-{Stealth}, thick, orange!80!black, dashed]
+      (t3.east) to[out=0, in=0, looseness=1.3]
+      node[right, xshift=1mm, font=\tiny, align=left]
+      {o mesmo algoritmo,\\capacidades 1} (t6.east);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize\centering
+  Até agora, os gulosos (Huffman, Kruskal, Prim, Dijkstra) nunca voltavam atrás. Hoje, cada
+  passo pode \emph{desfazer} parte do anterior.\par}
+  \fonte{Levitin (2012), cap.~10~\cite{levitin2012introduction};
+    Cormen et al.\ (2009), cap.~26~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Melhora iterativa e o problema do fluxo}
+
+\begin{frame}{Melhora iterativa}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{A estratégia}
+        \small
+        \begin{enumerate}
+          \item Comece com uma solução \textbf{viável} qualquer.
+          \item Procure uma pequena mudança que a \textbf{melhore}.
+          \item Repita até não haver mudança que melhore.
+        \end{enumerate}
+      \end{block}
+      \scriptsize
+      Duas perguntas definem cada algoritmo: \emph{que mudanças são permitidas?} e
+      \emph{como saber que não há mais nenhuma}, ou seja, que a solução é ótima e não apenas
+      um ótimo local?
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \scriptsize
+      \centering
+      \begin{tabular}{ll}
+        \toprule
+        guloso & melhora iterativa \\
+        \midrule
+        constrói peça a peça & parte de uma solução pronta \\
+        nunca desfaz & pode desfazer \\
+        prova: troca & prova: certificado \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      \raggedright
+      Exemplos do capítulo de Levitin: o método simplex, o fluxo máximo, o emparelhamento
+      bipartido e o casamento estável. Hoje, os dois do meio.
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), introdução do cap.~10~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Por que precisamos de fluxo máximo?}
+  \begin{columns}[T]
+    \begin{column}{0.42\textwidth}
+      \textbf{Problema:} a fábrica de discos de hóquei em Vancouver ($s$) envia caixas ao
+      depósito de Winnipeg ($t$). Cada rota de caminhão leva no máximo um número fixo de
+      caixas por dia. Quantas caixas por dia, no máximo, chegam a $t$?
+      \medskip
+
+      {\scriptsize O mesmo problema aparece em oleodutos, redes elétricas, tráfego de dados e
+      alocação de tarefas.\par}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1cm, y=1cm]
+        \rede{\capac}{}
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Exemplo condutor: os números são \textbf{capacidades} (caixas/dia).
+      $v_1$ = Edmonton, $v_2$ = Calgary, $v_3$ = Saskatoon, $v_4$ = Regina.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.1, Figura 26.1~\cite{cormen2009introduction};
+    Levitin (2012), \S 10.2~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Rede de fluxo: definição}
+  \begin{block}{Definição}
+    \small
+    Uma \textbf{rede de fluxo} é um digrafo $G = (V, E)$ com uma \textbf{origem} $s$, um
+    \textbf{sorvedouro} $t$ e uma \textbf{capacidade} $c(u,v) \ge 0$ em cada arco. Um
+    \textbf{fluxo} é uma função $f$ nos arcos com
+    \begin{itemize}
+      \item \textbf{capacidade:} $0 \le f(u,v) \le c(u,v)$ em todo arco;
+      \item \textbf{conservação:} em todo $v \ne s, t$, o que entra é igual ao que sai:
+        $\sum_{u} f(u,v) = \sum_{w} f(v,w)$.
+    \end{itemize}
+    O \textbf{valor} do fluxo é o que sai de $s$: $|f| = \sum_{v} f(s,v) - \sum_{v} f(v,s)$.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \small Água em canos: nada transborda, nada acumula nas junções. Queremos o valor máximo.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 26.1~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 7.1~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: um fluxo na rede condutora}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.05cm, y=1.05cm]
+        \rede{s/v1/12{/}16/arco, s/v2/4{/}13/arco, v1/v3/12{/}12/arco, v2/v1/0{/}4/arco,
+          v2/v4/4{/}14/arco, v3/v2/0{/}9/arco, v3/t/12{/}20/arco, v4/v3/0{/}7/arco,
+          v4/t/4{/}4/arco}{}
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Rótulo $f/c$: fluxo sobre capacidade.\par}
+    \end{column}
+    \begin{column}{0.41\textwidth}
+      \scriptsize
+      \textbf{Capacidade:} nenhum $f$ passa do $c$.
+      \smallskip
+
+      \textbf{Conservação:} em $v_1$ entram $12 + 0$ e saem $12$; em $v_2$ entram $4 + 0$ e
+      saem $0 + 4$; em $v_3$ entram $12 + 0$ e saem $0 + 12$; em $v_4$ entram $4$ e saem
+      $0 + 4$.
+      \smallskip
+
+      \textbf{Valor:} $|f| = 12 + 4 = 16$, que é exatamente o que chega a $t$.
+      \medskip
+
+      \textbf{Pergunta:} dá para mandar mais? Os arcos $v_1 \to v_3$ e $v_4 \to t$ estão
+      cheios, mas $s \to v_2$ e $v_2 \to v_4$ ainda têm folga.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.1, Figura 26.1~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: o problema}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Melhora iterativa: solução viável, melhora local, repete, e precisa de um
+        certificado de otimalidade.
+      \item Rede: digrafo com capacidades, origem $s$ e sorvedouro $t$.
+      \item Fluxo: respeita as capacidades e se conserva nos vértices internos.
+      \item Valor $|f|$: o que sai de $s$, igual ao que chega em $t$.
+      \item O fluxo nulo é viável; o objetivo é o fluxo de valor máximo.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 26.1~\cite{cormen2009introduction};
+    Levitin (2012), \S 10.2~\cite{levitin2012introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Rede residual}
+
+\begin{frame}{A ideia gulosa e onde ela trava}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Guloso:} ache um caminho $s \leadsto t$ em que todo arco tem folga, mande o
+      máximo possível por ele e repita.
+      \medskip
+      \begin{center}
+      \begin{tikzpicture}[x=1.1cm, y=1.1cm]
+        \redeKT{s/u/20/arco, s/v/10/arco, u/v/30/arco, u/t/10/arco, v/t/20/arco}
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Capacidades. O fluxo máximo vale $30$: $10$ por $s \to u \to t$, $10$ por
+      $s \to v \to t$ e $10$ por $s \to u \to v \to t$.\par}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      Se o primeiro caminho escolhido for $s \to u \to v \to t$, o guloso manda $20$:
+      \begin{center}
+      \begin{tikzpicture}[x=1.1cm, y=1.1cm]
+        \redeKT{s/u/20{/}20/arcocam, s/v/0{/}10/arco, u/v/20{/}30/arcocam,
+          u/t/0{/}10/arco, v/t/20{/}20/arcocam}
+      \end{tikzpicture}
+      \end{center}
+      Agora $s \to u$ e $v \to t$ estão cheios e \textbf{não há} caminho com folga. O guloso
+      para em $20$, longe do ótimo $30$.
+      \medskip
+
+      \textbf{O erro:} mandou $20$ por $u \to v$. A saída é permitir \emph{devolver} fluxo
+      por um arco.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 7.1 (exemplo adaptado)~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Rede residual: definição}
+  \begin{block}{Definição}
+    \small
+    Dado um fluxo $f$ em $G$, a \textbf{rede residual} $G_f$ tem os mesmos vértices e, para
+    cada arco $(u,v)$ de $G$:
+    \begin{itemize}
+      \item \textbf{avanço} $u \to v$ com capacidade residual $c(u,v) - f(u,v)$ (a folga);
+      \item \textbf{retorno} $v \to u$ com capacidade residual $f(u,v)$ (o que pode voltar).
+    \end{itemize}
+    Só entram em $G_f$ os arcos de capacidade residual positiva.
+    Um \textbf{caminho aumentador} é um caminho de $s$ a $t$ em $G_f$. Seu
+    \textbf{gargalo} é a menor capacidade residual ao longo dele.
+  \end{block}
+  {\small\textbf{Intuição:} mandar fluxo pelo retorno $v \to u$ \emph{cancela} parte do que
+  já ia de $u$ para $v$ e o redireciona.\par}
+  \fonte{Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 7.1~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: a rede residual destrava o guloso}
+  \begin{columns}[T]
+    \begin{column}{0.32\textwidth}
+      \scriptsize
+      \textbf{Fluxo} do guloso (valor $20$):
+      \begin{center}
+      \begin{tikzpicture}[x=1.0cm, y=1.0cm]
+        \redeKT{s/u/20{/}20/arco, s/v/0{/}10/arco, u/v/20{/}30/arco,
+          u/t/0{/}10/arco, v/t/20{/}20/arco}
+      \end{tikzpicture}
+      \end{center}
+      Cada arco $f/c$ gera um avanço de capacidade $c - f$ e um retorno de capacidade $f$.
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \scriptsize
+      \textbf{Rede residual} $G_f$:
+      \begin{center}
+      \begin{tikzpicture}[x=1.0cm, y=1.0cm]
+        \redeKT{u/s/20/arco, s/v/10/arcocam, u/v/10/arcobl, v/u/20/arcoretbl,
+          u/t/10/arcocam, t/v/20/arco}
+      \end{tikzpicture}
+      \end{center}
+      Retornos: $u \to s$, $v \to u$, $t \to v$ (20 cada). O caminho $s \to v \to u \to t$
+      (laranja, retorno tracejado) tem gargalo $\min(10, 20, 10) = 10$.
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \scriptsize
+      \textbf{Depois do aumento:}
+      \begin{center}
+      \begin{tikzpicture}[x=1.0cm, y=1.0cm]
+        \redeKT{s/u/20{/}20/arco, s/v/10{/}10/arco, u/v/10{/}30/arco,
+          u/t/10{/}10/arco, v/t/20{/}20/arco}
+      \end{tikzpicture}
+      \end{center}
+      $u \to v$ cai de $20$ para $10$. Valor $30$, o máximo: os arcos que saem de $s$ estão
+      cheios. Os $10$ devolvidos seguiram por $u \to t$.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 7.1~\cite{kleinberg2006algorithm};
+    Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{O aumento produz um fluxo melhor}
+  \begin{block}{Lema}
+    \small
+    Seja $P$ um caminho aumentador em $G_f$ com gargalo $b$. Some $b$ a $f(u,v)$ em cada arco
+    de avanço $u \to v$ de $P$ e subtraia $b$ de $f(v,u)$ em cada arco de retorno $u \to v$.
+    O resultado $f'$ é um fluxo em $G$, e $|f'| = |f| + b$.
+  \end{block}
+  \scriptsize
+  \textbf{Ideia da prova.}
+  \begin{itemize}
+    \item \textbf{Capacidade:} $b$ não passa da folga de nenhum arco de avanço, nem do fluxo
+      de nenhum arco de retorno, então $0 \le f' \le c$.
+    \item \textbf{Conservação:} um vértice interno de $P$ tem um arco de $P$ chegando e um
+      saindo. Nos quatro casos (avanço ou retorno de cada lado), o saldo entra/sai muda
+      $+b - b = 0$.
+    \item \textbf{Valor:} o primeiro arco de $P$ sai de $s$; o caminho é simples e não volta a
+      $s$, logo o saldo de $s$ sobe exatamente $b$.
+  \end{itemize}
+  \fonte{Cormen et al.\ (2009), \S 26.2, Lema 26.1 e Corolário 26.3~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 7.1~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: rede residual}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item O guloso que só usa folga pode travar longe do ótimo.
+      \item $G_f$: avanço com a folga $c - f$, retorno com o fluxo $f$.
+      \item Caminho aumentador: $s \leadsto t$ em $G_f$; gargalo $b$ é sua menor capacidade.
+      \item Aumentar por $P$ mantém um fluxo válido e soma $b$ ao valor.
+      \item Arcos de retorno são a ``mudança que desfaz'' da melhora iterativa.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{O método de Ford-Fulkerson}
+
+\begin{frame}[fragile]{Ford-Fulkerson: o método}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[language={}, basicstyle=\ttfamily\scriptsize]
+FORD-FULKERSON(G, s, t)
+  f(u,v) = 0 para todo arco
+  enquanto existe caminho P de s a t em G_f
+    b = menor capacidade residual em P
+    para cada arco u->v de P
+      se u->v e arco de G: f(u,v) += b
+      senao:               f(v,u) -= b
+  devolva f
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \textbf{Melhora iterativa:} o fluxo nulo é a solução viável inicial; o aumento por um
+      caminho é a melhora; para quando $t$ não é alcançável em $G_f$.
+      \medskip
+
+      \textbf{Integralidade:} com capacidades inteiras, todo gargalo é inteiro, então o
+      fluxo é sempre inteiro e cada aumento soma pelo menos $1$.
+      \medskip
+
+      \textbf{Método, não algoritmo:} não diz \emph{qual} caminho escolher. Essa escolha
+      decide o custo (seção 5). Achar o caminho é uma busca em $G_f$: DFS ou BFS da
+      Unidade 1.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction};
+    Ford e Fulkerson (1956)~\cite{ford1956maximal}; Levitin (2012), \S 10.2~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Execução na rede condutora (1/4)}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Rede residual} $G_f$ com $f = 0$: igual às capacidades.
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \redeR{s/v1/16/arcocam, s/v2/13/arco, v1/v3/12/arcocam, v2/v1/4/arco,
+          v2/v4/14/arco, v3/v2/9/arco, v3/t/20/arcocam, v4/v3/7/arco, v4/t/4/arco}{}
+      \end{tikzpicture}
+      \end{center}
+      Caminho $s \to v_1 \to v_3 \to t$, gargalo $\min(16, 12, 20) = 12$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Fluxo} depois do aumento 1:
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \rede{s/v1/12{/}16/arcocam, s/v2/0{/}13/arco, v1/v3/12{/}12/arcocam,
+          v2/v1/0{/}4/arco, v2/v4/0{/}14/arco, v3/v2/0{/}9/arco,
+          v3/t/12{/}20/arcocam, v4/v3/0{/}7/arco, v4/t/0{/}4/arco}{}
+      \end{tikzpicture}
+      \end{center}
+      $|f| = 12$. O arco $v_1 \to v_3$ ficou cheio.
+    \end{column}
+  \end{columns}
+  \medskip
+  {\scriptsize Caminhos achados por BFS em $G_f$, vizinhos em ordem crescente
+  ($s, v_1, \dots, v_4, t$): o caminho com \emph{menos arcos} vem primeiro.\par}
+  \fonte{Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Execução na rede condutora (2/4)}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Rede residual} $G_f$ com $|f| = 12$:
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \redeR{s/v1/4/arcobl, v1/s/12/arcobl, v3/v1/12/arco, v3/t/8/arcobl, t/v3/12/arcobl,
+          s/v2/13/arcocam, v2/v1/4/arco, v2/v4/14/arcocam, v3/v2/9/arco,
+          v4/v3/7/arco, v4/t/4/arcocam}{}
+      \end{tikzpicture}
+      \end{center}
+      Surgem os retornos $v_1 \to s$, $v_3 \to v_1$ e $t \to v_3$. Caminho
+      $s \to v_2 \to v_4 \to t$, gargalo $\min(13, 14, 4) = 4$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Fluxo} depois do aumento 2:
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \rede{s/v1/12{/}16/arco, s/v2/4{/}13/arcocam, v1/v3/12{/}12/arco,
+          v2/v1/0{/}4/arco, v2/v4/4{/}14/arcocam, v3/v2/0{/}9/arco,
+          v3/t/12{/}20/arco, v4/v3/0{/}7/arco, v4/t/4{/}4/arcocam}{}
+      \end{tikzpicture}
+      \end{center}
+      $|f| = 16$: o mesmo fluxo do exemplo anterior. Agora $v_4 \to t$ também está cheio.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Execução na rede condutora (3/4)}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Rede residual} $G_f$ com $|f| = 16$:
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \redeR{s/v1/4/arcobl, v1/s/12/arcobl, v3/v1/12/arco, v3/t/8/arcocambl,
+          t/v3/12/arcobl, s/v2/9/arcocambl, v2/s/4/arcobl, v2/v1/4/arco,
+          v2/v4/10/arcocambl, v4/v2/4/arcobl, v3/v2/9/arco, v4/v3/7/arcocam,
+          t/v4/4/arco}{}
+      \end{tikzpicture}
+      \end{center}
+      $v_4 \to t$ sumiu (cheio); sobra o retorno $t \to v_4$. Caminho
+      $s \to v_2 \to v_4 \to v_3 \to t$, gargalo $\min(9, 10, 7, 8) = 7$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Fluxo} depois do aumento 3:
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \rede{s/v1/12{/}16/arco, s/v2/11{/}13/arcocam, v1/v3/12{/}12/arco,
+          v2/v1/0{/}4/arco, v2/v4/11{/}14/arcocam, v3/v2/0{/}9/arco,
+          v3/t/19{/}20/arcocam, v4/v3/7{/}7/arcocam, v4/t/4{/}4/arco}{}
+      \end{tikzpicture}
+      \end{center}
+      $|f| = 23$. Agora $v_4 \to v_3$ também está cheio.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Execução na rede condutora (4/4)}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Rede residual} $G_f$ com $|f| = 23$ (alcançáveis a partir de $s$ em laranja):
+      \begin{center}
+      \begin{tikzpicture}[x=0.95cm, y=0.95cm]
+        \redeR{s/v1/4/arcobl, v1/s/12/arcobl, v3/v1/12/arco, v3/t/1/arcobl,
+          t/v3/19/arcobl, s/v2/2/arcobl, v2/s/11/arcobl, v2/v1/4/arco,
+          v2/v4/3/arcobl, v4/v2/11/arcobl, v3/v2/9/arco, v3/v4/7/arco,
+          t/v4/4/arco}{s/s, v1/v_1, v2/v_2, v4/v_4}
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Busca 4} em $G_f$, a partir de $s$:
+      \begin{itemize}
+        \item $s \to v_1$ (4) e $s \to v_2$ (2);
+        \item de $v_1$: $v_1 \to v_3$ sumiu, só o retorno a $s$;
+        \item de $v_2$: $v_2 \to v_4$ (3) e $v_2 \to v_1$;
+        \item de $v_4$: só o retorno a $v_2$; $v_4 \to v_3$ e $v_4 \to t$ sumiram.
+      \end{itemize}
+      $t$ \textbf{não é alcançável}: o método para com $|f| = 23$.
+      \medskip
+
+      Os alcançados foram $\{s, v_1, v_2, v_4\}$. Guarde esse conjunto: ele prova que $23$
+      é o máximo (seção 4).
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}[fragile]{Implementação em C: matriz residual e BFS}
+  \begin{columns}[T]
+    \begin{column}{0.64\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+int fluxoMaximo( int n, int r[][MAXN], int s, int t) {
+   int fluxo = 0, pai[MAXN], fila[MAXN];
+   for (;;) {
+      for (int v = 0; v < n; ++v) pai[v] = -1;
+      int ini = 0, fim = 0;
+      pai[s] = s;  fila[fim++] = s;
+      while (ini < fim && pai[t] == -1) {             /* BFS em G_f */
+         int u = fila[ini++];
+         for (int v = 0; v < n; ++v)
+            if (pai[v] == -1 && r[u][v] > 0) { pai[v] = u;  fila[fim++] = v; }
+      }
+      if (pai[t] == -1) return fluxo;           /* sem caminho aumentador */
+      int b = INT_MAX;                                 /* gargalo */
+      for (int v = t; v != s; v = pai[v]) if (r[pai[v]][v] < b) b = r[pai[v]][v];
+      for (int v = t; v != s; v = pai[v]) { r[pai[v]][v] -= b;  r[v][pai[v]] += b; }
+      fluxo += b;
+   }
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.33\textwidth}
+      \scriptsize
+      $r[u][v]$ começa igual a $c[u][v]$. Avanço e retorno são $r[u][v]$ e $r[v][u]$; o
+      fluxo num arco original é $c[u][v] - r[u][v]$ (sem arcos antiparalelos).
+      \medskip
+
+      O vetor $\mathit{pai}[\,]$ é o da BFS da Unidade 1 e reconstrói o caminho de $t$ até
+      $s$, como em Dijkstra.
+      \medskip
+
+      Cada BFS custa $\Theta(n^2)$ com matriz. O tutorial faz a versão com listas de
+      adjacência.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.2 (Edmonds-Karp)~\cite{cormen2009introduction};
+    Sedgewick e Wayne (2011), \S 6.4~\cite{sedgewick2011algorithms}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: Ford-Fulkerson}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Começa com $f = 0$ e aumenta por caminhos de $G_f$ até $t$ ficar inalcançável.
+      \item Na rede condutora: $12 + 4 + 7 = 23$ em três aumentos.
+      \item Capacidades inteiras dão fluxo inteiro em todo passo (integralidade).
+      \item Em C, uma matriz residual: o aumento tira $b$ de $r[u][v]$ e põe em $r[v][u]$.
+      \item Falta provar que, quando para, o fluxo é \textbf{máximo}.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Corte mínimo}
+
+\begin{frame}{Por que precisamos de cortes?}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Problema:} o método parou em $23$. Será que outra sequência de caminhos chegaria
+      a $24$? Testar todas as sequências é inviável.
+      \medskip
+
+      \textbf{Solução:} um \textbf{certificado}, um objeto fácil de conferir que mostra que
+      \emph{nenhum} fluxo passa de $23$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Analogia.} Para provar que de Aracaju para o resto do Brasil não passam mais de
+      $k$ carros por hora, basta mostrar um conjunto de pontes e estradas que separa Aracaju do
+      resto e cuja capacidade somada é $k$. Todo carro precisa cruzar uma delas.
+      \medskip
+
+      \textbf{História.} Em 1955, Harris e Ross estudaram a rede ferroviária soviética para a
+      Força Aérea dos EUA, que queria o conjunto de linhas \emph{mais barato de cortar}. Foi
+      essa pergunta que levou Ford e Fulkerson ao problema.
+    \end{column}
+  \end{columns}
+  \fonte{Schrijver (2002)~\cite{schrijver2002history};
+    Kleinberg e Tardos (2006), \S 7.2~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Corte: definição}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Definição}
+        \small
+        Um \textbf{corte} $(S, T)$ é uma partição de $V$ com $s \in S$ e $t \in T$. Sua
+        \textbf{capacidade} soma só os arcos que vão de $S$ para $T$:
+        \[ c(S,T) = \sum_{u \in S,\, v \in T} c(u,v). \]
+        O \textbf{fluxo líquido} pelo corte é
+        $f(S,T) = \sum_{S \to T} f(u,v) - \sum_{T \to S} f(v,u)$.
+      \end{block}
+      \scriptsize
+      Arcos de $T$ para $S$ \textbf{não} entram na capacidade, mas descontam no fluxo
+      líquido.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=0.85cm, y=0.95cm]
+        \fill[orange!12, rounded corners] (-0.4,-0.45) -- (-0.4,1.45) -- (2.15,1.45) -- (2.15,0.4) -- cycle;
+        \rede{s/v1/16/arco, s/v2/13/arcosat, v1/v3/12/arcosat, v2/v1/4/arco,
+          v2/v4/14/arcosat, v3/v2/9/arco, v3/t/20/arco, v4/v3/7/arco, v4/t/4/arco}{s/s, v1/v_1}
+        \node[font=\tiny, text=orange!70!black] at (0.3,1.25) {$S$};
+      \end{tikzpicture}
+      \end{center}
+      \scriptsize
+      $S = \{s, v_1\}$: os arcos de $S$ para $T$ (em vermelho) somam
+      $c(S,T) = 13 + 12 = 25$. O arco $v_2 \to v_1$ vai de $T$ para $S$ e não conta.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction};
+    Levitin (2012), \S 10.2~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Todo corte limita todo fluxo}
+  \begin{block}{Lema}
+    \small
+    Para todo fluxo $f$ e todo corte $(S,T)$: $f(S,T) = |f|$. Em consequência,
+    $|f| \le c(S,T)$.
+  \end{block}
+  \scriptsize
+  \textbf{Prova.} Some a conservação (sai $-$ entra $= 0$) em todos os vértices de $S$ que não
+  são $s$, e some também o saldo de $s$, que é $|f|$. Um arco com as duas pontas em $S$ aparece
+  uma vez com $+$ e outra com $-$, e se cancela. Sobram os arcos que cruzam o corte: $f(S,T) =
+  |f|$. Por fim, cada arco $S \to T$ leva no máximo $c(u,v)$ e cada arco $T \to S$ leva pelo
+  menos $0$, então $|f| = f(S,T) \le c(S,T)$. \hfill$\square$
+  \medskip
+
+  \begin{exampleblock}{Consequência}
+    \small Se encontrarmos um fluxo e um corte com $|f| = c(S,T)$, \textbf{os dois são
+    ótimos}: nenhum fluxo vale mais que $c(S,T)$ e nenhum corte custa menos que $|f|$.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 26.2, Lema 26.4 e Corolário 26.5~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 7.2~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{O teorema do fluxo máximo e corte mínimo}
+  \begin{block}{Teorema (Ford e Fulkerson, 1956)}
+    \small
+    Para um fluxo $f$, são equivalentes:
+    (1) $f$ é máximo; (2) $G_f$ não tem caminho aumentador;
+    (3) $|f| = c(S,T)$ para algum corte $(S,T)$.
+  \end{block}
+  \scriptsize
+  \textbf{Prova.} (1)$\Rightarrow$(2): se houvesse caminho aumentador, o aumento daria um fluxo
+  maior. (3)$\Rightarrow$(1): é o lema anterior.
+  \smallskip
+
+  (2)$\Rightarrow$(3): seja $S$ o conjunto dos vértices alcançáveis a partir de $s$ em $G_f$ e
+  $T = V \setminus S$. Como $t \notin S$, $(S,T)$ é um corte. Para $u \in S$ e $v \in T$:
+  \begin{itemize}
+    \item arco $u \to v$ de $G$: $f(u,v) = c(u,v)$, senão o avanço levaria $v$ para $S$;
+    \item arco $v \to u$ de $G$: $f(v,u) = 0$, senão o retorno $u \to v$ levaria $v$ para $S$.
+  \end{itemize}
+  Logo $f(S,T) = c(S,T) - 0$, e pelo lema $|f| = c(S,T)$. \hfill$\square$
+  \medskip
+
+  {\scriptsize\textbf{Corolário:} quando Ford-Fulkerson para, o fluxo é máximo, e a última busca
+  entrega um corte mínimo de brinde.\par}
+  \fonte{Cormen et al.\ (2009), \S 26.2, Teorema 26.6~\cite{cormen2009introduction};
+    Ford e Fulkerson (1956)~\cite{ford1956maximal}.}
+\end{frame}
+
+\begin{frame}{Exemplo: o certificado na rede condutora}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.05cm, y=1.05cm]
+        \fill[orange!12, rounded corners] (-0.35,-1.4) -- (-0.35,1.4) -- (2.2,1.4)
+          -- (2.2,0.35) -- (4.05,-0.35) -- (4.05,-1.4) -- cycle;
+        \rede{s/v1/12{/}16/arco, s/v2/11{/}13/arco, v1/v3/12{/}12/arcosat,
+          v2/v1/0{/}4/arco, v2/v4/11{/}14/arco, v3/v2/0{/}9/arcoret,
+          v3/t/19{/}20/arco, v4/v3/7{/}7/arcosat, v4/t/4{/}4/arcosat}{s/s, v1/v_1, v2/v_2, v4/v_4}
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.41\textwidth}
+      \scriptsize
+      $S = \{s, v_1, v_2, v_4\}$, os alcançados na última busca.
+      \medskip
+
+      \textbf{De $S$ para $T$} (em vermelho), todos cheios:
+      $v_1 \to v_3$ (12), $v_4 \to v_3$ (7), $v_4 \to t$ (4).
+      \[ c(S,T) = 12 + 7 + 4 = 23 = |f|. \]
+      \textbf{De $T$ para $S$} (tracejado): $v_3 \to v_2$ leva fluxo $0$.
+      \medskip
+
+      Para mandar mais que $23$ caixas por dia, a empresa precisa ampliar uma dessas três rotas.
+      Ampliar qualquer outra não adianta.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.2, Teorema 26.6~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: corte mínimo}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Corte $(S,T)$: $s \in S$, $t \in T$; capacidade = arcos de $S$ para $T$.
+      \item Todo fluxo passa inteiro por todo corte: $|f| = f(S,T) \le c(S,T)$.
+      \item Fluxo máximo = corte mínimo (Ford e Fulkerson, 1956).
+      \item O corte mínimo são os alcançáveis de $s$ na última rede residual.
+      \item O corte é o certificado de otimalidade da melhora iterativa.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 7.2~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{Custo: a escolha do caminho}
+
+\begin{frame}{Por que a escolha do caminho importa?}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \scriptsize
+      \textbf{Limite simples.} Com capacidades inteiras, cada aumento soma pelo menos $1$.
+      São no máximo $|f^*|$ aumentos, cada um com uma busca $O(n + m)$: tempo $O(m\,|f^*|)$,
+      que depende das \emph{capacidades}, não só do tamanho do grafo.
+      \medskip
+
+      \textbf{Pior caso.} Se os caminhos escolhidos alternam entre $s \to u \to v \to t$ e
+      $s \to v \to u \to t$ (este pelo retorno $v \to u$), cada aumento tem gargalo $1$:
+      \textbf{2 milhões} de aumentos.
+      \medskip
+
+      Os dois caminhos $s \to u \to t$ e $s \to v \to t$ resolveriam em \textbf{2} aumentos.
+      Com capacidades irracionais, o método pode nem terminar.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.4cm, y=1.2cm]
+        \nosKT
+        \draw[arco] (s) -- node[peso] {$10^6$} (u);
+        \draw[arco] (s) -- node[peso] {$10^6$} (v);
+        \draw[arco] (u) -- node[peso] {$10^6$} (t);
+        \draw[arco] (v) -- node[peso] {$10^6$} (t);
+        \draw[arcocam] (u) -- node[peso] {1} (v);
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize O arco central $u \to v$, de capacidade $1$, é a armadilha.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.2, Figura 26.7~\cite{cormen2009introduction};
+    Levitin (2012), \S 10.2~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Edmonds-Karp: o caminho com menos arcos}
+  \begin{block}{Teorema (Edmonds e Karp, 1972)}
+    \small
+    Se cada caminho aumentador for o de \textbf{menos arcos} em $G_f$ (achado por BFS),
+    Ford-Fulkerson faz $O(nm)$ aumentos. O tempo total é $O(nm^2)$, sem depender das
+    capacidades.
+  \end{block}
+  \scriptsize
+  \textbf{Ideia.} A distância (em arcos) de $s$ a cada vértice em $G_f$ nunca diminui. Em todo
+  aumento algum arco do caminho fica cheio, e ele só volta a ser usado depois que essa distância
+  cresce em pelo menos $2$. A BFS de hoje já é Edmonds-Karp.
+  \smallskip
+
+  \centering
+  \begin{tabular}{lll}
+    \toprule
+    algoritmo & ideia & tempo \\
+    \midrule
+    Ford-Fulkerson (1956) & qualquer caminho & $O(m\,|f^*|)$ \\
+    Edmonds-Karp (1972) & caminho com menos arcos (BFS) & $O(nm^2)$ \\
+    Dinic (1970) & todos os caminhos mínimos de uma vez & $O(n^2 m)$ \\
+    Orlin (2013) & combinação de técnicas avançadas & $O(nm)$ \\
+    Chen et al.\ (2022) & métodos contínuos (otimização) & $m^{1+o(1)}$ \\
+    \bottomrule
+  \end{tabular}
+  \fonte{Edmonds e Karp (1972)~\cite{edmonds1972theoretical}; Cormen et al.\ (2009), \S 26.2,
+    Teorema 26.8~\cite{cormen2009introduction}; Dinic (1970)~\cite{dinic1970algorithm};
+    Orlin (2013)~\cite{orlin2013max}; Chen et al.\ (2022)~\cite{chen2022maximum}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: custo}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Ford-Fulkerson genérico: $O(m\,|f^*|)$, que pode ser exponencial no tamanho da
+        entrada.
+      \item Uma escolha ruim de caminhos leva a $2 \times 10^6$ aumentos onde bastam 2.
+      \item Edmonds-Karp (BFS): $O(nm)$ aumentos, $O(nm^2)$ no total.
+      \item Desde 2022 há algoritmo de tempo quase linear, $m^{1+o(1)}$.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 26.2~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 7.3~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{Emparelhamento bipartido}
+
+\begin{frame}{Por que precisamos de emparelhamentos?}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \textbf{Problema:} quatro alunos (A, B, C, D) e quatro projetos de iniciação científica
+      (1 a 4). Cada aluno indicou os projetos que aceita. Cada projeto recebe um aluno, e cada
+      aluno fica com um projeto. Quantos alunos, no máximo, ficam alocados?
+      \medskip
+
+      {\scriptsize O mesmo modelo serve para escalas de plantão, revisores de artigos, tarefas
+      e máquinas.\par}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.2cm, y=0.95cm]
+        \bip{}{}
+        \node[font=\tiny, above=1mm of A] {alunos};
+        \node[font=\tiny, above=1mm of p1] {projetos};
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize A aceita 1 e 2; B só 1; C aceita 2 e 3; D aceita 3 e 4.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 10.3~\cite{levitin2012introduction};
+    Kleinberg e Tardos (2006), \S 7.5~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Emparelhamento: definição}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \begin{block}{Definição}
+        \small
+        Um grafo $G = (L \cup R, E)$ é \textbf{bipartido} se toda aresta liga $L$ a $R$. Um
+        \textbf{emparelhamento} é um conjunto $M \subseteq E$ de arestas sem ponta em comum. É
+        \textbf{máximo} se nenhum outro tem mais arestas.
+      \end{block}
+      \begin{exampleblock}{Intuição}
+        \small Maximal (não dá para pôr mais uma aresta) \emph{não} é o mesmo que máximo. O
+        guloso que pega a primeira aresta livre de cada aluno para em um emparelhamento maximal.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.4\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.2cm, y=0.95cm]
+        \bip{A/p1, C/p2, D/p3}{}
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Guloso na ordem A, B, C, D: A--1, B fica sem projeto (1 já foi), C--2,
+      D--3. Tamanho 3 e maximal: nenhuma aresta livre liga B a um projeto livre.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.3~\cite{cormen2009introduction};
+    Levitin (2012), \S 10.3~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Emparelhamento como fluxo}
+  \begin{columns}[c]
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.2cm, y=0.8cm]
+        \nosbip
+        \foreach \u/\v in \arestasbip \draw[arco] (\u) -- (\v);
+        \node[vert] (s) at (-1.3,0) {$s$};
+        \node[vert] (t) at (3.3,0) {$t$};
+        \foreach \v in {A,B,C,D} \draw[arco] (s) -- (\v);
+        \foreach \v in {p1,p2,p3,p4} \draw[arco] (\v) -- (t);
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Todas as capacidades valem $1$.\par}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \textbf{Construção.} Oriente cada aresta de $L$ para $R$, ligue $s$ a todo vértice de
+      $L$ e todo vértice de $R$ a $t$, tudo com capacidade $1$.
+      \medskip
+
+      \textbf{Correspondência.} Pela integralidade, o fluxo máximo achado por Ford-Fulkerson
+      é inteiro: cada arco leva $0$ ou $1$. Como entra no máximo $1$ em cada aluno e sai no
+      máximo $1$ de cada projeto, os arcos $L \to R$ com fluxo $1$ formam um emparelhamento,
+      e $|M| = |f|$.
+      \medskip
+
+      \textbf{Custo.} $|f^*| \le |L|$, então são no máximo $n$ aumentos: $O(nm)$, mesmo sem
+      Edmonds-Karp.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 26.3, Lema 26.9, Teorema 26.10, Corolário 26.11 e
+    Figura 26.8~\cite{cormen2009introduction}; Kleinberg e Tardos (2006), \S 7.5~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: o caminho aumentador vira caminho alternante}
+  \begin{columns}[c]
+    \begin{column}{0.4\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[x=1.2cm, y=0.95cm]
+        \bip{A/p1, C/p2, D/p3}{B/p1, A/p2, C/p3, D/p4}
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Laranja: emparelhamento atual. Vermelho tracejado: arestas livres do
+      caminho.\par}
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      \scriptsize
+      Em $G_f$, um caminho de $s$ a $t$ sai de um aluno livre, usa uma aresta \emph{livre} até
+      um projeto, volta pelo retorno de uma aresta \emph{emparelhada} e assim por diante, até
+      um projeto livre:
+      \[ B \to 1 \Rightarrow A \to 2 \Rightarrow C \to 3 \Rightarrow D \to 4 \]
+      ($\to$ livre, $\Rightarrow$ retorno de emparelhada). É um \textbf{caminho alternante}
+      entre dois vértices livres.
+      \medskip
+
+      \textbf{Aumento:} troque o estado de cada aresta do caminho. Entram B--1, A--2, C--3,
+      D--4 e saem A--1, C--2, D--3. O emparelhamento passa de 3 para \textbf{4}: todos os
+      alunos ficam com projeto.
+      \medskip
+
+      Ninguém perdeu o projeto: A, C e D só mudaram de projeto para abrir espaço para B.
+    \end{column}
+  \end{columns}
+  \fonte{Levitin (2012), \S 10.3~\cite{levitin2012introduction};
+    Cormen et al.\ (2009), \S 26.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Para onde isso leva}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Teorema de König (1931).} Num grafo bipartido, o tamanho do emparelhamento
+      máximo é igual ao menor número de vértices que tocam todas as arestas. Sai do teorema
+      do fluxo máximo e corte mínimo aplicado à rede do emparelhamento.
+      \medskip
+
+      \textbf{Teorema de Berge (1957).} Um emparelhamento é máximo se e somente se não há
+      caminho alternante entre dois vértices livres. É a equivalência ``máximo $\Leftrightarrow$
+      sem caminho aumentador'' de Ford e Fulkerson, dita para emparelhamentos.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \centering
+      \begin{tabular}{ll}
+        \toprule
+        algoritmo & tempo \\
+        \midrule
+        Ford-Fulkerson (DFS ou BFS) & $O(nm)$ \\
+        Hopcroft-Karp (1973) & $O(m\sqrt{n})$ \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      \raggedright
+      Hopcroft-Karp faz vários caminhos alternantes disjuntos de uma vez, na mesma ideia de
+      Dinic. Com pesos nas arestas (custo de cada alocação), o problema vira o de
+      \emph{atribuição}, resolvido pelo método húngaro.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 7.5~\cite{kleinberg2006algorithm};
+    Hopcroft e Karp (1973)~\cite{hopcroft1973n52}; Levitin (2012), \S 10.3~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: emparelhamento}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Emparelhamento: arestas sem ponta em comum; maximal não é máximo.
+      \item Rede com $s$, $t$ e capacidades $1$: emparelhamento máximo = fluxo máximo.
+      \item Caminho aumentador = caminho alternante entre dois vértices livres.
+      \item Inverter o caminho aumenta o emparelhamento em 1.
+      \item $O(nm)$ com Ford-Fulkerson; $O(m\sqrt{n})$ com Hopcroft-Karp.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 26.3~\cite{cormen2009introduction};
+    Levitin (2012), \S 10.3~\cite{levitin2012introduction}.}
+\end{frame}
+
+% =====================================================================
+\section*{Fechando}
+
+\begin{frame}{Fechando}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{O que levar desta aula}
+        \scriptsize
+        \begin{itemize}
+          \item Melhora iterativa: viável, melhora, certificado.
+          \item A rede residual permite desfazer fluxo pelos arcos de retorno.
+          \item Ford-Fulkerson aumenta por caminhos de $G_f$ até $t$ ficar inalcançável.
+          \item Fluxo máximo = corte mínimo; a última busca entrega o corte.
+          \item Use BFS (Edmonds-Karp): $O(nm^2)$, sem depender das capacidades.
+          \item Emparelhamento bipartido é fluxo com capacidades $1$.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \textbf{Panorama da Unidade 3.} Huffman, Kruskal, Prim e Dijkstra são gulosos provados
+      por argumento de troca. Fluxo é melhora iterativa provada por certificado (o corte).
+      \medskip
+
+      \textbf{Exercício para casa:} no tutorial, o desafio decide se um time ainda pode ser
+      campeão modelando os jogos que faltam como uma rede de fluxo.
+      \medskip
+
+      \textbf{Próxima aula:} P, NP e reduções polinomiais. Para alguns problemas parecidos
+      com estes, ninguém conhece algoritmo polinomial.
+    \end{column}
+  \end{columns}
+  \fonte{Ford e Fulkerson (1956)~\cite{ford1956maximal};
+    Kleinberg e Tardos (2006), \S 7.12~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{levitin2012introduction, cormen2009introduction, cormen2012algoritmos, kleinberg2006algorithm, dasgupta2008algorithms, sedgewick2011algorithms, ford1956maximal, edmonds1972theoretical, dinic1970algorithm, hopcroft1973n52, orlin2013max, chen2022maximum, schrijver2002history}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

@@ -199,6 +199,15 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-21-fluxo-maximo-ford-fulkerson-e-emparelhamento' | relative_url }}">
+    <div class="week-num">21</div>
+    <div class="week-body">
+      <div class="week-title">Melhora iterativa: fluxo máximo e emparelhamento bipartido</div>
+      <div class="week-desc">Rede residual e caminhos aumentadores; Ford-Fulkerson e o teorema do fluxo máximo e corte mínimo; Edmonds-Karp em O(nm²); emparelhamento bipartido como fluxo com capacidades 1.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/lista-de-exercicios' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📝</div>
     <div class="week-body">
