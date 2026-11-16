@@ -1,0 +1,1459 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning,
+  matrix, fit, backgrounds, decorations.pathreplacing, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{codC}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7.5}{8.6}\selectfont\color{black},
+}
+\lstdefinestyle{codCs}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7}{7.9}\selectfont\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{shellS}{
+  style=shellStyle, basicstyle=\ttfamily\fontsize{7}{7.9}\selectfont\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  byte/.style={rectangle, draw=UFSBlue, fill=white, minimum width=0.36cm,
+    minimum height=0.46cm, inner sep=0pt, font=\scriptsize\ttfamily},
+  byteb/.style={byte, fill=UFSBlue!15},
+  byter/.style={byte, draw=UFSRed, fill=UFSRed!12},
+  bytev/.style={byte, draw=UFSGray!50, fill=black!4, text=UFSGray!70},
+  caixa/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+    align=center, font=\small, inner sep=5pt},
+  caixar/.style={caixa, draw=UFSRed, fill=UFSRed!10},
+  caixag/.style={caixa, draw=UFSGray, fill=black!4},
+  item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+    minimum width=10.4cm, minimum height=0.5cm, font=\small},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={-{Stealth[length=1.8mm]}, thick, UFSBlue},
+  setar/.style={-{Stealth[length=1.8mm]}, thick, UFSRed},
+  setag/.style={-{Stealth[length=1.8mm]}, thick, UFSGray},
+}
+
+% Uma fileira de caracteres, um por caixa: \fileira{x}{y}{estilo}{a,b,c}
+\newcommand{\fileira}[4]{%
+  \foreach \c [count=\k from 0] in {#4} {
+    \node[#3] at (#1+0.36*\k, #2) {\c};
+  }
+}
+
+% Circunflexo em codigo no meio do texto
+\newcommand{\cir}{\textasciicircum}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% --- Metadados ---
+\title{Arquivos texto}
+\subtitle{\texttt{fopen}, \texttt{fprintf}, \texttt{fscanf} e \texttt{fgets}}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[item] (t1) at (0, 0)    {O que há dentro de um arquivo texto};
+    \node[item] (t2) at (0,-0.64) {Abrir e fechar: \texttt{fopen}, os modos e o \texttt{NULL}};
+    \node[item] (t3) at (0,-1.28) {O \emph{buffer}: por que o \texttt{fclose} importa};
+    \node[item] (t4) at (0,-1.92) {Ler e gravar com formato: \texttt{fscanf} e \texttt{fprintf}};
+    \node[item] (t5) at (0,-2.56) {Uma linha de cada vez: \texttt{fgets} e \texttt{sscanf}};
+    \node[item] (t6) at (0,-3.20) {Um caractere de cada vez: \texttt{fgetc} e o \texttt{EOF}};
+    \node[item] (t7) at (0,-3.84) {Exercícios};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+    \draw[seta] (t5) -- (t6);
+    \draw[seta] (t6) -- (t7);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{A pergunta de hoje}
+% ==================================================================
+
+\begin{frame}[fragile]{O problema: as notas morrem com o programa}
+  \vspace{-0.4em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Até aqui}\\[0.3em]
+      \small
+      As notas do \texttt{notas.c} estavam escritas no código, ou eram
+      digitadas a cada execução. A saída ia para a tela e sumia quando a
+      janela fechava.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que vamos descobrir}\\[0.3em]
+      \small
+      Um programa pode abrir arquivos por conta própria: ler de um, gravar
+      em outro, quantos quiser, com as mesmas funções de formato que você
+      já conhece.
+    \end{column}
+  \end{columns}
+  \smallskip
+\begin{lstlisting}[style=shellStyle]
+$ ./notas < turma.txt > boletim.txt     # funciona, mas so com uma entrada e uma saida
+\end{lstlisting}
+  \begin{block}{A pergunta de hoje}
+    Como o programa lê \texttt{turma.txt} e grava \texttt{boletim.txt}
+    sozinho? E o que pode dar errado no caminho --- arquivo que não existe,
+    linha com espaços, programa que cai antes de terminar?
+  \end{block}
+  \fonte{Kernighan e Ritchie (1988), §7.5~\cite{kernighan1988c}}
+\end{frame}
+
+\begin{frame}{Um arquivo texto é uma fileira de caracteres}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[leg, anchor=west] at (-0.3,1.25) {\texttt{turma.txt}, primeira linha, byte a byte:};
+    \fileira{0}{0}{byte}{2,0,2,6,0,0,1,0,1}
+    \node[byteb] at (3.24,0) {\textvisiblespace};
+    \fileira{3.60}{0}{byte}{8,.,0}
+    \node[byteb] at (4.68,0) {\textvisiblespace};
+    \fileira{5.04}{0}{byte}{6,.,5}
+    \node[leg] at (6.30,0) {$\cdots$};
+    \fileira{6.84}{0}{byte}{7,.,5}
+    \node[byter, minimum width=0.5cm] at (8.0,0) {\textbackslash n};
+    \fileira{8.54}{0}{bytev}{2,0,2}
+    \node[leg] at (9.6,0) {$\cdots$};
+    \draw[setar] (8.0,-0.9) -- (8.0,-0.3);
+    \node[leg, text=UFSRed, align=center] at (8.0,-1.2) {fim da linha:\\ só mais um caractere};
+    \draw[seta] (4.68,0.85) -- (4.68,0.3);
+    \node[leg, anchor=west] at (4.85,0.75) {espaço separa os campos};
+    \draw[decorate, decoration={brace, amplitude=4pt, mirror}, thick, UFSBlue]
+      (-0.18,-0.35) -- (3.06,-0.35)
+      node[midway, below=5pt, leg, align=center] {nove caracteres,\\ não um \texttt{int}};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Arquivo texto}
+        \small Uma sequência de caracteres organizada em \textbf{linhas}, cada
+        uma terminada por \texttt{'\textbackslash n'}. Abre em qualquer editor.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small O número $8{,}0$ não está guardado como \texttt{double}: está
+      escrito, com três caracteres. Ler é \textbf{converter} texto em número;
+      gravar é o caminho inverso.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.2~\cite{iso2018c17};
+    King (2008), §22.1~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{boletim.c} (1/2)}
+  \vspace{-0.8em}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+\begin{lstlisting}[style=codCs]
+#include <stdio.h>
+#define NAV 4   /* avaliacoes por aluno */
+
+int main(int argc, char *argv[])
+{
+    const char *nome_ent = argc > 1 ? argv[1]
+                                    : "turma.txt";
+    const char *nome_sai = argc > 2 ? argv[2]
+                                    : "boletim.txt";
+    FILE *ent = fopen(nome_ent, "r");
+    if (ent == NULL) {
+        perror(nome_ent);
+        return 1;
+    }
+    FILE *sai = fopen(nome_sai, "w");
+    if (sai == NULL) {
+        perror(nome_sai);
+        fclose(ent);
+        return 1;
+    }
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \texttt{turma.txt}: matrícula e quatro notas
+\begin{lstlisting}[style=shellS]
+202600101 8.0 6.5 9.0 7.5
+202600102 5.0 7.0 4.0 7.0
+202600103 9.0 10.0 8.5 9.5
+202600104 3.5 4.0 6.0 2.5
+\end{lstlisting}
+      \small
+      \texttt{fopen} recebe o \textbf{nome} do arquivo e um \textbf{modo}:
+      \texttt{"r"} para ler, \texttt{"w"} para gravar. Devolve um
+      \texttt{FILE *}, que todas as outras funções vão usar.
+
+      \medskip
+      Os nomes vêm da linha de comando, ou ficam no padrão.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{boletim.c} (2/2): ler, calcular, gravar}
+  \vspace{-0.6em}
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+\begin{lstlisting}[style=codCs]
+    int mat, n = 0, aprovados = 0;
+    double v[NAV];
+    while (fscanf(ent, "%d %lf %lf %lf %lf",
+                  &mat, &v[0], &v[1], &v[2], &v[3]) == 5) {
+        double m = (v[0] + v[1] + v[2] + v[3]) / NAV;
+        fprintf(sai, "%d %5.2f %s\n", mat, m,
+                m >= 5.0 ? "aprovado" : "reprovado");
+        n++;
+        if (m >= 5.0) aprovados++;
+    }
+    fclose(ent);
+    fclose(sai);
+
+    printf("%d alunos lidos de %s, %d aprovados\n",
+           n, nome_ent, aprovados);
+    printf("boletim gravado em %s\n", nome_sai);
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \small
+      \texttt{fscanf} é o \texttt{scanf} de sempre, com um \texttt{FILE *}
+      na frente. \texttt{fprintf}, o mesmo para o \texttt{printf}.
+
+      \medskip
+      O laço continua enquanto \texttt{fscanf} consegue converter os
+      \textbf{cinco} campos.
+
+      \medskip
+      \texttt{fclose} devolve o arquivo ao sistema quando o programa acaba
+      de usá-lo.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{O que este programa imprime?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item O que aparece na \textbf{tela}? E o que fica gravado em
+        \texttt{boletim.txt}?
+      \item Qual é a média do aluno \texttt{202600101}? Como
+        \texttt{\%5.2f} a escreve?
+      \item Se você rodar o programa duas vezes seguidas, o boletim fica com
+        quatro linhas ou com oito?
+      \item O que acontece com \texttt{./boletim turmas.txt} --- um
+        \texttt{s} a mais no nome?
+      \item O \texttt{fscanf} sabe onde termina cada linha? Ele precisa saber?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra boletim.c -o boletim
+$ ./boletim
+4 alunos lidos de turma.txt, 3 aprovados
+boletim gravado em boletim.txt
+$ cat boletim.txt
+202600101  7.75 aprovado
+202600102  5.75 aprovado
+202600103  9.25 aprovado
+202600104  4.00 reprovado
+$ ./boletim turmas.txt
+turmas.txt: No such file or directory
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Na tela, só as duas linhas de \texttt{printf}. O boletim foi
+      para o disco e continua lá depois que o programa termina.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Rodar de novo deixa \textbf{quatro} linhas, não oito. E o nome
+      errado não derrubou o programa: alguém testou o \texttt{NULL}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ==================================================================
+\section{Abrir e fechar}
+% ==================================================================
+
+\begin{frame}{Definição: fluxo e \texttt{FILE *}}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[caixa] (prog) at (0,0) {seu programa\\ \scriptsize\texttt{fscanf(ent, ...)}};
+    \node[caixa, minimum width=3.6cm] (file) at (4.4,0)
+      {\texttt{FILE}\\ \scriptsize buffer $\cdot$ posição atual\\
+       \scriptsize indicadores de fim e de erro};
+    \node[caixag] (disco) at (8.8,0) {\texttt{turma.txt}\\ \scriptsize no disco};
+    \draw[seta, <->] (prog) -- node[above, leg] {\texttt{FILE *ent}} (file);
+    \draw[setag, <->] (file) -- node[above, leg] {sistema} (disco);
+  \end{tikzpicture}
+  \end{center}
+  \begin{block}{Fluxo (\emph{stream})}
+    \small A biblioteca \texttt{<stdio.h>} não deixa o programa mexer no disco
+    diretamente. \texttt{fopen} cria uma estrutura \texttt{FILE} que guarda
+    tudo o que é preciso para ler ou gravar aquele arquivo, e devolve um
+    ponteiro para ela. O programa só passa esse ponteiro adiante.
+  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Ninguém olha dentro do \texttt{FILE}: é um tipo opaco, como um TAD.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small \texttt{fclose} grava o que falta, libera a estrutura e o
+      ponteiro deixa de valer.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §7.5~\cite{kernighan1988c};
+    King (2008), §22.1--22.2~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Os modos de \texttt{fopen}}
+  \begin{center}
+  \small
+  \begin{tabular}{@{}llll@{}}
+    \toprule
+    modo & para quê & se o arquivo existe & se não existe\\
+    \midrule
+    \texttt{"r"}  & ler                      & lê desde o início          & \textcolor{UFSRed}{devolve \texttt{NULL}}\\
+    \texttt{"w"}  & gravar                   & \textcolor{UFSRed}{apaga o conteúdo} & cria vazio\\
+    \texttt{"a"}  & acrescentar              & grava sempre no fim        & cria vazio\\
+    \midrule
+    \texttt{"r+"} & ler e gravar             & mantém o conteúdo          & devolve \texttt{NULL}\\
+    \texttt{"w+"} & ler e gravar             & apaga o conteúdo           & cria vazio\\
+    \texttt{"a+"} & ler e acrescentar        & grava sempre no fim        & cria vazio\\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Hoje bastam os três primeiros. Os modos com \texttt{+} e o
+      \texttt{b} de binário (\texttt{"rb"}, \texttt{"wb"}) ficam para a
+      próxima aula.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small \texttt{"r"} pode falhar por arquivo inexistente ou sem
+      permissão de leitura; \texttt{"w"}, por diretório sem permissão de
+      escrita. Por isso o \texttt{NULL} se testa \textbf{sempre}.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.5.3~\cite{iso2018c17};
+    King (2008), §22.2~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{E se o arquivo não existir?}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[style=codC]
+/* sem_teste.c --- o mesmo laco, sem testar
+   o retorno de fopen */
+#include <stdio.h>
+
+int main(void)
+{
+    FILE *ent = fopen("turmas.txt", "r");
+    int mat, n = 0;
+    double v[4];
+    while (fscanf(ent, "%d %lf %lf %lf %lf",
+                  &mat, &v[0], &v[1], &v[2],
+                  &v[3]) == 5)
+        n++;
+    printf("%d alunos lidos\n", n);
+    fclose(ent);
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+      \begin{block}{Antes de executar}
+        \small
+        \begin{enumerate}
+          \item O nome tem um \texttt{s} a mais. O que \texttt{fopen}
+            devolve?
+          \item O programa imprime \texttt{0 alunos lidos}? Ou não chega
+            a imprimir nada?
+          \item Que mensagem o \texttt{boletim.c} deu no mesmo caso, e de
+            onde ela veio?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra sem_teste.c -o sem_teste
+$ ./sem_teste
+Segmentation fault (core dumped)
+$ ./boletim turmas.txt
+turmas.txt: No such file or directory
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{O que aconteceu}
+        \small \texttt{fopen} devolveu \texttt{NULL}, e o \texttt{fscanf}
+        tentou ler a estrutura \texttt{FILE} no endereço zero. Nenhum aviso
+        do compilador: o erro só existe em tempo de execução.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small A mensagem do \texttt{boletim} não foi escrita por ninguém: o
+      texto \emph{No such file or directory} veio do sistema, pela
+      \texttt{perror}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{A resposta: \texttt{NULL}, \texttt{errno} e \texttt{perror}}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+FILE *ent = fopen(nome, "r");
+if (ent == NULL) {
+    perror(nome);    /* nome: motivo */
+    return 1;        /* ou exit(1) */
+}
+\end{lstlisting}
+      \small Quando falha, \texttt{fopen} devolve \texttt{NULL} e guarda o
+      motivo num inteiro global, \texttt{errno}. \texttt{perror(s)} imprime
+      \texttt{s}, dois-pontos e o motivo em texto, na \textbf{saída de
+      erro}.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Motivos comuns}
+        \scriptsize
+        \begin{tabular}{@{}ll@{}}
+          \texttt{ENOENT} & No such file or directory\\
+          \texttt{EACCES} & Permission denied\\
+          \texttt{EISDIR} & Is a directory\\
+        \end{tabular}
+      \end{block}
+      \small Ao abrir dois arquivos, se o segundo falhar,
+      \textbf{feche o primeiro} antes de sair --- como faz o
+      \texttt{boletim.c}.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §7.6~\cite{kernighan1988c};
+    ISO/IEC 9899:2018, §7.21.10.4~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}[fragile]{E se gravar duas vezes no mesmo arquivo?}
+  \vspace{-0.6em}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[style=codCs]
+/* diario.c --- anota no diario de estudos */
+#include <stdio.h>
+
+int main(int argc, char *argv[])
+{
+    if (argc < 2) {
+        fprintf(stderr, "uso: %s \"anotacao\"\n",
+                argv[0]);
+        return 1;
+    }
+    FILE *f = fopen("diario.txt", "w");
+    if (f == NULL) {
+        perror("diario.txt");
+        return 1;
+    }
+    fprintf(f, "- %s\n", argv[1]);
+    fclose(f);
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+\begin{lstlisting}[style=shellS]
+$ ./diario "estudei fopen"
+$ ./diario "estudei fprintf"
+$ cat diario.txt
+\end{lstlisting}
+      \begin{block}{Antes de executar}
+        \small
+        \begin{enumerate}
+          \item Quantas linhas o \texttt{cat} mostra? Quais?
+          \item Que letra muda no \texttt{fopen} para o diário funcionar
+            como o nome promete?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ ./diario "estudei fopen"
+$ ./diario "estudei fprintf"
+$ cat diario.txt
+- estudei fprintf
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{\texttt{"w"} começa do zero}
+        \small Cada \texttt{fopen(..., "w")} apaga o que havia. A primeira
+        anotação foi gravada --- e apagada pela segunda execução.
+        Com \texttt{"a"}, as duas ficam, uma depois da outra.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{Cuidado}
+        \small \texttt{fopen(nome\_ent, "w")} por engano, no arquivo de
+        \emph{entrada}, apaga os dados antes da primeira leitura. Não há
+        pergunta, aviso ou lixeira.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.5.3~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}[fragile]{E se o programa cair antes do \texttt{fclose}?}
+  \vspace{-0.6em}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[style=codCs]
+/* queda.c --- cai antes do fclose */
+#include <stdio.h>
+#include <signal.h>
+
+int main(void)
+{
+    FILE *f = fopen("log.txt", "w");
+    if (f == NULL) {
+        perror("log.txt");
+        return 1;
+    }
+    for (int i = 1; i <= 3; i++)
+        fprintf(f, "passo %d concluido\n", i);
+    fprintf(stderr, "3 passos registrados\n");
+    raise(SIGSEGV);  /* simula um segfault */
+    fclose(f);
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+      \begin{block}{Antes de executar}
+        \small
+        \begin{enumerate}
+          \item Os três \texttt{fprintf} rodaram antes da queda. Quantas
+            linhas haverá em \texttt{log.txt}?
+          \item A mensagem na tela aparece?
+          \item E se a queda viesse depois do \texttt{fclose}?
+        \end{enumerate}
+      \end{block}
+      \small \texttt{raise(SIGSEGV)} faz o programa morrer como num acesso
+      inválido à memória.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra queda.c -o queda
+$ ./queda
+3 passos registrados
+Segmentation fault (core dumped)
+$ wc -c log.txt
+0 log.txt
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{O arquivo existe, mas está vazio}
+        \small \texttt{fopen} com \texttt{"w"} criou o arquivo. Os três
+        \texttt{fprintf} devolveram sucesso. E nenhum byte chegou ao disco.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small A mensagem foi para \texttt{stderr} e apareceu na hora. As
+      linhas do log foram para algum lugar que morreu junto com o programa.
+      Onde?
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{A resposta: o \emph{buffer}}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[caixa] (fp) at (0,0) {\texttt{fprintf(f, ...)}};
+    \node[caixa, minimum width=3.4cm, minimum height=0.9cm] (buf) at (4.2,0) {};
+    \node[leg, above] at (buf.north) {buffer do \texttt{FILE}, na memória do programa};
+    \foreach \x in {0,...,6} \node[byteb] at (2.85+0.36*\x,0) {};
+    \foreach \x in {7} \node[byte] at (2.85+0.36*\x,0) {};
+    \node[caixag] (disco) at (9.9,0) {\texttt{log.txt}\\ \scriptsize no disco};
+    \draw[seta] (fp) -- (buf);
+    \draw[setag] (buf) -- node[below, leg, align=center, yshift=-4pt]
+      {buffer cheio, \texttt{fflush},\\ \texttt{fclose} ou fim normal} (disco);
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.4em}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \small Pedir ao sistema que grave custa caro. Por isso \texttt{fprintf}
+      só copia os caracteres para um vetor dentro do \texttt{FILE}; a
+      gravação de verdade acontece de uma vez, quando o buffer enche ou o
+      arquivo é fechado.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Quem esvazia o buffer}
+        \small \texttt{fflush(f)}, \texttt{fclose(f)}, \texttt{return} do
+        \texttt{main} ou \texttt{exit}. Uma queda, não.
+      \end{block}
+      \small \texttt{stderr} não tem buffer: o erro aparece na hora.
+    \end{column}
+  \end{columns}
+  \fonte{Kerrisk (2010), §13.2~\cite{kerrisk2010linux};
+    ISO/IEC 9899:2018, §7.21.3 e §7.21.5.2~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{stdin}, \texttt{stdout} e \texttt{stderr}: três fluxos já abertos}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small Todo programa começa com três \texttt{FILE *} prontos, sem
+      \texttt{fopen}:
+      \begin{center}
+      \scriptsize
+      \begin{tabular}{@{}lll@{}}
+        \toprule
+        fluxo & ligado a & atalho\\
+        \midrule
+        \texttt{stdin}  & teclado & \texttt{scanf(...)}\\
+        \texttt{stdout} & tela    & \texttt{printf(...)}\\
+        \texttt{stderr} & tela    & ---\\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+      \texttt{printf(...)} é \texttt{fprintf(stdout, ...)};
+      \texttt{scanf(...)} é \texttt{fscanf(stdin, ...)}.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=shellS]
+$ ./boletim turmas.txt > saida.txt
+turmas.txt: No such file or directory
+$ ./boletim turmas.txt 2> erros.txt
+$ cat erros.txt
+turmas.txt: No such file or directory
+\end{lstlisting}
+      \small \texttt{>} desvia só o \texttt{stdout}; o erro continua na
+      tela. \texttt{2>} desvia o \texttt{stderr}. Mensagens de erro vão
+      para \texttt{stderr} para não se misturarem com os dados.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §7.5--7.6~\cite{kernighan1988c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: abrir e fechar}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{fopen(nome, modo)} devolve um \texttt{FILE *}; todo o
+        resto passa por ele;
+      \item \texttt{"r"} lê, \texttt{"w"} apaga e grava, \texttt{"a"}
+        acrescenta no fim;
+      \item \texttt{fopen} pode devolver \texttt{NULL}: teste sempre e use
+        \texttt{perror} para dizer o motivo;
+      \item o que se grava fica num buffer até \texttt{fflush},
+        \texttt{fclose} ou o fim normal do programa;
+      \item \texttt{stdin}, \texttt{stdout} e \texttt{stderr} são fluxos
+        como os outros: erros vão para \texttt{stderr}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Com formato: \texttt{fscanf} e \texttt{fprintf}}
+% ==================================================================
+
+\begin{frame}[fragile]{Definição: \texttt{fprintf} e \texttt{fscanf}}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+int fprintf(FILE *f, const char *fmt, ...);
+int fscanf(FILE *f, const char *fmt, ...);
+\end{lstlisting}
+      \small Os mesmos especificadores de \texttt{printf} e \texttt{scanf}:
+      \texttt{\%d}, \texttt{\%lf}, \texttt{\%s}, \texttt{\%c}\ldots{} O
+      primeiro argumento diz \textbf{de onde} ler ou \textbf{para onde}
+      gravar.
+
+      \medskip
+      No \texttt{fscanf}, um espaço no formato pula \emph{qualquer}
+      quantidade de espaços, tabulações e \texttt{'\textbackslash n'}. Por
+      isso ele não percebe onde as linhas terminam.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{O que \texttt{fscanf} devolve}
+        \scriptsize
+        \begin{tabular}{@{}p{2.6cm}l@{}}
+          leu os 5 campos & \texttt{5}\\
+          parou num campo inválido & \texttt{0} a \texttt{4}\\
+          chegou ao fim antes do 1º & \texttt{EOF}\\
+        \end{tabular}
+      \end{block}
+      \small Teste a \textbf{quantidade}: \texttt{== 5}. Testar
+      \texttt{!= EOF} aceita linhas pela metade e pode entrar em laço
+      infinito num campo inválido.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.6.1--7.21.6.2~\cite{iso2018c17};
+    King (2008), §22.3~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Como o \texttt{fscanf} anda pelo arquivo}
+  \begin{center}
+  \begin{tikzpicture}
+    \fileira{0}{0}{bytev}{2,0,2,6,0,0,1,0,1}
+    \node[bytev] at (3.24,0) {\textvisiblespace};
+    \fileira{3.60}{0}{bytev}{8,.,0}
+    \node[byte] at (4.68,0) {\textvisiblespace};
+    \fileira{5.04}{0}{byte}{6,.,5}
+    \node[byte] at (6.12,0) {\textvisiblespace};
+    \fileira{6.48}{0}{byte}{9,.,0}
+    \node[leg] at (7.6,0) {$\cdots$};
+    \draw[setar] (4.68,0.75) -- (4.68,0.3);
+    \node[leg, text=UFSRed] at (4.68,0.95) {posição atual};
+    \draw[decorate, decoration={brace, amplitude=4pt, mirror}, thick, UFSGray]
+      (-0.18,-0.35) -- (3.06,-0.35) node[midway, below=5pt, leg] {\texttt{\%d} $\to$ \texttt{mat}};
+    \draw[decorate, decoration={brace, amplitude=4pt, mirror}, thick, UFSGray]
+      (3.42,-0.35) -- (4.50,-0.35) node[midway, below=5pt, leg] {\texttt{\%lf} $\to$ \texttt{v[0]}};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.2em}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small O \texttt{FILE} guarda uma \textbf{posição}. Cada leitura
+      consome caracteres e avança; o próximo \texttt{fscanf} continua de
+      onde o anterior parou --- nunca do começo.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small \texttt{\%d} lê enquanto houver dígitos e para no primeiro
+      caractere que não serve, \emph{sem consumi-lo}. Esse caractere é o
+      primeiro que a próxima conversão vê.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.6.2~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}[fragile]{E se o laço testar \texttt{feof}?}
+  \vspace{-0.9em}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[style=codCs]
+/* fim.c --- o laco controlado por feof */
+#include <stdio.h>
+int main(void)
+{
+    FILE *ent = fopen("turma.txt", "r");
+    if (ent == NULL) {
+        perror("turma.txt");
+        return 1;
+    }
+    int mat, n = 0;
+    double v[4];
+    while (!feof(ent)) {
+        fscanf(ent, "%d %lf %lf %lf %lf",
+               &mat, &v[0], &v[1], &v[2], &v[3]);
+        n++;
+        printf("%d: %d\n", n, mat);
+    }
+    fclose(ent);
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+      \begin{block}{Antes de executar}
+        \small
+        \begin{enumerate}
+          \item \texttt{feof(f)} diz se o arquivo chegou ao fim. Parece o
+            teste natural. Quantas linhas o programa imprime?
+          \item A última linha de \texttt{turma.txt} termina com
+            \texttt{'\textbackslash n'}. Isso muda alguma coisa?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+  \begin{columns}[T]
+    \begin{column}{0.4\textwidth}
+\begin{lstlisting}[style=shellStyle]
+$ ./fim
+1: 202600101
+2: 202600102
+3: 202600103
+4: 202600104
+5: 202600104
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.56\textwidth}
+      \begin{block}{Um aluno a mais}
+        \small Quatro alunos no arquivo, cinco voltas no laço. A última
+        repete a matrícula anterior: o \texttt{fscanf} da quinta volta não
+        leu nada, e \texttt{mat} ficou com o valor velho.
+      \end{block}
+      \small Num programa que soma notas, o último aluno contaria duas
+      vezes --- e a média da turma sairia errada sem erro nenhum na tela.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{A resposta: \texttt{feof} olha para trás}
+  \begin{center}
+  \begin{tikzpicture}[x=1.15cm]
+    \foreach \i/\t in {1/lê aluno 1, 2/lê aluno 2, 3/lê aluno 3, 4/lê aluno 4} {
+      \node[caixa, font=\scriptsize, minimum width=1.9cm] at (2*\i-2,0) {\t};
+      \node[leg] at (2*\i-2,-0.6) {\texttt{feof}: 0};
+    }
+    \node[caixar, font=\scriptsize, minimum width=1.9cm] at (8,0) {tenta o 5º\\ e falha};
+    \node[leg, text=UFSRed] at (8,-0.6) {\texttt{feof}: 1};
+    \foreach \i in {0,2,4,6} \draw[seta] (\i+0.85,0) -- (\i+1.15,0);
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small Depois de ler o aluno 4, sobra o \texttt{'\textbackslash n'}
+      final: o arquivo \emph{ainda não} acabou para o \texttt{FILE}.
+      \texttt{feof} só fica verdadeiro depois que uma leitura
+      \textbf{tenta passar} do fim e falha. Ele diz por que a última
+      leitura falhou, não se a próxima vai dar certo.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=codCs]
+/* teste o resultado da propria leitura */
+while (fscanf(ent, "%d %lf %lf %lf %lf", &mat,
+              &v[0], &v[1], &v[2], &v[3]) == 5)
+    ...
+\end{lstlisting}
+      \small Use \texttt{feof} e \texttt{ferror} \emph{depois} do laço,
+      para saber se ele parou no fim ou num erro.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.10.2~\cite{iso2018c17};
+    King (2008), §22.3~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: \texttt{fscanf} e \texttt{fprintf}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{fprintf} e \texttt{fscanf} são \texttt{printf} e
+        \texttt{scanf} com um \texttt{FILE *} na frente;
+      \item o \texttt{FILE} guarda a posição: cada leitura continua de onde
+        a anterior parou;
+      \item espaços no formato pulam também \texttt{'\textbackslash n'}:
+        \texttt{fscanf} não vê linhas;
+      \item controle o laço pelo valor devolvido, \texttt{== n}, e não por
+        \texttt{feof}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Uma linha de cada vez: \texttt{fgets}}
+% ==================================================================
+
+\begin{frame}[fragile]{E se a turma vier com nomes?}
+  \vspace{-0.3em}
+  \texttt{turma.csv}: campos separados por \texttt{;}, como sai de uma planilha
+\begin{lstlisting}[style=shellS]
+202600101;Ana Souza;8.0;6.5;9.0;7.5
+202600102;Bruno Lima;5.0;7.0;4.0;7.0
+202600103;Carla Menezes Santos;9.0;10.0;8.5;9.5
+202600104;Davi Rocha;3.5;4.0;6.0;2.5
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[style=codC]
+/* nomes.c --- tenta ler com fscanf e %s */
+char nome[50];
+while ((r = fscanf(ent, "%d;%49s;%lf;%lf;%lf;%lf",
+                   &mat, nome, &v[0], &v[1],
+                   &v[2], &v[3])) == 6)
+    printf("%d %s\n", mat, nome);
+printf("fscanf devolveu %d; nome = \"%s\"\n",
+       r, nome);
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+      \begin{block}{Antes de executar}
+        \small
+        \begin{enumerate}
+          \item Quantos alunos o laço imprime?
+          \item Que valor \texttt{fscanf} devolve no fim, e o que fica em
+            \texttt{nome}?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ ./nomes
+fscanf devolveu 2; nome = "Ana"
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Nenhum aluno}
+        \small \texttt{\%d} leu a matrícula, o \texttt{;} casou, e
+        \texttt{\%s} leu \texttt{Ana} --- \texttt{\%s} para no primeiro
+        espaço. O formato esperava \texttt{;} e encontrou um espaço:
+        \texttt{fscanf} desistiu com 2 campos.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Mesmo trocando \texttt{\%s} por algo que aceite espaços, sobra
+      outro problema: se uma linha vier com um campo a menos, o
+      \texttt{fscanf} continua lendo \emph{na linha seguinte}, e todo o
+      resto do arquivo sai desalinhado.
+
+      \medskip
+      Precisamos ler por \textbf{linhas}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Definição: \texttt{fgets}}
+  \vspace{-0.3em}
+\begin{lstlisting}[style=codC]
+char *fgets(char *s, int n, FILE *f);
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Uma linha para dentro de \texttt{s}}
+        \small Lê caracteres de \texttt{f} para \texttt{s} até ler um
+        \texttt{'\textbackslash n'} (que \textbf{fica} em \texttt{s}) ou até
+        completar $n-1$ caracteres. Sempre termina com
+        \texttt{'\textbackslash 0'}. Devolve \texttt{s}, ou \texttt{NULL}
+        no fim do arquivo ou em erro.
+      \end{block}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+\begin{lstlisting}[style=codC]
+char linha[256];
+while (fgets(linha, sizeof linha, ent)
+       != NULL)
+    /* uma linha por volta */;
+\end{lstlisting}
+      \small O tamanho vai junto: \texttt{fgets} nunca passa do fim do vetor.
+      A antiga \texttt{gets}, sem tamanho, foi \textbf{removida} da
+      linguagem no C11.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.7.2~\cite{iso2018c17};
+    Kernighan e Ritchie (1988), §7.7~\cite{kernighan1988c}}
+\end{frame}
+
+\begin{frame}[fragile]{E se a linha não couber?}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=codC]
+/* linhas.c --- turma.csv com um buffer
+   pequeno */
+#include <stdio.h>
+
+int main(void)
+{
+    FILE *ent = fopen("turma.csv", "r");
+    if (ent == NULL) {
+        perror("turma.csv");
+        return 1;
+    }
+    char linha[24];
+    while (fgets(linha, sizeof linha, ent)
+           != NULL)
+        printf("[%s]\n", linha);
+    fclose(ent);
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{block}{Antes de executar}
+        \small
+        \begin{enumerate}
+          \item A primeira linha tem 35 caracteres e mais o
+            \texttt{'\textbackslash n'}. O que aparece no primeiro
+            \texttt{[...]}?
+          \item O resto da linha se perde?
+          \item Onde fica o \texttt{]} de cada linha que coube inteira no
+            vetor?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+\begin{lstlisting}[style=shellS]
+$ ./linhas
+[202600101;Ana Souza;8.0]
+[;6.5;9.0;7.5
+]
+[202600102;Bruno Lima;5.]
+[0;7.0;4.0;7.0
+]
+[202600103;Carla Menezes]
+[ Santos;9.0;10.0;8.5;9.]
+[5
+]
+...
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Nada se perde, mas a linha vem em pedaços}
+        \small Cada \texttt{fgets} pegou no máximo 23 caracteres; o próximo
+        continuou do ponto em que o anterior parou.
+      \end{block}
+      \small O \texttt{]} caiu na linha de baixo porque o
+      \texttt{'\textbackslash n'} do arquivo está \textbf{dentro} de
+      \texttt{linha}. Um pedaço sem \texttt{'\textbackslash n'} no fim
+      significa: a linha ainda não acabou.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{A resposta: o \texttt{'\textbackslash n'} vem junto}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[leg, anchor=east] at (-0.3,0) {\texttt{linha}:};
+    \fileira{0}{0}{byte}{D,a,v,i}
+    \node[byte] at (1.44,0) {\textvisiblespace};
+    \fileira{1.80}{0}{byte}{R,o,c,h,a}
+    \node[byter, minimum width=0.5cm] at (3.69,0) {\textbackslash n};
+    \node[byteb, minimum width=0.5cm] at (4.19,0) {\textbackslash 0};
+    \fileira{4.62}{0}{bytev}{?,?,?,?,?}
+    \draw[setar] (3.69,-0.75) -- (3.69,-0.3);
+    \node[leg, text=UFSRed] at (3.69,-0.95) {\texttt{strcspn(linha, "\textbackslash n")} = 10};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.2em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=codC]
+#include <string.h>
+
+linha[strcspn(linha, "\n")] = '\0';
+\end{lstlisting}
+      \small \texttt{strcspn(s, "\textbackslash n")} conta quantos caracteres
+      vêm antes do primeiro \texttt{'\textbackslash n'} --- ou o tamanho
+      todo, se não houver. Escrever \texttt{'\textbackslash 0'} ali corta o
+      \texttt{'\textbackslash n'} quando ele existe e não faz nada quando
+      não existe.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Antes de usar a linha}
+        \small
+        \begin{itemize}
+          \item tire o \texttt{'\textbackslash n'} final antes de comparar
+            ou imprimir;
+          \item dimensione o vetor com folga para a maior linha esperada;
+          \item linha sem \texttt{'\textbackslash n'}: comprida demais, ou
+            a última do arquivo.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §22.5 e §23.6~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{fgets} + \texttt{sscanf}: a linha inteira, depois os campos}
+  \vspace{-0.5em}
+\begin{lstlisting}[style=codCs]
+    char linha[256], nome[50];
+    while (fgets(linha, sizeof linha, ent) != NULL) {
+        nlinha++;
+        linha[strcspn(linha, "\n")] = '\0';                /* tira o '\n' */
+        if (sscanf(linha, "%d;%49[^;];%lf;%lf;%lf;%lf", &mat, nome,
+                   &v[0], &v[1], &v[2], &v[3]) != 6) {
+            fprintf(stderr, "%s:%d: linha ignorada: \"%s\"\n", nome_ent, nlinha, linha);
+            continue;
+        }
+        double m = (v[0] + v[1] + v[2] + v[3]) / NAV;
+        fprintf(sai, "%d;%s;%.2f;%s\n", mat, nome, m, m >= 5.0 ? "aprovado" : "reprovado");
+    }
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small \texttt{sscanf} é o \texttt{fscanf} de uma \emph{string}. Se a
+      linha estiver errada, só ela é descartada: a próxima volta começa na
+      linha seguinte, alinhada.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small \texttt{\%49[\cir;]}: até 49 caracteres que \textbf{não} sejam
+      \texttt{;} --- espaços incluídos. O \texttt{49} protege o vetor de 50,
+      como o tamanho no \texttt{fgets}.
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §22.8~\cite{king2008c};
+    Kernighan e Pike (1999), §4.1~\cite{kernighan1999practice}}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare: \texttt{boletim\_csv.c}}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra boletim_csv.c -o boletim_csv
+$ ./boletim_csv
+4 alunos gravados em boletim.csv
+$ cat boletim.csv
+202600101;Ana Souza;7.75;aprovado
+202600102;Bruno Lima;5.75;aprovado
+202600103;Carla Menezes Santos;9.25;aprovado
+202600104;Davi Rocha;4.00;reprovado
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Os nomes com espaço passaram inteiros. O arquivo de saída
+      também é CSV: abre direto numa planilha.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Experimente apagar um \texttt{;} de uma linha de
+      \texttt{turma.csv}: aparece \texttt{turma.csv:2: linha ignorada}, e
+      os outros alunos saem certos.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Recapitulando: \texttt{fgets}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{fgets(s, n, f)} lê uma linha, com no máximo $n-1$
+        caracteres, e devolve \texttt{NULL} no fim;
+      \item o \texttt{'\textbackslash n'} fica no vetor: corte com
+        \texttt{s[strcspn(s, "\textbackslash n")] = '\textbackslash 0'};
+      \item linha maior que o vetor chega em pedaços, sem perda;
+      \item \texttt{fgets} + \texttt{sscanf}: uma linha ruim não desalinha
+        o resto do arquivo;
+      \item \texttt{\%49[\cir;]} lê um campo com espaços até o separador.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Um caractere de cada vez}
+% ==================================================================
+
+\begin{frame}[fragile]{\texttt{fgetc}: contando como o \texttt{wc}}
+  \vspace{-0.5em}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=codCs]
+/* conta.c (trecho): linhas, palavras e bytes */
+int main(int argc, char *argv[])
+{
+    ...  /* testa argc, abre argv[1] com "r" */
+    int c;    /* int, nao char */
+    long linhas = 0, palavras = 0, bytes = 0;
+    int dentro = 0;
+    while ((c = fgetc(f)) != EOF) {
+        bytes++;
+        if (c == '\n')
+            linhas++;
+        if (isspace(c))
+            dentro = 0;
+        else if (!dentro) {
+            dentro = 1;
+            palavras++;
+        }
+    }
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+\begin{lstlisting}[style=shellS]
+$ ./conta turma.csv
+4 9 158 turma.csv
+$ wc turma.csv
+  4   9  158 turma.csv
+\end{lstlisting}
+      \small \texttt{fgetc(f)} devolve o próximo caractere do arquivo;
+      \texttt{fputc(c, f)} grava um. São \texttt{getchar} e
+      \texttt{putchar} com um \texttt{FILE *}.
+
+      \medskip
+      Uma palavra começa quando um caractere que não é espaço vem depois de
+      um espaço --- ou no início.
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §1.5.4~\cite{kernighan1988c};
+    King (2008), §22.4~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Por que \texttt{int c}, e não \texttt{char c}?}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[leg, anchor=east] at (-0.5,0.35) {\texttt{fgetc} pode devolver:};
+    \foreach \v [count=\k from 0] in {0,1,2,$\cdots$,254,255} {
+      \node[byte, minimum width=0.7cm] at (0.7*\k,0.35) {\v};
+    }
+    \node[byter, minimum width=0.7cm] at (4.6,0.35) {$-1$};
+    \draw[decorate, decoration={brace, amplitude=4pt, mirror}, thick, UFSBlue]
+      (-0.35,0.05) -- (3.85,0.05) node[midway, below=5pt, leg] {256 bytes possíveis};
+    \node[leg, text=UFSRed, below=12pt] at (4.6,0.35) {\texttt{EOF}};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Um arquivo pode conter qualquer um dos 256 valores de um byte.
+      \texttt{EOF} precisa ser um valor \textbf{diferente de todos eles}
+      --- por isso \texttt{fgetc} devolve \texttt{int}, e \texttt{EOF} é
+      negativo.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{Com \texttt{char c}}
+        \small Onde \texttt{char} tem sinal, o byte 255 vira $-1$ e
+        o laço para no meio do arquivo. Onde não tem, \texttt{c} nunca
+        vale $-1$ e o laço nunca termina.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §1.5.1~\cite{kernighan1988c};
+    ISO/IEC 9899:2018, §7.21.7.1~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}{Recapitulando: três jeitos de ler um arquivo texto}
+  \begin{center}
+  \footnotesize
+  \begin{tabular}{@{}llll@{}}
+    \toprule
+    unidade & ler & gravar & no fim devolve\\
+    \midrule
+    campo com formato & \texttt{fscanf(f, fmt, ...)} & \texttt{fprintf(f, fmt, ...)} & \texttt{EOF} ou menos campos\\
+    linha             & \texttt{fgets(s, n, f)}       & \texttt{fputs(s, f)}         & \texttt{NULL}\\
+    caractere         & \texttt{fgetc(f)}             & \texttt{fputc(c, f)}         & \texttt{EOF}\\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Qual escolher}
+    \begin{itemize}
+      \footnotesize
+      \item números separados por espaços, formato confiável:
+        \texttt{fscanf};
+      \item linhas com campos, nomes com espaço, entrada que pode vir
+        errada: \texttt{fgets} + \texttt{sscanf};
+      \item contar, copiar ou transformar caractere a caractere:
+        \texttt{fgetc}, com \texttt{int c}.
+    \end{itemize}
+  \end{block}
+  \fonte{King (2008), §22.3--22.5~\cite{king2008c}}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \begin{block}{Tarefa 1 --- o boletim na tela}
+    \small Se o nome da saída for \texttt{"-"}, grave em \texttt{stdout}:
+    \texttt{./boletim turma.txt -}. Basta escolher o \texttt{FILE *} certo
+    --- mas cuidado com o \texttt{fclose} no fim.
+  \end{block}
+  \begin{block}{Tarefa 2 --- reprovados à parte}
+    \small Abra um terceiro arquivo, \texttt{reprovados.txt}, e grave nele
+    só a matrícula de quem ficou abaixo de 5. Se essa abertura falhar,
+    quem precisa ser fechado antes de sair?
+  \end{block}
+  \begin{block}{Tarefa 3 --- a média da turma, com \texttt{"a"}}
+    \small No fim do boletim, grave \texttt{media da turma: 6.69}. Depois
+    troque o modo da saída para \texttt{"a"} e rode duas vezes. O que ficou
+    no arquivo?
+  \end{block}
+\end{frame}
+
+\begin{frame}{Exercícios (1/3)}
+  \footnotesize
+  \begin{block}{Exercício 1 --- tabela de temperaturas}
+    \texttt{./temperaturas 0 100 25 temp.txt} grava em \texttt{temp.txt} uma
+    linha por temperatura: \texttt{\ \ 25 C =\ \ 77.0 F}. Se o arquivo não
+    puder ser criado, diga por quê e termine com status 1.
+  \end{block}
+  \begin{block}{Exercício 2 --- estatística de um arquivo de números}
+    \texttt{./estat dados.txt}: números reais separados por espaços e
+    quebras de linha, em quantidade desconhecida. Imprima quantos são, a
+    soma, a média, o menor e o maior. Se a leitura parar em algo que não é
+    número, avise --- \texttt{feof} \emph{depois} do laço diz o motivo.
+  \end{block}
+  \fonte{Kernighan e Ritchie (1988), §7.5~\cite{kernighan1988c};
+    Deitel e Deitel (2011), cap.~11~\cite{deitel2011como}}
+\end{frame}
+
+\begin{frame}{Exercícios (2/3)}
+  \footnotesize
+  \begin{block}{Exercício 3 --- numerar as linhas}
+    \texttt{./numera entrada saida} copia o arquivo com o número de cada
+    linha na frente, como \texttt{cat -n} --- usando um vetor de só
+    \textbf{16} posições no \texttt{fgets}. Uma linha comprida chega em
+    pedaços, mas recebe um número só.
+  \end{block}
+  \begin{block}{Exercício 4 --- filtrar um CSV}
+    \texttt{./aprovados turma.csv aprovados.csv} copia, sem alterar, só as
+    linhas dos alunos com média $\geq 5$. Linhas mal formadas vão para
+    \texttt{stderr} com o número da linha.
+  \end{block}
+  \fonte{Kernighan e Ritchie (1988), §7.7~\cite{kernighan1988c};
+    Kernighan e Pike (1999), §4.1~\cite{kernighan1999practice}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercícios (3/3)}
+  \footnotesize
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+      \begin{block}{Exercício 5 --- arquivo de configuração}
+        \texttt{./config jogo.cfg largura} imprime o valor da chave.
+        Linhas em branco e linhas que começam com \texttt{\#} são
+        ignoradas; espaços em volta do \texttt{=} também.
+      \end{block}
+      \begin{block}{Exercício 6 --- frequência das letras}
+        Conte quantas vezes cada letra de \texttt{a} a \texttt{z} aparece
+        num arquivo, sem distinguir maiúsculas, com \texttt{fgetc}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+\begin{lstlisting}[style=shellS, language={}]
+# jogo.cfg
+largura = 800
+altura=600
+
+titulo = Batalha Naval
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §22.4 e §22.8~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{Desafio}
+  \vspace{-0.4em}
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+      \begin{block}{Intercalar duas listas de presença}
+        \small Dois arquivos trazem as matrículas presentes em duas aulas,
+        uma por linha, em ordem crescente.
+        \texttt{./intercala a.txt b.txt todos.txt} grava todas as
+        matrículas, em ordem e sem repetição, e imprime quantas estavam só
+        em \texttt{a}, só em \texttt{b} e nas duas.
+        \vspace{-0.3em}
+        \begin{itemize}
+          \item guarde na memória só \textbf{uma} matrícula de cada arquivo;
+          \item grave a menor e avance só naquele arquivo; no fim, copie o
+            resto do outro.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+\begin{lstlisting}[style=shellS, language={}]
+$ cat a.txt        $ cat b.txt
+101                102
+103                103
+104                105
+$ ./intercala a.txt b.txt todos.txt
+so em a: 2, so em b: 2, nas duas: 1
+\end{lstlisting}
+      \raggedright\small Por que esse método funciona mesmo com arquivos
+      maiores que a memória do computador?
+    \end{column}
+  \end{columns}
+  \fonte{Knuth (1998), §5.2.4, Algoritmo M~\cite{knuth1998art}}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      \small Os dados deixaram de morrer com o programa: entram de um
+      arquivo, saem para outro, e um erro no caminho vira uma mensagem, não
+      um \emph{segfault}.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que ficou}\\[0.3em]
+      \small Gravar um \texttt{double} como texto custa caracteres e
+      precisão. Na próxima aula, arquivos binários: os bytes da memória
+      direto para o disco, com \texttt{fread}, \texttt{fwrite} e
+      \texttt{fseek}.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \small
+      \item teste o \texttt{NULL} de todo \texttt{fopen} e diga o motivo com
+        \texttt{perror};
+      \item \texttt{"w"} apaga; feche tudo o que abriu;
+      \item controle o laço pelo que a leitura devolve, não por \texttt{feof};
+      \item linhas: \texttt{fgets} + \texttt{sscanf}; caracteres:
+        \texttt{int c}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}

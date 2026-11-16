@@ -196,6 +196,15 @@ title: "COMP0512 — Programação C — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'programacao-c/2026-2-T02/aula-21-arquivos-texto-fopen-fprintf-fscanf-e-fgets' | relative_url }}">
+    <div class="week-num">21</div>
+    <div class="week-body">
+      <div class="week-title">Arquivos texto: <code>fopen</code>, <code>fprintf</code>, <code>fscanf</code> e <code>fgets</code></div>
+      <div class="week-desc">O programa lê <code>turma.txt</code> e grava <code>boletim.txt</code> sozinho: modos de abertura, <code>perror</code>, o <em>buffer</em> e o <code>fclose</code>, por que não testar <code>feof</code>, linhas com <code>fgets</code> + <code>sscanf</code> e caracteres com <code>fgetc</code> — e exercícios.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge nb">1 notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'programacao-c/2026-2-T02/lista-de-exercicios' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📝</div>
     <div class="week-body">
