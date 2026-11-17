@@ -208,6 +208,15 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-22-np-completude-classes-p-np-co-np-e-np-completo' | relative_url }}">
+    <div class="week-num">22</div>
+    <div class="week-body">
+      <div class="week-title">NP-completude: as classes P, NP, co-NP e NP-completo</div>
+      <div class="week-desc">Problemas de decisão e tempo polinomial; certificados e verificação (NP) e o certificado do “não” (co-NP); redução polinomial; NP-completo, NP-difícil e o teorema de Cook-Levin; NP-completude forte e fraca.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/lista-de-exercicios' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📝</div>
     <div class="week-body">

@@ -1,0 +1,1093 @@
+% -*- coding: utf-8 -*-
+% Aula: NP-completude -- as classes P, NP, co-NP e NP-completo
+% (Unidade 3 de AED2, depois de fluxo maximo; a aula seguinte trata das reducoes polinomiais).
+% Fontes principais: Cormen et al. (2009), cap. 34: sec. 34.1 (tempo polinomial, codificacoes),
+% sec. 34.2 (verificacao, NP, co-NP, Figuras 34.2 e 34.3), sec. 34.3 (reducoes, Lema 34.3,
+% Teorema 34.4, Figuras 34.4 e 34.6), sec. 34.4 (Teorema 34.9), sec. 34.5 (Figura 34.13);
+% Kleinberg e Tardos (2006), sec. 8.1, 8.3, 8.4, 8.8, 8.9; Levitin (2012), sec. 11.3;
+% Garey e Johnson (1979), cap. 2 e sec. 4.2 (NP-completude forte).
+% Exemplo condutor: hexagono 0-1-2-3-4-5-0 com a corda 0-2 (7 arestas).
+%   ciclo hamiltoniano 0-1-2-3-4-5-0; clique {0,1,2}; conjunto independente {1,3,5};
+%   cobertura {0,2,4}; complemento: 03 04 13 14 15 24 25 35 (triangulo {1,3,5}).
+% co-NP: grafo de Petersen (nao hamiltoniano).
+% Soma de subconjuntos: S = {3,5,6,7}, t = 15 (3+5+7).
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, patterns}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    language=C,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    columns=fullflexible,
+    numbers=none,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    frame=single,
+    rulecolor=\color{gray},
+    extendedchars=true,
+    basicstyle=\ttfamily\scriptsize,
+    literate={ê}{{\^e}}1 {à}{{\`a}}1 {ú}{{\'u}}1 {õ}{{\~o}}1 {ó}{{\'o}}1
+             {í}{{\'i}}1 {á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1
+             {â}{{\^a}}1 {ô}{{\^o}}1 {ü}{{\"u}}1 {Á}{{\'A}}1 {É}{{\'E}}1
+}
+\lstset{style=mystyle}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=6.6cm, minimum height=0.5cm, font=\scriptsize},
+  caixa/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              font=\scriptsize, align=center, inner sep=3pt},
+  vert/.style={circle, draw=blue!60!black, fill=blue!10, font=\tiny,
+               inner sep=0pt, minimum size=4.6mm},
+  vS/.style={vert, draw=orange!80!black, fill=orange!35},
+  aresta/.style={draw=gray!60, thin},
+  ares/.style={draw=orange!85!black, line width=1.8pt},
+  arc/.style={-{Stealth}, thick}
+}
+
+% ---- o grafo condutor: hexagono 0..5 com a corda 0-2 ----
+% \hexa{vertices destacados}{arestas destacadas}
+\newcommand{\arestashexa}{0/1, 1/2, 2/3, 3/4, 4/5, 5/0, 0/2}
+\newcommand{\noshexa}{%
+  \foreach \i in {0,...,5} \node[vert] (h\i) at ({90+60*\i}:0.95) {\i};
+}
+\newcommand{\hexa}[2]{%
+  \noshexa
+  \def\listaA{#2}\ifx\listaA\empty\else
+    \foreach \u/\v in {#2} \draw[ares] (h\u) -- (h\v);\fi
+  \foreach \u/\v in \arestashexa \draw[aresta] (h\u) -- (h\v);
+  \def\listaV{#1}\ifx\listaV\empty\else
+    \foreach \v in {#1} \node[vS] at (h\v) {\v};\fi
+}
+% o complemento do grafo condutor
+\newcommand{\arestascomp}{0/3, 0/4, 1/3, 1/4, 1/5, 2/4, 2/5, 3/5}
+\newcommand{\hexacomp}[2]{%
+  \noshexa
+  \def\listaA{#2}\ifx\listaA\empty\else
+    \foreach \u/\v in {#2} \draw[ares] (h\u) -- (h\v);\fi
+  \foreach \u/\v in \arestascomp \draw[aresta] (h\u) -- (h\v);
+  \def\listaV{#1}\ifx\listaV\empty\else
+    \foreach \v in {#1} \node[vS] at (h\v) {\v};\fi
+}
+
+% ---- grafo de Petersen ----
+\newcommand{\petersen}{%
+  \foreach \i in {0,...,4} {
+    \node[vert] (p\i) at ({90+72*\i}:1.15) {};
+    \node[vert] (q\i) at ({90+72*\i}:0.55) {};
+  }
+  \foreach \i in {0,...,4} {
+    \pgfmathtruncatemacro{\j}{mod(\i+1,5)}
+    \pgfmathtruncatemacro{\k}{mod(\i+2,5)}
+    \draw[aresta] (p\i) -- (p\j);
+    \draw[aresta] (q\i) -- (q\k);
+    \draw[aresta] (p\i) -- (q\i);
+  }
+}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\newcommand{\prob}[1]{\textsc{#1}}
+
+\title{NP-completude}
+\subtitle{As classes P, NP, co-NP e NP-completo}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=2.2mm]
+    \node[box] (t1) {1.\ Problemas de decisão e a classe P};
+    \node[box, below=of t1, fill=orange!20, draw=orange!80!black] (t2)
+         {2.\ A classe NP: verificar um certificado};
+    \node[box, below=of t2] (t3) {3.\ A classe co-NP: certificar o ``não''};
+    \node[box, below=of t3] (t4) {4.\ Redução polinomial: comparar dificuldades};
+    \node[box, below=of t4, fill=orange!20, draw=orange!80!black] (t5)
+         {5.\ NP-completo e NP-difícil};
+    \node[box, below=of t5] (t6) {6.\ NP-completude forte e fraca};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4, t4/t5, t5/t6}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize\centering
+  Até agora, cada aula trouxe um algoritmo eficiente. Hoje a pergunta muda: e quando ninguém
+  conhece algoritmo eficiente para um problema?\par}
+  \fonte{Cormen et al.\ (2009), cap.~34~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), cap.~8~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{Problemas de decisão e a classe P}
+
+\begin{frame}{Por que precisamos de uma teoria da intratabilidade?}
+  \begin{columns}[T]
+    \begin{column}{0.4\textwidth}
+      \small
+      \textbf{Problema:} problemas quase iguais têm custos muito diferentes. Para os da
+      direita, ninguém conhece algoritmo polinomial, e ninguém provou que não existe.
+      \medskip
+
+      {\scriptsize\textbf{Solução:} em vez de provar que um problema é difícil, mostrar que
+      ele é \emph{pelo menos tão difícil} quanto centenas de outros em que muita gente já
+      tentou e falhou.\par}
+    \end{column}
+    \begin{column}{0.58\textwidth}
+      \tiny
+      \centering
+      \begin{tabular}{ll}
+        \toprule
+        polinomial (já vimos) & sem algoritmo polinomial conhecido \\
+        \midrule
+        caminho mínimo (Dijkstra) & caminho simples mais longo \\
+        ciclo por cada \emph{aresta} (euleriano) & ciclo por cada \emph{vértice} (hamiltoniano) \\
+        2-SAT & 3-SAT \\
+        emparelhamento bipartido & emparelhamento tripartido \\
+        AGM (Kruskal, Prim) & árvore de Steiner \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), introdução do cap.~34~\cite{cormen2009introduction};
+    Garey e Johnson (1979), cap.~1~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{Problemas de decisão: definição}
+  \begin{block}{Definição}
+    \small
+    Um \textbf{problema de decisão} é um problema cuja resposta é \textbf{sim} ou
+    \textbf{não}. Cada entrada $x$ é uma \textbf{instância}; as instâncias com resposta sim
+    formam a \textbf{linguagem} do problema.
+  \end{block}
+  \begin{exampleblock}{Intuição: otimização vira decisão com um limiar}
+    \small
+    \textbf{Otimização:} qual o maior valor que cabe na mochila de capacidade $W$?\\
+    \textbf{Decisão:} existe subconjunto com peso $\le W$ e valor $\ge V$?\\[2pt]
+    {\scriptsize Se a otimização é fácil, a decisão também é: compare o ótimo com $V$. Logo,
+    provar que a \emph{decisão} é difícil já mostra que a \emph{otimização} é difícil.\par}
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 34.1 (problemas de decisão e de otimização)~\cite{cormen2009introduction};
+    Levitin (2012), \S 11.3~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{O tamanho da entrada é medido em bits}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small
+      ``Polinomial'' é sempre em relação ao \textbf{tamanho da codificação} da entrada,
+      $|x|$ bits. Um número $W$ ocupa só $\lceil \lg (W+1) \rceil$ bits.
+      \medskip
+
+      A mochila por PD da Unidade 2 custa $\Theta(nW)$. Com $b$ bits para $W$, isso é
+      $\Theta(n\, 2^b)$: \textbf{exponencial} no tamanho da entrada.
+      \medskip
+
+      {\scriptsize Esse tipo de algoritmo se chama \emph{pseudopolinomial}. Voltamos a ele no
+      fim da aula.\par}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \centering
+      Mochila com $n = 4$ itens (instância da Unidade 2)\\[3pt]
+      \begin{tabular}{rrr}
+        \toprule
+        $W$ & bits de $W$ & células $n \cdot W$ \\
+        \midrule
+        $5$ & $3$ & $20$ \\
+        $5\,000$ & $13$ & $2 \cdot 10^4$ \\
+        $5 \cdot 10^6$ & $23$ & $2 \cdot 10^7$ \\
+        $5 \cdot 10^{12}$ & $43$ & $2 \cdot 10^{13}$ \\
+        \bottomrule
+      \end{tabular}\\[3pt]
+      Dez bits a mais na entrada, mil vezes mais trabalho.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.1 (codificações, Lema 34.1)~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 6.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{A classe P: definição}
+  \begin{block}{Definição}
+    \small
+    \textbf{P} é a classe dos problemas de decisão que podem ser resolvidos por um algoritmo
+    em tempo $O(|x|^k)$, para alguma constante $k$.
+  \end{block}
+  \begin{exampleblock}{Intuição: por que polinômio é a fronteira?}
+    \scriptsize
+    \begin{itemize}
+      \item Na prática, polinômios de grau alto são raros, e o grau costuma cair depois.
+      \item A classe não muda entre modelos razoáveis de computador nem entre codificações
+            razoáveis (binário, decimal, listas ou matriz).
+      \item Polinômios são fechados para soma, produto e composição: um algoritmo polinomial
+            que chama outro algoritmo polinomial continua polinomial.
+    \end{itemize}
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 34.1~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 2.1~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: tudo o que vimos até aqui está em P}
+  \begin{columns}[c]
+    \begin{column}{0.55\textwidth}
+      \scriptsize
+      \centering
+      \begin{tabular}{ll}
+        \toprule
+        problema de decisão & algoritmo \\
+        \midrule
+        existe caminho de $s$ a $t$? & BFS, $O(n + m)$ \\
+        o digrafo tem ciclo? & DFS, $O(n + m)$ \\
+        existe AGM de peso $\le k$? & Kruskal, $O(m \lg m)$ \\
+        $\mathrm{dist}(s,t) \le k$? & Dijkstra, $O(m \lg n)$ \\
+        $|\mathrm{LCS}(a, b)| \ge k$? & PD, $O(|a|\,|b|)$ \\
+        fluxo máximo $\ge k$? & Edmonds-Karp, $O(nm^2)$ \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.41\textwidth}
+      \scriptsize
+      Cada linha transforma em decisão um problema que resolvemos como otimização.
+      \medskip
+
+      Todos esses algoritmos são polinomiais no tamanho da entrada: os pesos e as capacidades
+      entram só em comparações e somas, nunca no número de passos.
+      \medskip
+
+      A mochila ficou de fora da tabela de propósito.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.1~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: problemas de decisão e P}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item A teoria trata de problemas de decisão; a otimização vira decisão com um limiar.
+      \item O tamanho da entrada é medido em bits; um número $W$ vale $\lg W$ bits.
+      \item A mochila por PD, $\Theta(nW)$, não é polinomial.
+      \item P: problemas de decisão resolvidos em tempo $O(|x|^k)$.
+      \item Todos os algoritmos das Unidades 1 a 3 (menos a mochila) estão em P.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 34.1~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{A classe NP}
+
+\begin{frame}{Por que precisamos de NP?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:} o grafo ao lado tem um \textbf{ciclo hamiltoniano}, isto é, um
+      ciclo que passa uma vez por cada vértice? Para $n$ vértices há até $(n-1)!/2$ ciclos
+      candidatos.
+      \medskip
+
+      \textbf{Solução:} se alguém mostrar o ciclo $0, 1, 2, 3, 4, 5$, conferimos em
+      $O(n)$: todos os vértices aparecem uma vez, e cada par consecutivo é uma aresta.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \hexa{}{0/1, 1/2, 2/3, 3/4, 4/5, 5/0}
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Exemplo condutor da aula: hexágono com a corda $0$--$2$. Achar pode ser
+      difícil; \textbf{conferir} é fácil.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.2 (ciclos hamiltonianos, Figura 34.2)~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A classe NP: definição}
+  \begin{block}{Definição}
+    \small
+    Um \textbf{verificador} para um problema $Q$ é um algoritmo $A(x, y)$ tal que $x$ é
+    instância sim de $Q$ se e só se existe um \textbf{certificado} $y$, com
+    $|y| = O(|x|^c)$, para o qual $A(x,y)$ responde sim.
+    \textbf{NP} é a classe dos problemas que têm verificador de tempo polinomial.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize
+    Para toda instância sim existe uma prova curta e fácil de conferir. Para instância não,
+    nenhuma ``prova'' engana o verificador. NP vem de \emph{nondeterministic polynomial}
+    (um computador que ``chuta'' o certificado), e \textbf{não} de ``não polinomial''.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 34.2 (algoritmos de verificação, a classe NP)~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 8.3~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: certificados no grafo condutor e além}
+  \begin{columns}[c]
+    \begin{column}{0.72\textwidth}
+      \scriptsize
+      \begin{tabular}{lll}
+        \toprule
+        problema: existe\ldots & certificado & custo \\
+        \midrule
+        \prob{Clique}: $k$ vértices vizinhos 2 a 2? & $\{0,1,2\}$, $k=3$ & $O(k^2)$ \\
+        \prob{Conj.\ Indep.}: $k$ vértices sem arestas? & $\{1,3,5\}$, $k=3$ & $O(k^2)$ \\
+        \prob{SAT}: atribuição que satisfaz $\varphi$? & valores & $O(|\varphi|)$ \\
+        \prob{Soma de Subconj.}: subconjunto de soma $t$? & subconj. & $O(n)$ \\
+        \prob{Mochila}: peso $\le W$ e valor $\ge V$? & os itens & $O(n)$ \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.25\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.85, transform shape]
+        \hexa{1,3,5}{0/1, 1/2, 0/2}
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Em laranja, a clique $\{0,1,2\}$ (arestas) e o conjunto independente
+      $\{1,3,5\}$ (vértices).\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.2 e \S 34.5~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 8.3~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}[fragile]{Exemplo: o verificador do ciclo hamiltoniano em C}
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\tiny]
+/* Devolve 1 se c[0..n-1] é um ciclo hamiltoniano
+   do grafo com matriz de adjacências adj[][]. */
+int verificaHam( int n, int adj[][MAXN], int c[]) {
+   int visto[MAXN] = {0};
+   for (int i = 0; i < n; ++i) {
+      int u = c[i], v = c[(i + 1) % n];
+      if (u < 0 || u >= n || visto[u]) return 0;
+      visto[u] = 1;
+      if (!adj[u][v]) return 0;
+   }
+   return 1;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \scriptsize
+      O verificador custa $\Theta(n)$. Ele não procura nada: só confere o que recebeu.
+      \medskip
+
+      Resolver por força bruta testa as permutações:
+      \smallskip
+
+      \centering
+      \begin{tabular}{rr}
+        \toprule
+        $n$ & $(n-1)!/2$ ciclos \\
+        \midrule
+        $6$ & $60$ \\
+        $12$ & $\approx 2 \cdot 10^7$ \\
+        $20$ & $\approx 6 \cdot 10^{16}$ \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.2~\cite{cormen2009introduction};
+    Levitin (2012), \S 3.4 (busca exaustiva)~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{P está contido em NP; a pergunta é se P = NP}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Dois fatos}
+        \scriptsize
+        \textbf{P $\subseteq$ NP.} Se $Q$ se resolve em tempo polinomial, o verificador
+        ignora o certificado e resolve $x$.\\[3pt]
+        \textbf{NP se resolve em tempo exponencial.} Um certificado de $p(|x|)$ bits tem
+        $2^{p(|x|)}$ possibilidades: teste todas com o verificador.
+      \end{block}
+      \scriptsize
+      Ninguém sabe se a inclusão é estrita. É o problema \textbf{P vs NP}, um dos sete
+      Problemas do Milênio do Instituto Clay (prêmio de US\$~1 milhão).
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \draw[fill=blue!8, draw=blue!60] (0,0) ellipse (2.2 and 1.25);
+        \draw[fill=orange!25, draw=orange!80!black] (-0.75,-0.15) ellipse (1.05 and 0.75);
+        \node[font=\small] at (-0.75,-0.15) {P};
+        \node[font=\small] at (1.2,0.55) {NP};
+        \node[font=\tiny, align=center] at (1.15,-0.35) {ciclo\\hamiltoniano?};
+        \node[font=\tiny, align=center] at (-0.75,-0.55) {caminho mínimo};
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize O que a maioria acredita: P $\ne$ NP. Se P = NP, achar seria tão fácil
+      quanto conferir.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.2~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 8.3~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: NP}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item NP: toda instância sim tem certificado curto, conferido em tempo polinomial.
+      \item Certificados: o ciclo, a clique, a atribuição, o subconjunto.
+      \item NP é ``nondeterministic polynomial'', não ``não polinomial''.
+      \item P $\subseteq$ NP, e todo problema de NP se resolve em tempo exponencial.
+      \item Se P $=$ NP é a maior pergunta em aberto da computação.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 34.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{A classe co-NP}
+
+\begin{frame}{Por que precisamos de co-NP?}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \textbf{Problema:} o grafo de Petersen \textbf{não} tem ciclo hamiltoniano. Como
+      convencer alguém disso sem fazê-lo testar todos os ciclos?
+      \medskip
+
+      {\scriptsize Para o ``sim'', basta mostrar um ciclo. Para o ``não'', não se conhece em
+      geral uma prova curta: NP é \textbf{assimétrica}.\par}
+      \medskip
+
+      {\scriptsize\textbf{Solução:} dar nome à classe dos problemas cujo ``não'' tem
+      certificado curto e estudar como ela se relaciona com NP.\par}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \petersen
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Grafo de Petersen: 10 vértices, 15 arestas, todos de grau 3, sem ciclo
+      hamiltoniano.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 8.9~\cite{kleinberg2006algorithm};
+    Cormen et al.\ (2009), \S 34.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A classe co-NP: definição}
+  \begin{block}{Definição}
+    \small
+    O \textbf{complemento} $\overline{Q}$ de um problema $Q$ troca as respostas sim e não.
+    \textbf{co-NP} $= \{\, Q : \overline{Q} \in \mathrm{NP} \,\}$: os problemas cujas
+    instâncias \textbf{não} têm certificado curto e verificável.
+  \end{block}
+  \begin{exampleblock}{Exemplos}
+    \scriptsize
+    \begin{itemize}
+      \item \prob{Tautologia}: a fórmula é verdadeira para \emph{toda} atribuição? Um
+            certificado do não é uma atribuição que a torna falsa.
+      \item \prob{Não-Hamiltoniano}: o grafo não tem ciclo hamiltoniano? Um certificado do não
+            é um ciclo hamiltoniano.
+      \item P $\subseteq$ co-NP, porque P é fechada para complemento (troque a resposta).
+    \end{itemize}
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 34.2 (complexidade co-NP)~\cite{cormen2009introduction};
+    Garey e Johnson (1979), \S 7.1~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{Exemplo: NP $\cap$ co-NP, certificados dos dois lados}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \scriptsize
+      \textbf{Fluxo máximo $\ge k$?} (aula passada)\\
+      sim: um fluxo de valor $k$; não: um corte de capacidade $< k$. O teorema do fluxo máximo
+      e corte mínimo garante que um dos dois existe.
+      \medskip
+
+      \textbf{Primo?}\\
+      sim: certificado de Pratt (1975); não: um divisor. Ficou décadas em NP $\cap$ co-NP sem
+      algoritmo polinomial, até o AKS (2004) provar \prob{Primes} $\in$ P.
+      \medskip
+
+      \textbf{Fatoração} (``$N$ tem divisor $\le k$?'') está em NP $\cap$ co-NP, e não se sabe
+      se está em P. A criptografia RSA depende disso.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \draw[fill=blue!10, draw=blue!60, opacity=0.8] (-0.6,0) ellipse (1.5 and 1);
+        \draw[fill=green!10, draw=green!50!black, opacity=0.8] (0.6,0) ellipse (1.5 and 1);
+        \draw[fill=orange!30, draw=orange!80!black] (0,-0.1) ellipse (0.45 and 0.45);
+        \node[font=\scriptsize] at (-1.45,0.55) {NP};
+        \node[font=\scriptsize] at (1.35,0.55) {co-NP};
+        \node[font=\scriptsize] at (0,-0.1) {P};
+        \node[font=\tiny] at (0,0.62) {fatoração?};
+        \node[font=\tiny, align=center] at (-1.35,-0.2) {ciclo\\ham.};
+        \node[font=\tiny, align=center] at (1.35,-0.2) {tauto-\\logia};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  \fonte{Pratt (1975)~\cite{pratt1975every}; Agrawal, Kayal e Saxena (2004)~\cite{agrawal2004primes};
+    Kleinberg e Tardos (2006), \S 8.9~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{As quatro possibilidades}
+  \begin{center}
+  \begin{tikzpicture}[font=\tiny]
+    % (a)
+    \begin{scope}
+      \draw[fill=orange!25, draw=orange!80!black] (0,0) circle (0.8);
+      \node[align=center] at (0,0) {P = NP\\= co-NP};
+      \node[font=\scriptsize] at (0,-1.15) {(a)};
+    \end{scope}
+    % (b)
+    \begin{scope}[xshift=3.2cm]
+      \draw[fill=blue!10, draw=blue!60] (0,0) circle (0.9);
+      \draw[fill=orange!25, draw=orange!80!black] (0,-0.25) circle (0.4);
+      \node at (0,-0.25) {P};
+      \node[align=center] at (0,0.45) {NP = co-NP};
+      \node[font=\scriptsize] at (0,-1.15) {(b)};
+    \end{scope}
+    % (c)
+    \begin{scope}[xshift=6.6cm]
+      \draw[fill=blue!10, draw=blue!60, opacity=0.8] (-0.5,0) ellipse (1 and 0.75);
+      \draw[fill=green!10, draw=green!50!black, opacity=0.8] (0.5,0) ellipse (1 and 0.75);
+      \begin{scope}
+        \clip (-0.5,0) ellipse (1 and 0.75);
+        \fill[orange!25] (0.5,0) ellipse (1 and 0.75);
+      \end{scope}
+      \node[align=center] at (0,0) {P =\\NP $\cap$\\co-NP};
+      \node at (-1.1,0) {NP};
+      \node at (1.15,0) {co-NP};
+      \node[font=\scriptsize] at (0,-1.15) {(c)};
+    \end{scope}
+    % (d)
+    \begin{scope}[xshift=10.2cm]
+      \draw[fill=blue!10, draw=blue!60, opacity=0.8] (-0.5,0) ellipse (1 and 0.75);
+      \draw[fill=green!10, draw=green!50!black, opacity=0.8] (0.5,0) ellipse (1 and 0.75);
+      \draw[fill=orange!25, draw=orange!80!black] (0,-0.2) circle (0.25);
+      \node at (0,-0.2) {P};
+      \node at (0,0.38) {NP $\cap$ co-NP};
+      \node at (-1.1,0) {NP};
+      \node at (1.15,0) {co-NP};
+      \node[font=\scriptsize] at (0,-1.15) {(d)};
+    \end{scope}
+  \end{tikzpicture}
+  \end{center}
+  \scriptsize
+  Ninguém sabe qual vale. A maioria acredita em (d): P $\ne$ NP, NP $\ne$ co-NP, e há
+  problemas (como a fatoração) em NP $\cap$ co-NP que não estão em P. Se NP $\ne$ co-NP,
+  então P $\ne$ NP; a recíproca não se sabe.
+  \fonte{Cormen et al.\ (2009), \S 34.2, Figura 34.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: co-NP}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item co-NP: problemas cujo ``não'' tem certificado curto (\prob{Tautologia}).
+      \item NP é assimétrica: o ``sim'' do ciclo hamiltoniano é fácil de provar, o ``não'' não.
+      \item P $\subseteq$ NP $\cap$ co-NP.
+      \item Teoremas de dualidade (fluxo/corte) colocam problemas em NP $\cap$ co-NP.
+      \item \prob{Primes}: de NP $\cap$ co-NP para P em 2004; a fatoração segue em aberto.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 34.2~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 8.9~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section{Redução polinomial}
+
+\begin{frame}{Por que precisamos de reduções?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:} não sabemos provar que \prob{Clique} é difícil. Mas queremos ao
+      menos dizer que ela \emph{não é mais fácil} que outro problema.
+      \medskip
+
+      \textbf{Solução:} transformar cada instância de $A$ numa instância de $B$ com a mesma
+      resposta. Quem resolve $B$ resolve $A$.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      Já fizemos isso sem dar o nome:
+      \begin{itemize}
+        \item emparelhamento bipartido $\to$ fluxo máximo (capacidades $1$);
+        \item fecho transitivo $\to$ Warshall;
+        \item eliminação no campeonato $\to$ fluxo máximo (desafio da aula passada).
+      \end{itemize}
+      \medskip
+      Antes, a redução servia para \textbf{resolver} $A$. Hoje ela serve para
+      \textbf{comparar} a dificuldade de $A$ e $B$.
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 8.1~\cite{kleinberg2006algorithm};
+    Levitin (2012), \S 6.6 (redução de problemas)~\cite{levitin2012introduction}.}
+\end{frame}
+
+\begin{frame}{Redução polinomial: definição}
+  \begin{block}{Definição}
+    \small
+    $A \le_P B$ ($A$ se reduz polinomialmente a $B$) se existe uma função $f$, calculável em
+    tempo polinomial, tal que para toda instância $x$:
+    \quad $x$ é sim em $A \iff f(x)$ é sim em $B$.
+  \end{block}
+  \begin{center}
+  \begin{tikzpicture}[node distance=6mm]
+    \node (x) {$x$};
+    \node[caixa, right=of x] (f) {calcula $f$\\(polinomial)};
+    \node[caixa, right=12mm of f, fill=orange!20, draw=orange!80!black] (B)
+      {algoritmo\\para $B$};
+    \node[right=of B, align=left, font=\scriptsize] (r) {sim / não};
+    \draw[arc] (x) -- (f);
+    \draw[arc] (f) -- node[above, font=\scriptsize] {$f(x)$} (B);
+    \draw[arc] (B) -- (r);
+    \node[draw=blue!60!black, dashed, rounded corners, fit=(f)(B), inner sep=6pt,
+          label={[font=\scriptsize]below:algoritmo para $A$}] {};
+  \end{tikzpicture}
+  \end{center}
+  \fonte{Cormen et al.\ (2009), \S 34.3, Figuras 34.4 e 34.5~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 8.1~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Reduções transportam facilidade e dificuldade}
+  \begin{block}{Lema (Cormen et al., Lema 34.3)}
+    \small
+    Se $A \le_P B$ e $B \in \mathrm{P}$, então $A \in \mathrm{P}$.
+  \end{block}
+  \scriptsize
+  \textbf{Prova.} $f$ roda em tempo $p(|x|)$, então $|f(x)| \le p(|x|)$. O algoritmo de $B$
+  roda em $q(|f(x)|) \le q(p(|x|))$: composição de polinômios é polinômio. \hfill$\square$
+  \medskip
+
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{exampleblock}{Lido para frente}
+        $B$ fácil $\Rightarrow$ $A$ fácil.
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{Lido ao contrário (o uso de hoje)}
+        $A$ difícil $\Rightarrow$ $B$ difícil.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \medskip
+  \textbf{Cuidado com o sentido:} para mostrar que um problema \emph{novo} $B$ é difícil,
+  reduza um problema \emph{conhecido} difícil $A$ a $B$, e não o contrário.
+  \fonte{Cormen et al.\ (2009), \S 34.3, Lema 34.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplo: \prob{Conjunto Independente} $\le_P$ \prob{Clique}}
+  \begin{columns}[c]
+    \begin{column}{0.36\textwidth}
+      \scriptsize
+      $f(G, k) = (\overline{G}, k)$: o complemento liga os pares que \textbf{não} são vizinhos
+      em $G$.
+      \medskip
+
+      $S$ é independente em $G$ $\iff$ $S$ é clique em $\overline{G}$. Logo a resposta é a
+      mesma.
+      \medskip
+
+      Montar $\overline{G}$ custa $O(n^2)$: a redução é polinomial.
+    \end{column}
+    \begin{column}{0.6\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \begin{scope}
+          \hexa{1,3,5}{}
+          \node[font=\scriptsize] at (0,-1.4) {$G$: $\{1,3,5\}$ independente};
+        \end{scope}
+        \draw[arc, blue!60!black] (1.35,0) -- node[above, font=\scriptsize] {$f$} (2.25,0);
+        \begin{scope}[xshift=3.6cm]
+          \hexacomp{1,3,5}{1/3, 3/5, 5/1}
+          \node[font=\scriptsize] at (0,-1.4) {$\overline{G}$: $\{1,3,5\}$ é clique};
+        \end{scope}
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  \scriptsize
+  A mesma $f$ também reduz \prob{Clique} a \prob{Conjunto Independente}. Outra redução
+  simples: $S$ é independente $\iff$ $V \setminus S$ é uma cobertura por vértices
+  (no exemplo, $\{0,2,4\}$).
+  \fonte{Cormen et al.\ (2009), \S 34.5.2~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 8.1~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: redução polinomial}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item $A \le_P B$: $f$ polinomial que preserva a resposta.
+      \item Se $B \in$ P, então $A \in$ P; se $A$ é difícil, $B$ também é.
+      \item Para provar que um problema novo é difícil, reduza um conhecido \emph{a ele}.
+      \item \prob{Conjunto Independente} $\le_P$ \prob{Clique} pelo grafo complemento.
+      \item A próxima aula é toda sobre reduções.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 34.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{NP-completo e NP-difícil}
+
+\begin{frame}{Por que precisamos de NP-completude?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Problema:} com reduções comparamos pares de problemas. Existe um problema em NP
+      ao qual \textbf{todos} os outros se reduzem?
+      \medskip
+
+      \textbf{Solução:} sim, e são milhares. Um algoritmo polinomial para qualquer um deles
+      resolveria todo NP de uma vez.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[scale=0.9, transform shape]
+        \node[caixa, fill=orange!20, draw=orange!80!black] (B) at (0,0) {$B$};
+        \foreach \a/\n in {90/$A_1$, 150/$A_2$, 210/$A_3$, 30/$A_4$, 330/$\cdots$} {
+          \node[caixa] (x) at (\a:1.5) {\n};
+          \draw[arc] (x) -- (B);
+        }
+        \node[font=\tiny] at (0,-1.4) {todo $A \in$ NP se reduz a $B$};
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.3~\cite{cormen2009introduction};
+    Garey e Johnson (1979), cap.~2~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{NP-completo e NP-difícil: definição}
+  \begin{block}{Definição}
+    \small
+    $B$ é \textbf{NP-difícil} se $A \le_P B$ para todo $A \in \mathrm{NP}$.\\
+    $B$ é \textbf{NP-completo} se é NP-difícil \textbf{e} $B \in \mathrm{NP}$.
+  \end{block}
+  \begin{exampleblock}{Teorema (Cormen et al., Teorema 34.4)}
+    \small
+    Se algum problema NP-completo está em P, então P = NP. Equivalentemente, se algum
+    problema de NP não está em P, então nenhum NP-completo está em P.
+  \end{exampleblock}
+  \scriptsize
+  \textbf{Prova.} Se $B$ é NP-completo e $B \in$ P, cada $A \in$ NP satisfaz $A \le_P B$;
+  pelo Lema 34.3, $A \in$ P. \hfill$\square$
+  \fonte{Cormen et al.\ (2009), \S 34.3 (definição e Teorema 34.4)~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 8.4~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{O mapa, supondo P $\ne$ NP}
+  \begin{columns}[c]
+    \begin{column}{0.56\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{%
+      \begin{tikzpicture}
+        % NP-difícil: tudo à direita da fronteira curva (estende-se para fora de NP)
+        \fill[red!8] (1.3,-1.85) .. controls (0.95,0) .. (1.3,1.85)
+                     -- (5.0,1.85) -- (5.0,-1.85) -- cycle;
+        \draw[red!60!black, dashed] (1.3,-1.85) .. controls (0.95,0) .. (1.3,1.85);
+        \node[font=\scriptsize\bfseries, red!60!black, anchor=north east] at (5.0,1.8) {NP-difícil};
+        % NP
+        \fill[blue!10] (0,0) ellipse (2.6 and 1.55);
+        % NP-completo = NP $\cap$ NP-difícil
+        \begin{scope}
+          \clip (0,0) ellipse (2.6 and 1.55);
+          \fill[red!25] (1.3,-1.85) .. controls (0.95,0) .. (1.3,1.85)
+                        -- (2.7,1.85) -- (2.7,-1.85) -- cycle;
+          \draw[red!60!black, dashed] (1.3,-1.85) .. controls (0.95,0) .. (1.3,1.85);
+        \end{scope}
+        \draw[blue!60, thick] (0,0) ellipse (2.6 and 1.55);
+        \node[font=\scriptsize\bfseries, blue!60!black] at (-0.4,1.2) {NP};
+        % P
+        \draw[fill=orange!25, draw=orange!80!black] (-1.45,0) ellipse (0.9 and 0.8);
+        \node[font=\scriptsize\bfseries] at (-1.45,0.35) {P};
+        \node[font=\tiny, align=center] at (-1.45,-0.15) {ordenação\\\prob{Primes}};
+        % NP-intermediário (Ladner)
+        \draw[fill=green!12, draw=green!50!black, densely dotted] (0.2,-0.35) ellipse (0.6 and 0.5);
+        \node[font=\tiny, align=center, green!30!black] at (0.2,-0.35) {fatoração?\\isomorfismo\\de grafos?};
+        \node[font=\tiny, green!30!black] at (0.2,0.42) {intermediário};
+        % NP-completo
+        \node[font=\tiny, align=center] at (1.9,0) {\textbf{NP-}\\\textbf{completo}\\[2pt]\prob{SAT}\\\prob{Clique}\\\prob{Mochila}};
+        % NP-difícil fora de NP
+        \node[font=\tiny, align=center, red!60!black] at (3.8,0) {parada\\(indecidível)\\[3pt]\prob{Caixeiro}\\(otimização)};
+        % eixo de dificuldade
+        \draw[-{Stealth}, thick, gray] (-2.6,-2.15) -- (5.0,-2.15)
+          node[midway, below, font=\tiny, text=gray] {dificuldade crescente};
+      \end{tikzpicture}}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \scriptsize
+      \begin{itemize}
+        \item \textbf{NP-completo} $=$ NP $\cap$ NP-difícil: os problemas mais difíceis
+              \emph{dentro} de NP.
+        \item \textbf{NP-difícil} não exige pertencer a NP: o problema da parada é
+              indecidível, e a versão de otimização do \prob{Caixeiro} nem é de decisão.
+        \item \textbf{Intermediários:} se P $\ne$ NP, existem problemas em NP que não estão em P
+              nem são NP-completos (Ladner, 1975~\cite{ladner1975structure}). Fatoração e
+              isomorfismo de grafos são candidatos, mas nada está provado.
+        \item Se P $=$ NP, o mapa colapsa: P $=$ NP $=$ NP-completo (exceto $\emptyset$ e
+              $\Sigma^*$, que não recebem reduções).
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.3, Figura 34.6~\cite{cormen2009introduction};
+    Garey e Johnson (1979), \S 7.1~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{O primeiro NP-completo: SAT}
+  \begin{block}{Teorema de Cook-Levin (Cook, 1971; Levin, 1973)}
+    \small
+    \prob{SAT} (dada uma fórmula booleana em FNC, existe atribuição que a satisfaz?) é
+    NP-completo.
+  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \scriptsize
+      \textbf{Ideia da prova.} Seja $A \in$ NP com verificador $V$. Para cada $x$, escreva
+      uma fórmula $\varphi_x$ cujas variáveis descrevem os bits do certificado $y$ e cada
+      passo da computação de $V(x, y)$. A fórmula é satisfazível $\iff$ existe $y$ que faz
+      $V$ responder sim. Tamanho de $\varphi_x$: polinomial.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \scriptsize
+      \textbf{Exemplo de instância:}
+      \[
+        (x_1 \lor \lnot x_2) \land (\lnot x_1 \lor x_2 \lor x_3) \land (\lnot x_3 \lor \lnot x_1)
+      \]
+      Certificado: $x_1 = 0$, $x_2 = 0$, $x_3 = 1$. Conferir custa uma passada pelas
+      cláusulas.
+    \end{column}
+  \end{columns}
+  \fonte{Cook (1971)~\cite{cook1971complexity};
+    Cormen et al.\ (2009), \S 34.3 (Teorema 34.7) e \S 34.4 (Teorema 34.9)~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Como provar que um problema novo é NP-completo}
+  \begin{columns}[T]
+    \begin{column}{0.45\textwidth}
+      \begin{block}{Receita (Cormen et al., Lema 34.8)}
+        \scriptsize
+        \begin{enumerate}
+          \item Mostre que $B \in$ NP (dê o certificado e o verificador).
+          \item Escolha um $A$ já sabidamente NP-completo.
+          \item Construa $f$ com $x \in A \iff f(x) \in B$.
+          \item Prove que $f$ é polinomial.
+        \end{enumerate}
+      \end{block}
+      \scriptsize
+      Depois de Cook, Karp (1972) provou 21 problemas NP-completos assim.
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[font=\tiny, node distance=3mm and 2mm,
+          n/.style={caixa, font=\tiny, inner sep=2pt}]
+        \node[n] (cs) {\prob{Circuit-Sat}};
+        \node[n, below=of cs] (sat) {\prob{SAT}};
+        \node[n, below=of sat] (3s) {\prob{3-SAT}};
+        \node[n, below left=of 3s, xshift=4mm, fill=orange!20, draw=orange!80!black] (cl) {\prob{Clique}};
+        \node[n, below right=of 3s, xshift=-4mm] (ss) {\prob{Soma Subconj.}};
+        \node[n, below=of cl] (vc) {\prob{Cobertura}};
+        \node[n, below=of vc] (hc) {\prob{Ciclo Ham.}};
+        \node[n, right=of hc] (tsp) {\prob{Caixeiro}};
+        \foreach \a/\b in {cs/sat, sat/3s, 3s/cl, 3s/ss, cl/vc, vc/hc, hc/tsp}
+          \draw[arc, thin] (\a) -- (\b);
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize As reduções do cap.~34 de Cormen et al. Próxima aula.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.4 (Lema 34.8) e \S 34.5, Figura 34.13~\cite{cormen2009introduction};
+    Karp (1972)~\cite{karp1972reducibility}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: NP-completo}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item NP-difícil: todo NP se reduz a ele. NP-completo: NP-difícil e em NP.
+      \item Um NP-completo em P derruba tudo: P $=$ NP (Teorema 34.4).
+      \item Cook-Levin: \prob{SAT} é o primeiro NP-completo.
+      \item Os demais vêm por redução a partir de um NP-completo conhecido.
+      \item NP-difícil fora de NP: parada, otimização do caixeiro.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 34.3--34.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{NP-completude forte e fraca}
+
+\begin{frame}{Por que distinguir NP-completude forte e fraca?}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+      \small
+      \textbf{Problema:} \prob{Mochila} e \prob{Soma de Subconjuntos} são NP-completos
+      (Karp, 1972). Mas na Unidade 2 resolvemos a mochila por PD em $\Theta(nW)$. Isso
+      prova P $=$ NP?
+      \medskip
+
+      {\scriptsize\textbf{Solução:} não, porque $\Theta(nW)$ é exponencial em bits. A
+      dificuldade desses problemas está toda nos \emph{números grandes}. Isso separa duas
+      espécies de NP-completo.\par}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \scriptsize
+      \centering
+      \begin{tabular}{lll}
+        \toprule
+        & números pequenos & números grandes \\
+        \midrule
+        Mochila & fácil (PD) & difícil \\
+        Caixeiro & difícil & difícil \\
+        Clique & \multicolumn{2}{c}{(não há números)} \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      \raggedright
+      ``Pequeno'' quer dizer limitado por um polinômio em $n$.
+    \end{column}
+  \end{columns}
+  \fonte{Garey e Johnson (1979), \S 4.2~\cite{garey1979computers};
+    Kleinberg e Tardos (2006), \S 8.8~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{NP-completude forte e fraca: definição}
+  \begin{block}{Definição}
+    \small
+    Seja $\mathrm{Max}(x)$ o maior número da instância $x$. Um algoritmo é
+    \textbf{pseudopolinomial} se roda em tempo polinomial em $|x|$ e $\mathrm{Max}(x)$.
+    Um NP-completo é \textbf{fraco} se tem algoritmo pseudopolinomial, e \textbf{forte} se
+    continua NP-completo mesmo quando $\mathrm{Max}(x) \le p(|x|)$.
+  \end{block}
+  \begin{exampleblock}{Consequências}
+    \scriptsize
+    \begin{itemize}
+      \item Fracos: \prob{Mochila}, \prob{Soma de Subconjuntos}, \prob{Partição}.
+      \item Fortes: \prob{Caixeiro}, \prob{3-Partição}, e todo NP-completo sem números
+            (\prob{Clique}, \prob{SAT}, \prob{Ciclo Hamiltoniano}).
+      \item Um forte não tem algoritmo pseudopolinomial, a menos que P $=$ NP.
+    \end{itemize}
+  \end{exampleblock}
+  \fonte{Garey e Johnson (1979), \S 4.2~\cite{garey1979computers};
+    Cormen et al.\ (2009), \S 34.5.5~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplo: soma de subconjuntos por PD}
+  \scriptsize
+  $S = \{3, 5, 6, 7\}$, $t = 15$. Linha $i$: as somas alcançáveis com os $i$ primeiros
+  números. $\mathit{alc}[i][s] = \mathit{alc}[i-1][s] \lor \mathit{alc}[i-1][s - a_i]$.
+  \begin{center}
+  \begin{tikzpicture}[x=0.46cm, y=0.42cm]
+    \foreach \s in {0,...,15} \node[font=\tiny, gray] at (\s, 0.8) {\s};
+    \foreach \r/\nm/\lst in {0/{$\emptyset$}/{0},
+                             1/{$+3$}/{0,3},
+                             2/{$+5$}/{0,3,5,8},
+                             3/{$+6$}/{0,3,5,6,8,9,11,14},
+                             4/{$+7$}/{0,3,5,6,7,8,9,10,11,12,13,14,15}} {
+      \node[font=\tiny, anchor=east] at (-0.6, -\r) {\nm};
+      \foreach \s in {0,...,15} \draw[gray!40] (\s-0.5, -\r-0.5) rectangle (\s+0.5, -\r+0.5);
+      \foreach \s in \lst \fill[blue!25] (\s-0.45, -\r-0.45) rectangle (\s+0.45, -\r+0.45);
+    }
+    \draw[orange!85!black, line width=1.4pt] (14.5,-4.5) rectangle (15.5,-3.5);
+    \node[font=\tiny, anchor=north east, orange!70!black] at (15.5,-4.55) {$15 = 3 + 5 + 7$};
+  \end{tikzpicture}
+  \end{center}
+  A tabela tem $(n+1)(t+1)$ células: $\Theta(nt)$, a mesma ideia da mochila. Com $t$ de $b$
+  bits, são $n \cdot 2^b$ células. Um certificado ($\{3,5,7\}$) tem só $n$ bits.
+  \fonte{Cormen et al.\ (2009), \S 34.5.5 e \S 35.5~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 6.4 e \S 8.8~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: forte e fraca}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Pseudopolinomial: polinomial no \emph{valor} dos números, não no número de bits.
+      \item Fracamente NP-completo: tem algoritmo pseudopolinomial (mochila).
+      \item Fortemente NP-completo: difícil mesmo com números pequenos (caixeiro).
+      \item A PD da mochila não contradiz P $\ne$ NP.
+      \item Na prática, um fraco com números pequenos se resolve bem.
+    \end{itemize}
+  \end{block}
+  \fonte{Garey e Johnson (1979), \S 4.2~\cite{garey1979computers}.}
+\end{frame}
+
+% =====================================================================
+\section*{Fechando}
+
+\begin{frame}{Fechando}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{O que levar desta aula}
+        \scriptsize
+        \begin{itemize}
+          \item P: resolver em tempo polinomial (no número de bits).
+          \item NP: conferir um certificado em tempo polinomial.
+          \item co-NP: conferir um certificado do ``não''.
+          \item $A \le_P B$: quem resolve $B$ resolve $A$.
+          \item NP-completo: em NP, e todo NP se reduz a ele.
+          \item Forte $\times$ fraco: os números grandes são a fonte da dificuldade?
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \textbf{Diante de um NP-completo}, não procure um algoritmo polinomial exato. As
+      saídas são: casos particulares (2-SAT, árvores), PD pseudopolinomial (fracos),
+      backtracking e branch and bound (aula de 01/12), aproximação e heurísticas.
+      \medskip
+
+      \textbf{Para casa:} no tutorial, o desafio usa um decisor de \prob{SAT} para
+      \emph{construir} a atribuição.
+      \medskip
+
+      \textbf{Próxima aula:} reduções polinomiais (\prob{3-SAT}, \prob{Clique},
+      \prob{Cobertura}, \prob{Soma de Subconjuntos}). Elas são a base da lista que vale
+      30\% da Prova 3.
+    \end{column}
+  \end{columns}
+  \fonte{Garey e Johnson (1979), cap.~6~\cite{garey1979computers};
+    Kleinberg e Tardos (2006), \S 8.10~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{../referencias}
+\end{frame}
+
+\end{document}
