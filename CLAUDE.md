@@ -40,3 +40,7 @@ Após clonar, inicialize o submódulo do tema: `git submodule update --init --re
 ## Criando uma nova aula
 
 Copie `TEMPLATE-aula/` para `disciplina/turma/aula-NN-titulo/`, ajuste o frontmatter de `index.md` (campos `title`, `disciplina`, `turma`, `data`) e edite `slides.tex`. O Makefile descobre o novo `slides.tex` automaticamente via `find`.
+
+## Bibliografia
+
+Cada aula tem seu próprio `referencias.bib`, ao lado do `slides.tex`, que usa `\bibliography{referencias}`. Nunca use `\bibliography{../referencias}`: muitos slides usam `\nocite{*}`, e apontar para a bib da turma (que acumula as entradas de todas as aulas) imprime referências de outras aulas e faz o PDF crescer a cada recompilação. Ao instalar uma aula preparada fora do repositório (onde a bib costuma ficar em `../referencias.bib`, relativa a `slides/`), copie a bib para a pasta da aula e ajuste essa linha. Os `referencias.bib` no nível da turma não são usados pelos slides.
