@@ -43,6 +43,22 @@ turma: 2026-2-T02
 </div>
 
 <div class="table-card">
+  <div class="table-card-header">🧪 Roteiro prático</div>
+  <table>
+    <tbody>
+      <tr>
+        <td><strong>Roteiro de laboratório: ler <code>turma.csv</code> com <code>fgetc</code>, <code>fgets</code> + <code>sscanf</code> e <code>fscanf</code> (e a armadilha do <code>feof</code>); medir o registro, ler <code>turma.bin</code> com <code>fread</code> e ir direto ao registro <i>k</i> com <code>fseek</code>; o mesmo número como texto e como bytes — com tarefas, desafios e saídas esperadas</strong></td>
+        <td class="td-right"><a class="badge-pdf" href="roteiro/roteiro.pdf">📄 PDF</a></td>
+      </tr>
+      <tr>
+        <td><strong>Programas e dados do roteiro: <code>conta.c</code>, <code>media.c</code>, <code>pedacos.c</code>, <code>repete.c</code>, <code>tamanho.c</code>, <code>lista.c</code>, <code>lote.c</code>, <code>consulta.c</code>, <code>precisao.c</code>, <code>turma.csv</code> e <code>turma2.csv</code></strong></td>
+        <td class="td-right"><a class="badge-pdf" href="https://github.com/ayoshiaki/ufs-disciplinas/tree/main/programacao-c/2026-2-T02/aula-22-arquivos-binarios-fread-fwrite-e-fseek/roteiro/codigo" target="_blank" rel="noopener">💻 Ver no GitHub</a></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="table-card">
   <div class="table-card-header">💻 Código da aula</div>
   <table>
     <tbody>

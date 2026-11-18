@@ -210,7 +210,7 @@ title: "COMP0512 — Programação C — Turma 2 · 2026/2"
     <div class="week-body">
       <div class="week-title">Arquivos binários: <code>fread</code>, <code>fwrite</code> e <code>fseek</code></div>
       <div class="week-desc">Achar e alterar um aluno no meio do arquivo: texto ou bytes, o que há dentro de um registro gravado, <code>fread</code> e o que ele devolve, direto ao registro <i>k</i> com <code>fseek</code> e alterar sem reescrever com <code>"r+b"</code> — e exercícios.</div>
-      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge nb">1 notebook</span></div>
+      <div class="week-badges"><span class="week-badge pdf">2 PDFs</span><span class="week-badge nb">1 notebook</span></div>
     </div>
   </a>
 

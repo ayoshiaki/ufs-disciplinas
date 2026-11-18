@@ -1,0 +1,477 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[portuguese]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2.2cm,top=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage[most]{tcolorbox}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{UFSBlue}{RGB}{3,78,162}
+\definecolor{UFSRed}{RGB}{237,28,36}
+\definecolor{UFSYellow}{RGB}{253,185,19}
+\definecolor{UFSGray}{RGB}{100,100,100}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+\definecolor{linecolor}{HTML}{DDDDDD}
+
+\lstdefinestyle{codC}{
+  language=C,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{UFSGray},
+  numbers=left, numbersep=8pt, xleftmargin=18pt,
+  frame=single, rulecolor=\color{linecolor}, framesep=4pt,
+  breaklines=true, tabsize=4, columns=fullflexible, keepspaces=true,
+  showstringspaces=false, upquote=true,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+           {ã}{{\~a}}1 {õ}{{\~o}}1 {ç}{{\c c}}1 {ê}{{\^e}}1 {â}{{\^a}}1,
+}
+\lstdefinestyle{shell}{
+  language={}, numbers=none, basicstyle=\ttfamily\small, columns=fullflexible, keepspaces=true,
+  frame=single, rulecolor=\color{linecolor}, framesep=4pt,
+  backgroundcolor=\color{black!3}, xleftmargin=18pt, upquote=true,
+  breaklines=true,
+}
+\lstset{style=codC}
+
+\newtcolorbox{prever}{enhanced, breakable, colback=UFSYellow!12,
+  colframe=UFSYellow!80!black, boxrule=0.6pt, arc=2pt,
+  title={\textbf{Antes de executar, escreva sua previsão}},
+  fonttitle=\small\color{black}, coltitle=black, colbacktitle=UFSYellow!45}
+\newtcolorbox{investigar}{enhanced, breakable, colback=UFSBlue!5,
+  colframe=UFSBlue, boxrule=0.6pt, arc=2pt,
+  title={\textbf{Investigue}}, fonttitle=\small}
+\newtcolorbox{atencao}{enhanced, breakable, colback=UFSRed!6,
+  colframe=UFSRed, boxrule=0.6pt, arc=2pt, fonttitle=\small\bfseries,
+  title={Atenção}}
+\newtcolorbox{tarefa}[1]{enhanced, breakable, colback=white,
+  colframe=UFSBlue!70!black, boxrule=0.8pt, arc=2pt,
+  title={\textbf{#1}}, fonttitle=\small}
+
+\newcommand{\fonte}[1]{\par\smallskip\hfill
+  {\footnotesize\textcolor{UFSGray}{Fonte: #1}}\par\medskip}
+\newcommand{\linha}{\par\noindent\rule{\linewidth}{0.4pt}\par}
+\newcommand{\resp}[1][2]{\par\vspace{0.2em}%
+  \foreach \i in {1,...,#1}{\noindent\textcolor{UFSGray!50}{\rule{\linewidth}{0.3pt}}\par\vspace{0.9em}}}
+
+
+\titleformat{\section}{\Large\bfseries\color{UFSBlue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{UFSBlue}}{\thesubsection}{0.6em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{UFSGray}{COMP0512 -- Programação C}}
+\fancyhead[R]{\small\textcolor{UFSGray}{Leitura de arquivos texto e binários}}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\setlist{itemsep=2pt, topsep=4pt}
+
+\begin{document}
+
+\thispagestyle{plain}
+\noindent
+\begin{minipage}[c]{0.2\linewidth}
+  \includegraphics[width=\linewidth]{ufs_principal_positiva.png}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.76\linewidth}
+  \raggedleft
+  {\small Universidade Federal de Sergipe -- Departamento de Computação}\\[2pt]
+  {\small COMP0512 -- Programação C -- 2026.2}\\[8pt]
+  {\LARGE\bfseries\color{UFSBlue} Roteiro prático: leitura de arquivos}\\[4pt]
+  {\large texto (\texttt{fgetc}, \texttt{fgets}, \texttt{fscanf}) e
+   binários (\texttt{fread}, \texttt{fseek}, \texttt{ftell})}\\[8pt]
+  {\small Prof.\ Dr.\ André Yoshiaki Kashiwabara --
+   \texttt{andreyoshiaki@dcomp.ufs.br}}
+\end{minipage}
+\par\medskip\linha\medskip
+
+\noindent\textbf{Como usar este roteiro.} Cada parte traz um programa
+pronto. Antes de executá-lo, \emph{escreva} o que você espera ver na caixa
+amarela; depois execute e compare. As caixas azuis pedem que você mexa no
+programa para entender \emph{por que} ele se comporta assim. No fim há tarefas
+que alteram os programas e dois desafios para escrever do zero. As saídas
+esperadas estão no Apêndice~\ref{ap:saidas}: só olhe depois de tentar.
+
+\medskip
+\noindent\textbf{Cenário.} Usaremos a mesma turma das aulas anteriores. O
+arquivo \texttt{turma.csv} é texto, uma linha por aluno (matrícula, nome e
+quatro notas separados por \texttt{;}). O arquivo \texttt{turma.bin} guarda os
+mesmos alunos como uma sequência de \texttt{struct aluno}, byte a byte. O
+objetivo é ler os dois e entender o que muda.
+
+\section{Preparação}
+
+Crie um diretório e coloque nele os arquivos do roteiro (todos estão em
+\texttt{codigo/}). O \texttt{turma.csv} é:
+
+\lstinputlisting[style=shell]{codigo/turma.csv}
+
+\noindent O registro gravado em \texttt{turma.bin} está em \texttt{aluno.h}:
+
+\lstinputlisting{codigo/aluno.h}
+
+\noindent O \texttt{Makefile} compila tudo com \texttt{-Wall -Wextra -pedantic}
+e, de quebra, roda o \texttt{cadastro.c} (visto na aula de \texttt{fwrite}),
+que converte \texttt{turma.csv} em \texttt{turma.bin}:
+
+\begin{lstlisting}[style=shell]
+$ make
+$ ls -l turma.csv turma.bin
+\end{lstlisting}
+
+\begin{atencao}
+Todo arquivo aberto com \texttt{fopen} pode falhar (nome errado, falta de
+permissão, diretório errado). \texttt{fopen} devolve \texttt{NULL} nesse caso,
+e usar esse \texttt{NULL} em \texttt{fgetc}, \texttt{fgets} ou \texttt{fread}
+derruba o programa. Todos os programas deste roteiro testam o retorno e usam
+\texttt{perror} para dizer o motivo.
+\end{atencao}
+
+\section{Arquivos texto}
+
+\subsection{Caractere a caractere: \texttt{fgetc}}
+
+\lstinputlisting{codigo/conta.c}
+
+\noindent \texttt{fgetc} devolve o próximo caractere convertido para
+\texttt{unsigned char} e depois para \texttt{int}, ou \texttt{EOF} (um valor
+negativo, em geral $-1$) quando não há mais nada para ler ou quando ocorre um
+erro~\cite{kernighan1988c,iso2018c17}.
+\fonte{Kernighan e Ritchie (1988), §7.5; ISO/IEC 9899:2018, §7.21.7.1;
+King (2008), §22.4~\cite{kernighan1988c,iso2018c17,king2008c}}
+
+\begin{prever}
+\begin{enumerate}[label=(\alph*)]
+  \item Quantos caracteres e quantas linhas \texttt{./conta turma.csv} vai
+  contar? (Dica: conte o \texttt{'\textbackslash n'} de cada linha.)
+  \resp[1]
+  \item E \texttt{./conta turma.bin}? O tamanho de \texttt{turma.bin} depende
+  do número de alunos e de \texttt{sizeof(struct aluno)}.
+  \resp[1]
+  \item O que aparece com \texttt{./conta nada.txt}?
+  \resp[1]
+\end{enumerate}
+\end{prever}
+
+\begin{investigar}
+\begin{enumerate}[label=\arabic*.]
+  \item Compare a contagem de caracteres com o tamanho mostrado por
+  \texttt{ls -l}. Para \texttt{fgetc}, existe diferença entre um arquivo
+  texto e um binário?
+  \item Por que \texttt{conta} encontra \emph{zero} linhas em
+  \texttt{turma.bin}, se o arquivo contém os nomes dos alunos?
+  \item Troque \texttt{int c} por \texttt{char c}. Compile com
+  \texttt{-Wall}. Qual byte do arquivo, lido como \texttt{char}, poderia ser
+  confundido com \texttt{EOF}? Por que o problema aparece em binários e quase
+  nunca em texto?
+\end{enumerate}
+\end{investigar}
+
+\subsection{Linha a linha: \texttt{fgets} + \texttt{sscanf}}
+
+Ler a linha inteira e só depois separar os campos é o jeito mais robusto de
+processar texto: um erro numa linha não contamina as seguintes.
+
+\lstinputlisting{codigo/media.c}
+
+\noindent \texttt{fgets(s, n, f)} lê até \texttt{n-1} caracteres, para
+\emph{depois} do primeiro \texttt{'\textbackslash n'} (que fica em \texttt{s})
+e sempre termina \texttt{s} com \texttt{'\textbackslash 0'}. Devolve
+\texttt{NULL} no fim do arquivo ou em erro. \texttt{sscanf} faz o mesmo que
+\texttt{fscanf}, mas lendo de uma string; \texttt{\%49[\^{};]} lê até 49
+caracteres diferentes de \texttt{;}, o que permite nomes com espaço.
+\fonte{Kernighan e Ritchie (1988), §7.7; King (2008), §22.5 e §22.8;
+ISO/IEC 9899:2018, §7.21.7.2~\cite{kernighan1988c,king2008c,iso2018c17}}
+
+\begin{prever}
+Qual é a média de Carla Menezes Santos? O nome dela aparece inteiro ou só
+``Carla''?
+\resp[1]
+\end{prever}
+
+\noindent Agora reduza o buffer, como em \texttt{pedacos.c}, que imprime cada
+resultado de \texttt{fgets} entre colchetes:
+
+\lstinputlisting[firstline=11,lastline=16]{codigo/pedacos.c}
+
+\begin{prever}
+Com \texttt{linha[16]}, quantos caracteres cabem em cada pedaço? O que
+aparece entre os colchetes nas três primeiras chamadas? Onde aparece a quebra
+de linha?
+\resp[2]
+\end{prever}
+
+\begin{investigar}
+\begin{enumerate}[label=\arabic*.]
+  \item Por que alguns colchetes de fechamento aparecem na linha
+  \emph{seguinte}?
+  \item O que aconteceria com \texttt{media.c} se o buffer tivesse 16 bytes?
+  Quantas mensagens ``linha ignorada'' você espera? Teste.
+  \item Como saber, olhando só para \texttt{linha} depois do \texttt{fgets},
+  se a linha coube inteira? (Dica: \texttt{strchr} ou \texttt{strcspn}.)
+\end{enumerate}
+\end{investigar}
+
+\subsection{\texttt{fscanf} direto e a armadilha do \texttt{feof}}
+
+É tentador controlar o laço com \texttt{while (!feof(f))}:
+
+\lstinputlisting[firstline=14,lastline=19]{codigo/repete.c}
+
+\begin{prever}
+\texttt{turma.csv} tem 4 alunos. Quantas linhas \texttt{./repete} imprime?
+\resp[1]
+\end{prever}
+
+\noindent \texttt{feof} não ``olha para frente'': ele só fica verdadeiro
+\emph{depois} que uma leitura tentou passar do fim e falhou~\cite{iso2018c17}.
+\fonte{ISO/IEC 9899:2018, §7.21.10.2; King (2008), §22.3~\cite{iso2018c17,king2008c}}
+
+\begin{investigar}
+\begin{enumerate}[label=\arabic*.]
+  \item Depois de ler a nota da última linha, o \texttt{'\textbackslash n'}
+  final já foi consumido? Então \texttt{feof(f)} já é verdadeiro?
+  \item Imprima o valor devolvido por cada \texttt{fscanf}. Que valor aparece
+  na volta extra? Por que as variáveis ainda mostram Davi Rocha?
+  \item Corrija o laço usando o retorno de \texttt{fscanf}
+  (\texttt{while (fscanf(...) == 6)}). Por que \texttt{== 6} é melhor que
+  \texttt{!= EOF}?
+\end{enumerate}
+\end{investigar}
+
+\begin{atencao}
+Regra geral: o laço de leitura é controlado pelo \emph{retorno da função que
+lê} (\texttt{fgetc != EOF}, \texttt{fgets != NULL}, \texttt{fscanf == n},
+\texttt{fread == n}). \texttt{feof} e \texttt{ferror} servem \emph{depois} do
+laço, para descobrir por que ele terminou.
+\end{atencao}
+
+\section{Arquivos binários}
+
+\subsection{Quanto mede um registro?}
+
+Num arquivo binário não há separadores: um registro termina onde o
+\texttt{sizeof} diz que termina. Antes de ler, é preciso saber esse tamanho.
+
+\lstinputlisting[firstline=6]{codigo/tamanho.c}
+
+\begin{prever}
+\texttt{int} tem 4 bytes e \texttt{double} tem 8. Some os campos de
+\texttt{struct aluno}: $4 + 50 + 4\times 8 = \underline{\hspace{1.5cm}}$.
+O \texttt{sizeof} vai dar exatamente isso? Em que deslocamento começa
+\texttt{v}?
+\resp[1]
+\end{prever}
+
+\begin{investigar}
+\begin{enumerate}[label=\arabic*.]
+  \item O compilador inseriu bytes entre \texttt{nome} e \texttt{v}. Por quê?
+  (Pense no endereço em que um \texttt{double} gosta de começar.)
+  \item Multiplique \texttt{sizeof(struct aluno)} pelo número de alunos e
+  compare com \texttt{ls -l turma.bin} e com a saída de \texttt{conta}.
+  \item Veja os primeiros bytes com \texttt{xxd -l 96 turma.bin}. Encontre a
+  matrícula 202600101 ($= \mathtt{0x0C136EA5}$). Em que ordem os 4 bytes
+  aparecem? Encontre também a nota 8,0 (\texttt{0x4020000000000000}).
+\end{enumerate}
+\end{investigar}
+\fonte{ISO/IEC 9899:2018, §6.7.2.1; Bryant e O'Hallaron (2016), §2.1.3 e
+§3.9.3~\cite{iso2018c17,bryant2016computer}}
+
+\subsection{Leitura sequencial: \texttt{fread}}
+
+\lstinputlisting[firstline=5]{codigo/lista.c}
+
+\noindent \texttt{fread(p, tam, n, f)} copia até \texttt{n} blocos de
+\texttt{tam} bytes do arquivo para a memória em \texttt{p} e devolve
+\emph{quantos blocos completos} leu, que pode ser menos que \texttt{n} no fim
+do arquivo ou num erro. Não há conversão: os bytes vão direto para a
+\texttt{struct}~\cite{iso2018c17,king2008c}. Note o \texttt{"rb"}: em Linux e
+macOS o \texttt{b} não muda nada, mas no Windows o modo texto traduz
+\texttt{\textbackslash r\textbackslash n} e trataria o byte \texttt{0x1A} como
+fim de arquivo, corrompendo a leitura de binários.
+\fonte{ISO/IEC 9899:2018, §7.21.5.3 e §7.21.8.1; King (2008),
+§22.6~\cite{iso2018c17,king2008c}}
+
+\noindent O programa \texttt{lote.c} pede 3 registros por vez e, no fim, usa
+\texttt{feof}/\texttt{ferror} para saber por que parou:
+
+\lstinputlisting[firstline=15,lastline=27]{codigo/lote.c}
+
+\begin{prever}
+Com 4 alunos no arquivo, quantas vezes o laço executa e quanto \texttt{fread}
+devolve em cada uma? O que é impresso no fim?
+\resp[2]
+\end{prever}
+
+\begin{investigar}
+\begin{enumerate}[label=\arabic*.]
+  \item Compare \texttt{lista.c} com \texttt{media.c}. Onde estão o
+  \texttt{sscanf} e o buffer de texto? Por que não são necessários?
+  \item Troque o \texttt{LOTE} para 1, 4 e 10. O que muda na saída?
+  \item Chame \texttt{fread(buf, 1, sizeof buf, f)} (blocos de 1 byte).
+  O que o valor devolvido passa a medir?
+  \item Abra \texttt{turma.bin} num editor de texto. E \texttt{turma.csv} com
+  \texttt{lista}? (\texttt{./lista turma.csv}). Explique os nomes e números
+  que aparecem.
+\end{enumerate}
+\end{investigar}
+
+\subsection{Acesso direto: \texttt{fseek} e \texttt{ftell}}
+
+Como todo registro tem o mesmo tamanho, o registro $k$ começa no byte
+$k \times \texttt{sizeof(struct aluno)}$. Dá para ir direto até ele, sem ler
+os anteriores.
+
+\lstinputlisting[firstline=18,lastline=29]{codigo/consulta.c}
+
+\noindent \texttt{fseek(f, desl, origem)} move a posição de leitura para
+\texttt{desl} bytes a partir de \texttt{SEEK\_SET} (início),
+\texttt{SEEK\_CUR} (posição atual) ou \texttt{SEEK\_END} (fim);
+\texttt{ftell} devolve a posição atual em bytes. Para arquivos binários, a
+posição é exatamente a contagem de bytes desde o
+início~\cite{iso2018c17}.
+\fonte{ISO/IEC 9899:2018, §7.21.9.2 e §7.21.9.4; King (2008),
+§22.7~\cite{iso2018c17,king2008c}}
+
+\begin{prever}
+\begin{enumerate}[label=(\alph*)]
+  \item O que \texttt{./consulta turma.bin 2} imprime? (O primeiro registro
+  é o 0.)
+  \resp[1]
+  \item E \texttt{./consulta turma.bin 7}? O \texttt{fseek} para além do fim
+  falha, ou é o \texttt{fread} que falha?
+  \resp[1]
+\end{enumerate}
+\end{prever}
+
+\begin{investigar}
+\begin{enumerate}[label=\arabic*.]
+  \item Imprima o retorno de \texttt{fseek} para $k = 7$ e para $k = -1$.
+  Qual dos dois é um erro do \texttt{fseek}?
+  \item Depois do \texttt{fread}, quanto vale \texttt{ftell(f)}? Escreva a
+  conta em função de $k$.
+  \item Por que essa ideia não funciona com \texttt{turma.csv}? O que
+  impede de saltar direto para a terceira linha?
+  \item \texttt{rewind(f)} equivale a qual chamada de \texttt{fseek}?
+\end{enumerate}
+\end{investigar}
+
+\subsection{O mesmo número, como texto e como bytes}
+
+\lstinputlisting[firstline=6,lastline=17]{codigo/precisao.c}
+
+\noindent O programa \texttt{precisao.c} grava $1/3$ das duas formas, lê de
+volta (com \texttt{fscanf} e com \texttt{fread}) e compara com o original.
+
+\begin{prever}
+Qual das duas leituras devolve um valor \emph{igual} ao \texttt{x} original?
+Quantos bytes têm \texttt{x.txt} e \texttt{x.bin}?
+\resp[1]
+\end{prever}
+
+\begin{investigar}
+\begin{enumerate}[label=\arabic*.]
+  \item Troque \texttt{\%f} por \texttt{\%.17g} no \texttt{fprintf}. A
+  leitura do texto passa a ser igual? Quanto cresce \texttt{x.txt}?
+  \item Liste vantagens de cada formato: quem lê o arquivo num editor? Quem
+  o lê em outra máquina (outra ordem de bytes, outro \texttt{sizeof})?
+\end{enumerate}
+\end{investigar}
+\fonte{Goldberg (1991), §2.1; ISO/IEC 9899:2018,
+§7.21.6.1~\cite{goldberg1991what,iso2018c17}}
+
+\section{Tarefas}
+
+\begin{tarefa}{Tarefa 1 -- texto mais tolerante}
+O arquivo \texttt{turma2.csv} tem uma linha de comentário (começa com
+\texttt{\#}) e linhas em branco. Altere \texttt{media.c} para: receber o nome
+do arquivo pela linha de comando; remover o \texttt{'\textbackslash n'} do fim
+de cada linha; ignorar em silêncio linhas vazias ou de comentário; e imprimir,
+no fim, a média da turma e o número de alunos lidos.
+\end{tarefa}
+
+\begin{tarefa}{Tarefa 2 -- filtrar registros}
+Altere \texttt{lista.c} para imprimir apenas os aprovados (média
+$\geq 5{,}0$) e, ao final, a linha ``\texttt{A de T aprovados}''.
+\end{tarefa}
+
+\begin{tarefa}{Tarefa 3 -- de trás para frente}
+Escreva \texttt{inverso.c}, que imprime os registros de \texttt{turma.bin} do
+último para o primeiro, no formato \texttt{k: matricula nome}, usando
+\texttt{fseek} para posicionar antes de cada \texttt{fread}. Descubra o número
+de registros com \texttt{fseek}/\texttt{ftell}, sem ler o arquivo inteiro.
+\end{tarefa}
+
+\section{Desafios}
+
+\begin{tarefa}{Desafio 1 -- um \texttt{xxd} seu}
+Escreva \texttt{espia.c}: dado qualquer arquivo, imprima 16 bytes por linha,
+com o deslocamento em hexadecimal (8 dígitos), os bytes em hexadecimal e, à
+direita, os caracteres imprimíveis (os demais viram \texttt{.}). Leia com
+\texttt{fread(buf, 1, 16, f)} num \texttt{unsigned char buf[16]} e trate a
+última linha, que pode vir incompleta. Teste com \texttt{turma.csv} e
+\texttt{turma.bin} e compare com \texttt{xxd}.
+\end{tarefa}
+
+\begin{tarefa}{Desafio 2 -- busca binária no disco}
+Os registros de \texttt{turma.bin} estão em ordem crescente de matrícula.
+Escreva \texttt{procura.c} (\texttt{./procura turma.bin matricula}) que faz
+busca binária \emph{no arquivo}: a cada passo, \texttt{fseek} até o registro do
+meio e um único \texttt{fread}. Imprima o registro encontrado e quantas
+leituras foram feitas. Com $n$ registros, quantas leituras são necessárias no
+pior caso? Compare com uma busca sequencial.
+\fonte{Knuth (1998), §6.2.1~\cite{knuth1998art}}
+\end{tarefa}
+
+\section{Resumo}
+
+\begin{center}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Função} & \textbf{Lê} & \textbf{Fim ou erro quando devolve} \\
+\midrule
+\texttt{fgetc(f)} & um caractere (como \texttt{int}) & \texttt{EOF} \\
+\texttt{fgets(s, n, f)} & até \texttt{n-1} caracteres ou até \texttt{'\textbackslash n'} & \texttt{NULL} \\
+\texttt{fscanf(f, fmt, ...)} & campos convertidos de texto & menos campos que o pedido (ou \texttt{EOF}) \\
+\texttt{fread(p, tam, n, f)} & \texttt{n} blocos de \texttt{tam} bytes, sem conversão & menos que \texttt{n} \\
+\midrule
+\texttt{fseek(f, d, origem)} & --- (posiciona) & valor diferente de 0 \\
+\texttt{ftell(f)} & --- (posição atual em bytes) & \texttt{-1L} \\
+\texttt{feof(f)} / \texttt{ferror(f)} & --- (por que a leitura parou) & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\appendix
+\section{Saídas esperadas}\label{ap:saidas}
+
+\noindent Obtidas em macOS (arm64) com \texttt{gcc -Wall -Wextra -pedantic}.
+Em Linux x86-64 os números são os mesmos.
+
+\subsection*{Seção 2}
+\lstinputlisting[style=shell]{saidas/texto.txt}
+
+\subsection*{Seção 3}
+\lstinputlisting[style=shell]{saidas/binario.txt}
+
+\subsection*{Tarefas e desafios}
+\lstinputlisting[style=shell]{saidas/tarefas.txt}
+
+\bibliographystyle{plain}
+\bibliography{referencias}
+
+\end{document}
