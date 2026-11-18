@@ -51,7 +51,7 @@ turma: 2026-2-T02
         <td class="td-right"><a class="badge-pdf" href="roteiro/roteiro.pdf">📄 PDF</a></td>
       </tr>
       <tr>
-        <td><strong>Programas e dados do roteiro: <code>conta.c</code>, <code>media.c</code>, <code>pedacos.c</code>, <code>repete.c</code>, <code>tamanho.c</code>, <code>lista.c</code>, <code>lote.c</code>, <code>consulta.c</code>, <code>precisao.c</code>, <code>turma.csv</code> e <code>turma2.csv</code></strong></td>
+        <td><strong>Programas e dados do roteiro: <code>conta.c</code>, <code>media.c</code>, <code>pedacos.c</code>, <code>repete.c</code>, <code>tamanho.c</code>, <code>lista.c</code>, <code>lote.c</code>, <code>consulta.c</code>, <code>precisao.c</code>, <code>turma.csv</code>, <code>turma2.csv</code> e <code>turma.bin</code> (o mesmo que o <code>make</code> gera)</strong></td>
         <td class="td-right"><a class="badge-pdf" href="https://github.com/ayoshiaki/ufs-disciplinas/tree/main/programacao-c/2026-2-T02/aula-22-arquivos-binarios-fread-fwrite-e-fseek/roteiro/codigo" target="_blank" rel="noopener">💻 Ver no GitHub</a></td>
       </tr>
     </tbody>
