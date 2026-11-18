@@ -1,0 +1,1256 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Tema UFS --- Universidade Federal de Sergipe
+\usetheme{UFS}
+
+% Pacotes base
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+% TikZ e bibliotecas
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning,
+  matrix, fit, backgrounds, decorations.pathreplacing, calc}
+
+% Listagens --- paleta VS Code Light+
+\usepackage{listings}
+\definecolor{bgcolor}{HTML}{FFFFFF}
+\definecolor{linecolor}{HTML}{DDDDDD}
+\definecolor{numcolor}{HTML}{999999}
+\definecolor{kwcolor}{HTML}{0000FF}
+\definecolor{strcolor}{HTML}{A31515}
+\definecolor{cmtcolor}{HTML}{008000}
+
+\lstdefinestyle{ufsStyle}{
+  backgroundcolor=\color{bgcolor},
+  basicstyle=\ttfamily\footnotesize\color{black},
+  keywordstyle=\color{kwcolor}\bfseries,
+  stringstyle=\color{strcolor},
+  commentstyle=\color{cmtcolor}\itshape,
+  numberstyle=\tiny\color{numcolor},
+  numbers=left, numbersep=12pt,
+  xleftmargin=20pt, framexleftmargin=20pt,
+  breaklines=true, tabsize=4,
+  keepspaces=true, showspaces=false,
+  showstringspaces=false, showtabs=false,
+  frame=single, rulecolor=\color{linecolor},
+  framesep=4pt, captionpos=b, upquote=true,
+  columns=fullflexible,
+}
+\lstset{style=ufsStyle, language=C}
+
+\lstdefinestyle{tinyC}{
+  style=ufsStyle, language=C, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{codC}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7.5}{8.6}\selectfont\color{black},
+}
+\lstdefinestyle{codCs}{
+  style=tinyC, basicstyle=\ttfamily\fontsize{7}{7.9}\selectfont\color{black},
+}
+\lstdefinestyle{shellStyle}{
+  style=ufsStyle, language=bash, numbers=none,
+  basicstyle=\ttfamily\scriptsize\color{black},
+}
+\lstdefinestyle{shellS}{
+  style=shellStyle, basicstyle=\ttfamily\fontsize{7}{7.9}\selectfont\color{black},
+}
+
+% --- Estilos TikZ reutilizados ---
+\tikzset{
+  byte/.style={rectangle, draw=UFSBlue, fill=white, minimum width=0.36cm,
+    minimum height=0.46cm, inner sep=0pt, font=\scriptsize\ttfamily},
+  byteb/.style={byte, fill=UFSBlue!15},
+  byter/.style={byte, draw=UFSRed, fill=UFSRed!12},
+  bytev/.style={byte, draw=UFSGray!50, fill=black!4, text=UFSGray!70},
+  caixa/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+    align=center, font=\small, inner sep=5pt},
+  caixar/.style={caixa, draw=UFSRed, fill=UFSRed!10},
+  caixag/.style={caixa, draw=UFSGray, fill=black!4},
+  item/.style={rectangle, draw=UFSBlue, fill=UFSBlue!10, rounded corners,
+    minimum width=10.4cm, minimum height=0.5cm, font=\small},
+  leg/.style={font=\scriptsize, text=UFSGray},
+  seta/.style={-{Stealth[length=1.8mm]}, thick, UFSBlue},
+  setar/.style={-{Stealth[length=1.8mm]}, thick, UFSRed},
+  setag/.style={-{Stealth[length=1.8mm]}, thick, UFSGray},
+}
+
+% Uma fileira de caracteres, um por caixa: \fileira{x}{y}{estilo}{a,b,c}
+\newcommand{\fileira}[4]{%
+  \foreach \c [count=\k from 0] in {#4} {
+    \node[#3] at (#1+0.36*\k, #2) {\c};
+  }
+}
+
+% Uma fileira de bytes em hexadecimal, mais larga: \fileirax{x}{y}{estilo}{55,3f}
+\newcommand{\fileirax}[4]{%
+  \foreach \c [count=\k from 0] in {#4} {
+    \node[#3, minimum width=0.5cm] at (#1+0.5*\k, #2) {\c};
+  }
+}
+
+% Circunflexo em codigo no meio do texto
+\newcommand{\cir}{\textasciicircum}
+
+% Referencia da fonte no rodape do frame
+\newcommand{\fonte}[1]{\vfill\hfill{\scriptsize\textcolor{UFSGray}{Fonte: #1}}}
+
+% --- Metadados ---
+\title{Arquivos binários}
+\subtitle{\texttt{fread}, \texttt{fwrite} e \texttt{fseek}}
+\author{Prof.\ André Yoshiaki Kashiwabara}
+\institute{DCOMP -- Universidade Federal de Sergipe\\
+\texttt{andreyoshiaki@dcomp.ufs.br}}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[item] (t1) at (0, 0)    {Texto ou bytes: o que se perde ao gravar um número como texto};
+    \node[item] (t2) at (0,-0.64) {A memória direto para o disco: \texttt{fwrite} e o modo \texttt{"wb"}};
+    \node[item] (t3) at (0,-1.28) {O que há dentro de um registro: \texttt{sizeof}, preenchimento e ordem dos bytes};
+    \node[item] (t4) at (0,-1.92) {De volta para a memória: \texttt{fread} e o que ele devolve};
+    \node[item] (t5) at (0,-2.56) {Direto ao registro $k$: \texttt{fseek} e \texttt{ftell}};
+    \node[item] (t6) at (0,-3.20) {Alterar sem reescrever: o modo \texttt{"r+b"}};
+    \node[item] (t7) at (0,-3.84) {Exercícios};
+    \draw[seta] (t1) -- (t2);
+    \draw[seta] (t2) -- (t3);
+    \draw[seta] (t3) -- (t4);
+    \draw[seta] (t4) -- (t5);
+    \draw[seta] (t5) -- (t6);
+    \draw[seta] (t6) -- (t7);
+  \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+% ==================================================================
+\section{A pergunta de hoje}
+% ==================================================================
+
+\begin{frame}{O problema: achar e alterar um aluno no meio do arquivo}
+  \vspace{-0.4em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Até aqui}\\[0.3em]
+      \small
+      O \texttt{boletim\_csv.c} lê \texttt{turma.csv} linha a linha. Para
+      chegar ao aluno 3\,000, lê as 2\,999 linhas anteriores. Para trocar
+      uma nota, reescreve o arquivo inteiro --- \texttt{7.5} virar
+      \texttt{10.0} muda o tamanho da linha.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O que vamos descobrir}\\[0.3em]
+      \small
+      Se cada aluno ocupar \textbf{sempre o mesmo número de bytes}, o
+      arquivo vira um vetor em disco: o aluno $k$ está numa posição que se
+      calcula, e trocar uma nota é gravar por cima, sem mexer no resto.
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{block}{A pergunta de hoje}
+    Como gravar uma \texttt{struct aluno} no disco exatamente como ela está
+    na memória, ir direto ao aluno $k$ e alterá-lo ali mesmo? E o que se
+    perde --- ou se ganha --- quando o arquivo deixa de ser texto?
+  \end{block}
+  \fonte{Deitel e Deitel (2011), cap.~11~\cite{deitel2011como};
+    King (2008), §22.6--22.7~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{Primeiro: o mesmo \texttt{double}, de dois jeitos}
+  \vspace{-0.9em}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[style=codCs]
+/* precisao.c (trecho) */
+double x = 1.0 / 3.0, lido_t, lido_b;
+
+FILE *ft = fopen("x.txt", "w");
+FILE *fb = fopen("x.bin", "wb");
+...  /* testa os dois NULL */
+fprintf(ft, "%f", x);          /* texto */
+fwrite(&x, sizeof x, 1, fb);   /* bytes */
+fclose(ft);
+fclose(fb);
+
+...  /* reabre com "r" e "rb" */
+fscanf(ft, "%lf", &lido_t);
+fread(&lido_b, sizeof lido_b, 1, fb);
+
+printf("texto:   %.17f  %s\n", lido_t,
+       lido_t == x ? "igual" : "diferente");
+printf("binario: %.17f  %s\n", lido_b,
+       lido_b == x ? "igual" : "diferente");
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+      \begin{block}{Antes de executar}
+        \small
+        \begin{enumerate}
+          \item Quantos bytes terá \texttt{x.txt}? E \texttt{x.bin}?
+          \item Os dois valores lidos de volta são iguais a \texttt{x}?
+          \item O que \texttt{cat x.bin} mostra na tela?
+        \end{enumerate}
+      \end{block}
+      \small \texttt{fwrite} grava os bytes que estão no endereço
+      \texttt{\&x}; \texttt{fread} os copia de volta. Os detalhes vêm a
+      seguir.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra precisao.c -o precisao && ./precisao
+texto:   0.33333299999999999  diferente
+binario: 0.33333333333333331  igual
+$ wc -c x.txt x.bin
+       8 x.txt
+       8 x.bin
+$ cat x.bin
+UUUUUU?
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Os dois arquivos têm 8 bytes, mas só um guardou o número.
+      \texttt{\%f} escreve seis casas: o texto arredondou, e
+      \texttt{fscanf} não tem como recuperar o que foi jogado fora.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small \texttt{cat} trata os bytes de \texttt{x.bin} como caracteres:
+      \texttt{0x55} é a letra \texttt{U}; \texttt{0x3f}, o \texttt{?}. O arquivo não foi feito para ser
+      lido por gente.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: o texto converte, o binário copia}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[leg, anchor=east] at (-0.4,0) {\texttt{x} na memória:};
+    \fileirax{0}{0}{byteb}{55,55,55,55,55,55,d5,3f}
+    \draw[seta] (1.75,-0.3) -- (1.75,-0.9) node[midway, right, leg] {\texttt{fwrite}: copia};
+    \node[leg, anchor=east] at (-0.4,-1.2) {\texttt{x.bin}:};
+    \fileirax{0}{-1.2}{byteb}{55,55,55,55,55,55,d5,3f}
+    \draw[seta] (3.9,0) -- (5.7,0) node[midway, above, leg] {\texttt{fprintf "\%f"}};
+    \node[leg, anchor=west] at (5.8,0.42) {\texttt{x.txt}: converte e arredonda};
+    \fileira{6.0}{0}{byte}{0,.,3,3,3,3,3,3}
+    \node[leg, text=UFSRed, anchor=west] at (8.8,0) {e o resto?};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Arquivo binário}
+        \small Uma sequência de bytes sem linhas nem conversão: o que estava
+        na memória vai para o disco tal e qual, e volta tal e qual.
+      \end{block}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small Dá para não perder nada em texto --- \texttt{\%.17g} escreve
+      \texttt{0.33333333333333331}, 19 caracteres. Em binário,
+      \textbf{todo} \texttt{double} tem 8 bytes e nenhuma conversão.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.2~\cite{iso2018c17};
+    Goldberg (1991), §2.1~\cite{goldberg1991what}}
+\end{frame}
+
+% ==================================================================
+\section{Gravar bytes: \texttt{fwrite}}
+% ==================================================================
+
+\begin{frame}[fragile]{Definição: \texttt{fwrite} e \texttt{fread}}
+  \vspace{-0.3em}
+\begin{lstlisting}[style=codC]
+size_t fwrite(const void *p, size_t tam, size_t n, FILE *f);
+size_t fread(void *p, size_t tam, size_t n, FILE *f);
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \small \texttt{fwrite} grava \texttt{n} elementos de \texttt{tam} bytes
+      cada, a partir do endereço \texttt{p}. \texttt{fread} lê \texttt{n}
+      elementos e os coloca a partir de \texttt{p}. O \texttt{void *} aceita
+      endereço de qualquer tipo: \texttt{\&x}, um vetor, uma
+      \texttt{struct}.
+
+      \medskip
+      As duas devolvem quantos \textbf{elementos} --- não bytes ---
+      conseguiram transferir.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+\begin{lstlisting}[style=codC]
+double x;
+int v[100];
+fwrite(&x, sizeof x, 1, f);
+fwrite(v, sizeof v[0], 100, f);
+\end{lstlisting}
+      \begin{block}{O \texttt{b} do modo}
+        \small \texttt{"wb"}, \texttt{"rb"}: fluxo binário. No Linux e no
+        macOS nada muda; no Windows, sem o \texttt{b}, cada
+        \texttt{'\textbackslash n'} gravado vira dois bytes.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.2 e §7.21.8~\cite{iso2018c17};
+    King (2008), §22.6~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{O programa de hoje: \texttt{cadastro.c}}
+  \vspace{-0.8em}
+  \begin{columns}[T]
+    \begin{column}{0.36\textwidth}
+\begin{lstlisting}[style=codCs]
+/* aluno.h */
+#define NAV 4
+
+struct aluno {
+    int    mat;
+    char   nome[50];
+    double v[NAV];
+};
+\end{lstlisting}
+      \small Converte \texttt{turma.csv}, da aula passada, em
+      \texttt{turma.bin}: um registro \texttt{struct aluno} por aluno, um
+      atrás do outro.
+
+      \medskip
+      A abertura é a de sempre, com \texttt{"r"} e \texttt{"wb"}.
+    \end{column}
+    \begin{column}{0.62\textwidth}
+\begin{lstlisting}[style=codCs]
+    char linha[256];
+    int n = 0;
+    while (fgets(linha, sizeof linha, ent) != NULL) {
+        struct aluno a = {0};   /* comeca zerado */
+        if (sscanf(linha, "%d;%49[^;];%lf;%lf;%lf;%lf",
+                   &a.mat, a.nome, &a.v[0], &a.v[1],
+                   &a.v[2], &a.v[3]) != 6)
+            continue;
+        if (fwrite(&a, sizeof a, 1, sai) != 1) {
+            perror(nome_sai);
+            break;
+        }
+        n++;
+    }
+    fclose(ent);
+    fclose(sai);
+    printf("%d alunos gravados em %s\n", n, nome_sai);
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §22.6~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{O que este programa grava?}
+  \begin{block}{Antes de compilar, escreva sua resposta}
+    \begin{enumerate}
+      \item Um \texttt{int} tem 4 bytes e um \texttt{double}, 8. Quantos
+        bytes terá \texttt{turma.bin}, com quatro alunos?
+      \item O que aparece com \texttt{strings turma.bin}, que mostra só os
+        trechos legíveis?
+      \item Onde, dentro do arquivo, estará o texto \texttt{Ana Souza}?
+      \item Rodando duas vezes, o arquivo fica com quatro alunos ou com oito?
+      \item Por que o \texttt{fwrite} recebe \texttt{\&a} e não \texttt{a}?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Compile, execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ gcc -Wall -Wextra cadastro.c -o cadastro
+$ ./cadastro
+4 alunos gravados em turma.bin
+$ wc -c turma.bin
+     352 turma.bin
+$ strings turma.bin       # so os trechos que parecem texto
+Ana Souza
+Bruno Lima
+Carla Menezes Santos
+Davi Rocha
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small A conta $4 + 50 + 4 \times 8 = 86$ dá $4 \times 86 = 344$
+      bytes. O arquivo tem \textbf{352}: sobram 8, dois por aluno.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Só os nomes aparecem: um \texttt{char} já é um caractere.
+      Matrículas e notas são bytes que não formam texto. Rodar de novo deixa 352 bytes:
+      \texttt{"wb"} apaga, como \texttt{"w"}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Onde estão os bytes a mais?}
+  \vspace{-0.4em}
+  \texttt{xxd} mostra cada byte em hexadecimal; à direita, os que são letras.
+\begin{lstlisting}[style=shellStyle, language={}]
+$ xxd -l 88 turma.bin           # so os primeiros 88 bytes
+00000000: a56e 130c 416e 6120 536f 757a 6100 0000  .n..Ana Souza...
+00000010: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000020: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000030: 0000 0000 0000 0000 0000 0000 0000 2040  .............. @
+00000040: 0000 0000 0000 1a40 0000 0000 0000 2240  .......@......"@
+00000050: 0000 0000 0000 1e40                      .......@
+\end{lstlisting}
+  \begin{block}{Investigue}
+    \small
+    \begin{enumerate}
+      \item Os primeiros 88 bytes são o primeiro aluno. Em que posição (em
+        hexadecimal) começa o nome? E onde ele termina?
+      \item O \texttt{double} \texttt{8.0} termina com os bytes
+        \texttt{20 40}. Em que posição começa \texttt{v[0]}? Por que não
+        logo depois do nome?
+    \end{enumerate}
+  \end{block}
+\end{frame}
+
+\begin{frame}{A resposta: \texttt{sizeof(struct aluno)} é 88}
+  \begin{center}
+  \begin{tikzpicture}[x=0.125cm]
+    \draw[fill=UFSBlue!25, draw=UFSBlue] (0,0) rectangle (4,0.6);
+    \node[font=\tiny\ttfamily] at (2,0.3) {mat};
+    \draw[fill=UFSBlue!8, draw=UFSBlue] (4,0) rectangle (54,0.6);
+    \node[font=\scriptsize\ttfamily] at (29,0.3) {nome[50]};
+    \draw[fill=UFSRed!25, draw=UFSRed] (54,0) rectangle (56,0.6);
+    \foreach \i in {0,...,3} {
+      \draw[fill=UFSBlue!25, draw=UFSBlue] (56+8*\i,0) rectangle (64+8*\i,0.6);
+      \node[font=\tiny\ttfamily] at (60+8*\i,0.3) {v[\i]};
+    }
+    \foreach \p in {0,4,64,72,80,88}
+      \node[leg, font=\tiny] at (\p,-0.25) {\p};
+    \node[leg, font=\tiny, anchor=east] at (54.3,-0.25) {54};
+    \node[leg, font=\tiny, anchor=west] at (55.7,-0.25) {56};
+    \draw[setar] (55,1.25) -- (55,0.7);
+    \node[leg, text=UFSRed, anchor=south] at (55,1.2) {2 bytes de preenchimento};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.4em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small O processador lê um \texttt{double} mais depressa --- em alguns,
+      só consegue lê-lo --- se o endereço for múltiplo de 8. O compilador
+      então deixa \texttt{nome} terminar em 54 e começa \texttt{v} em 56,
+      com dois bytes sem nome no meio.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Regra}
+        \small O tamanho de um registro é \texttt{sizeof(struct aluno)},
+        nunca a soma dos campos feita à mão. O compilador pode pôr
+        preenchimento entre os campos e no fim --- só não no início.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §6.7.2.1~\cite{iso2018c17};
+    Bryant e O'Hallaron (2016), §3.9.3~\cite{bryant2016computer}}
+\end{frame}
+
+\begin{frame}{E a matrícula? Os bytes estão de trás para frente}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[leg, anchor=east] at (-0.4,0) {no arquivo, posições 0--3:};
+    \foreach \b [count=\k from 0] in {a5,6e,13,0c}
+      \node[byteb, minimum width=0.7cm] (m\k) at (0.7*\k,0) {\b};
+    \node[leg, anchor=east] at (-0.4,-1.1) {o número \texttt{202600101}:};
+    \foreach \b [count=\k from 0] in {0c,13,6e,a5}
+      \node[byte, minimum width=0.7cm] (n\k) at (0.7*\k,-1.1) {\b};
+    \node[leg, anchor=west] at (2.6,-1.1) {$= \mathtt{0x0c136ea5}$};
+    \draw[setag] (m0.south) -- (n3.north);
+    \draw[setag] (m3.south) -- (n0.north);
+    \node[leg, anchor=west] at (2.6,0) {byte menos significativo primeiro};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Os PCs (x86) e os Macs com processador Apple guardam o byte
+      \textbf{menos} significativo no endereço menor: \emph{little endian}.
+      Outras máquinas fazem o contrário, \emph{big endian}. O
+      \texttt{fwrite} grava a ordem da máquina em que roda.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{O arquivo binário depende da máquina}
+        \small Ordem dos bytes, tamanho de \texttt{int} e \texttt{long},
+        preenchimento: tudo isso vai para o disco. Ler o \texttt{turma.bin}
+        em outra arquitetura ou com outro compilador pode dar lixo.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \fonte{Bryant e O'Hallaron (2016), §2.1.3~\cite{bryant2016computer};
+    ISO/IEC 9899:2018, §6.2.6.1~\cite{iso2018c17}}
+\end{frame}
+
+\begin{frame}{Recapitulando: \texttt{fwrite}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{fwrite(p, tam, n, f)} copia \texttt{n $\times$ tam}
+        bytes da memória para o arquivo, sem conversão;
+      \item o modo leva \texttt{b}: \texttt{"wb"} apaga e grava, como
+        \texttt{"w"};
+      \item devolve quantos elementos gravou: compare com \texttt{n};
+      \item o tamanho do registro é \texttt{sizeof}, que inclui o
+        preenchimento;
+      \item o arquivo guarda a ordem dos bytes e o \emph{layout} da máquina
+        que o gravou.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{De volta: \texttt{fread}}
+% ==================================================================
+
+\begin{frame}[fragile]{\texttt{lista.c}: um registro por volta}
+  \vspace{-0.9em}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[style=codCs]
+/* lista.c (trecho) */
+int main(int argc, char *argv[])
+{
+    const char *nome = argc > 1 ? argv[1]
+                                : "turma.bin";
+    FILE *f = fopen(nome, "rb");
+    if (f == NULL) {
+        perror(nome);
+        return 1;
+    }
+    struct aluno a;
+    while (fread(&a, sizeof a, 1, f) == 1) {
+        double m = (a.v[0] + a.v[1] + a.v[2]
+                    + a.v[3]) / NAV;
+        printf("%d %-22s %5.2f\n", a.mat, a.nome, m);
+    }
+    fclose(f);
+    return 0;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+\begin{lstlisting}[style=shellS]
+$ ./lista
+202600101 Ana Souza    7.75
+202600102 Bruno Lima   5.75
+202600103 Carla Me...  9.25
+202600104 Davi Rocha   4.00
+\end{lstlisting}
+      \small Nenhum \texttt{sscanf}, nenhum separador: cada
+      \texttt{fread} enche os 88 bytes de \texttt{a} e os campos já estão
+      prontos.
+
+      \medskip
+      O laço para quando \texttt{fread} não consegue um registro
+      inteiro e devolve \texttt{0} --- o mesmo cuidado do
+      \texttt{fscanf(...) == 5}.
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §22.6~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{Vários de uma vez: a turma inteira num vetor}
+  \vspace{-0.4em}
+  \begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+\begin{lstlisting}[style=codCs]
+/* n registros cabem num malloc so */
+struct aluno *t = malloc(n * sizeof *t);
+if (t == NULL) { ... }
+size_t lidos = fread(t, sizeof *t, n, f);
+if (lidos < n)
+    fprintf(stderr, "so %zu de %zu\n", lidos, n);
+...
+fwrite(t, sizeof *t, lidos, g);  /* tudo de volta */
+free(t);
+\end{lstlisting}
+      \small Um \texttt{fread} com \texttt{n} elementos substitui um laço de
+      \texttt{n} leituras. No fim do arquivo, ele devolve quantos
+      \emph{conseguiu}, que pode ser menos que \texttt{n}.
+    \end{column}
+    \begin{column}{0.38\textwidth}
+      \begin{block}{Bytes como elementos}
+        \small Com \texttt{tam = 1}, o valor devolvido é o número de
+        bytes:
+      \end{block}
+\begin{lstlisting}[style=codCs]
+char buf[4096];
+size_t k;
+while ((k = fread(buf, 1,
+           sizeof buf, f)) > 0)
+    fwrite(buf, 1, k, g);
+\end{lstlisting}
+      \small É assim que se copia qualquer arquivo --- imagem, música,
+      executável.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.8.1~\cite{iso2018c17};
+    Kernighan e Ritchie (1988), §B1.5~\cite{kernighan1988c}}
+\end{frame}
+
+\begin{frame}[fragile]{E se a \texttt{struct} tiver um ponteiro?}
+  \vspace{-0.9em}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[style=codCs]
+/* ponteiro.c (trecho) */
+struct contato {
+    int   mat;
+    char *nome;        /* ponteiro, nao vetor */
+};
+...
+if (argc > 1 && strcmp(argv[1], "grava") == 0) {
+    c.mat = 202600101;
+    c.nome = malloc(50);
+    strcpy(c.nome, "Ana Souza");
+    ...  /* abre contato.bin com "wb" */
+    fwrite(&c, sizeof c, 1, f);
+    printf("gravei %d %s (%zu bytes)\n",
+           c.mat, c.nome, sizeof c);
+} else {
+    ...  /* abre contato.bin com "rb" */
+    fread(&c, sizeof c, 1, f);
+    printf("li %d\n", c.mat);
+    printf("nome: %s\n", c.nome);
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+\begin{lstlisting}[style=shellS]
+$ ./ponteiro grava
+$ ./ponteiro le
+\end{lstlisting}
+      \begin{block}{Antes de executar}
+        \small
+        \begin{enumerate}
+          \item Quantos bytes \texttt{sizeof c} informa? O nome cabe neles?
+          \item A segunda execução imprime a matrícula? E o nome?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ ./ponteiro grava
+gravei 202600101 Ana Souza (16 bytes)
+$ ./ponteiro le
+li 202600101
+Segmentation fault (core dumped)
+$ xxd contato.bin
+00000000: a56e 130c ffff ffff 909b 8d04 0100 0000  .n..............
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{O nome não está no arquivo}
+        \small Os 16 bytes são a matrícula, 4 bytes de preenchimento --- com
+        o lixo que havia na pilha --- e os 8 bytes de um
+        \textbf{endereço}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Na segunda execução, aquele endereço não pertence a mais
+      ninguém: o \texttt{malloc} que o criou morreu com o primeiro processo.
+      O \texttt{printf} seguiu o ponteiro e caiu.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: \texttt{fwrite} copia o ponteiro, não o que ele aponta}
+  \begin{center}
+  \begin{tikzpicture}
+    \node[leg] at (1.2,0.75) {\texttt{c}, na memória};
+    \node[byteb, minimum width=1.2cm] (cm) at (0.6,0) {mat};
+    \node[byteb, minimum width=1.2cm] (cn) at (1.8,0) {nome};
+    \fileira{4.2}{0}{byte}{A,n,a}
+    \node[byte] at (5.28,0) {\textvisiblespace};
+    \fileira{5.64}{0}{byte}{S,o,u,z,a}
+    \node[byte, minimum width=0.5cm] at (7.6,0) {\textbackslash 0};
+    \node[leg] at (5.9,0.75) {bloco do \texttt{malloc}};
+    \draw[seta] (cn.east) -- (4.0,0);
+    \draw[decorate, decoration={brace, amplitude=4pt, mirror}, thick, UFSRed]
+      (0,-0.35) -- (2.4,-0.35)
+      node[midway, below=5pt, leg, text=UFSRed] {só isto vai para o disco};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small \texttt{fwrite} não sabe o que os bytes significam: copia
+      \texttt{sizeof c} bytes a partir de \texttt{\&c}, e o campo
+      \texttt{nome} é só um número de 8 bytes. Um endereço só vale dentro do
+      processo que o recebeu.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Para gravar com \texttt{fwrite}}
+        \small A \texttt{struct} precisa ser ``plana'': vetores de tamanho
+        fixo, como \texttt{char nome[50]}, e nenhum ponteiro. Uma lista
+        encadeada se grava nó a nó, só com os dados --- os
+        \texttt{prox} se refazem ao ler.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{Kernighan e Ritchie (1988), §6.4~\cite{kernighan1988c};
+    King (2008), §22.6~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: \texttt{fread}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \texttt{fread(p, tam, n, f)} enche \texttt{n} elementos a
+        partir de \texttt{p} e devolve quantos conseguiu;
+      \item no laço, teste \texttt{== 1}: no fim, \texttt{fread} devolve 0;
+      \item um vetor inteiro vai e volta com uma chamada só;
+      \item com \texttt{tam = 1}, o retorno conta bytes --- serve para
+        copiar qualquer arquivo;
+      \item ponteiros não sobrevivem ao disco: grave vetores, não
+        \texttt{char *}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Direto ao registro: \texttt{fseek}}
+% ==================================================================
+
+\begin{frame}{Registros do mesmo tamanho: o arquivo é um vetor}
+  \begin{center}
+  \begin{tikzpicture}[x=0.125cm]
+    \foreach \k/\n in {0/Ana, 1/Bruno, 2/Carla, 3/Davi} {
+      \draw[fill=UFSBlue!10, draw=UFSBlue] (22*\k,0) rectangle (22*\k+22,0.7);
+      \node[font=\scriptsize] at (22*\k+11,0.35) {registro \k: \n};
+      \node[leg, font=\tiny] at (22*\k,-0.25) {\pgfmathparse{int(88*\k)}\pgfmathresult};
+    }
+    \node[leg, font=\tiny] at (88,-0.25) {352};
+    \draw[setar] (44,1.35) -- (44,0.8);
+    \node[leg, text=UFSRed, anchor=south] at (44,1.3) {registro 2 começa em $2 \times 88 = 176$};
+    \node[leg, anchor=west] at (90,0.35) {fim};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Em \texttt{turma.bin}, o registro $k$ começa no byte
+      $k \times \mathtt{sizeof(struct\ aluno)}$, contando de zero, como num
+      vetor. O número de registros é o tamanho do arquivo dividido por 88.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small Em \texttt{turma.csv} não há conta possível: cada linha tem um
+      tamanho, e só se sabe onde começa a quarta depois de ler as três
+      primeiras.
+    \end{column}
+  \end{columns}
+  \fonte{Deitel e Deitel (2011), cap.~11~\cite{deitel2011como}}
+\end{frame}
+
+\begin{frame}[fragile]{Definição: \texttt{fseek}, \texttt{ftell} e \texttt{rewind}}
+  \vspace{-0.3em}
+\begin{lstlisting}[style=codC]
+int  fseek(FILE *f, long desloc, int origem);   /* 0 se deu certo */
+long ftell(FILE *f);                            /* posicao atual, em bytes */
+void rewind(FILE *f);                           /* volta ao byte 0 */
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{center}
+      \small
+      \begin{tabular}{@{}ll@{}}
+        \toprule
+        \texttt{origem} & \texttt{desloc} conta a partir de\\
+        \midrule
+        \texttt{SEEK\_SET} & o início do arquivo\\
+        \texttt{SEEK\_CUR} & a posição atual\\
+        \texttt{SEEK\_END} & o fim do arquivo\\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+      \small \texttt{fseek} só move a posição que o \texttt{FILE} guarda; a
+      próxima leitura ou gravação começa ali.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=codCs]
+fseek(f, k * (long) sizeof a, SEEK_SET);
+fseek(f, -(long) sizeof a, SEEK_CUR);
+fseek(f, 0, SEEK_END);
+long tam = ftell(f);
+\end{lstlisting}
+      \small O deslocamento é \texttt{long} e pode ser negativo:
+      \texttt{sizeof} é \texttt{size\_t}, sem sinal --- converta
+      \emph{antes} de pôr o sinal de menos.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.9~\cite{iso2018c17};
+    King (2008), §22.7~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{consulta.c}: vai direto ao registro $k$}
+  \vspace{-0.6em}
+  \begin{columns}[T]
+    \begin{column}{0.6\textwidth}
+\begin{lstlisting}[style=codCs]
+/* consulta.c (trecho): ./consulta turma.bin k */
+fseek(f, 0, SEEK_END);              /* vai ao fim... */
+long n = ftell(f) / (long) sizeof(struct aluno);
+
+long k = atol(argv[2]);
+struct aluno a;
+fseek(f, k * (long) sizeof a, SEEK_SET);
+if (fread(&a, sizeof a, 1, f) != 1) {
+    printf("registro %ld nao existe "
+           "(o arquivo tem %ld)\n", k, n);
+    fclose(f);
+    return 1;
+}
+printf("registro %ld de %ld: %d %s\n",
+       k, n, a.mat, a.nome);
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.36\textwidth}
+      \begin{block}{Antes de executar}
+        \small
+        \begin{enumerate}
+          \item Quem aparece com \texttt{./consulta turma.bin 1}?
+          \item E com \texttt{4}? O \texttt{fseek} para além do fim
+            falha?
+          \item E com \texttt{-1}?
+          \item Quantos \texttt{fread} o programa faz para chegar ao
+            registro 3?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+\begin{lstlisting}[style=shellS]
+$ ./consulta turma.bin 1
+registro 1 de 4: 202600102 Bruno Lima
+$ ./consulta turma.bin 3
+registro 3 de 4: 202600104 Davi Rocha
+$ ./consulta turma.bin 4
+registro 4 nao existe (o arquivo tem 4)
+$ ./consulta turma.bin -1
+registro -1 nao existe (o arquivo tem 4)
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \small O registro 1 é o \textbf{segundo} aluno: conta-se de zero. E
+      chegar ao registro 3 custou um \texttt{fread} só --- com três mil
+      alunos também.
+    \end{column}
+  \end{columns}
+  \medskip
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Com \texttt{k = 4}}
+        \small O \texttt{fseek} para o byte 352 \textbf{deu certo}: posicionar
+        além do fim é permitido. Quem falhou foi o \texttt{fread}, que não
+        encontrou bytes ali.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Com \texttt{k = -1}}
+        \small Antes do início, o \texttt{fseek} falha e devolve $-1$; a
+        posição continua no fim, onde o primeiro \texttt{fseek} a deixou, e
+        o \texttt{fread} também falha.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: \texttt{fseek} posiciona, quem lê decide}
+  \begin{center}
+  \begin{tikzpicture}[x=0.11cm]
+    \foreach \k in {0,...,3}
+      \draw[fill=UFSBlue!10, draw=UFSBlue] (22*\k,0) rectangle (22*\k+22,0.6);
+    \draw[dashed, draw=UFSGray] (88,0) rectangle (110,0.6);
+    \node[leg] at (99,0.3) {nada};
+    \foreach \k/\p in {1/22, 4/88} {
+      \draw[seta] (\p,1.15) -- (\p,0.7);
+      \node[leg, anchor=south] at (\p,1.1) {\texttt{k = \k}};
+    }
+    \draw[setar] (-6,1.15) -- (-6,0.7);
+    \node[leg, text=UFSRed, anchor=south] at (-6,1.1) {\texttt{k = -1}: recusado};
+  \end{tikzpicture}
+  \end{center}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \small Teste sempre o que o \texttt{fread} devolve depois de um
+      \texttt{fseek} --- é ele que diz se havia um registro ali. Se for
+      \emph{gravar} depois de saltar além do fim, o arquivo cresce, e o
+      intervalo pulado vira bytes zero.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Ler sequencial ou saltar?}
+        \small \texttt{fseek} + \texttt{fread}: uma leitura, seja qual for
+        $k$. Ler do início até $k$: $k+1$ leituras. É a diferença entre
+        \texttt{t[k]} e percorrer uma lista encadeada.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.9.2~\cite{iso2018c17};
+    Kerrisk (2010), §4.7~\cite{kerrisk2010linux}}
+\end{frame}
+
+\begin{frame}{Recapitulando: \texttt{fseek} e \texttt{ftell}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item com registros de tamanho fixo, o registro $k$ começa em
+        $k \times \mathtt{sizeof}$;
+      \item \texttt{fseek(f, desloc, origem)} move a posição;
+        \texttt{ftell(f)} a informa;
+      \item \texttt{fseek(f, 0, SEEK\_END)} + \texttt{ftell} dão o tamanho
+        do arquivo;
+      \item posicionar além do fim é permitido: confira o retorno do
+        \texttt{fread};
+      \item converta \texttt{sizeof} para \texttt{long} antes de
+        multiplicar ou negar.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% ==================================================================
+\section{Alterar sem reescrever}
+% ==================================================================
+
+\begin{frame}[fragile]{\texttt{corrige.c}: trocar uma nota no lugar}
+  \vspace{-0.6em}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+\begin{lstlisting}[style=codCs]
+/* corrige.c (trecho) */
+FILE *f = fopen(argv[1], "r+b");  /* ler e gravar */
+if (f == NULL) { ... }
+struct aluno a;
+while (fread(&a, sizeof a, 1, f) == 1) {
+    if (a.mat != mat)
+        continue;
+    a.v[av] = nota;
+    fseek(f, -(long) sizeof a, SEEK_CUR);
+    if (fwrite(&a, sizeof a, 1, f) != 1)
+        perror(argv[1]);
+    else
+        printf("%d: nota %d agora vale %.1f\n",
+               mat, av, nota);
+    fclose(f);
+    return 0;
+}
+printf("matricula %d nao encontrada\n", mat);
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.43\textwidth}
+      \small \texttt{"r+b"} abre para ler \textbf{e} gravar, sem apagar o
+      conteúdo.
+
+      \medskip
+      Depois do \texttt{fread}, a posição está no fim do registro lido. O
+      \texttt{fseek} recua 88 bytes, para o \texttt{fwrite} cair em cima do
+      mesmo aluno.
+\begin{lstlisting}[style=shellS]
+$ ./corrige turma.bin 202600104 3 6.0
+202600104: nota 3 agora vale 6.0
+$ ./lista | tail -1
+202600104 Davi Rocha   4.88
+$ wc -c turma.bin
+     352 turma.bin
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.5.3~\cite{iso2018c17};
+    Deitel e Deitel (2011), cap.~11~\cite{deitel2011como}}
+\end{frame}
+
+\begin{frame}[fragile]{E se o arquivo for aberto com \texttt{"rb"}?}
+  \vspace{-0.6em}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+\begin{lstlisting}[style=codCs]
+/* corrige_rb.c: "rb" e fwrite sem teste */
+FILE *f = fopen(argv[1], "rb");
+if (f == NULL) { ... }
+struct aluno a;
+while (fread(&a, sizeof a, 1, f) == 1) {
+    if (a.mat != mat)
+        continue;
+    a.v[av] = nota;
+    fseek(f, -(long) sizeof a, SEEK_CUR);
+    fwrite(&a, sizeof a, 1, f);
+    printf("%d: nota %d agora vale %.1f\n",
+           mat, av, nota);
+    break;
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+\begin{lstlisting}[style=shellS]
+$ ./cadastro
+$ ./corrige_rb turma.bin 202600104 3 6.0
+$ ./lista | tail -1
+\end{lstlisting}
+      \begin{block}{Antes de executar}
+        \small
+        \begin{enumerate}
+          \item O compilador reclama do \texttt{fwrite} com \texttt{"rb"}?
+          \item A mensagem \texttt{nota 3 agora vale 6.0} aparece?
+          \item Que média a \texttt{lista} mostra para Davi: 4.00 ou 4.88?
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Execute e compare}
+\begin{lstlisting}[style=shellStyle]
+$ ./cadastro
+4 alunos gravados em turma.bin
+$ ./corrige_rb turma.bin 202600104 3 6.0
+202600104: nota 3 agora vale 6.0
+$ ./lista | tail -1
+202600104 Davi Rocha              4.00
+\end{lstlisting}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{O programa mentiu}
+        \small Compilou sem aviso, rodou sem erro e anunciou a correção. A
+        nota não mudou: o \texttt{fwrite} falhou e devolveu 0, e ninguém
+        olhou.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small O modo é verificado em tempo de execução, pelo \texttt{FILE},
+      não pelo compilador. Com o retorno testado, \texttt{perror} teria
+      dito \emph{Bad file descriptor}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{A resposta: os modos binários e a regra do \texttt{fseek}}
+  \vspace{-0.3em}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{center}
+      \scriptsize
+      \begin{tabular}{@{}lll@{}}
+        \toprule
+        modo & faz & se existe\\
+        \midrule
+        \texttt{"rb"}  & só lê            & mantém\\
+        \texttt{"wb"}  & só grava         & \textcolor{UFSRed}{apaga}\\
+        \texttt{"ab"}  & grava no fim     & mantém\\
+        \texttt{"r+b"} & lê e grava       & mantém; \texttt{NULL} se não existe\\
+        \texttt{"w+b"} & lê e grava       & \textcolor{UFSRed}{apaga}\\
+        \texttt{"a+b"} & lê; grava no fim & mantém\\
+        \bottomrule
+      \end{tabular}
+      \end{center}
+      \small Para alterar registros de um arquivo que já existe:
+      \texttt{"r+b"}.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Ao trocar de leitura para gravação}
+        \small Num fluxo aberto com \texttt{+}, entre um \texttt{fread} e um
+        \texttt{fwrite} é obrigatório um \texttt{fseek} (ou
+        \texttt{rewind}); entre um \texttt{fwrite} e um \texttt{fread}, um
+        \texttt{fseek} ou \texttt{fflush}. Sem isso, o comportamento é
+        indefinido --- por causa do buffer.
+      \end{block}
+      \small E teste o retorno de \texttt{fwrite} como o de
+      \texttt{fopen}.
+    \end{column}
+  \end{columns}
+  \fonte{ISO/IEC 9899:2018, §7.21.5.3~\cite{iso2018c17};
+    King (2008), §22.2~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}{Recapitulando: texto ou binário?}
+  \begin{center}
+  \footnotesize
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    & arquivo texto (\texttt{turma.csv}) & arquivo binário (\texttt{turma.bin})\\
+    \midrule
+    abre num editor          & sim                         & não: precisa de \texttt{xxd}\\
+    um \texttt{double}       & caracteres, com arredondamento & 8 bytes, exato\\
+    ler um aluno             & \texttt{fgets} + \texttt{sscanf} & um \texttt{fread}\\
+    ir ao aluno $k$          & ler os $k$ anteriores       & \texttt{fseek} + \texttt{fread}\\
+    trocar uma nota          & reescrever o arquivo        & \texttt{fseek} + \texttt{fwrite}\\
+    outra máquina            & funciona                    & pode dar lixo\\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \begin{block}{Qual escolher}
+    \footnotesize Texto para trocar dados com pessoas e outros programas;
+    binário para dados que só o seu programa lê, com acesso direto e
+    registros de tamanho fixo.
+  \end{block}
+  \fonte{King (2008), §22.1~\cite{king2008c}}
+\end{frame}
+
+% ==================================================================
+\section{Mãos à obra}
+% ==================================================================
+
+\begin{frame}{Altere o programa}
+  \begin{block}{Tarefa 1 --- acrescentar alunos}
+    \small Troque o modo do \texttt{cadastro.c} para \texttt{"ab"} e rode-o
+    duas vezes. Quantos alunos a \texttt{lista} mostra? E o que o
+    \texttt{consulta} responde para \texttt{k = 5}?
+  \end{block}
+  \begin{block}{Tarefa 2 --- onde está a posição}
+    \small Na \texttt{lista}, imprima \texttt{ftell(f)} antes e depois de
+    cada \texttt{fread}. Que números aparecem, e por que o primeiro é 0?
+  \end{block}
+  \begin{block}{Tarefa 3 --- um cabeçalho}
+    \small Faça o \texttt{cadastro} gravar, antes dos alunos, um
+    \texttt{int} com a quantidade --- grave 0, e no fim volte com
+    \texttt{rewind} e grave o valor certo. Ajuste a \texttt{lista} e o
+    \texttt{consulta} para pular esses 4 bytes.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Exercícios (1/3)}
+  \footnotesize
+  \begin{block}{Exercício 1 --- quadrados em disco}
+    \texttt{./quadrados n saida.bin} grava os \texttt{int} $1, 4, 9,
+    \ldots, n^2$ com \textbf{um único} \texttt{fwrite}: monte o vetor com
+    \texttt{malloc} antes. Quantos bytes terá o arquivo para
+    $n = 1\,000$? E se fosse texto, um número por linha?
+  \end{block}
+  \begin{block}{Exercício 2 --- copiar qualquer arquivo}
+    \texttt{./copia origem destino} copia em blocos de 4\,096 bytes com
+    \texttt{fread} e \texttt{fwrite} e imprime \texttt{10000 bytes
+    copiados}. Teste com uma imagem e confira com \texttt{cmp}: o último
+    bloco é menor que os outros.
+  \end{block}
+  \fonte{King (2008), §22.6~\cite{king2008c};
+    Kernighan e Ritchie (1988), §B1.5~\cite{kernighan1988c}}
+\end{frame}
+
+\begin{frame}{Exercícios (2/3)}
+  \footnotesize
+  \begin{block}{Exercício 3 --- comparar dois arquivos}
+    \texttt{./compara a.bin b.bin} imprime \texttt{iguais}, ou
+    \texttt{diferem no byte 41}, ou \texttt{a.bin termina antes, no byte
+    100} quando um arquivo é o começo do outro. Bytes contados de zero.
+  \end{block}
+  \begin{block}{Exercício 4 --- contar registros sem ler}
+    \texttt{./registros turma.bin} imprime \texttt{4 registros de 88
+    bytes} usando só \texttt{fseek} e \texttt{ftell}. Se o tamanho não for
+    múltiplo de \texttt{sizeof(struct aluno)}, imprima
+    \texttt{arquivo corrompido: 10 bytes sobrando}.
+  \end{block}
+  \fonte{King (2008), §22.6--22.7~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{Exercícios (3/3)}
+  \footnotesize
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Exercício 5 --- de trás para frente}
+        \texttt{./inverte turma.bin} lista os alunos do último ao primeiro,
+        com \texttt{fseek}, sem guardar o arquivo na memória.
+      \end{block}
+      \begin{block}{Exercício 6 --- um \texttt{xxd} simples}
+        \texttt{./hexa arquivo} mostra 16 bytes por linha: a posição, os
+        bytes em hexadecimal e, entre barras, os que são imprimíveis
+        (\texttt{isprint}); os outros viram um ponto.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+\begin{lstlisting}[style=shellS, language={}]
+$ ./inverte turma.bin
+202600104 Davi Rocha
+202600103 Carla Menezes Santos
+202600102 Bruno Lima
+202600101 Ana Souza
+$ ./hexa ola.bin
+00000000  4f 6c 61 2c 20 6d 75 6e
+          64 6f 21 0a 00 01 ff 7f
+          |Ola, mundo!.....|
+\end{lstlisting}
+      \scriptsize\raggedright No \texttt{hexa}, os 16 bytes e as barras
+      ficam numa linha só; a quebra acima é só para caber no slide.
+    \end{column}
+  \end{columns}
+  \fonte{King (2008), §22.6--22.7~\cite{king2008c}}
+\end{frame}
+
+\begin{frame}[fragile]{Desafio}
+  \vspace{-0.4em}
+  \begin{columns}[T]
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Busca binária no disco}
+        \small \texttt{turma.bin} está em ordem crescente de matrícula.
+        \texttt{./busca turma.bin mat} encontra o aluno sem ler o arquivo
+        inteiro: compare com o registro do \textbf{meio}, descarte a metade
+        que não pode conter \texttt{mat} e repita, com \texttt{fseek} +
+        \texttt{fread}.
+        \vspace{-0.3em}
+        \begin{itemize}
+          \item \texttt{ini = 0}, \texttt{fim = n - 1}, \texttt{meio = (ini
+            + fim) / 2};
+          \item imprima quantos \texttt{fread} foram necessários.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+\begin{lstlisting}[style=shellS, language={}]
+$ ./busca turma.bin 202600103
+202600103 Carla Menezes Santos (leituras: 2)
+$ ./busca turma.bin 202600999
+nao encontrado (leituras: 3)
+\end{lstlisting}
+      \raggedright\small Com um milhão de alunos, quantas leituras, no
+      máximo? E lendo do início?
+    \end{column}
+  \end{columns}
+  \fonte{Knuth (1998), §6.2.1, Algoritmo B~\cite{knuth1998art}}
+\end{frame}
+
+\begin{frame}{Fechamento}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{O que mudou hoje}\\[0.3em]
+      \small O arquivo virou um vetor de registros em disco: salta-se
+      direto ao aluno $k$ e troca-se uma nota no lugar.
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \textbf{O preço}\\[0.3em]
+      \small Ninguém lê \texttt{turma.bin} num editor, e outra máquina pode
+      não entendê-lo. E todo nome ocupa 50 bytes, até \texttt{Ana}.
+    \end{column}
+  \end{columns}
+  \begin{block}{Para levar}
+    \begin{itemize}
+      \small
+      \item \texttt{fwrite}/\texttt{fread} copiam bytes; teste o retorno;
+      \item tamanho do registro: \texttt{sizeof}, nunca a soma à mão;
+      \item nada de ponteiros dentro do que vai para o disco;
+      \item registro $k$: \texttt{fseek(f, k * (long) sizeof r, SEEK\_SET)};
+      \item alterar no lugar: \texttt{"r+b"} e um \texttt{fseek} entre ler e
+        gravar.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}
