@@ -1,0 +1,941 @@
+% -*- coding: utf-8 -*-
+% Aula: NP-completude -- transformacoes polinomiais e reducoes
+% (Unidade 3 de AED2; continua a aula das classes P, NP, co-NP e NP-completo).
+% Fontes principais: Cormen et al. (2009), cap. 34: sec. 34.4 (Lema 34.8,
+% Teorema 34.10, 3-CNF-SAT), sec. 34.5.1 (Teorema 34.11, Figura 34.14), sec. 34.5.2
+% (Teorema 34.12, Figura 34.15), sec. 34.5.4 (Teorema 34.14), sec. 34.5.5 (Teorema 34.15,
+% Figura 34.19), Figura 34.13; Garey e Johnson (1979), sec. 3.1.1 (Teorema 3.1, SAT -> 3SAT),
+% sec. 3.1.3 (Lema 3.1, cobertura/clique/independente), sec. 3.2 (restricao, substituicao local,
+% projeto de componentes); Kleinberg e Tardos (2006), sec. 8.1, 8.2, 8.4, 8.8.
+% Exemplos:
+%   SAT -> 3-SAT: (x1 v x2 v -x3 v x4 v x5) -> (x1 v x2 v y1)(-y1 v -x3 v y2)(-y2 v x4 v x5).
+%   3-SAT -> Clique: phi = (x1 v -x2 v -x3)(-x1 v x2 v x3)(x1 v x2 v x3) (CLRS Fig. 34.14);
+%     9 vertices, 21 arestas; x2 = 0, x3 = 1 da a clique {-x2 de C1, x3 de C2, x3 de C3}.
+%   Clique -> Cobertura: hexagono 0..5 com a corda 0-2 (grafo condutor da aula anterior);
+%     clique {0,1,2} em G <=> cobertura {3,4,5} no complemento.
+%   3-SAT -> Soma de subconjuntos: CLRS Fig. 34.19, C1 = (x1 v -x2 v -x3),
+%     C2 = (-x1 v -x2 v -x3), C3 = (-x1 v -x2 v x3), C4 = (x1 v x2 v x3); t = 1114444;
+%     x1 = 0, x2 = 0, x3 = 1 -> {v'1, v'2, v3, s1, s'1, s'2, s3, s4, s'4}.
+\documentclass[aspectratio=169,xcolor=table]{beamer}
+
+\usetheme{UFS}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, shapes, positioning, calc, fit, matrix,
+  decorations.pathreplacing, backgrounds, patterns}
+
+% ---- estilos TikZ reutilizados ----
+\tikzset{
+  box/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              minimum width=6.6cm, minimum height=0.5cm, font=\scriptsize},
+  caixa/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners,
+              font=\scriptsize, align=center, inner sep=3pt},
+  vert/.style={circle, draw=blue!60!black, fill=blue!10, font=\tiny,
+               inner sep=0pt, minimum size=4.6mm},
+  vS/.style={vert, draw=orange!80!black, fill=orange!35},
+  lit/.style={ellipse, draw=blue!60!black, fill=blue!10, font=\tiny,
+              inner sep=0.5pt, minimum width=7mm, minimum height=4.2mm},
+  litS/.style={lit, draw=orange!80!black, fill=orange!35},
+  aresta/.style={draw=gray!60, thin},
+  ares/.style={draw=orange!85!black, line width=1.8pt},
+  arc/.style={-{Stealth}, thick}
+}
+
+% ---- o grafo condutor da aula anterior: hexagono 0..5 com a corda 0-2 ----
+\newcommand{\arestashexa}{0/1, 1/2, 2/3, 3/4, 4/5, 5/0, 0/2}
+\newcommand{\arestascomp}{0/3, 0/4, 1/3, 1/4, 1/5, 2/4, 2/5, 3/5}
+\newcommand{\noshexa}{%
+  \foreach \i in {0,...,5} \node[vert] (h\i) at ({90+60*\i}:0.95) {\i};
+}
+% \grafohexa{lista de arestas}{vertices destacados}{arestas destacadas}
+\newcommand{\grafohexa}[3]{%
+  \noshexa
+  \def\listaA{#3}\ifx\listaA\empty\else
+    \foreach \u/\v in {#3} \draw[ares] (h\u) -- (h\v);\fi
+  \foreach \u/\v in #1 \draw[aresta] (h\u) -- (h\v);
+  \def\listaV{#2}\ifx\listaV\empty\else
+    \foreach \v in {#2} \node[vS] at (h\v) {\v};\fi
+}
+
+% ---- ponteiro de leitura no rodape do frame ----
+\newcommand{\fonte}[1]{%
+  \vfill
+  {\tiny\color{gray!55!black}\textbf{Para aprofundar:} #1\par}%
+}
+
+\newcommand{\prob}[1]{\textsc{#1}}
+\newcommand{\nao}{\lnot}
+
+\title{NP-completude}
+\subtitle{Transformações polinomiais e reduções}
+\author[André Y. Kashiwabara <andreyoshiaki@dcomp.ufs.br>]{Prof.\ Dr.\ André Yoshiaki Kashiwabara}
+\institute{Departamento de Computação --- Universidade Federal de Sergipe}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}[plain,noframenumbering]
+  \titlepage
+\end{frame}
+
+\begin{frame}{O que você vai aprender hoje}
+  \begin{center}
+  \begin{tikzpicture}[node distance=2.2mm]
+    \node[box] (t1) {1.\ A receita de uma redução};
+    \node[box, below=of t1] (t2) {2.\ \prob{SAT} $\le_P$ \prob{3-SAT}: substituição local};
+    \node[box, below=of t2, fill=orange!20, draw=orange!80!black] (t3)
+         {3.\ \prob{3-SAT} $\le_P$ \prob{Clique}: da lógica para grafos};
+    \node[box, below=of t3] (t4) {4.\ \prob{Clique} $\le_P$ \prob{Cobertura por Vértices}};
+    \node[box, below=of t4, fill=orange!20, draw=orange!80!black] (t5)
+         {5.\ \prob{3-SAT} $\le_P$ \prob{Soma de Subconjuntos}: da lógica para números};
+    \node[box, below=of t5] (t6) {6.\ Técnicas para a lista: restrição e componentes};
+    \foreach \a/\b in {t1/t2, t2/t3, t3/t4, t4/t5, t5/t6}
+      \draw[-{Stealth}, thick, blue!60!black] (\a) -- (\b);
+  \end{tikzpicture}
+  \end{center}
+  {\scriptsize\centering
+  Na aula passada, Cook-Levin deu o primeiro NP-completo. Hoje, cada redução
+  acrescenta um problema à lista.\par}
+  \fonte{Cormen et al.\ (2009), \S 34.4--34.5~\cite{cormen2009introduction};
+    Garey e Johnson (1979), cap.~3~\cite{garey1979computers}.}
+\end{frame}
+
+% =====================================================================
+\section{A receita de uma redução}
+
+\begin{frame}{Por que precisamos de uma receita?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small
+      \textbf{Problema:} uma prova de NP-completude tem várias partes, e é fácil esquecer uma
+      delas ou reduzir no sentido errado. A lista de reduções vale 30\% da Prova~3.
+      \medskip
+
+      \textbf{Solução:} seguir sempre o mesmo roteiro, com uma construção e uma prova de
+      ida e volta.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[font=\tiny, node distance=3mm and 2mm,
+          n/.style={caixa, font=\tiny, inner sep=2pt},
+          h/.style={n, fill=orange!20, draw=orange!80!black}]
+        \node[n] (sat) {\prob{SAT}};
+        \node[h, below=of sat] (3s) {\prob{3-SAT}};
+        \node[h, below left=of 3s, xshift=4mm] (cl) {\prob{Clique}};
+        \node[h, below right=of 3s, xshift=-4mm] (ss) {\prob{Soma Subconj.}};
+        \node[h, below=of cl] (vc) {\prob{Cobertura}};
+        \node[n, below=of ss] (mo) {\prob{Mochila}};
+        \foreach \a/\b in {sat/3s, 3s/cl, 3s/ss, cl/vc, ss/mo}
+          \draw[arc, thin] (\a) -- (\b);
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Em laranja, os problemas que entram na lista hoje. Cada seta é uma
+      redução $\le_P$.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.5, Figura 34.13~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A receita: definição}
+  \begin{block}{Para provar que $B$ é NP-completo (Cormen et al., Lema 34.8)}
+    \scriptsize
+    \begin{enumerate}
+      \item $B \in$ NP: diga qual é o certificado e como verificá-lo em tempo polinomial.
+      \item Escolha um $A$ já sabidamente NP-completo.
+      \item Construa $f$: de uma instância $x$ de $A$, monte uma instância $f(x)$ de $B$.
+      \item Prove \textbf{($\Rightarrow$)}: se $x$ é sim, então $f(x)$ é sim.
+      \item Prove \textbf{($\Leftarrow$)}: se $f(x)$ é sim, então $x$ é sim.
+      \item Mostre que $f$ roda em tempo polinomial em $|x|$.
+    \end{enumerate}
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize
+    Os passos 4 e 5 transportam \textbf{certificados}: uma solução de $x$ vira uma solução
+    de $f(x)$, e uma solução de $f(x)$ volta a ser uma solução de $x$.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 34.4, Lema 34.8~\cite{cormen2009introduction};
+    Garey e Johnson (1979), \S 3.1~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{Os quatro erros mais comuns}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{1. Sentido trocado}
+        \scriptsize
+        Para provar que $B$ é difícil, a instância de entrada é do problema
+        \textbf{conhecido} $A$. Reduzir $B$ a \prob{SAT} só mostra que $B \in$ NP.
+      \end{alertblock}
+      \begin{alertblock}{2. Só uma direção}
+        \scriptsize
+        Provar só ($\Rightarrow$) permite $f$ constante que sempre devolve uma instância sim.
+      \end{alertblock}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{3. $f$ usa a resposta}
+        \scriptsize
+        $f$ recebe só $x$. Ela não pode ``escolher a atribuição que satisfaz'': isso seria
+        resolver $A$.
+      \end{alertblock}
+      \begin{alertblock}{4. Tamanho exponencial}
+        \scriptsize
+        Criar um vértice para cada atribuição ($2^n$) ou para cada subconjunto não é
+        polinomial.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \fonte{Garey e Johnson (1979), \S 3.1~\cite{garey1979computers};
+    Kleinberg e Tardos (2006), \S 8.1~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{Exemplo: \prob{Conj.\ Independente} $\le_P$ \prob{Cobertura}}
+  \begin{columns}[c]
+    \begin{column}{0.62\textwidth}
+      \scriptsize
+      Uma \textbf{cobertura por vértices} é um $C \subseteq V$ que toca toda aresta.
+      \begin{enumerate}
+        \item Certificado: o conjunto $C$; conferir as $m$ arestas custa $O(n + m)$.
+        \item $A$ = \prob{Conjunto Independente} (aula passada, pela \prob{Clique}).
+        \item $f(G, k) = (G,\; n - k)$.
+        \item[4--5.] $S$ independente $\iff$ nenhuma aresta tem as duas pontas em $S$
+              $\iff$ toda aresta tem ponta em $V \setminus S$ $\iff$ $V \setminus S$ é
+              cobertura.
+        \item[6.] $f$ copia o grafo: $O(n + m)$.
+      \end{enumerate}
+    \end{column}
+    \begin{column}{0.34\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \grafohexa{\arestashexa}{0,2,4}{}
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Grafo condutor da aula passada: $\{1,3,5\}$ independente, logo
+      $\{0,2,4\}$ é cobertura ($6 - 3 = 3$).\par}
+    \end{column}
+  \end{columns}
+  \fonte{Kleinberg e Tardos (2006), \S 8.1~\cite{kleinberg2006algorithm};
+    Garey e Johnson (1979), \S 3.1.3, Lema 3.1~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: a receita}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Seis passos: $B \in$ NP, escolher $A$, construir $f$, ($\Rightarrow$), ($\Leftarrow$),
+            tempo polinomial.
+      \item A instância de entrada é sempre do problema \textbf{conhecido}.
+      \item As duas direções da prova transportam certificados.
+      \item $f$ não conhece a resposta e não pode gerar objetos exponenciais.
+      \item \prob{Conj.\ Independente} $\le_P$ \prob{Cobertura}: $S \mapsto V \setminus S$.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 34.4~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{SAT $\le_P$ 3-SAT}
+
+\begin{frame}{Por que precisamos do \prob{3-SAT}?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small
+      \textbf{Problema:} em \prob{SAT}, as cláusulas podem ter qualquer tamanho. Para
+      construir uma redução, cada cláusula vira uma ``peça'' do outro problema, e peças de
+      tamanhos variados complicam o projeto.
+      \medskip
+
+      \textbf{Solução:} provar que o caso em que \textbf{toda} cláusula tem exatamente
+      $3$ literais continua NP-completo, e partir dele.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \centering
+      \begin{tabular}{lll}
+        \toprule
+        literais & problema & complexidade \\
+        \midrule
+        qualquer & \prob{SAT} & NP-completo \\
+        exatamente $3$ & \prob{3-SAT} & NP-completo \\
+        até $2$ & \prob{2-SAT} & P \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      \raggedright
+      O \prob{3-SAT} é o ponto de partida mais usado: estrutura rígida, mas ainda difícil.
+      O \prob{2-SAT} se resolve pelas componentes fortes do grafo de implicações.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.4 (3-CNF) e Exercício 34.4-7 (2-CNF)~\cite{cormen2009introduction};
+    Garey e Johnson (1979), \S 3.1.1~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{\prob{3-SAT}: definição}
+  \begin{block}{Definição}
+    \small
+    Uma fórmula está em \textbf{3-FNC} se é uma conjunção de cláusulas, e cada cláusula é
+    a disjunção de exatamente $3$ literais distintos. \prob{3-SAT}: dada $\varphi$ em
+    3-FNC, existe atribuição que a satisfaz?
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize
+    Um \textbf{literal} é uma variável $x_i$ ou a negação $\nao x_i$. A atribuição satisfaz
+    $\varphi$ se cada cláusula tem \textbf{pelo menos um} literal verdadeiro. Exemplo:
+    \[
+      (x_1 \lor \nao x_2 \lor \nao x_3) \land (\nao x_1 \lor x_2 \lor x_3) \land
+      (x_1 \lor x_2 \lor x_3)
+    \]
+    é satisfeita por $x_1 = 0$, $x_2 = 0$, $x_3 = 1$. \prob{3-SAT} $\in$ NP: o certificado
+    é a atribuição.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 34.4 (3-CNF satisfiability)~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A construção: cada cláusula vira um bloco de cláusulas}
+  \scriptsize
+  Para cada cláusula $c$ de $\varphi$, com $\ell$ literais, a redução cria variáveis
+  \textbf{novas}, só daquela cláusula:
+  \smallskip
+
+  \centering
+  \begin{tabular}{lll}
+    \toprule
+    $\ell$ & cláusula $c$ & cláusulas criadas \\
+    \midrule
+    $1$ & $(a)$ & $(a \lor y_1 \lor y_2)(a \lor y_1 \lor \nao y_2)(a \lor \nao y_1 \lor y_2)
+                   (a \lor \nao y_1 \lor \nao y_2)$ \\
+    $2$ & $(a \lor b)$ & $(a \lor b \lor y_1)(a \lor b \lor \nao y_1)$ \\
+    $3$ & $(a \lor b \lor d)$ & ela mesma \\
+    $\ell > 3$ & $(a_1 \lor \cdots \lor a_\ell)$ &
+      $(a_1 \lor a_2 \lor y_1)(\nao y_1 \lor a_3 \lor y_2)(\nao y_2 \lor a_4 \lor y_3)
+      \cdots(\nao y_{\ell-3} \lor a_{\ell-1} \lor a_\ell)$ \\
+    \bottomrule
+  \end{tabular}
+  \medskip
+
+  \raggedright
+  Para $\ell \le 2$, as variáveis novas aparecem com os dois sinais: qualquer valor delas
+  deixa uma cláusula que só se satisfaz pelos literais originais. Para $\ell > 3$, as $y_j$
+  formam uma \textbf{corrente}. Cada cláusula de $\ell$ literais gera $O(\ell)$ cláusulas:
+  $|f(\varphi)| = O(|\varphi|)$.
+  \fonte{Garey e Johnson (1979), \S 3.1.1, Teorema 3.1~\cite{garey1979computers};
+    Cormen et al.\ (2009), \S 34.4, Teorema 34.10 (outra construção)~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A corrente de variáveis novas}
+  \begin{center}
+  \begin{tikzpicture}[font=\scriptsize,
+      cl/.style={rectangle, draw=blue!60, fill=blue!10, rounded corners, inner sep=3pt},
+      clS/.style={cl, draw=orange!80!black, fill=orange!25}]
+    \node[cl]  (c1) at (0,0)   {$x_1 \lor x_2 \lor y_1$};
+    \node[clS] (c2) at (3.2,0) {$\nao y_1 \lor \nao x_3 \lor y_2$};
+    \node[cl]  (c3) at (6.6,0) {$\nao y_2 \lor x_4 \lor x_5$};
+    \node[font=\tiny] at (0,-0.5) {$y_1 = 1$ \checkmark};
+    \node[font=\tiny] at (3.2,-0.5) {$\nao x_3 = 1$ \checkmark};
+    \node[font=\tiny] at (6.6,-0.5) {$y_2 = 0$, logo $\nao y_2$ \checkmark};
+    \node[font=\scriptsize, anchor=east] at (-1.25,0.75) {$c =$};
+    \node[font=\scriptsize, anchor=west] at (-1.2,0.75)
+      {$(x_1 \lor x_2 \lor \nao x_3 \lor x_4 \lor x_5)$, \quad atribuição com
+       $x_1 = x_2 = 0$, $x_3 = 0$, $x_4 = x_5 = 0$};
+  \end{tikzpicture}
+  \end{center}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{($\Rightarrow$)} Se o literal verdadeiro de $c$ cai na cláusula $j$ da
+      corrente, faça $y_1 = \cdots = y_{j-1} = 1$ e as demais $y$ iguais a $0$. As
+      cláusulas à esquerda usam $y$, as da direita usam $\nao y$.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{($\Leftarrow$)} Se todos os $a_i$ fossem falsos, a primeira cláusula forçaria
+      $y_1 = 1$, a segunda $y_2 = 1$, \ldots, e a última $(\nao y_{\ell-3} \lor \cdots)$
+      ficaria falsa. Contradição.
+    \end{column}
+  \end{columns}
+  \fonte{Garey e Johnson (1979), \S 3.1.1, Teorema 3.1~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: \prob{SAT} $\le_P$ \prob{3-SAT}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item \prob{3-SAT}: cada cláusula tem exatamente $3$ literais; continua NP-completo.
+      \item Cláusulas curtas: completar com variáveis novas usadas com os dois sinais.
+      \item Cláusulas longas: quebrar numa corrente ligada por variáveis novas.
+      \item A fórmula cresce linearmente: a redução é polinomial.
+      \item Técnica: \textbf{substituição local} (cada peça de $x$ vira uma peça de $f(x)$).
+    \end{itemize}
+  \end{block}
+  \fonte{Garey e Johnson (1979), \S 3.1.1 e \S 3.2.2~\cite{garey1979computers}.}
+\end{frame}
+
+% =====================================================================
+\section{3-SAT $\le_P$ Clique}
+
+\begin{frame}{Por que reduzir \prob{3-SAT} a \prob{Clique}?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small
+      \textbf{Problema:} sabemos que \prob{Clique} e \prob{Conj.\ Independente} se equivalem,
+      mas ainda não que são NP-completos. Falta ligar um problema de \textbf{grafos} a um
+      problema de \textbf{lógica}.
+      \medskip
+
+      \textbf{Solução:} um vértice por literal de cada cláusula; arestas entre os literais que
+      \textbf{podem ser verdadeiros juntos}.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      As duas escolhas de um 3-SAT viram escolhas no grafo:
+      \medskip
+
+      \begin{tabular}{ll}
+        \toprule
+        na fórmula & no grafo \\
+        \midrule
+        um literal verdadeiro & um vértice \\
+        \quad em cada cláusula & \quad em cada trio \\
+        sem $x_i$ e $\nao x_i$ juntos & vértices vizinhos \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.5.1~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 8.2 (versão para conj.\ independente)~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{A construção: definição}
+  \begin{block}{Redução (Cormen et al., Teorema 34.11)}
+    \small
+    Dada $\varphi = C_1 \land \cdots \land C_k$ em 3-FNC, monte o grafo $G$:
+    \begin{itemize}
+      \item para cada cláusula $C_r$ e cada literal $\ell$ de $C_r$, um vértice $v_\ell^r$
+            ($3k$ vértices);
+      \item aresta entre $v_\ell^r$ e $v_{\ell'}^s$ se $r \ne s$ (cláusulas diferentes)
+            \textbf{e} $\ell \ne \nao \ell'$ (não são complementares).
+    \end{itemize}
+    $f(\varphi) = (G, k)$.
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize
+    Dentro de um trio não há arestas: a clique pega no máximo um literal por cláusula. Para ter
+    $k$ vértices, ela precisa pegar \textbf{exatamente um} de cada. Montar $G$ custa $O(k^2)$.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 34.5.1, Teorema 34.11~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplo: o grafo de uma fórmula com $3$ cláusulas}
+  \begin{columns}[c]
+    \begin{column}{0.54\textwidth}
+      \centering
+      \begin{tikzpicture}[x=0.85cm, y=0.8cm]
+        \node[lit]  (a1) at (-1,1.7) {$x_1$};
+        \node[litS] (a2) at ( 0,1.7) {$\nao x_2$};
+        \node[lit]  (a3) at ( 1,1.7) {$\nao x_3$};
+        \node[lit]  (b1) at (-2.3, 0.6) {$\nao x_1$};
+        \node[lit]  (b2) at (-2.3,-0.3) {$x_2$};
+        \node[litS] (b3) at (-2.3,-1.2) {$x_3$};
+        \node[lit]  (c1) at ( 2.3, 0.6) {$x_1$};
+        \node[lit]  (c2) at ( 2.3,-0.3) {$x_2$};
+        \node[litS] (c3) at ( 2.3,-1.2) {$x_3$};
+        \node[font=\tiny, gray] at (0,2.25) {$C_1$};
+        \node[font=\tiny, gray] at (-2.3,1.15) {$C_2$};
+        \node[font=\tiny, gray] at ( 2.3,1.15) {$C_3$};
+        \begin{scope}[on background layer]
+          % arestas C1-C2 (menos a1-b1, a2-b2, a3-b3)
+          \foreach \u/\v in {a1/b2, a1/b3, a2/b1, a3/b1, a3/b2,
+                             a1/c1, a1/c2, a1/c3, a2/c1, a3/c1, a3/c2,
+                             b2/c1, b2/c2, b2/c3, b3/c1, b3/c2, b1/c2, b1/c3}
+            \draw[aresta] (\u) -- (\v);
+          \foreach \u/\v in {a2/b3, a2/c3, b3/c3}
+            \draw[ares] (\u) -- (\v);
+        \end{scope}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \scriptsize
+      $C_1 = (x_1 \lor \nao x_2 \lor \nao x_3)$\\
+      $C_2 = (\nao x_1 \lor x_2 \lor x_3)$\\
+      $C_3 = (x_1 \lor x_2 \lor x_3)$
+      \medskip
+
+      $9$ vértices e $21$ arestas: das $27$ ligações entre trios, saem as $6$ entre literais
+      complementares.
+      \medskip
+
+      Com $x_2 = 0$ e $x_3 = 1$, cada cláusula tem um literal verdadeiro: $\nao x_2$ em $C_1$,
+      $x_3$ em $C_2$ e em $C_3$. Esses três vértices formam uma clique de tamanho $k = 3$.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.5.1, Figura 34.14~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A prova nos dois sentidos}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{($\Rightarrow$) $\varphi$ satisfazível $\Rightarrow$ clique de tamanho $k$}
+        \scriptsize
+        Fixe uma atribuição que satisfaz $\varphi$. Em cada cláusula, escolha um literal
+        verdadeiro. Dois escolhidos estão em trios diferentes e não são complementares (os dois
+        são verdadeiros). Logo são vizinhos: os $k$ escolhidos formam uma clique.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{($\Leftarrow$) clique de tamanho $k$ $\Rightarrow$ $\varphi$ satisfazível}
+        \scriptsize
+        Sem arestas dentro de um trio, a clique tem um vértice de cada cláusula. Como não há
+        $x_i$ e $\nao x_i$ juntos, dá para tornar todos esses literais verdadeiros (as demais
+        variáveis ficam com qualquer valor). Cada cláusula fica satisfeita.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \medskip
+  \scriptsize
+  \textbf{Note:} $f$ só olha a fórmula; ela não sabe qual atribuição funciona. É a clique que
+  ``escolhe'' a atribuição. Com a aula passada: \prob{3-SAT} $\le_P$ \prob{Clique} $\le_P$
+  \prob{Conj.\ Independente} $\le_P$ \prob{Cobertura}.
+  \fonte{Cormen et al.\ (2009), \S 34.5.1, Teorema 34.11~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: \prob{3-SAT} $\le_P$ \prob{Clique}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Um vértice por ocorrência de literal; trios sem arestas internas.
+      \item Arestas entre trios, menos entre literais complementares.
+      \item Clique de tamanho $k$ $\iff$ um literal verdadeiro, consistente, por cláusula.
+      \item O grafo tem $3k$ vértices e $O(k^2)$ arestas.
+      \item \prob{Clique} e \prob{Conj.\ Independente} são NP-completos.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 34.5.1~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Clique $\le_P$ Cobertura por Vértices}
+
+\begin{frame}{Por que precisamos da \prob{Cobertura por Vértices}?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small
+      \textbf{Problema:} instalar câmeras nos cruzamentos de modo que toda rua seja vista por
+      alguma câmera, com no máximo $k$ câmeras.
+      \medskip
+
+      \textbf{Solução:} é a \prob{Cobertura por Vértices}. Ela é o ponto de partida para
+      \prob{Ciclo Hamiltoniano} no Cormen et al., então vale provar sua NP-completude
+      diretamente a partir da \prob{Clique}.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{center}
+      \begin{tikzpicture}
+        \grafohexa{\arestashexa}{0,2,4}{}
+      \end{tikzpicture}
+      \end{center}
+      {\scriptsize Com câmeras em $0$, $2$ e $4$, as $7$ ruas do grafo condutor ficam
+      cobertas. Duas câmeras não bastam.\par}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.5.2 e \S 34.5.3~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A construção: definição}
+  \begin{block}{Redução (Cormen et al., Teorema 34.12)}
+    \small
+    \prob{Cobertura}: dado $(G, k)$, existe $C \subseteq V$ com $|C| \le k$ que toca toda
+    aresta? A redução é $f(G, k) = (\overline{G},\; n - k)$.
+  \end{block}
+  \begin{exampleblock}{Por que funciona}
+    \scriptsize
+    $S$ é clique em $G$\\
+    $\iff$ nenhum par de $S$ é aresta de $\overline{G}$\\
+    $\iff$ toda aresta de $\overline{G}$ tem ao menos uma ponta fora de $S$\\
+    $\iff$ $V \setminus S$ é cobertura de $\overline{G}$.\\[2pt]
+    Como $|V \setminus S| = n - |S|$, clique de tamanho $k$ em $G$ $\iff$ cobertura de tamanho
+    $n - k$ em $\overline{G}$. Montar $\overline{G}$ custa $O(n^2)$.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 34.5.2, Teorema 34.12~\cite{cormen2009introduction};
+    Garey e Johnson (1979), \S 3.1.3, Lema 3.1~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{Exemplo: o grafo condutor e o seu complemento}
+  \begin{center}
+  \begin{tikzpicture}
+    \begin{scope}
+      \grafohexa{\arestashexa}{}{0/1, 1/2, 0/2}
+      \node[font=\scriptsize] at (0,-1.4) {$G$: clique $\{0,1,2\}$, $k = 3$};
+    \end{scope}
+    \draw[arc, blue!60!black] (1.5,0) -- node[above, font=\scriptsize] {$f$} (2.5,0);
+    \begin{scope}[xshift=4cm]
+      \grafohexa{\arestascomp}{3,4,5}{}
+      \node[font=\scriptsize] at (0,-1.4) {$\overline{G}$: cobertura $\{3,4,5\}$, $n - k = 3$};
+    \end{scope}
+  \end{tikzpicture}
+  \end{center}
+  \scriptsize
+  As $8$ arestas de $\overline{G}$ são $03, 04, 13, 14, 15, 24, 25, 35$: todas têm ponta em
+  $\{3,4,5\}$. Nenhuma liga dois vértices de $\{0,1,2\}$, porque esses pares são arestas de
+  $G$.
+  \fonte{Cormen et al.\ (2009), \S 34.5.2, Figura 34.15~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: \prob{Clique} $\le_P$ \prob{Cobertura}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Clique em $G$ $\iff$ independente em $\overline{G}$ $\iff$ complemento é cobertura.
+      \item $f(G, k) = (\overline{G}, n - k)$, em tempo $O(n^2)$.
+      \item O limiar muda: $k$ vira $n - k$. Errar isso é erro comum.
+      \item Os três problemas são NP-completos e equivalentes entre si.
+      \item Daqui saem \prob{Ciclo Hamiltoniano} e \prob{Caixeiro Viajante} (Cormen et al., \S 34.5.3--34.5.4).
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 34.5.2~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{3-SAT $\le_P$ Soma de Subconjuntos}
+
+\begin{frame}{Por que reduzir \prob{3-SAT} a um problema de números?}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \small
+      \textbf{Problema:} \prob{Soma de Subconjuntos} não tem grafo nem fórmula: só números e
+      um alvo $t$. Como uma soma pode ``saber'' se uma cláusula foi satisfeita?
+      \medskip
+
+      \textbf{Solução:} escrever os números em \textbf{base 10}, com uma coluna de dígitos para
+      cada variável e uma para cada cláusula. Somar números vira somar colunas
+      independentes.
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \textbf{\prob{Soma de Subconjuntos}:} dados inteiros positivos $a_1, \ldots, a_m$ e um
+      alvo $t$, existe subconjunto com soma exatamente $t$?
+      \medskip
+
+      Na aula passada: está em NP (certificado: o subconjunto) e tem PD $\Theta(mt)$,
+      pseudopolinomial.
+      \medskip
+
+      Hoje: é NP-completo. Os números da redução terão $\Theta(n + k)$ dígitos, isto é,
+      valor exponencial.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.5.5~\cite{cormen2009introduction};
+    Kleinberg e Tardos (2006), \S 8.8~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{A construção: definição}
+  \begin{block}{Redução (Cormen et al., Teorema 34.15)}
+    \scriptsize
+    $\varphi$ com variáveis $x_1, \ldots, x_n$ e cláusulas $C_1, \ldots, C_k$. Cada número tem
+    $n + k$ dígitos decimais: um por variável, depois um por cláusula.
+    \begin{itemize}
+      \item $v_i$: dígito $1$ na coluna $x_i$ e nas colunas das cláusulas que contêm $x_i$.
+      \item $v'_i$: dígito $1$ na coluna $x_i$ e nas colunas das cláusulas que contêm
+            $\nao x_i$.
+      \item $s_j$ e $s'_j$ (folgas): dígito $1$ e dígito $2$ na coluna $C_j$.
+      \item Alvo $t$: $1$ em cada coluna de variável, $4$ em cada coluna de cláusula.
+    \end{itemize}
+  \end{block}
+  \begin{exampleblock}{Intuição}
+    \scriptsize
+    O $1$ na coluna $x_i$ obriga a escolher \textbf{exatamente um} entre $v_i$ (verdadeiro) e
+    $v'_i$ (falso). Uma coluna de cláusula recebe de $0$ a $3$ dos literais; as folgas somam no
+    máximo $3$, então só alcança $4$ se ao menos um literal for verdadeiro.
+  \end{exampleblock}
+  \fonte{Cormen et al.\ (2009), \S 34.5.5, Teorema 34.15~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplo: a tabela de dígitos}
+  \begin{columns}[c]
+    \begin{column}{0.47\textwidth}
+      \tiny
+      \centering
+      \setlength{\tabcolsep}{3.2pt}
+      \renewcommand{\arraystretch}{0.92}
+      \begin{tabular}{l|ccc|cccc}
+        & $x_1$ & $x_2$ & $x_3$ & $C_1$ & $C_2$ & $C_3$ & $C_4$ \\
+        \midrule
+        $v_1$ & 1 & 0 & 0 & 1 & 0 & 0 & 1 \\
+        \rowcolor{orange!25} $v'_1$ & 1 & 0 & 0 & 0 & 1 & 1 & 0 \\
+        $v_2$ & 0 & 1 & 0 & 0 & 0 & 0 & 1 \\
+        \rowcolor{orange!25} $v'_2$ & 0 & 1 & 0 & 1 & 1 & 1 & 0 \\
+        \rowcolor{orange!25} $v_3$ & 0 & 0 & 1 & 0 & 0 & 1 & 1 \\
+        $v'_3$ & 0 & 0 & 1 & 1 & 1 & 0 & 0 \\
+        \midrule
+        \rowcolor{orange!25} $s_1$ & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\
+        \rowcolor{orange!25} $s'_1$ & 0 & 0 & 0 & 2 & 0 & 0 & 0 \\
+        $s_2$ & 0 & 0 & 0 & 0 & 1 & 0 & 0 \\
+        \rowcolor{orange!25} $s'_2$ & 0 & 0 & 0 & 0 & 2 & 0 & 0 \\
+        \rowcolor{orange!25} $s_3$ & 0 & 0 & 0 & 0 & 0 & 1 & 0 \\
+        $s'_3$ & 0 & 0 & 0 & 0 & 0 & 2 & 0 \\
+        \rowcolor{orange!25} $s_4$ & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\
+        \rowcolor{orange!25} $s'_4$ & 0 & 0 & 0 & 0 & 0 & 0 & 2 \\
+        \midrule
+        $t$ & 1 & 1 & 1 & 4 & 4 & 4 & 4 \\
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \scriptsize
+      $C_1 = (x_1 \lor \nao x_2 \lor \nao x_3)$, $C_2 = (\nao x_1 \lor \nao x_2 \lor \nao x_3)$,\\
+      $C_3 = (\nao x_1 \lor \nao x_2 \lor x_3)$, $C_4 = (x_1 \lor x_2 \lor x_3)$.
+      \medskip
+
+      Atribuição $x_1 = 0$, $x_2 = 0$, $x_3 = 1$: escolha $v'_1$, $v'_2$, $v_3$.
+      \medskip
+
+      Nas colunas das cláusulas, os literais somam $1, 2, 3, 1$. As folgas completam até $4$:
+      $s_1 + s'_1 = 3$, $s'_2 = 2$, $s_3 = 1$, $s_4 + s'_4 = 3$.
+      \medskip
+
+      Soma das linhas em laranja: $t = 1\,114\,444$.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.5.5, Figura 34.19~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{A prova e o tamanho dos números}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \scriptsize
+      \textbf{Sem vai-um.} Cada coluna soma no máximo $6$ (três literais e as folgas $1 + 2$).
+      Em base $10$, as colunas não se misturam: a soma é $t$ $\iff$ cada coluna bate.
+      \medskip
+
+      \textbf{($\Rightarrow$)} Pegue $v_i$ se $x_i = 1$, senão $v'_i$. Cada cláusula recebe
+      entre $1$ e $3$; complete com folgas $3$, $2$ ou $1$.
+      \medskip
+
+      \textbf{($\Leftarrow$)} A coluna $x_i$ força exatamente um entre $v_i$ e $v'_i$: isso
+      define a atribuição. A coluna $C_j$ vale $4$ e as folgas dão no máximo $3$: algum literal
+      de $C_j$ é verdadeiro.
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{alertblock}{Tamanho polinomial, valor exponencial}
+        \scriptsize
+        São $2n + 2k$ números de $n + k$ dígitos: $O((n + k)^2)$ dígitos no total, logo $f$ é
+        polinomial.
+        \smallskip
+
+        Mas o \textbf{valor} de $t$ é cerca de $10^{n + k}$. A PD $\Theta(mt)$ da aula passada
+        fica exponencial nessa instância. Por isso a redução não prova P $=$ NP: é a
+        NP-completude \textbf{fraca}.
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.5.5, Teorema 34.15~\cite{cormen2009introduction};
+    Garey e Johnson (1979), \S 4.2~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: \prob{3-SAT} $\le_P$ \prob{Soma de Subconjuntos}}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Uma coluna decimal por variável e por cláusula; base $10$ evita vai-um.
+      \item Coluna de variável com alvo $1$: escolhe $v_i$ ou $v'_i$, nunca os dois.
+      \item Coluna de cláusula com alvo $4$ e folgas até $3$: exige um literal verdadeiro.
+      \item Números com $O(n + k)$ dígitos: tamanho polinomial, valor exponencial.
+      \item Isso é compatível com a PD pseudopolinomial da aula passada.
+    \end{itemize}
+  \end{block}
+  \fonte{Cormen et al.\ (2009), \S 34.5.5~\cite{cormen2009introduction}.}
+\end{frame}
+
+% =====================================================================
+\section{Técnicas para a lista}
+
+\begin{frame}{Por que aprender técnicas, e não só reduções prontas?}
+  \begin{columns}[T]
+    \begin{column}{0.44\textwidth}
+      \small
+      \textbf{Problema:} na lista, os problemas são novos. Decorar as reduções de hoje não
+      basta.
+      \medskip
+
+      \textbf{Solução:} Garey e Johnson classificam as provas de NP-completude em três
+      técnicas, da mais simples à mais trabalhosa. Comece sempre pela primeira.
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \scriptsize
+      \centering
+      \begin{tabular}{>{\raggedright\arraybackslash}p{2.1cm}>{\raggedright\arraybackslash}p{3.6cm}}
+        \toprule
+        técnica & ideia e exemplo de hoje \\
+        \midrule
+        restrição & $B$ contém $A$ como caso particular (\prob{Soma} em \prob{Mochila}) \\
+        substituição local & cada peça de $x$ vira uma peça fixa de $f(x)$ (\prob{SAT} $\to$ \prob{3-SAT}) \\
+        projeto de componentes & ``engrenagens'' que simulam escolhas e restrições (\prob{3-SAT} $\to$ \prob{Clique}, \prob{Soma}) \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}
+  \fonte{Garey e Johnson (1979), \S 3.2.1--3.2.3~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{Restrição: definição}
+  \begin{block}{Prova por restrição}
+    \small
+    Para provar que $B$ é NP-difícil, mostre que um caso particular de $B$ (instâncias com
+    alguma restrição) é exatamente um problema $A$ já conhecido como NP-completo. A redução
+    $f$ só reescreve $x$ no formato de $B$.
+  \end{block}
+  \begin{exampleblock}{Exemplos}
+    \scriptsize
+    \begin{itemize}
+      \item \prob{Soma} $\le_P$ \prob{Mochila}: item $i$ com peso e valor $a_i$, $W = V = t$.
+            Peso $\le t$ e valor $\ge t$ obrigam soma $= t$.
+      \item \prob{Ciclo Hamiltoniano} $\le_P$ \prob{Caixeiro}: grafo completo com custo $0$ nas
+            arestas de $G$ e $1$ nas demais; existe ciclo de custo $\le 0$?
+      \item \prob{Clique} $\le_P$ \prob{Subgrafo Isomorfo}: o padrão é $K_k$.
+    \end{itemize}
+  \end{exampleblock}
+  \fonte{Garey e Johnson (1979), \S 3.2.1~\cite{garey1979computers};
+    Cormen et al.\ (2009), \S 34.5.4, Teorema 34.14~\cite{cormen2009introduction}.}
+\end{frame}
+
+\begin{frame}{Exemplo: \prob{Soma de Subconjuntos} $\le_P$ \prob{Partição}}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+      \scriptsize
+      \prob{Partição}: dá para dividir os números em duas metades de mesma soma? É a soma de
+      subconjuntos com $t = \sigma / 2$, onde $\sigma$ é a soma de todos.
+      \medskip
+
+      \textbf{Construção.} Dados $a_1, \ldots, a_m$ e $t$, acrescente dois números:
+      \[
+        b = \sigma + t, \qquad b' = 2\sigma - t.
+      \]
+      O total passa a $4\sigma$; cada metade precisa somar $2\sigma$.
+      \medskip
+
+      \textbf{Por que funciona.} $b + b' = 3\sigma > 2\sigma$: eles ficam em metades opostas.
+      A metade de $b'$ completa $2\sigma$ com números originais de soma $t$.
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \scriptsize
+      \textbf{Instância da aula passada:} $S = \{3, 5, 6, 7\}$, $t = 15$, $\sigma = 21$.
+      \medskip
+
+      $b = 36$, $b' = 27$. Total $84$, metade $42$.
+      \medskip
+
+      \begin{tabular}{ll}
+        \toprule
+        metade 1 & metade 2 \\
+        \midrule
+        $27 + 3 + 5 + 7 = 42$ & $36 + 6 = 42$ \\
+        \bottomrule
+      \end{tabular}
+      \medskip
+
+      A metade de $b'$ traz o certificado $\{3, 5, 7\}$ da soma $15$. É \textbf{você} quem vai
+      escrever essa redução no desafio do tutorial.
+    \end{column}
+  \end{columns}
+  \fonte{Garey e Johnson (1979), \S 3.1.5 (Partição)~\cite{garey1979computers};
+    Kleinberg e Tardos (2006), \S 8.8~\cite{kleinberg2006algorithm}.}
+\end{frame}
+
+\begin{frame}{O mapa depois de hoje}
+  \begin{columns}[c]
+    \begin{column}{0.52\textwidth}
+      \begin{center}
+      \begin{tikzpicture}[font=\tiny, node distance=3mm and 2mm,
+          n/.style={caixa, font=\tiny, inner sep=2pt},
+          h/.style={n, fill=orange!20, draw=orange!80!black}]
+        \node[n] (cs) {\prob{Circuit-Sat}};
+        \node[n, below=of cs] (sat) {\prob{SAT}};
+        \node[h, below=of sat] (3s) {\prob{3-SAT}};
+        \node[h, below left=of 3s, xshift=4mm] (cl) {\prob{Clique}};
+        \node[h, below right=of 3s, xshift=-4mm] (ss) {\prob{Soma Subconj.}};
+        \node[h, below=of cl] (vc) {\prob{Cobertura}};
+        \node[n, below=of vc] (hc) {\prob{Ciclo Ham.}};
+        \node[n, right=of hc] (tsp) {\prob{Caixeiro}};
+        \node[h, below=of ss, yshift=-3mm, xshift=6mm] (pa) {\prob{Partição}};
+        \node[h, left=of pa] (mo) {\prob{Mochila}};
+        \foreach \a/\b in {cs/sat, sat/3s, 3s/cl, 3s/ss, cl/vc, vc/hc, hc/tsp, ss/mo, ss/pa}
+          \draw[arc, thin] (\a) -- (\b);
+      \end{tikzpicture}
+      \end{center}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \scriptsize
+      Em laranja, o que foi provado hoje. Em azul, o resto da Figura 34.13 de Cormen et al.:
+      \prob{Cobertura} $\le_P$ \prob{Ciclo Hamiltoniano} usa um componente de $12$ vértices por
+      aresta (\S 34.5.3).
+      \medskip
+
+      Karp (1972) provou $21$ problemas assim; Garey e Johnson (1979) catalogaram mais de
+      $300$. Antes de provar do zero, procure o problema no catálogo.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.5, Figura 34.13~\cite{cormen2009introduction};
+    Karp (1972)~\cite{karp1972reducibility}; Garey e Johnson (1979), apêndice~\cite{garey1979computers}.}
+\end{frame}
+
+\begin{frame}{Recapitulando: técnicas}
+  \begin{block}{O que aprendemos}
+    \begin{itemize}
+      \item Restrição: o problema novo contém um NP-completo como caso particular.
+      \item Substituição local: cada peça da instância vira uma peça fixa.
+      \item Projeto de componentes: engrenagens para escolhas e para restrições.
+      \item \prob{Soma} $\le_P$ \prob{Mochila} e \prob{Partição}; \prob{Ham.} $\le_P$
+            \prob{Caixeiro}.
+      \item Tente primeiro a restrição; ela resolve boa parte dos exercícios.
+    \end{itemize}
+  \end{block}
+  \fonte{Garey e Johnson (1979), \S 3.2~\cite{garey1979computers}.}
+\end{frame}
+
+% =====================================================================
+\section*{Fechando}
+
+\begin{frame}{Fechando}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{O que levar desta aula}
+        \scriptsize
+        \begin{itemize}
+          \item Receita: em NP, escolher $A$, construir $f$, ($\Rightarrow$), ($\Leftarrow$),
+                tempo.
+          \item \prob{SAT} $\to$ \prob{3-SAT}: corrente de variáveis novas.
+          \item \prob{3-SAT} $\to$ \prob{Clique}: um vértice por literal.
+          \item \prob{Clique} $\to$ \prob{Cobertura}: complemento e $n - k$.
+          \item \prob{3-SAT} $\to$ \prob{Soma}: colunas decimais.
+          \item Técnicas: restrição, substituição local, componentes.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \scriptsize
+      \textbf{Para casa:} o tutorial implementa as quatro reduções e testa cada uma contra a
+      força bruta. O desafio é a redução para \prob{Partição}.
+      \medskip
+
+      \textbf{Lista de reduções:} vale 30\% da Prova~3 (08/12). Para cada exercício,
+      escreva os seis passos da receita.
+      \medskip
+
+      \textbf{Próxima aula:} diante de um NP-completo, como resolver mesmo assim?
+      Backtracking e poda com limitante.
+    \end{column}
+  \end{columns}
+  \fonte{Cormen et al.\ (2009), \S 34.5~\cite{cormen2009introduction};
+    Garey e Johnson (1979), cap.~3~\cite{garey1979computers}.}
+\end{frame}
+
+% =====================================================================
+\section*{Referências}
+\begin{frame}[allowframebreaks]{Referências}
+  \tiny
+  \nocite{*}
+  \bibliographystyle{plain}
+  \bibliography{referencias}
+\end{frame}
+
+\end{document}

@@ -217,6 +217,15 @@ title: "COMP0498 — Algoritmos e Estruturas de Dados II — Turma 2 · 2026/2"
     </div>
   </a>
 
+  <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/aula-23-np-completude-transformacoes-polinomiais-e-reducoes' | relative_url }}">
+    <div class="week-num">23</div>
+    <div class="week-body">
+      <div class="week-title">NP-completude: transformações polinomiais e reduções</div>
+      <div class="week-desc">A receita de uma redução; SAT ≤ 3-SAT; 3-SAT ≤ Clique; Clique ≤ Cobertura por Vértices; 3-SAT ≤ Soma de Subconjuntos; restrição, substituição local e projeto de componentes.</div>
+      <div class="week-badges"><span class="week-badge pdf">1 PDF</span><span class="week-badge">1 Notebook</span></div>
+    </div>
+  </a>
+
   <a class="week-card" href="{{ 'algoritmos-2/2026-2-T02/lista-de-exercicios' | relative_url }}" style="background: #eef7f1; border-color: #1f6f43;">
     <div class="week-num" style="color: #1f6f43;">📝</div>
     <div class="week-body">
